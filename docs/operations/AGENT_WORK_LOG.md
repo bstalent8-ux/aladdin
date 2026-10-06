@@ -1,5 +1,14 @@
 # Agent Work Log
 
+## Session — 2026-10-06: showroom full-stack Phase 0 isolation and audit
+
+- Purpose: user changed showroom from frontend-only preview to phased backend-backed implementation without production-route changes.
+- Created `feature/showroom-fullstack-v2` in `D:/projects/aladdin-wt-showroom-fullstack-v2` from fetched main `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`, after inspecting status/branches/all worktrees. Left dirty source and concurrent auth/installer/admin work untouched.
+- Recorded [source map, backend gaps and continuation](../frontend/showroom-fullstack-v2.md). Reuse organizations/memberships, canonical commerce/orders, KPI persistence, referrals, CRM/jobs/points. No parallel identity model or DB mutation.
+- Validation evidence: Git isolation inspected; Docker container inventory succeeded read-only after sandbox permission retry. Port 3023 unavailable. Application lint/typecheck/tests/build and DB reset/pgTAP not run because this checkpoint changes documentation only; they remain mandatory for implemented phases.
+- Pending: Phase 1–10, isolated database runtime, browser parity and all implementation validation. No routes or migrations added, no preview files ported, no push/PR/deploy.
+- Documentation validation: `python scripts/check_doc_links.py` passed (1004 internal links, 123 Markdown files, zero broken); `git diff --check` passed.
+
 ## Session — 2026-10-05: isolated installer settings preview
 
 - Worktree: `C:/Users/scorp/.codex/worktrees/installer-experience-pr-clean/aladdin`; branch `feature/installer-experience-pr-clean`, base `e7e7c50`.
