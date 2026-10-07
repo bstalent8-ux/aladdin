@@ -2483,10 +2483,102 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          code: string
+          created_at: string
+          is_active: boolean
+          label_ar: string
+          label_en: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          is_active?: boolean
+          label_ar: string
+          label_en: string
+          sort_order: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          is_active?: boolean
+          label_ar?: string
+          label_en?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          created_by: string
+          id: string
+          object_key: string
+          organization_id: string
+          product_id: string
+          slot: number
+          state: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          created_by: string
+          id?: string
+          object_key: string
+          organization_id: string
+          product_id: string
+          slot: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          object_key?: string
+          organization_id?: string
+          product_id?: string
+          slot?: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_product_images_product"
+            columns: ["organization_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_published_products"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_product_images_product"
+            columns: ["organization_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "product_images_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          archived_at: string | null
           brand: string | null
           category: Database["public"]["Enums"]["product_category"]
+          category_code: string | null
+          code_normalized: string | null
+          colors: string[]
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -2496,15 +2588,21 @@ export type Database = {
           organization_id: string
           published_at: string | null
           short_description: string | null
+          size_label: string | null
           sku: string | null
           status: Database["public"]["Enums"]["product_status"]
           unit: Database["public"]["Enums"]["product_unit"]
           updated_at: string
           version: number
+          weight_kg: number | null
         }
         Insert: {
+          archived_at?: string | null
           brand?: string | null
           category: Database["public"]["Enums"]["product_category"]
+          category_code?: string | null
+          code_normalized?: string | null
+          colors?: string[]
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -2514,15 +2612,21 @@ export type Database = {
           organization_id: string
           published_at?: string | null
           short_description?: string | null
+          size_label?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           unit: Database["public"]["Enums"]["product_unit"]
           updated_at?: string
           version?: number
+          weight_kg?: number | null
         }
         Update: {
+          archived_at?: string | null
           brand?: string | null
           category?: Database["public"]["Enums"]["product_category"]
+          category_code?: string | null
+          code_normalized?: string | null
+          colors?: string[]
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -2532,13 +2636,22 @@ export type Database = {
           organization_id?: string
           published_at?: string | null
           short_description?: string | null
+          size_label?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           unit?: Database["public"]["Enums"]["product_unit"]
           updated_at?: string
           version?: number
+          weight_kg?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "products_created_by_fkey"
             columns: ["created_by"]
@@ -3540,19 +3653,31 @@ export type Database = {
         Row: {
           brand: string | null
           category: Database["public"]["Enums"]["product_category"] | null
+          category_code: string | null
+          colors: string[] | null
           id: string | null
           image_ref: string | null
           name: string | null
           organization_id: string | null
+          primary_image_key: string | null
           published_at: string | null
           short_description: string | null
+          size_label: string | null
           sku: string | null
           supplier_name: string | null
           supplier_slug: string | null
           supplier_verified: boolean | null
           unit: Database["public"]["Enums"]["product_unit"] | null
+          weight_kg: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "products_organization_id_fkey"
             columns: ["organization_id"]
@@ -5255,6 +5380,45 @@ export type Database = {
         }
         Returns: undefined
       }
+      own_product_create: {
+        Args: {
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_colors?: string[]
+          p_description?: string
+          p_name: string
+          p_org_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: string
+      }
+      own_product_set_archived: {
+        Args: {
+          p_archived: boolean
+          p_expected_version: number
+          p_product_id: string
+        }
+        Returns: number
+      }
+      own_product_update: {
+        Args: {
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_colors?: string[]
+          p_description?: string
+          p_expected_version: number
+          p_name: string
+          p_product_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: number
+      }
       pending_registration_consume: {
         Args: never
         Returns: {
@@ -5298,6 +5462,19 @@ export type Database = {
       portfolio_item_update: {
         Args: { p_description: string; p_item_id: string; p_title: string }
         Returns: undefined
+      }
+      product_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      product_image_remove: { Args: { p_image_id: string }; Returns: string }
+      product_image_reorder: {
+        Args: { p_image_ids: string[]; p_product_id: string }
+        Returns: undefined
+      }
+      product_image_request_upload: {
+        Args: { p_content_type: string; p_product_id: string }
+        Returns: string
       }
       profile_set_display_name: {
         Args: { p_display_name: string }
@@ -5694,6 +5871,9 @@ export type Database = {
         | "roll"
         | "bag"
         | "pack"
+        | "gallon"
+        | "pail"
+        | "sheet"
       professional_asset_state: "pending" | "ready" | "deleted"
       project_status: "planned" | "active" | "completed"
       public_profile_status: "hidden" | "listed"
@@ -5746,12 +5926,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5775,11 +5955,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5800,11 +5980,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5825,11 +6005,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5842,11 +6022,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5973,6 +6153,9 @@ export const Constants = {
         "roll",
         "bag",
         "pack",
+        "gallon",
+        "pail",
+        "sheet",
       ],
       professional_asset_state: ["pending", "ready", "deleted"],
       project_status: ["planned", "active", "completed"],

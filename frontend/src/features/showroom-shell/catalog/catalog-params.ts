@@ -1,5 +1,4 @@
-import { PRODUCT_CATEGORIES } from "@/features/commerce/constants";
-import type { ProductCategory } from "@/features/commerce/constants";
+import { CANONICAL_CATEGORY_CODES, type CanonicalCategoryCode } from "@/features/commerce/constants";
 
 /** Page size of the production catalog query (`LIST_LIMIT` in server/queries/commerce.ts). */
 export const CATALOG_PAGE_SIZE = 100;
@@ -7,7 +6,8 @@ export const CATALOG_MAX_LIMIT = 500;
 
 export type ShowroomCatalogParams = {
   q?: string;
-  category?: ProductCategory;
+  /** Canonical taxonomy code. Historical, unclassified products are matched only by "all categories". */
+  category?: CanonicalCategoryCode;
   supplier?: string;
   limit: number;
 };
@@ -28,7 +28,7 @@ export function parseShowroomCatalogParams(raw: {
   limit?: string | string[];
 }): ShowroomCatalogParams {
   const q = first(raw.q)?.trim().slice(0, 100) || undefined;
-  const category = PRODUCT_CATEGORIES.find((c) => c === first(raw.category));
+  const category = CANONICAL_CATEGORY_CODES.find((c) => c === first(raw.category));
   const supplierRaw = first(raw.supplier);
   const supplier = supplierRaw && UUID.test(supplierRaw) ? supplierRaw : undefined;
   const n = Number.parseInt(first(raw.limit) ?? "", 10);

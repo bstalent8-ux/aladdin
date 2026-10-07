@@ -30,7 +30,15 @@ export type QuotationStatus = NonNullable<QuotationListRow["status"]>;
 const LIST_LIMIT = 100;
 
 // ---- Catalog (cross-tenant, published only) --------------------------------
-export type CatalogFilters = { search?: string; category?: ProductCategory; supplierOrgId?: string; limit?: number };
+export type CatalogFilters = {
+  search?: string;
+  /** Legacy broad category (production /b2b catalog). */
+  category?: ProductCategory;
+  /** Canonical taxonomy code (showroom catalog); products without one are simply not matched. */
+  categoryCode?: string;
+  supplierOrgId?: string;
+  limit?: number;
+};
 
 export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise<CatalogRow[]> {
   let q = supabase
@@ -39,6 +47,7 @@ export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise
     .order("published_at", { ascending: false })
     .limit(f.limit ?? LIST_LIMIT);
   if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.supplierOrgId) q = q.eq("organization_id", f.supplierOrgId);
   if (f.search && f.search.trim()) {
     const term = sanitizeSearchTerm(f.search);
@@ -63,7 +72,18 @@ export async function getCatalogProduct(supabase: DB, id: string): Promise<Catal
 export async function listOwnProducts(
   supabase: DB,
   orgId: string,
-  f: { search?: string; status?: "draft" | "published"; category?: ProductCategory } = {},
+  f: {
+    search?: string;
+    status?: "draft" | "published";
+    category?: ProductCategory;
+    /** Canonical taxonomy code, or "unclassified" for historical products that have none. */
+    categoryCode?: string;
+    /**
+     * Archived products are retired: production callers never see them (the default).
+     * `include` / `only` serve the showroom's management page.
+     */
+    archived?: "exclude" | "include" | "only";
+  } = {},
 ): Promise<ProductRow[]> {
   let q = supabase
     .from("products")
@@ -72,8 +92,13 @@ export async function listOwnProducts(
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(LIST_LIMIT);
+  const archived = f.archived ?? "exclude";
+  if (archived === "exclude") q = q.is("archived_at", null);
+  if (archived === "only") q = q.not("archived_at", "is", null);
   if (f.status) q = q.eq("status", f.status);
   if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode === "unclassified") q = q.is("category_code", null);
+  else if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.search && f.search.trim()) {
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
@@ -99,16 +124,37 @@ export async function listOwnProducts(
 export async function ownProductCounts(
   supabase: DB,
   orgId: string,
-): Promise<{ total: number; published: number; draft: number }> {
+): Promise<{ total: number; published: number; draft: number; archived: number }> {
   const { data, error } = await supabase
     .from("products")
-    .select("status")
+    .select("status, archived_at")
     .eq("organization_id", orgId)
     .is("deleted_at", null);
   if (error) throw error;
   const rows = data ?? [];
-  const published = rows.filter((r) => r.status === "published").length;
-  return { total: rows.length, published, draft: rows.length - published };
+  // Archived products are retired: they count only as `archived`, never as a draft.
+  const archived = rows.filter((r) => r.archived_at !== null).length;
+  const live = rows.filter((r) => r.archived_at === null);
+  const published = live.filter((r) => r.status === "published").length;
+  return { total: live.length, published, draft: live.length - published, archived };
+}
+
+/**
+ * One product OWNED by the organization (any lifecycle state). Filtering by the
+ * organization as well as the id is what keeps another tenant's published product
+ * — which RLS lets every authenticated user read — from ever opening in a
+ * management screen.
+ */
+export async function getOwnProduct(supabase: DB, orgId: string, id: string): Promise<ProductRow | null> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .eq("organization_id", orgId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 export type ProductDemand = { requests: number };

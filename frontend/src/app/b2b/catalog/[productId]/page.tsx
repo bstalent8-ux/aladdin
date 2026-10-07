@@ -4,6 +4,7 @@ import { getMessages } from "@/lib/i18n/translate";
 import { getCatalogProduct } from "@/server/queries/commerce";
 import { BackLink } from "@/features/sales/page-parts";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
+import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,11 @@ export default async function CatalogProductPage({
     notFound();
   }
 
+  // The uploaded photos (RLS: a published product's ready images), signed with the caller's own access.
+  const gallery = (await listProductImages(supabase, [product.id])).get(product.id) ?? [];
+  const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey));
+  const imageUrls = gallery.map((g) => signed.get(g.objectKey)).filter((u): u is string => Boolean(u));
+
   const isOwnOrg = product.organization_id === org.organizationId;
   const canRfq = org.canManageSales || org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
 
@@ -32,6 +38,7 @@ export default async function CatalogProductPage({
     <CatalogProductDetail
       product={{ ...product, id: product.id, category: product.category, unit: product.unit, organization_id: product.organization_id }}
       m={m}
+      imageUrls={imageUrls}
       isOwnOrg={isOwnOrg}
       canRfq={canRfq}
       rfqHref={`/b2b/rfqs/new?product=${product.id}`}

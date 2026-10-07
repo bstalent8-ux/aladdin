@@ -209,14 +209,15 @@ select ok(
 -- Staging-prep Increment 5 (20260924090005_avatars_storage.sql) added a third
 -- bucket (avatars), mirroring this exact same 3-certificates/3-portfolio shape
 -- plus its own public door: 4 more policies (insert/select-own/delete-own/
--- select-published), for 11 total. Updated here rather than left stale,
+-- select-published), for 11 total; Own Products (20261008090001) then added the
+-- four named product_images_* policies of the private product-images bucket, for 15. Updated here rather than left stale,
 -- since this file's own point is to name every policy explicitly so a NEW
 -- one cannot pass quietly — the avatars bucket is a reviewed addition, named.
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  11,
-  'Eleven policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors'
+  15,
+  'Fifteen policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261008090001)'
 );
 
 select is(
@@ -227,6 +228,10 @@ select is(
     'avatars_insert_authorized',
     'avatars_select_own',
     'avatars_select_published',
+    'product_images_delete_writer',
+    'product_images_insert_authorized',
+    'product_images_select_org',
+    'product_images_select_public',
     'professional_certificates_delete_own',
     'professional_certificates_insert_own',
     'professional_certificates_select_own',

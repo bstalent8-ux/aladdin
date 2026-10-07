@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PRODUCT_CATEGORIES } from "@/features/commerce/constants";
+import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { resolveCatalogView } from "@/lib/ui/catalog-view";
 import { CATALOG_MAX_LIMIT, CATALOG_PAGE_SIZE, parseShowroomCatalogParams } from "./catalog-params";
 
@@ -10,17 +10,18 @@ describe("showroom catalog URL parsing", () => {
     expect(parseShowroomCatalogParams({})).toEqual({ q: undefined, category: undefined, supplier: undefined, limit: CATALOG_PAGE_SIZE });
   });
 
-  it("keeps a trimmed search term and a real production category", () => {
-    expect(parseShowroomCatalogParams({ q: "  marble ", category: "finishing" })).toMatchObject({ q: "marble", category: "finishing" });
+  it("keeps a trimmed search term and a canonical category", () => {
+    expect(parseShowroomCatalogParams({ q: "  marble ", category: "marble_alternative" })).toMatchObject({ q: "marble", category: "marble_alternative" });
   });
 
-  it.each(PRODUCT_CATEGORIES)("accepts the production category %s", (category) => {
+  it.each(CANONICAL_CATEGORY_CODES)("accepts the canonical category %s", (category) => {
     expect(parseShowroomCatalogParams({ category }).category).toBe(category);
   });
 
-  it("drops a category that the production taxonomy does not have (no invented filters)", () => {
+  it("drops anything that is not a canonical code — legacy broad codes and Arabic labels are not identifiers", () => {
     expect(parseShowroomCatalogParams({ category: "ورق حائط" }).category).toBeUndefined();
-    expect(parseShowroomCatalogParams({ category: "wallpaper" }).category).toBeUndefined();
+    expect(parseShowroomCatalogParams({ category: "finishing" }).category).toBeUndefined();
+    expect(parseShowroomCatalogParams({ category: "WALLPAPER" }).category).toBeUndefined();
   });
 
   it("accepts only a well-formed supplier id", () => {
@@ -30,7 +31,7 @@ describe("showroom catalog URL parsing", () => {
   });
 
   it("takes the first value of a repeated parameter", () => {
-    expect(parseShowroomCatalogParams({ q: ["a", "b"], category: ["tools", "supply"] })).toMatchObject({ q: "a", category: "tools" });
+    expect(parseShowroomCatalogParams({ q: ["a", "b"], category: ["paints", "curtains"] })).toMatchObject({ q: "a", category: "paints" });
   });
 
   it("bounds an over-long search term", () => {

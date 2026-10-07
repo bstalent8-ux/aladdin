@@ -22,6 +22,11 @@ const row = (over: Partial<CatalogRow> & { id: string }): CatalogRow => ({
   supplier_slug: "cairo",
   supplier_verified: true,
   unit: "square_meter",
+  category_code: null,
+  colors: [],
+  weight_kg: null,
+  size_label: null,
+  primary_image_key: null,
   ...over,
 });
 

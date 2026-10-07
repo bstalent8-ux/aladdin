@@ -6,7 +6,7 @@
 --   * SAVE / UNSAVE — membership-scoped, duplicate-safe, idempotent on removal.
 --   * TENANCY — one organization can neither write to, read, nor remove another's
 --     shortlist, and a product that is not published cannot be saved.
---   * No direct table writes and no anonymous access.
+--   * No direct table writes and no anonymous access (anon cannot call save/unsave).
 --
 -- Fixtures, from seed-pilot:
 --   Hana  (70000001…001) org.manage on Cairo Ceramics Showroom (9c…001)
@@ -15,7 +15,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(15);
+select plan(17);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -27,7 +27,7 @@ create temp table _p on commit drop as
   select
     (select id from public.products where organization_id = :'orgM'::uuid and status = 'published' and deleted_at is null order by id limit 1) as pub,
     (select id from public.products where status = 'draft' and deleted_at is null order by id limit 1) as draft;
-grant select on _p to authenticated;
+grant select on _p to authenticated, anon;
 -- Start from a known shortlist for the two organizations under test.
 delete from public.saved_products where organization_id in (:'orgC'::uuid, :'orgM'::uuid);
 
@@ -77,6 +77,14 @@ select lives_ok(format('select public.unsave_product(%L, %L)', :'orgC', (select 
 select throws_ok(
   format('insert into public.saved_products (organization_id, product_id, saved_by) values (%L, %L, auth.uid())', :'orgC', (select pub from _p)),
   '42501', null, 'saved_products cannot be written directly');
+
+-- F. Anonymous callers cannot invoke either mutation RPC.
+reset role;
+set local role anon;
+select throws_ok(format('select public.save_product(%L, %L)', :'orgC', (select pub from _p)),
+  '42501', null, 'anon cannot call save_product');
+select throws_ok(format('select public.unsave_product(%L, %L)', :'orgC', (select pub from _p)),
+  '42501', null, 'anon cannot call unsave_product');
 
 select * from finish();
 rollback;

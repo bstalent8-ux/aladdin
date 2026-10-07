@@ -24,7 +24,10 @@ export function CatalogProductDetail({
   rfqHref,
   back,
   extra,
+  imageUrls = [],
 }: {
+  /** Signed URLs of the product's uploaded photos, main first. Empty -> the legacy `image_ref`. */
+  imageUrls?: string[];
   product: CatalogRow & {
     id: string;
     category: NonNullable<CatalogRow["category"]>;
@@ -40,6 +43,13 @@ export function CatalogProductDetail({
   /** Optional route-specific controls shown beside the quote action. */
   extra?: ReactNode;
 }) {
+  // A canonical category wins; a historical product shows its legacy broad category (never a guessed canonical one).
+  const categoryLabel =
+    product.category_code && product.category_code in m.commerce.canonicalCategories
+      ? m.commerce.canonicalCategories[product.category_code as keyof typeof m.commerce.canonicalCategories]
+      : m.commerce.categories[product.category];
+  const colors = product.colors ?? [];
+  const f = m.showroomProducts.fields;
   return (
     <div className="mx-auto max-w-3xl pb-16 tablet:pb-0">
       {back}
@@ -48,11 +58,22 @@ export function CatalogProductDetail({
         {/* The material itself, at the size a buyer can actually judge it — the
             card grid's thumbnail is for scanning, this is for deciding. */}
         <div className="grid gap-md tablet:grid-cols-[minmax(0,15rem)_1fr] tablet:items-start">
-          <ProductMedia src={product.image_ref} alt={product.name ?? ""} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <ProductMedia src={imageUrls[0] ?? product.image_ref} alt={product.name ?? ""} />
+            {imageUrls.length > 1 ? (
+              <ul className="grid grid-cols-3 gap-2" data-testid="product-detail-thumbnails">
+                {imageUrls.slice(1).map((url) => (
+                  <li key={url}>
+                    <ProductMedia src={url} alt={product.name ?? ""} aspect="aspect-square" />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-headline text-fg">{product.name}</h1>
-              <Badge tone="neutral">{m.commerce.categories[product.category]}</Badge>
+              <Badge tone="neutral">{categoryLabel}</Badge>
             </div>
             {product.brand ? <p className="mt-1 text-body text-fg-secondary">{product.brand}</p> : null}
           </div>
@@ -75,6 +96,21 @@ export function CatalogProductDetail({
               ) : null}
             </span>
           </Field>
+          {product.size_label ? <Field label={f.size}><span dir="auto">{product.size_label}</span></Field> : null}
+          {product.weight_kg !== null && product.weight_kg !== undefined ? (
+            <Field label={f.weight}><span dir="ltr">{Number(product.weight_kg)}</span></Field>
+          ) : null}
+          {colors.length > 0 ? (
+            <div className="col-span-2 tablet:col-span-3">
+              <Field label={f.colors}>
+                <ul className="flex flex-wrap gap-1.5" data-testid="product-detail-colors">
+                  {colors.map((c) => (
+                    <li key={c}><Badge tone="neutral">{c}</Badge></li>
+                  ))}
+                </ul>
+              </Field>
+            </div>
+          ) : null}
         </dl>
 
         <div className="mt-lg flex flex-wrap items-center gap-sm border-t pt-md">

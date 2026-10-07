@@ -8,7 +8,8 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/workspace-layout";
 import { StatePanel } from "@/components/ui/primitives";
 import { SearchIcon, StorefrontIcon } from "@/components/ui/icons";
-import { PRODUCT_CATEGORIES } from "@/features/commerce/constants";
+import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
+import { resolveProductImage, signProductImageUrls } from "@/server/queries/product-images";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { CATALOG_MAX_LIMIT, CATALOG_PAGE_SIZE, parseShowroomCatalogParams } from "./catalog-params";
 import { CatalogResults } from "./catalog-results";
@@ -43,9 +44,18 @@ export async function ShowroomCatalog({
   const view = resolveCatalogView((await cookies()).get(CATALOG_VIEW_COOKIE)?.value);
 
   const [products, saved] = await Promise.all([
-    listCatalog(supabase, { search: params.q, category: params.category, supplierOrgId: params.supplier, limit: params.limit }),
+    listCatalog(supabase, { search: params.q, categoryCode: params.category, supplierOrgId: params.supplier, limit: params.limit }),
     savedProductIds(supabase, org.organizationId),
   ]);
+
+  // Uploaded primary photos are private objects: sign them with the caller's own access,
+  // falling back to the legacy image reference (or the placeholder) per product.
+  const signed = await signProductImageUrls(supabase, products.map((p) => p.primary_image_key));
+  const imageUrls: Record<string, string> = {};
+  for (const p of products) {
+    const url = p.id ? resolveProductImage(p, signed) : null;
+    if (p.id && url) imageUrls[p.id] = url;
+  }
 
   const filtered = Boolean(params.q || params.category || params.supplier);
   const supplierName = params.supplier ? (products[0]?.supplier_name ?? null) : null;
@@ -76,7 +86,7 @@ export async function ShowroomCatalog({
             label: m.commerce.fields.category,
             value: params.category ?? "",
             anyLabel: m.commerce.catalog.allCategories,
-            options: PRODUCT_CATEGORIES.map((c) => ({ value: c, label: m.commerce.categories[c] })),
+            options: CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: m.commerce.canonicalCategories[c] })),
           },
         ]}
         clearLabel={t("showroomCatalog.clearFilters")}
@@ -108,6 +118,7 @@ export async function ShowroomCatalog({
             savedIds={[...saved]}
             initialView={view}
             countLabel={t("showroomCatalog.count", { count: products.length })}
+            imageUrls={imageUrls}
           />
           {mayHaveMore ? (
             <div className="flex flex-col items-center gap-2 pt-sm">

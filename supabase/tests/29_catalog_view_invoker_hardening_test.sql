@@ -70,9 +70,11 @@ select ok(
   has_function_privilege('authenticated', 'app._catalog_supplier_identity()', 'execute'),
   'authenticated holds EXECUTE on the helper');
 
--- The view still projects EXACTLY the approved 13 columns — no private org
--- column (created_by / status / deleted_at / timestamps) crept in via the
--- rebuild, and none of the original columns was dropped.
+-- The view still projects EXACTLY the approved columns — no private org
+-- column (created_by / status / deleted_at / archived_at / timestamps) crept in via
+-- a rebuild, and none of the original columns was dropped. The five trailing
+-- columns are public product attributes added additively by Own Products
+-- (20261008090001): canonical category, colors, weight, size and the primary image key.
 select set_eq(
   $$ select a.attname::text
        from pg_attribute a
@@ -80,8 +82,9 @@ select set_eq(
         and a.attnum > 0 and not a.attisdropped $$,
   $$ values ('id'),('organization_id'),('supplier_name'),('supplier_verified'),
             ('supplier_slug'),('name'),('sku'),('category'),('brand'),
-            ('short_description'),('unit'),('image_ref'),('published_at') $$,
-  'the catalog view projects exactly the 13 approved columns (no private org data)');
+            ('short_description'),('unit'),('image_ref'),('published_at'),
+            ('category_code'),('colors'),('weight_kg'),('size_label'),('primary_image_key') $$,
+  'the catalog view projects exactly the 18 approved columns (no private org data)');
 
 -- ===== C. Relation grants stay least-privilege ==============================
 select ok(
