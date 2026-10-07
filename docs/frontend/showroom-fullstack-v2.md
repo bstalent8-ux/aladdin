@@ -14,6 +14,12 @@ Continue the existing showroom design with real tenant-scoped behavior while kee
 
 ## Rationale and isolation audit
 
+### Phase 1 approved business mapping (2026-10-07)
+
+The user explicitly approved enabling business creation with canonical `design_office`, displayed as **المهندس / Engineer**. This is an additional business-creation option, not a new organization enum or a change to personal engineer registration. Preserve the four current organization types, existing entitlement, membership/capability, verification and account-status behavior. The existing SQL organization enum and onboarding RPCs already accept `design_office`; remove application-only restrictions without adding a migration or regenerating unchanged DB types. Registration choices remain separate from the add-business picker. Production installer source files and context-action redirects remain unchanged.
+
+Phase 1 implements only the authenticated isolated shell, navigation and real workspace switching. All leaf content remains explicitly unavailable until its later phase; no mock business metrics or fake CRUD success.
+
 `git status`, branch/worktree inventory and `git fetch origin --prune` were completed before creating this worktree. The main checkout contains unrelated dirty auth work. Other dirty worktrees include installer-jobs-work, showroom-commercial-suite-preview, showroom-approval-workflow-acd3de, installer-experience-promotion, and aladdin-dashboard-runtime. Scratchpad checkouts also contain deletions. None may be reset, cleaned, committed, or copied wholesale.
 
 The clean installer-experience-pr-clean worktree is at `53fc5dc`; its workspace-switch correction is already merged into the selected main base through PR 72. Main also contains the installer production foundation (PR 71). Older runtime notes about PR 70 being unmerged are historical and must not override this inspected Git state. This audit does not establish what is deployed remotely.

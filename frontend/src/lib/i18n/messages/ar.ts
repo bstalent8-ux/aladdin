@@ -1838,6 +1838,7 @@ export const ar: Messages = {
         label: "نوع النشاط",
       },
       orgTypes: {
+        design_office: "المهندس",
         showroom_dealer: "معرض / تاجر",
         supplier: "موزع",
         manufacturer: "مُصنّع",
@@ -1845,6 +1846,7 @@ export const ar: Messages = {
         wholesaler: "تاجر جملة",
       },
       orgTypeDesc: {
+        design_office: "نشاط للخدمات الهندسية والتصميم.",
         showroom_dealer: "بيع المنتجات عبر معرض.",
         supplier: "توزيع المواد والمنتجات.",
         manufacturer: "إنتاج المنتجات بكميات كبيرة.",

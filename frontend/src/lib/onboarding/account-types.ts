@@ -67,8 +67,8 @@ export const INVITED_EMPLOYEE_KEY = "invited_employee";
 
 /**
  * The concrete business `org_type` values a new organization may be created as.
- * These mirror the `ck_bcd_org_type` constraint in the database — the UI never
- * offers a taxonomy the schema cannot store. (An individual Contractor is a
+ * These are supported by the canonical organization enum and onboarding RPCs.
+ * Public registration choices remain separate below. (An individual Contractor is a
  * PERSONAL persona, not a business type; there is no contractor `org_type`, so
  * none is offered here.)
  */
@@ -77,14 +77,15 @@ export const INVITED_EMPLOYEE_KEY = "invited_employee";
  * (20260924090004_wholesaler_supplier_remap.sql) remaps every existing
  * wholesaler organization to `supplier` + a `wholesaler` activity row and
  * stops offering it as a new choice. The enum value itself still exists in
- * the database (unused, same precedent as `contractor_company`/
- * `design_office`) — only this picker changed.
+ * the database (unused, same precedent as `contractor_company`) — only this
+ * picker changed. `design_office` is the canonical business behind the Engineer label.
  */
 export const BUSINESS_ORG_TYPES = [
   "showroom_dealer",
   "supplier",
   "manufacturer",
   "importer",
+  "design_office",
 ] as const;
 export type BusinessOrgType = (typeof BUSINESS_ORG_TYPES)[number];
 
@@ -188,5 +189,5 @@ export const CHOICE_GROUPS: { group: "personal" | "business"; keys: string[] }[]
       "salesperson",
     ],
   },
-  { group: "business", keys: [...BUSINESS_ORG_TYPES] },
+  { group: "business", keys: ["showroom_dealer", "supplier", "manufacturer", "importer"] },
 ];

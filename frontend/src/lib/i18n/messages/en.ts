@@ -1911,6 +1911,7 @@ export const en = {
         label: "Business type",
       },
       orgTypes: {
+        design_office: "Engineer",
         showroom_dealer: "Showroom / Dealer",
         supplier: "Distributor",
         manufacturer: "Manufacturer",
@@ -1918,6 +1919,7 @@ export const en = {
         wholesaler: "Wholesaler",
       },
       orgTypeDesc: {
+        design_office: "An engineering and design business.",
         showroom_dealer: "Sell products through a showroom.",
         supplier: "Distribute materials and products.",
         manufacturer: "Produce goods at scale.",
