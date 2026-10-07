@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(73);
+select plan(99);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -56,7 +56,7 @@ grant all on _o, _k to authenticated, anon;
 
 -- B. Create.
 insert into _o select 'a', public.own_product_create(:'orgC'::uuid, '  Matt Emulsion 18L ', ' pnt-001 ', 'paints', 'pail',
-  array['  Warm   White ', 'warm white', 'Sand'], 3.5, '18 L', 'DeltaCoat', 'Washable');
+  '[{"name":"  Warm   White ","hex":"#f5f0e6"},{"name":"warm white","hex":null},{"name":"Sand","hex":"#C9B28A"}]'::jsonb, 3.5, '18 L', 'DeltaCoat', 'Washable', 159.5);
 select ok((select id from _o where name = 'a') is not null, 'a writer creates an own product');
 select is(
   (select row(p.sku, p.category_code, p.category::text, p.status::text, p.unit::text, p.colors, p.weight_kg, p.size_label, p.name)::text
@@ -82,11 +82,11 @@ select throws_ok(
   format('select public.own_product_create(%L, %L, %L, %L, %L)', :'orgC', 'X', 'NEW-4', 'paints', 'pail'),
   '22023', null, 'a one-character name is refused');
 select throws_ok(
-  format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-5', 'paints', 'pail', '{}', -1),
+  format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-5', 'paints', 'pail', '[]', -1),
   '22023', null, 'a negative weight is refused');
 select throws_ok(
   format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-6', 'paints', 'pail',
-         '{c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13}'),
+         (select jsonb_agg(jsonb_build_object('name', 'c' || g, 'hex', null))::text from generate_series(1, 13) g)),
   '22023', null, 'more than 12 colors are refused');
 
 -- C. Ownership of create/edit.
@@ -120,7 +120,7 @@ select throws_ok(
 -- D. Edit.
 set local request.jwt.claims = :'hana';
 select is(public.own_product_update((select id from _o where name = 'a'), 1, 'Matt Emulsion 20L', 'PNT-001', 'paints', 'gallon',
-  array['Sand'], null, null, null, null), 2, 'the owner edits with the right version; the version advances');
+  '[{"name":"Sand","hex":"#C9B28A"}]'::jsonb, null, null, null, null, 150), 2, 'the owner edits with the right version; the version advances');
 select is((select row(unit::text, name, weight_kg, size_label, brand, colors)::text from public.products where id = (select id from _o where name = 'a')),
   row('gallon', 'Matt Emulsion 20L', null::numeric, null::text, null::text, array['Sand'])::text,
   'an edit replaces the editable fields and clears omitted optional ones');
@@ -289,6 +289,47 @@ select lives_ok(format('select public.own_product_set_archived(%L, true, %L)', (
   (select version from public.products where id = (select id from _o where name = 'a'))), 'archive the product');
 select throws_ok(format('select public.product_image_request_upload(%L, %L)', (select id from _o where name = 'a'), 'image/jpeg'),
   '22023', null, 'an archived product takes no new images');
+
+-- H. Base price, structured colors, 250-word description (20261009090001).
+set local request.jwt.claims = :'hana';
+insert into _o select 'p', public.own_product_create(:'orgC'::uuid, 'Priced paint', 'PRC-1', 'paints', 'pail',
+  '[{"name":"Terracotta","hex":"#b96f52"},{"name":"Cream","hex":"#F2E9D8"}]'::jsonb, null, null, null, 'Short text', 159.99);
+select ok((select id from _o where name = 'p') is not null, 'a product is created with a price and structured colors');
+select is((select base_price from public.products where id = (select id from _o where name = 'p')), 159.99::numeric, 'the base price is stored exactly (numeric, no float)');
+select is((select color_items -> 0 ->> 'hex' from public.products where id = (select id from _o where name = 'p')), '#B96F52', 'a hex value is canonicalized to upper-case #RRGGBB');
+select is((select colors from public.products where id = (select id from _o where name = 'p')), array['Terracotta', 'Cream'], 'the legacy names column mirrors the structured colors, in order');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Bad price', 'BP-1', 'paints', 'pail', '[]', null, null, null, null, 0), '22023', null, 'a zero price is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Bad price', 'BP-2', 'paints', 'pail', '[]', null, null, null, null, -5), '22023', null, 'a negative price is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Bad price', 'BP-3', 'paints', 'pail', '[]', null, null, null, null, 1.234), '22023', null, 'a price with more than two decimals is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Bad price', 'BP-4', 'paints', 'pail', '[]', null, null, null, null, 100000001), '22023', null, 'an absurd price is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad hex', 'BH-1', 'paints', 'pail', '[{"name":"Red","hex":"#GGGGGG"}]'), '22023', null, 'a non-hex color value is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad hex', 'BH-2', 'paints', 'pail', '[{"name":"Red","hex":"#fff"}]'), '22023', null, 'a 3-digit hex is refused (canonical form is #RRGGBB)');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad hex', 'BH-3', 'paints', 'pail', '[{"name":"Red","hex":"red"}]'), '22023', null, 'a color keyword is refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad colors', 'BC-1', 'paints', 'pail', '{"name":"Red"}'), '22023', null, 'colors that are not a list are refused');
+insert into _o select 'w250', public.own_product_create(:'orgC'::uuid, 'Long text', 'LT-1', 'paints', 'pail', '[]', null, null, null, (select string_agg('word', ' ') from generate_series(1, 250)));
+select ok((select id from _o where name = 'w250') is not null, 'a 250-word description is accepted (far beyond the old 600 characters)');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Long text', 'LT-2', 'paints', 'pail', '[]', null, null, null, (select string_agg('word', ' ') from generate_series(1, 251))), '22023', null, 'a 251-word description is refused');
+select lives_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-3', 'paints', 'pail', '[]', null, null, null, (select string_agg('كلمة', ' ') from generate_series(1, 250))), '250 Arabic words are accepted');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-4', 'paints', 'pail', '[]', null, null, null, (select string_agg('كلمة', ' ') from generate_series(1, 251))), '22023', null, '251 Arabic words are refused');
+select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, null),
+  '22023', null, 'a price, once set, cannot be blanked');
+select is(public.own_product_update((select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, 175.25), 2, 'the price can be changed');
+set local request.jwt.claims = :'tarek';
+select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Hijack', 'PRC-1', 'paints', 'pail',
+  '[{"name":"Evil","hex":"#000000"}]', null, null, null, null, 1), '42501', null, 'another organization cannot change a product''s price or colors');
+reset role;
+select ok((select base_price is null and color_items = '[]'::jsonb from public.products where id = (select id from _o where name = 'legacy')),
+  'a historical product has no price and no structured colors, and stays readable');
+select lives_ok(format('update public.products set colors = array[%L, %L] where id = %L', 'Sand', 'Grey', (select id from _o where name = 'legacy')),
+  'legacy named colors (no structured value) remain a valid state');
+select throws_ok(format('update public.products set color_items = %L::jsonb where id = %L', '[{"name":"X","hex":null}]', (select id from _o where name = 'legacy')),
+  '23514', null, 'structured colors must mirror the legacy names (one source of truth)');
+select is(app.word_count('  hello   world '), 2, 'words are counted on whitespace, ignoring padding');
+select is(app.word_count('مرحبا بالعالم الجميل'), 3, 'Arabic words are counted the same way');
+select is(app.word_count(null), 0, 'no text is zero words');
+select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name in ('base_price', 'color_items')), 0,
+  'the public catalog view does not expose the price or the structured colors');
+set local role authenticated;
 
 -- G. Anonymous callers.
 reset role;
