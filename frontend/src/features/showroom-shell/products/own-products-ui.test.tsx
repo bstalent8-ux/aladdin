@@ -393,6 +393,11 @@ describe("Create product with photos in one flow", () => {
     expect(screen.getByTestId("staged-count").textContent).toBe("0 of 3 photos");
   });
 
+  it("shows photo counters with Latin digits in Arabic too (the Arabic zero reads as a dot)", () => {
+    wrap(<ProductForm orgId="org-1" />, "ar");
+    expect(screen.getByTestId("staged-count").textContent).toBe("0 من 3 صور");
+  });
+
   it("does not show staged photos when editing (that screen has the live image manager)", () => {
     wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], weightKg: null, sizeLabel: null, brand: null, description: null }} />);
     expect(screen.queryByTestId("staged-photos")).toBeNull();

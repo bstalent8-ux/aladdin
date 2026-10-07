@@ -61,7 +61,7 @@ export function StagedPhotos({ files, onChange, disabled }: { files: File[]; onC
     <fieldset className="flex min-w-0 flex-col gap-sm" data-testid="staged-photos" disabled={disabled}>
       <legend className="mb-1 text-label font-medium text-fg-secondary">{t("showroomProducts.photosStaged")}</legend>
       <p className="text-label text-fg-muted">{t("showroomProducts.images.hint")}</p>
-      <p className="text-label text-fg-muted" data-testid="staged-count">{t("showroomProducts.images.count", { count: files.length })}</p>
+      <p className="text-label text-fg-muted" data-testid="staged-count">{t("showroomProducts.images.count", { count: String(files.length) })}</p>
 
       <ul className="grid grid-cols-3 gap-sm">
         {Array.from({ length: PRODUCT_IMAGE_MAX_COUNT }, (_, index) => {

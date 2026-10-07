@@ -125,7 +125,7 @@ export function ImageManager({ productId, productName, images, archived }: { pro
     <section className="flex flex-col gap-sm" aria-labelledby="product-images-title" data-testid="image-manager">
       <div className="flex flex-wrap items-baseline justify-between gap-x-md gap-y-1">
         <h2 id="product-images-title" className="text-title text-fg">{t("showroomProducts.images.title")}</h2>
-        <p className="text-label text-fg-muted" data-testid="image-count">{t("showroomProducts.images.count", { count: images.length })}</p>
+        <p className="text-label text-fg-muted" data-testid="image-count">{t("showroomProducts.images.count", { count: String(images.length) })}</p>
       </div>
       <p className="text-label text-fg-muted">{t("showroomProducts.images.hint")}</p>
 
