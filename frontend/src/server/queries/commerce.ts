@@ -160,6 +160,21 @@ export async function getOwnProduct(supabase: DB, orgId: string, id: string): Pr
   return data;
 }
 
+/**
+ * The owning organization's PRIVATE regular prices, keyed by product id. They live in
+ * `product_prices` (RLS: members of the owning organization only), never on the
+ * publicly readable `products` row; a product with no price has no entry.
+ */
+export async function listProductPrices(supabase: DB, productIds: readonly string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  for (const batch of batches(productIds)) {
+    const { data, error } = await supabase.from("product_prices").select("product_id, base_price").in("product_id", batch);
+    if (error) throw error;
+    for (const r of data ?? []) out.set(r.product_id, Number(r.base_price));
+  }
+  return out;
+}
+
 export type ProductDemand = { requests: number };
 
 /**

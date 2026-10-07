@@ -5,7 +5,7 @@ import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
-import { getOwnProduct } from "@/server/queries/commerce";
+import { getOwnProduct, listProductPrices } from "@/server/queries/commerce";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 import { Card, Badge } from "@/components/ui/primitives";
 import { ProductForm } from "@/features/showroom-shell/products/product-form";
@@ -37,6 +37,7 @@ export default async function ShowroomEditProductPage({
   // Owned by THIS organization, or it does not exist here — another tenant's product never opens.
   const product = await getOwnProduct(supabase, org.organizationId, productId);
   if (!product) notFound();
+  const price = (await listProductPrices(supabase, [product.id])).get(product.id) ?? null;
 
   const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   const t = createTranslator(locale);
@@ -93,7 +94,7 @@ export default async function ShowroomEditProductPage({
             categoryCode: product.category_code,
             unit: product.unit,
             colors: effectiveColors(product),
-            basePrice: product.base_price,
+            basePrice: price,
             weightKg: product.weight_kg,
             sizeLabel: product.size_label,
             brand: product.brand,

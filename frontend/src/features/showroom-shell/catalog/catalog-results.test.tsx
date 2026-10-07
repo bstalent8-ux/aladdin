@@ -48,6 +48,7 @@ describe("showroom catalog results", () => {
   it("renders the grid by default, one card per product, and no price it does not have", () => {
     renderResults();
     expect(screen.getByTestId("showroom-catalog-grid")).toBeTruthy();
+    expect(screen.getByTestId("showroom-catalog-grid").className).toMatch(/grid-cols-2.*tablet:grid-cols-3.*desktop:grid-cols-4.*wide:grid-cols-5/);
     expect(screen.queryByTestId("showroom-catalog-list")).toBeNull();
     expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(2);
     expect(screen.getByTestId("showroom-catalog-count").textContent).toBe("2 products");

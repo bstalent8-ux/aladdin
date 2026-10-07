@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { getOwnProduct, listCatalog, listOwnProducts, ownProductCounts } from "./commerce";
+import { getOwnProduct, listCatalog, listOwnProducts, listProductPrices, ownProductCounts } from "./commerce";
 import { listProductImages, resolveProductImage, signProductImageUrls } from "./product-images";
 
 type Call = [string, ...unknown[]];
@@ -145,5 +145,22 @@ describe("product image queries", () => {
     expect(resolveProductImage({ primary_image_key: "k2", image_ref: "https://legacy/x.png" }, signed)).toBe("https://legacy/x.png");
     expect(resolveProductImage({ primary_image_key: null, image_ref: "https://legacy/x.png" }, signed)).toBe("https://legacy/x.png");
     expect(resolveProductImage({ primary_image_key: null, image_ref: null }, signed)).toBeNull();
+  });
+});
+
+describe("private product prices", () => {
+  it("reads prices from the owner-only table, never from the public products row", async () => {
+    const { supabase, calls } = stub({ data: [{ product_id: "p1", base_price: "159.50" }], error: null });
+    const prices = await listProductPrices(supabase, ["p1", "p2"]);
+    expect(calls).toContainEqual(["from", "product_prices"]);
+    expect(calls).not.toContainEqual(["from", "products"]);
+    expect(prices.get("p1")).toBe(159.5);
+    expect(prices.has("p2")).toBe(false);
+  });
+
+  it("does not query at all for an empty list", async () => {
+    const { supabase, calls } = stub({ data: [], error: null });
+    expect((await listProductPrices(supabase, [])).size).toBe(0);
+    expect(calls).toHaveLength(0);
   });
 });

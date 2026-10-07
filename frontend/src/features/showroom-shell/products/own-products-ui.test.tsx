@@ -75,6 +75,8 @@ describe("OwnProductsResults", () => {
   it("renders the grid by default and switches to a list that remembers the choice", () => {
     results();
     expect(screen.getByTestId("my-products-grid")).toBeTruthy();
+    // Density: 2 on mobile, 3 tablet, 4 desktop, 5 from the wide breakpoint (1440).
+    expect(screen.getByTestId("my-products-grid").className).toMatch(/grid-cols-2.*tablet:grid-cols-3.*desktop:grid-cols-4.*wide:grid-cols-5/);
     expect(screen.getAllByTestId("my-products-card")).toHaveLength(3);
     fireEvent.click(screen.getByTestId("my-products-view-list"));
     expect(screen.getByTestId("my-products-list")).toBeTruthy();

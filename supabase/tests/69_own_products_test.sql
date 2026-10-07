@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(99);
+select plan(108);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -295,7 +295,7 @@ set local request.jwt.claims = :'hana';
 insert into _o select 'p', public.own_product_create(:'orgC'::uuid, 'Priced paint', 'PRC-1', 'paints', 'pail',
   '[{"name":"Terracotta","hex":"#b96f52"},{"name":"Cream","hex":"#F2E9D8"}]'::jsonb, null, null, null, 'Short text', 159.99);
 select ok((select id from _o where name = 'p') is not null, 'a product is created with a price and structured colors');
-select is((select base_price from public.products where id = (select id from _o where name = 'p')), 159.99::numeric, 'the base price is stored exactly (numeric, no float)');
+select is((select base_price from public.product_prices where product_id = (select id from _o where name = 'p')), 159.99::numeric, 'the base price is stored exactly (numeric, no float) in the private price table');
 select is((select color_items -> 0 ->> 'hex' from public.products where id = (select id from _o where name = 'p')), '#B96F52', 'a hex value is canonicalized to upper-case #RRGGBB');
 select is((select colors from public.products where id = (select id from _o where name = 'p')), array['Terracotta', 'Cream'], 'the legacy names column mirrors the structured colors, in order');
 select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Bad price', 'BP-1', 'paints', 'pail', '[]', null, null, null, null, 0), '22023', null, 'a zero price is refused');
@@ -313,13 +313,31 @@ select lives_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L,
 select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-4', 'paints', 'pail', '[]', null, null, null, (select string_agg('كلمة', ' ') from generate_series(1, 251))), '22023', null, '251 Arabic words are refused');
 select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, null),
   '22023', null, 'a price, once set, cannot be blanked');
-select is(public.own_product_update((select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, 175.25), 2, 'the price can be changed');
+select is(public.own_product_update((select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[{"name":"Terracotta","hex":"#B96F52"}]', null, null, null, null, 175.25), 2, 'the price can be changed');
+select lives_ok(format('select public.set_product_published(%L, true, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p'))),
+  'the priced product is published');
+select is((select base_price from public.product_prices where product_id = (select id from _o where name = 'p')), 175.25::numeric, 'the owning organization reads (and has updated) its own price');
+select throws_ok(format('insert into public.product_prices (product_id, organization_id, base_price) values (%L, %L, 1)', (select id from _o where name = 'w250'), :'orgC'),
+  '42501', null, 'even the owner cannot write prices directly (RPC-only)');
+set local request.jwt.claims = :'tarek';
+select is((select count(*)::int from public.product_prices where product_id = (select id from _o where name = 'p')), 0,
+  'another organization cannot read the private price of a PUBLISHED product');
+select is((select count(*)::int from public.products where id = (select id from _o where name = 'p')), 1,
+  'the published product row itself is still readable cross-tenant');
+select is((select count(*)::int from public.catalog_published_products where id = (select id from _o where name = 'p')), 1,
+  'the published product still appears in the public catalog');
+select is((select color_items -> 0 ->> 'name' from public.products where id = (select id from _o where name = 'p')), 'Terracotta',
+  'public product colors stay readable to other organizations');
+select throws_ok(format('insert into public.product_prices (product_id, organization_id, base_price) values (%L, %L, 1)', (select id from _o where name = 'p'), :'orgC'),
+  '42501', null, 'another organization cannot write a price either');
+select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'products' and column_name = 'base_price'), 0,
+  'products no longer carries a price column that a published-row read could expose');
 set local request.jwt.claims = :'tarek';
 select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Hijack', 'PRC-1', 'paints', 'pail',
   '[{"name":"Evil","hex":"#000000"}]', null, null, null, null, 1), '42501', null, 'another organization cannot change a product''s price or colors');
 reset role;
-select ok((select base_price is null and color_items = '[]'::jsonb from public.products where id = (select id from _o where name = 'legacy')),
-  'a historical product has no price and no structured colors, and stays readable');
+select ok((select not exists (select 1 from public.product_prices where product_id = (select id from _o where name = 'legacy')) and color_items = '[]'::jsonb from public.products where id = (select id from _o where name = 'legacy')),
+  'a historical product has no price row and no structured colors, and stays readable');
 select lives_ok(format('update public.products set colors = array[%L, %L] where id = %L', 'Sand', 'Grey', (select id from _o where name = 'legacy')),
   'legacy named colors (no structured value) remain a valid state');
 select throws_ok(format('update public.products set color_items = %L::jsonb where id = %L', '[{"name":"X","hex":null}]', (select id from _o where name = 'legacy')),

@@ -56,7 +56,7 @@ export function CatalogResults({
       </div>
 
       {view === "grid" ? (
-        <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 tablet:gap-md desktop:grid-cols-4" data-testid="showroom-catalog-grid">
+        <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 tablet:gap-md desktop:grid-cols-4 wide:grid-cols-5" data-testid="showroom-catalog-grid">
           {items.map((p) => (
             <li key={p.id} className="min-w-0">
               <GridCard product={p} orgId={orgId} saved={saved.has(p.id)} image={imageUrls[p.id] ?? p.image_ref} />
@@ -97,7 +97,7 @@ function GridCard({ product, orgId, saved, image }: { product: Product; orgId: s
   return (
     <div className="group flex h-full flex-col gap-2 rounded-md border bg-surface p-2 transition-colors hover:border-strong tablet:p-sm" data-testid="showroom-catalog-card">
       <div className="relative">
-        <ProductMedia src={image} alt={product.name ?? ""} aspect="aspect-[4/3] tablet:aspect-[16/10]" />
+        <ProductMedia src={image} alt={product.name ?? ""} aspect="aspect-[4/3] tablet:aspect-[16/9]" />
         <span className="absolute start-1.5 top-1.5 max-w-[calc(100%-3.5rem)]">
           <Badge tone="neutral">{catalogCategoryLabel(t, product)}</Badge>
         </span>

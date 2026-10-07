@@ -64,7 +64,7 @@ export function OwnProductsResults({
         <ViewToggle view={view} onChange={setView} testIdPrefix="my-products" />
       </div>
       {view === "grid" ? (
-        <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 tablet:gap-md desktop:grid-cols-4" data-testid="my-products-grid">
+        <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 tablet:gap-md desktop:grid-cols-4 wide:grid-cols-5" data-testid="my-products-grid">
           {products.map((p) => (
             <li key={p.id} className="min-w-0">
               <GridCard product={p} canWrite={canWrite} canPublish={canPublish} />
@@ -156,7 +156,7 @@ function GridCard({ product, canWrite, canPublish }: { product: OwnProductCard; 
   return (
     <div className={cn("flex h-full flex-col gap-2 rounded-md border bg-surface p-2 shadow-card tablet:p-sm", status === "archived" && "opacity-80")} data-testid="my-products-card" data-status={status}>
       <Link href={editHref(product.id)} className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" aria-label={product.name}>
-        <ProductMedia src={product.imageUrl} alt={product.name} aspect="aspect-[4/3] tablet:aspect-[16/10]" />
+        <ProductMedia src={product.imageUrl} alt={product.name} aspect="aspect-[4/3] tablet:aspect-[16/9]" />
         <span className="absolute start-1.5 top-1.5"><StatusBadge status={status} /></span>
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">

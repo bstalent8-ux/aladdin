@@ -2571,10 +2571,48 @@ export type Database = {
           },
         ]
       }
+      product_prices: {
+        Row: {
+          base_price: number
+          created_at: string
+          organization_id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_price: number
+          created_at?: string
+          organization_id: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          organization_id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_prices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           archived_at: string | null
-          base_price: number | null
           brand: string | null
           category: Database["public"]["Enums"]["product_category"]
           category_code: string | null
@@ -2600,7 +2638,6 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          base_price?: number | null
           brand?: string | null
           category: Database["public"]["Enums"]["product_category"]
           category_code?: string | null
@@ -2626,7 +2663,6 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
-          base_price?: number | null
           brand?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           category_code?: string | null
