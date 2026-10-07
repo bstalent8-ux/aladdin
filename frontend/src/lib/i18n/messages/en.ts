@@ -2005,6 +2005,8 @@ export const en = {
     manageImages: "Manage photos",
     activeSwitch: "Visible in Browse products",
     tipsTitle: "Tips for adding a product",
+    statusTitle: "Product status",
+    photosShort: "Photos",
     tips: {
       photos: "Use clear, good-quality photos.",
       name: "Write a precise, clear product name.",

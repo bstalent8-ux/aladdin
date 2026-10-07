@@ -34,14 +34,13 @@ export default async function ShowroomNewProductPage() {
           </Link>
         }
       />
+      {/* Form first (the wide track), tips second: in RTL that puts the form on the right and the tips panel on the left, as in the reference. */}
       <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_17rem]">
         <ProductForm orgId={org.organizationId} />
-        <div className="desktop:order-first">
         <TipsCard
           title={t("showroomProducts.tipsTitle")}
           tips={["photos", "name", "category", "colors", "later"].map((k) => t(`showroomProducts.tips.${k}`))}
         />
-        </div>
       </div>
     </div>
   );

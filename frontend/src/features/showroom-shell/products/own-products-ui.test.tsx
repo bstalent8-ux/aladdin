@@ -183,7 +183,7 @@ describe("OwnProductsResults", () => {
   it("works in Arabic with Arabic labels", () => {
     wrap(<OwnProductsResults products={[products[0]!]} initialView="grid" countLabel="1 منتج" canWrite canPublish />, "ar");
     expect(screen.getAllByText("نشط").length).toBeGreaterThan(0);
-    expect(screen.getByText("إدارة الصور")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "إدارة الصور" })).toBeTruthy();
     expect(screen.getAllByText("دهانات").length).toBeGreaterThan(0);
     expect(screen.getAllByText("باستلة").length).toBeGreaterThan(0);
   });
@@ -203,6 +203,22 @@ describe("ProductForm", () => {
     brand: "NileCeramics",
     description: "Glossy",
   };
+
+  it("edit keeps the photo manager INSIDE the editor card, outside the <form> element, placed beside the colors", () => {
+    const { container } = wrap(<ProductForm orgId="org-1" product={existing} photos={<div data-testid="photos-slot"><button type="button">Add</button></div>} />);
+    const slot = screen.getByTestId("photos-slot");
+    const form = screen.getByTestId("product-form");
+    expect(form.contains(slot)).toBe(false);
+    expect(slot.closest("#product-photos")).toBeTruthy();
+    expect(container.querySelector("#product-photos")?.parentElement).toBe(form.parentElement);
+  });
+
+  it("create and edit lead with the name, then the code (the reference order)", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    const name = screen.getByLabelText(/Product name/i);
+    const code = screen.getByLabelText(/Product code/i);
+    expect(name.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 
   it("offers the 15 canonical categories and the six required units", () => {
     wrap(<ProductForm orgId="org-1" />);

@@ -57,7 +57,7 @@ export function OwnProductsResults({
   return (
     <section className="flex flex-col gap-md" aria-label={t("showroomProducts.title")}>
       <div className="flex items-center justify-between gap-sm">
-        <p className="text-label text-fg-muted" data-testid="my-products-count">{countLabel}</p>
+        <p className="text-title font-semibold text-fg" data-testid="my-products-count">{countLabel}</p>
         <ViewToggle view={view} onChange={setView} testIdPrefix="my-products" />
       </div>
       {view === "grid" ? (
@@ -104,7 +104,7 @@ function ColorChips({ colors }: { colors: string[] }) {
 }
 
 const actionLink =
-  "inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-sm border border-strong px-2 text-label font-medium text-fg transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+  "inline-flex min-h-8 min-w-8 items-center justify-center gap-1 whitespace-nowrap rounded-sm border border-strong px-1.5 text-caption font-medium text-fg transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function CardActions({ product, status, canWrite }: { product: OwnProductCard; status: OwnProductStatus; canWrite: boolean }) {
   const { t } = useI18n();
@@ -113,11 +113,11 @@ function CardActions({ product, status, canWrite }: { product: OwnProductCard; s
     return canWrite ? <div className="flex flex-wrap items-start gap-1.5"><RestoreAction productId={product.id} version={product.version} /></div> : null;
   }
   return (
-    <div className="flex flex-wrap items-start gap-1.5">
+    <div className="flex items-start gap-1.5 [&>*]:min-w-0 [&>*]:flex-1">
       {canWrite ? (
         <>
           <Link href={edit} className={actionLink}><PencilIcon size={14} /><span className="sr-only tablet:not-sr-only">{t("showroomProducts.edit")}</span></Link>
-          <Link href={`${edit}#product-photos`} className={actionLink}><CameraIcon size={14} /><span className="sr-only tablet:not-sr-only">{t("showroomProducts.manageImages")}</span></Link>
+          <Link href={`${edit}#product-photos`} className={actionLink} aria-label={t("showroomProducts.manageImages")} title={t("showroomProducts.manageImages")}><CameraIcon size={14} /><span className="sr-only tablet:not-sr-only" aria-hidden="true">{t("showroomProducts.photosShort")}</span></Link>
           <ArchiveAction productId={product.id} version={product.version} />
         </>
       ) : null}
@@ -144,7 +144,7 @@ function GridCard({ product, canWrite, canPublish }: { product: OwnProductCard; 
         <p className="w-full text-label text-fg-muted" dir="auto">{metaLine(t, product)}</p>
       </div>
       <div className="flex items-center justify-between gap-2 border-t pt-2">
-        {canPublish && status !== "archived" ? <ActiveSwitch productId={product.id} version={product.version} active={status === "active"} /> : <span />}
+        {canPublish && status !== "archived" ? <ActiveSwitch productId={product.id} version={product.version} active={status === "active"} labelled /> : <span />}
       </div>
       <CardActions product={product} status={status} canWrite={canWrite} />
     </div>

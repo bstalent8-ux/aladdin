@@ -26,8 +26,8 @@ describe("page hero", () => {
 
 describe("stat cards", () => {
   const stats = [
-    { key: "total", label: "Total products", value: 12, href: "/x", active: true, viewAll: "View all", Icon: PackageIcon },
-    { key: "active", label: "Active products", value: 7, href: "/x?status=active", active: false, viewAll: "View all", Icon: PackageIcon },
+    { key: "total", label: "Total products", value: "12", href: "/x", active: true, viewAll: "View all", Icon: PackageIcon },
+    { key: "active", label: "Active products", value: "7", href: "/x?status=active", active: false, viewAll: "View all", Icon: PackageIcon },
   ];
 
   it("shows each figure with its label and a View all link that is also the status filter", () => {

@@ -1932,6 +1932,8 @@ export const ar: Messages = {
     manageImages: "إدارة الصور",
     activeSwitch: "ظاهر في تصفح المنتجات",
     tipsTitle: "نصائح لإضافة منتج",
+    statusTitle: "حالة المنتج",
+    photosShort: "الصور",
     tips: {
       photos: "استخدم صورًا واضحة وعالية الجودة.",
       name: "اكتب اسم منتج دقيقًا وواضحًا.",

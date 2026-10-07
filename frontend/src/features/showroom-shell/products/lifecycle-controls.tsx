@@ -85,12 +85,13 @@ export function LifecycleControls({
  * activate / deactivate transition as the buttons (publish rights required, the
  * database decides), presented as a switch with its state exposed to assistive tech.
  */
-export function ActiveSwitch({ productId, version, active }: { productId: string; version: number; active: boolean }) {
+export function ActiveSwitch({ productId, version, active, labelled = false }: { productId: string; version: number; active: boolean; labelled?: boolean }) {
   const { t } = useI18n();
   const [state, dispatch] = useActionState(ownProductLifecycleAction, initial);
   return (
     <form action={dispatch} className="inline-flex flex-col gap-1">
       <Hidden productId={productId} version={version} action={active ? "deactivate" : "activate"} />
+      <span className="inline-flex items-center gap-2">
       <button
         type="submit"
         role="switch"
@@ -105,6 +106,8 @@ export function ActiveSwitch({ productId, version, active }: { productId: string
       >
         <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow-sm transition-all", active ? "end-0.5" : "start-0.5")} />
       </button>
+      {labelled ? <span className="text-caption text-fg-secondary" aria-hidden="true">{t("showroomProducts.activeSwitch")}</span> : null}
+      </span>
       {state.code && !state.ok ? <span role="alert" className="text-label text-danger">{t(state.code)}</span> : null}
     </form>
   );

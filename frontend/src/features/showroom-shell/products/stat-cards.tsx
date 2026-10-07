@@ -5,7 +5,8 @@ import { cn } from "@/lib/ui/cn";
 export type ProductStat = {
   key: string;
   label: string;
-  value: number;
+  /** Already formatted for the reader's numerals (same as every other count on the page). */
+  value: string;
   href: string;
   active: boolean;
   viewAll: string;

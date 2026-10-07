@@ -85,12 +85,14 @@ export async function ShowroomMyProducts({
     return qs ? `${BASE_PATH}?${qs}` : BASE_PATH;
   };
 
+  // Latin digits on purpose: in the Arabic display face "٥" reads as a zero (and "٠" as a dot), which made a count of five look like "0 products". The reference uses Latin figures too.
+  const num = (n: number) => String(n);
   const viewAll = t("showroomProducts.viewAll");
   const stats = [
-    { key: "total", label: t("showroomProducts.stats.total"), value: counts.total + counts.archived, href: href({ status: "" }), active: !params.status, viewAll, Icon: PackageIcon },
-    { key: "active", label: t("showroomProducts.stats.active"), value: counts.published, href: href({ status: "active" }), active: params.status === "active", viewAll, Icon: BadgeCheckIcon },
-    { key: "draft", label: t("showroomProducts.stats.draft"), value: counts.draft, href: href({ status: "inactive" }), active: params.status === "inactive", viewAll, Icon: PencilIcon },
-    { key: "archived", label: t("showroomProducts.stats.archived"), value: counts.archived, href: href({ status: "archived" }), active: params.status === "archived", viewAll, Icon: InboxIcon },
+    { key: "total", label: t("showroomProducts.stats.total"), value: num(counts.total + counts.archived), href: href({ status: "" }), active: !params.status, viewAll, Icon: PackageIcon },
+    { key: "active", label: t("showroomProducts.stats.active"), value: num(counts.published), href: href({ status: "active" }), active: params.status === "active", viewAll, Icon: BadgeCheckIcon },
+    { key: "draft", label: t("showroomProducts.stats.draft"), value: num(counts.draft), href: href({ status: "inactive" }), active: params.status === "inactive", viewAll, Icon: PencilIcon },
+    { key: "archived", label: t("showroomProducts.stats.archived"), value: num(counts.archived), href: href({ status: "archived" }), active: params.status === "archived", viewAll, Icon: InboxIcon },
   ];
   const chips = [
     { value: "", label: t("showroomProducts.chipAll") },
@@ -124,7 +126,7 @@ export async function ShowroomMyProducts({
         <OwnProductsResults
           products={cards}
           initialView={view}
-          countLabel={t("showroomProducts.count", { count: cards.length })}
+          countLabel={t("showroomProducts.count", { count: String(cards.length) })}
           canWrite={canWrite}
           canPublish={canPublish}
         />

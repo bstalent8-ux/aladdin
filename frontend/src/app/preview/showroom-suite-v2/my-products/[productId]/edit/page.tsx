@@ -46,6 +46,15 @@ export default async function ShowroomEditProductPage({
   const images = (await listProductImages(supabase, [product.id])).get(product.id) ?? [];
   const signed = await signProductImageUrls(supabase, images.map((i) => i.objectKey));
 
+  const photoManager = (
+    <ImageManager
+      productId={product.id}
+      productName={product.name}
+      archived={status === "archived"}
+      images={images.map((i) => ({ id: i.id, url: signed.get(i.objectKey) ?? null, slot: i.slot }))}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-md" data-testid="edit-product" data-status={status}>
       <ShowroomPageHero
@@ -62,19 +71,19 @@ export default async function ShowroomEditProductPage({
           </Link>
         }
       />
-      <div className="flex flex-wrap items-center gap-x-md gap-y-2">
-        <Badge tone={status === "active" ? "success" : status === "inactive" ? "warning" : "neutral"}>{t(`showroomProducts.status.${status}`)}</Badge>
-        <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
-      </div>
-
       {sp.created === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="created-note">{sp.photos === "partial" ? t("showroomProducts.createdPartial") : t("showroomProducts.created")}</p> : null}
       {sp.saved === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="saved-note">{t("showroomProducts.saved")}</p> : null}
 
+      <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_17rem]">
       {status === "archived" ? (
-        <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="archived-note">{t("showroomProducts.errors.archived")}</p>
+        <div className="flex min-w-0 flex-col gap-md">
+          <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="archived-note">{t("showroomProducts.errors.archived")}</p>
+          {canWrite ? <div id="product-photos" className="scroll-mt-24"><Card>{photoManager}</Card></div> : null}
+        </div>
       ) : canWrite ? (
         <ProductForm
           orgId={org.organizationId}
+          photos={photoManager}
           product={{
             id: product.id,
             version: product.version,
@@ -93,18 +102,14 @@ export default async function ShowroomEditProductPage({
         <p className="text-label text-fg-muted">{t("showroomProducts.readOnlyNote")}</p>
       )}
 
-      {canWrite ? (
-        <div id="product-photos" className="scroll-mt-24">
-        <Card className="max-w-3xl">
-          <ImageManager
-            productId={product.id}
-            productName={product.name}
-            archived={status === "archived"}
-            images={images.map((i) => ({ id: i.id, url: signed.get(i.objectKey) ?? null, slot: i.slot }))}
-          />
+      <aside aria-labelledby="product-status-title" data-testid="product-status-card">
+        <Card pad="sm" className="flex flex-col gap-sm bg-accent-solid/5">
+          <h2 id="product-status-title" className="text-title text-fg">{t("showroomProducts.statusTitle")}</h2>
+          <div><Badge tone={status === "active" ? "success" : status === "inactive" ? "warning" : "neutral"}>{t(`showroomProducts.status.${status}`)}</Badge></div>
+          <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
         </Card>
-        </div>
-      ) : null}
+      </aside>
+      </div>
     </div>
   );
 }
