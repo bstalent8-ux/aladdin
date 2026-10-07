@@ -45,7 +45,9 @@ export function ShowroomPageHero({
           dir={dir}
           className={cn(
             "relative z-raised flex min-w-0 flex-col gap-1.5 px-md py-md tablet:px-xl",
-            art && "tablet:absolute tablet:inset-y-0 tablet:right-0 tablet:w-[52%] tablet:justify-center",
+            art && "tablet:absolute tablet:inset-y-0 tablet:right-0 tablet:justify-center",
+            // The artwork's clean panel starts ~62% across at the top of the crop. RTL text is right-aligned so a wide block still sits on the panel; LTR text starts at the block's left edge, so the block must start inside the panel.
+            art && (dir === "ltr" ? "tablet:w-[38%]" : "tablet:w-[52%]"),
           )}
         >
           {back}
