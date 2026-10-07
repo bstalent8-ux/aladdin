@@ -7,21 +7,15 @@ import { cn } from "@/lib/ui/cn";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { Badge, InlineError } from "@/components/ui/primitives";
 import { ChevronLeftIcon, ChevronRightIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   PRODUCT_IMAGE_ALLOWED_TYPES,
-  PRODUCT_IMAGE_BUCKET,
   PRODUCT_IMAGE_MAX_COUNT,
   moveImage,
   remainingImageSlots,
   validateProductImageFile,
 } from "@/lib/storage/product-images";
-import {
-  confirmProductImageUploadAction,
-  removeProductImageAction,
-  reorderProductImagesAction,
-  requestProductImageUploadAction,
-} from "@/server/actions/own-products";
+import { removeProductImageAction, reorderProductImagesAction } from "@/server/actions/own-products";
+import { uploadProductImage } from "./upload-image";
 
 export type ManagedImage = { id: string; url: string | null; slot: number };
 
@@ -40,7 +34,7 @@ const iconButton =
  * The three-photo limit is enforced by the database (RPC and trigger); the count
  * shown here only avoids offering what would be refused.
  */
-export function ImageManager({ productId, images, archived }: { productId: string; images: ManagedImage[]; archived: boolean }) {
+export function ImageManager({ productId, productName, images, archived }: { productId: string; productName: string; images: ManagedImage[]; archived: boolean }) {
   const { t } = useI18n();
   const router = useRouter();
   const addInput = useRef<HTMLInputElement>(null);
@@ -52,19 +46,7 @@ export function ImageManager({ productId, images, archived }: { productId: strin
   const free = remainingImageSlots(images.length);
   const accept = PRODUCT_IMAGE_ALLOWED_TYPES.join(",");
 
-  /** Upload one file to a new slot; returns the new image id. */
-  async function upload(file: File): Promise<string> {
-    const ticket = await requestProductImageUploadAction(productId, file.type);
-    if (!ticket.ok) throw new Error(ticket.code);
-    const supabase = createBrowserSupabaseClient();
-    const { error: uploadError } = await supabase.storage
-      .from(PRODUCT_IMAGE_BUCKET)
-      .upload(ticket.key, file, { contentType: file.type, upsert: false });
-    if (uploadError) throw new Error("showroomProducts.images.errorUpload");
-    const confirmed = await confirmProductImageUploadAction(ticket.key);
-    if (!confirmed.ok) throw new Error(confirmed.code);
-    return confirmed.id;
-  }
+  const upload = (file: File) => uploadProductImage(productId, file);
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
@@ -157,11 +139,11 @@ export function ImageManager({ productId, images, archived }: { productId: strin
               {image ? (
                 <>
                   <div className="relative">
-                    <ProductMedia src={image.url} alt={`${t("showroomProducts.images.title")} ${index + 1}`} aspect="aspect-square" />
+                    <ProductMedia src={image.url} alt={`${productName} — ${t("showroomProducts.images.photoN", { n: index + 1 })}`} aspect="aspect-square" />
                     {index === 0 ? <span className="absolute start-1 top-1 rounded-pill bg-surface"><Badge tone="accent">{t("showroomProducts.images.primary")}</Badge></span> : null}
                   </div>
                   {!archived ? (
-                    <div className="flex flex-wrap justify-center gap-1" role="group" aria-label={`${t("showroomProducts.images.title")} ${index + 1}`}>
+                    <div className="flex flex-wrap justify-center gap-1" role="group" aria-label={t("showroomProducts.images.photoN", { n: index + 1 })}>
                       <button type="button" className={iconButton} disabled={busy || index === 0} onClick={() => void onMove(index, -1)} aria-label={t("showroomProducts.images.moveEarlier")} title={t("showroomProducts.images.moveEarlier")}>
                         <ChevronLeftIcon size={15} />
                       </button>

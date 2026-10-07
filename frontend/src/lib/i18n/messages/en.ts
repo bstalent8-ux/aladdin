@@ -2024,6 +2024,10 @@ export const en = {
     },
     saved: "Changes saved.",
     created: "Product created. You can add up to 3 photos below.",
+    createdPartial: "Product created, but some photos could not be uploaded. Add them below.",
+    photosStaged: "Photos (optional)",
+    creating: "Creating…",
+    uploadingPhotos: "Uploading photos…",
     images: {
       title: "Photos",
       hint: "Up to 3 photos. The first one is the main photo shown in the catalog.",
@@ -2034,6 +2038,7 @@ export const en = {
       moveEarlier: "Move earlier",
       moveLater: "Move later",
       primary: "Main photo",
+      photoN: "Photo {n}",
       full: "You have 3 photos. Remove one to add another.",
       uploading: "Uploading…",
       none: "No photos yet.",

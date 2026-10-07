@@ -1,13 +1,17 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { Card } from "@/components/ui/primitives";
 import { Button, Input, Textarea, Select, LabeledField, SubmitButton } from "@/components/ui/controls";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_LIMITS, isOwnProductUnit } from "@/features/commerce/constants";
-import { createOwnProductAction, updateOwnProductAction, type OwnProductFormState } from "@/server/actions/own-products";
+import { createOwnProductDraftAction, updateOwnProductAction, type OwnProductFormState } from "@/server/actions/own-products";
+import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { normalizeColors } from "./product-input";
+import { StagedPhotos } from "./staged-photos";
+import { uploadProductImage } from "./upload-image";
 
 const initial: OwnProductFormState = { ok: false };
 
@@ -35,8 +39,46 @@ export type ProductFormValues = {
 export function ProductForm({ orgId, product }: { orgId: string; product?: ProductFormValues }) {
   const { t } = useI18n();
   const editing = Boolean(product);
-  const [state, action] = useActionState(editing ? updateOwnProductAction : createOwnProductAction, initial);
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [editState, editAction] = useActionState(updateOwnProductAction, initial);
+  // Create is ONE flow: the product is created as an inactive draft, the photos the
+  // user staged on this screen are uploaded to it, and only then does the page move on.
+  const [createState, setCreateState] = useState<OwnProductFormState>(initial);
+  const [staged, setStaged] = useState<File[]>([]);
+  const [phase, setPhase] = useState<"idle" | "creating" | "uploading">("idle");
+  const state = editing ? editState : createState;
   const fe = state.fieldErrors ?? {};
+
+  // A failed submit moves keyboard focus to the first field that needs attention.
+  useEffect(() => {
+    if (state.ok || (!state.fieldErrors && !state.code)) return;
+    const invalid = formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]");
+    invalid?.focus();
+  }, [state]);
+
+  async function onCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (phase !== "idle") return;
+    setPhase("creating");
+    const result = await createOwnProductDraftAction(new FormData(e.currentTarget));
+    if (!result.ok) {
+      setCreateState({ ok: false, code: result.code, fieldErrors: result.fieldErrors });
+      setPhase("idle");
+      return;
+    }
+    setPhase("uploading");
+    let failed = false;
+    for (const file of staged) {
+      try {
+        await uploadProductImage(result.productId, file);
+      } catch {
+        failed = true;
+        break;
+      }
+    }
+    router.push(`${SHOWROOM_ROOT}/my-products/${result.productId}/edit?created=1${failed ? "&photos=partial" : ""}`);
+  }
   const [colors, setColors] = useState<string[]>(product?.colors ?? []);
   const [draftColor, setDraftColor] = useState("");
   const [colorNote, setColorNote] = useState<string | null>(null);
@@ -60,7 +102,7 @@ export function ProductForm({ orgId, product }: { orgId: string; product?: Produ
         </p>
       ) : null}
 
-      <form action={action} className="flex flex-col gap-lg" noValidate data-testid="product-form">
+      <form ref={formRef} action={editing ? editAction : undefined} onSubmit={editing ? undefined : onCreate} className="flex flex-col gap-lg" noValidate data-testid="product-form">
         {editing ? (
           <>
             <input type="hidden" name="productId" value={product!.id} />
@@ -172,8 +214,16 @@ export function ProductForm({ orgId, product }: { orgId: string; product?: Produ
           </div>
         </fieldset>
 
+        {!editing ? <StagedPhotos files={staged} onChange={setStaged} disabled={phase !== "idle"} /> : null}
+
         <div>
-          <SubmitButton pendingLabel={t("common.saving")}>{editing ? t("common.saveChanges") : t("common.create")}</SubmitButton>
+          {editing ? (
+            <SubmitButton pendingLabel={t("common.saving")}>{t("common.saveChanges")}</SubmitButton>
+          ) : (
+            <Button type="submit" disabled={phase !== "idle"} aria-busy={phase !== "idle"}>
+              {phase === "creating" ? t("showroomProducts.creating") : phase === "uploading" ? t("showroomProducts.uploadingPhotos") : t("common.create")}
+            </Button>
+          )}
         </div>
       </form>
     </Card>

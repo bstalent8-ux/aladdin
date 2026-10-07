@@ -57,7 +57,11 @@ function revalidateProduct(productId?: string) {
   }
 }
 
-export async function createOwnProductAction(_prev: OwnProductFormState, fd: FormData): Promise<OwnProductFormState> {
+type CreateResult =
+  | { ok: true; productId: string }
+  | { ok: false; code?: string; fieldErrors?: Record<string, string> };
+
+async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
   const orgId = str(fd, "orgId");
   if (!orgId || !UUID.test(orgId)) return { ok: false, code: "states.genericRetry" };
   const parsed = parseOwnProductForm(fd);
@@ -82,7 +86,24 @@ export async function createOwnProductAction(_prev: OwnProductFormState, fd: For
     return mapped.field ? { ok: false, fieldErrors: { [mapped.field]: mapped.code } } : { ok: false, code: mapped.code };
   }
   revalidateProduct(data);
-  redirect(`${MY_PRODUCTS}/${data}/edit?created=1`);
+  return { ok: true, productId: data };
+}
+
+/** Create, then land on the product's edit page (the no-JavaScript / no-photos path). */
+export async function createOwnProductAction(_prev: OwnProductFormState, fd: FormData): Promise<OwnProductFormState> {
+  const result = await createOwnProductCore(fd);
+  if (!result.ok) return result;
+  redirect(`${MY_PRODUCTS}/${result.productId}/edit?created=1`);
+}
+
+/**
+ * Create WITHOUT redirecting, so the create screen can upload the photos the user
+ * staged in the same flow and only then navigate. The product it creates is an
+ * ordinary inactive draft owned by the organization: if the flow is abandoned
+ * after this point the draft simply remains, resumable from My products.
+ */
+export async function createOwnProductDraftAction(fd: FormData): Promise<CreateResult> {
+  return createOwnProductCore(fd);
 }
 
 export async function updateOwnProductAction(_prev: OwnProductFormState, fd: FormData): Promise<OwnProductFormState> {

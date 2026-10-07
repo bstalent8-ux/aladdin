@@ -22,7 +22,7 @@ export default async function ShowroomEditProductPage({
   searchParams,
 }: {
   params: Promise<{ productId: string }>;
-  searchParams: Promise<{ created?: string; saved?: string }>;
+  searchParams: Promise<{ created?: string; saved?: string; photos?: string }>;
 }) {
   const { supabase, org } = await requireShowroomContext();
   const item = SHOWROOM_GROUPS.flatMap((g) => g.items).find((entry) => entry.id === "my-products");
@@ -57,7 +57,7 @@ export default async function ShowroomEditProductPage({
         <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
       </div>
 
-      {sp.created === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="created-note">{t("showroomProducts.created")}</p> : null}
+      {sp.created === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="created-note">{sp.photos === "partial" ? t("showroomProducts.createdPartial") : t("showroomProducts.created")}</p> : null}
       {sp.saved === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="saved-note">{t("showroomProducts.saved")}</p> : null}
 
       {status === "archived" ? (
@@ -87,6 +87,7 @@ export default async function ShowroomEditProductPage({
         <Card className="max-w-3xl">
           <ImageManager
             productId={product.id}
+            productName={product.name}
             archived={status === "archived"}
             images={images.map((i) => ({ id: i.id, url: signed.get(i.objectKey) ?? null, slot: i.slot }))}
           />

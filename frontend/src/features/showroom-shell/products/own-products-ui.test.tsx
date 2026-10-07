@@ -5,6 +5,8 @@ import { CATALOG_VIEW_COOKIE } from "@/lib/ui/catalog-view";
 
 const actions = vi.hoisted(() => ({
   create: vi.fn(async () => ({ ok: false })),
+  draft: vi.fn(),
+  push: vi.fn(),
   update: vi.fn(async () => ({ ok: false })),
   lifecycle: vi.fn(async () => ({ ok: true })),
   requestUpload: vi.fn(),
@@ -16,6 +18,7 @@ const actions = vi.hoisted(() => ({
 }));
 vi.mock("@/server/actions/own-products", () => ({
   createOwnProductAction: actions.create,
+  createOwnProductDraftAction: actions.draft,
   updateOwnProductAction: actions.update,
   ownProductLifecycleAction: actions.lifecycle,
   requestProductImageUploadAction: actions.requestUpload,
@@ -23,7 +26,7 @@ vi.mock("@/server/actions/own-products", () => ({
   removeProductImageAction: actions.remove,
   reorderProductImagesAction: actions.reorder,
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: actions.refresh, push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: actions.refresh, push: actions.push }) }));
 vi.mock("@/lib/supabase/client", () => ({
   createBrowserSupabaseClient: () => ({ storage: { from: () => ({ upload: actions.upload }) } }),
 }));
@@ -236,9 +239,16 @@ describe("ProductForm", () => {
 
 describe("ImageManager", () => {
   const img = (n: number) => ({ id: `i${n}`, url: `https://signed/${n}.png`, slot: n });
-  const manager = (images = [img(1), img(2)], archived = false) => wrap(<ImageManager productId="p1" images={images} archived={archived} />);
+  const manager = (images = [img(1), img(2)], archived = false) => wrap(<ImageManager productId="p1" productName="Matt Emulsion" images={images} archived={archived} />);
   const file = (type: string) => new File([new Uint8Array(16)], "x", { type });
   const pick = (input: HTMLElement, f: File) => fireEvent.change(input, { target: { files: [f] } });
+
+  it("gives every photo a meaningful alt text and every control group a name", () => {
+    manager();
+    expect(screen.getAllByRole("img").map((i) => i.getAttribute("alt"))).toEqual(["Matt Emulsion — Photo 1", "Matt Emulsion — Photo 2"]);
+    expect(screen.getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Photo 1", "Photo 2"]);
+    for (const b of screen.getAllByRole("button")) expect((b.getAttribute("aria-label") ?? b.textContent ?? "").trim().length).toBeGreaterThan(0);
+  });
 
   it("shows the count, marks the first photo as main, and offers one free slot", () => {
     manager();
@@ -296,20 +306,121 @@ describe("ImageManager", () => {
 
   it("reorders by moving a photo earlier", async () => {
     manager([img(1), img(2), img(3)]);
-    const second = screen.getAllByRole("group", { name: /Photos 2/ })[0]!;
+    const second = screen.getAllByRole("group", { name: /Photo 2/ })[0]!;
     fireEvent.click(within(second).getByRole("button", { name: "Move earlier" }));
     await waitFor(() => expect(actions.reorder).toHaveBeenCalledWith("p1", ["i2", "i1", "i3"]));
   });
 
   it("cannot move the first photo earlier or the last later", () => {
     manager([img(1), img(2)]);
-    expect((within(screen.getAllByRole("group", { name: /Photos 1/ })[0]!).getByRole("button", { name: "Move earlier" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((within(screen.getAllByRole("group", { name: /Photos 2/ })[0]!).getByRole("button", { name: "Move later" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(screen.getAllByRole("group", { name: /Photo 1/ })[0]!).getByRole("button", { name: "Move earlier" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(screen.getAllByRole("group", { name: /Photo 2/ })[0]!).getByRole("button", { name: "Move later" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("removes a photo through the server action", async () => {
     manager();
-    fireEvent.click(within(screen.getAllByRole("group", { name: /Photos 1/ })[0]!).getByRole("button", { name: "Remove" }));
+    fireEvent.click(within(screen.getAllByRole("group", { name: /Photo 1/ })[0]!).getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(actions.remove).toHaveBeenCalledWith("i1"));
+  });
+});
+
+describe("Create product with photos in one flow", () => {
+  const png = (name: string, type = "image/png") => new File([new Uint8Array(16)], name, { type });
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => "blob:preview");
+    URL.revokeObjectURL = vi.fn();
+  });
+  const fill = (container: HTMLElement) => {
+    fireEvent.change(container.querySelector("#name")!, { target: { value: "Matt Emulsion 18L" } });
+    fireEvent.change(container.querySelector("#code")!, { target: { value: "PNT-001" } });
+    fireEvent.change(container.querySelector("#categoryCode")!, { target: { value: "paints" } });
+    fireEvent.change(container.querySelector("#unit")!, { target: { value: "pail" } });
+  };
+  const stage = (...files: File[]) => files.forEach((f) => fireEvent.change(screen.getByTestId("staged-input"), { target: { files: [f] } }));
+
+  it("offers the photo slots on the create screen itself, before anything is saved", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    expect(screen.getByTestId("staged-photos")).toBeTruthy();
+    expect(screen.getByTestId("staged-count").textContent).toBe("0 of 3 photos");
+  });
+
+  it("does not show staged photos when editing (that screen has the live image manager)", () => {
+    wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], weightKg: null, sizeLabel: null, brand: null, description: null }} />);
+    expect(screen.queryByTestId("staged-photos")).toBeNull();
+  });
+
+  it("stages locally without any request: nothing is uploaded until the form is submitted", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    stage(png("a.png"), png("b.png"));
+    expect(screen.getByTestId("staged-count").textContent).toBe("2 of 3 photos");
+    expect(actions.draft).not.toHaveBeenCalled();
+    expect(actions.requestUpload).not.toHaveBeenCalled();
+    expect(actions.upload).not.toHaveBeenCalled();
+  });
+
+  it("refuses a non-image or an oversize file, and stops at three", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    stage(png("doc.pdf", "application/pdf"));
+    expect(screen.getByText("Use a JPG, PNG or WebP image.")).toBeTruthy();
+    stage(png("1.png"), png("2.png"), png("3.png"), png("4.png"));
+    expect(screen.getByTestId("staged-count").textContent).toBe("3 of 3 photos");
+    expect(screen.queryByTestId("staged-add")).toBeNull();
+  });
+
+  it("reorders and removes staged photos before saving", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    stage(png("a.png"), png("b.png"));
+    const second = screen.getAllByRole("group", { name: /Photo 2/ })[0]!;
+    fireEvent.click(within(second).getByRole("button", { name: "Move earlier" }));
+    fireEvent.click(within(screen.getAllByRole("group", { name: /Photo 2/ })[0]!).getByRole("button", { name: "Remove" }));
+    expect(screen.getByTestId("staged-count").textContent).toBe("1 of 3 photos");
+  });
+
+  it("creates the draft, uploads the staged photos in order, then goes to the product", async () => {
+    actions.draft.mockResolvedValue({ ok: true, productId: "p-new" });
+    actions.requestUpload.mockImplementation(async () => ({ ok: true, key: "org/p-new/i.png" }));
+    actions.confirm.mockResolvedValue({ ok: true, id: "i1" });
+    const { container } = wrap(<ProductForm orgId="org-1" />);
+    fill(container);
+    stage(png("first.png"), png("second.png"));
+    fireEvent.submit(screen.getByTestId("product-form"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1"));
+    expect(actions.requestUpload).toHaveBeenCalledTimes(2);
+    const uploaded = actions.upload.mock.calls.map((c) => (c as unknown as [string, File])[1].name);
+    expect(uploaded).toEqual(["first.png", "second.png"]);
+    const sent = (actions.draft.mock.calls[0] as unknown as [FormData])[0];
+    expect(sent.get("orgId")).toBe("org-1");
+    expect(sent.get("name")).toBe("Matt Emulsion 18L");
+  });
+
+  it("keeps the user on the screen with the field error when the product is refused — and uploads nothing", async () => {
+    actions.draft.mockResolvedValue({ ok: false, fieldErrors: { code: "showroomProducts.errors.duplicateCode" } });
+    const { container } = wrap(<ProductForm orgId="org-1" />);
+    fill(container);
+    stage(png("a.png"));
+    fireEvent.submit(screen.getByTestId("product-form"));
+    expect(await screen.findByText("This product code is already used in your business.")).toBeTruthy();
+    expect(actions.requestUpload).not.toHaveBeenCalled();
+    expect(actions.push).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelector("#code")));
+  });
+
+  it("still lands on the new draft, flagged, when a photo upload fails (nothing is lost, nothing orphaned)", async () => {
+    actions.draft.mockResolvedValue({ ok: true, productId: "p-new" });
+    actions.requestUpload.mockResolvedValue({ ok: false, code: "showroomProducts.images.errorUpload" });
+    const { container } = wrap(<ProductForm orgId="org-1" />);
+    fill(container);
+    stage(png("a.png"));
+    fireEvent.submit(screen.getByTestId("product-form"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1&photos=partial"));
+  });
+
+  it("creates without photos just as before", async () => {
+    actions.draft.mockResolvedValue({ ok: true, productId: "p-new" });
+    const { container } = wrap(<ProductForm orgId="org-1" />);
+    fill(container);
+    fireEvent.submit(screen.getByTestId("product-form"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1"));
+    expect(actions.requestUpload).not.toHaveBeenCalled();
   });
 });
