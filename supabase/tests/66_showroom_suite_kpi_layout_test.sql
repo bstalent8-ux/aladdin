@@ -1,6 +1,6 @@
 -- pgTAP: showroom suite KPI layouts (20261007090001).
 --
--- The claim under test: layouts are stored per SURFACE. The showroom suite's ten
+-- The claim under test: layouts are stored per SURFACE. The showroom suite's nine offered
 -- cards live on surface 'showroom_suite', production Home's original eight on
 -- 'home', and neither can ever hold the other's cards or overwrite the other's
 -- row. Authorization is unchanged from 20260915090001 (ordinary member -> own
@@ -63,12 +63,12 @@ select throws_ok(
   'an unknown surface is refused'
 );
 
--- C. Bounds: ten distinct suite cards fit; a repeat does not.
+-- C. Bounds: the nine offered suite cards fit (the historical open_purchase_requests value stays valid in the enum, but the app never offers it); a repeat does not.
 select lives_ok(
   format('select public.dashboard_kpi_layout_set_personal(%L, %L, %L)', :'orgC',
-    '{open_purchase_requests,rfqs_sent,quotes_received,orders_in_progress,total_purchases,customer_rfqs_received,customer_quotes_sent,total_sales,projects,saved_products}'::public.dashboard_kpi_card_key[],
+    '{rfqs_sent,quotes_received,orders_in_progress,total_purchases,customer_rfqs_received,customer_quotes_sent,total_sales,projects,saved_products}'::public.dashboard_kpi_card_key[],
     'showroom_suite'),
-  'all ten suite cards can be saved'
+  'all nine suite cards can be saved'
 );
 select throws_ok(
   format('select public.dashboard_kpi_layout_set_personal(%L, %L, %L)', :'orgC',

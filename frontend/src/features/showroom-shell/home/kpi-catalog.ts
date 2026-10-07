@@ -7,14 +7,13 @@ import {
   MoneyIcon,
   ScrollIcon,
   SendIcon,
-  ShoppingBagIcon,
   TrendingUpIcon,
 } from "@/components/ui/icons";
 import type { DashboardPeriodKey } from "@/lib/workspace/dashboard-period";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 
 /**
- * The showroom suite Home's KPI catalog — the ten cards a showroom (buyer AND
+ * The showroom suite Home's KPI catalog — the nine cards a showroom (buyer AND
  * seller) sees, in the order they are offered. Mirrors the allowlisted
  * `dashboard_kpi_card_key` values for the `showroom_suite` surface
  * (20261007090001); the database rejects anything not on this list.
@@ -27,7 +26,6 @@ import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom
  *   sales      = the organization is the SUPPLIER of the chain.
  */
 export type ShowroomKpiKey =
-  | "open_purchase_requests"
   | "rfqs_sent"
   | "quotes_received"
   | "orders_in_progress"
@@ -67,9 +65,17 @@ export type ShowroomKpiEntry = {
 /** Capabilities that make an organization a SELLER in the commerce chain. */
 const SELLER_CAPABILITIES = ["rfq.respond", "quote.submit", "order.manage"] as const;
 
+/**
+ * There is deliberately NO "open purchase requests" card. A Purchase Request is a
+ * distinct procurement need that comes BEFORE an RFQ (purchase request → RFQ sent →
+ * quotation received → purchase order); the data model has no such entity yet, and
+ * counting RFQs under that name would mislabel a different stage. The card returns
+ * when the purchase-request lifecycle exists. The historical enum value stays in
+ * the database (removing it would be destructive) but is never offered or rendered.
+ */
+
 /** Everything the dialog may offer, in the product's canonical order. */
 export const SHOWROOM_KPI_CATALOG: readonly ShowroomKpiEntry[] = [
-  { key: "open_purchase_requests", Icon: ShoppingBagIcon, labelKey: "showroomHome.kpi.openPurchaseRequests", dialogLabelKey: "showroomHome.kpiDialog.openPurchaseRequests", direction: "purchasing", basis: "now", page: "purchase-requests", query: { status: "open" } },
   { key: "rfqs_sent", Icon: SendIcon, labelKey: "showroomHome.kpi.rfqsSent", dialogLabelKey: "showroomHome.kpiDialog.rfqsSent", direction: "purchasing", basis: "period", page: "pricing-requests-sent" },
   { key: "quotes_received", Icon: InboxIcon, labelKey: "showroomHome.kpi.quotesReceived", dialogLabelKey: "showroomHome.kpiDialog.quotesReceived", direction: "purchasing", basis: "period", page: "quotes-received" },
   { key: "orders_in_progress", Icon: ClipboardIcon, labelKey: "showroomHome.kpi.ordersInProgress", dialogLabelKey: "showroomHome.kpiDialog.ordersInProgress", direction: "purchasing", basis: "now", page: "purchase-orders", query: { status: "active" } },
@@ -90,13 +96,12 @@ export const SHOWROOM_KPI_MAX = SHOWROOM_KPI_CATALOG.length;
  * direction pair — first, then the supporting four. Never duplicated elsewhere.
  */
 export const SHOWROOM_KPI_DEFAULT_ORDER: readonly ShowroomKpiKey[] = [
-  "open_purchase_requests",
+  "rfqs_sent",
   "quotes_received",
   "orders_in_progress",
   "customer_rfqs_received",
   "total_purchases",
   "total_sales",
-  "rfqs_sent",
   "customer_quotes_sent",
   "projects",
   "saved_products",

@@ -31,7 +31,6 @@ describe("card -> figure mapping keeps directions apart", () => {
   const value = (key: (typeof SHOWROOM_KPI_CATALOG)[number]["key"]) => showroomKpiValue(key, metrics);
 
   it("reads purchasing cards from the purchasing figures", () => {
-    expect(value("open_purchase_requests").value).toBe(metrics.open_purchase_requests);
     expect(value("rfqs_sent").value).toBe(metrics.rfqs_sent);
     expect(value("quotes_received").value).toBe(metrics.quotes_received);
     expect(value("orders_in_progress").value).toBe(metrics.purchase_orders_active);
@@ -42,6 +41,10 @@ describe("card -> figure mapping keeps directions apart", () => {
     expect(value("customer_rfqs_received").value).toBe(metrics.customer_rfqs_received);
     expect(value("customer_quotes_sent").value).toBe(metrics.customer_quotes_sent);
     expect(value("total_sales")).toEqual({ value: metrics.total_sales, money: true });
+  });
+
+  it("carries no purchase-request figure: RFQs are a different procurement stage", () => {
+    expect(SHOWROOM_METRIC_KEYS as readonly string[]).not.toContain("open_purchase_requests");
   });
 
   it("never maps two cards to the same figure", () => {

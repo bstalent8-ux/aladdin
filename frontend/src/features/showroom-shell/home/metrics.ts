@@ -7,7 +7,6 @@ import type { ShowroomKpiKey } from "./kpi-catalog";
  * that would read as real data.
  */
 export const SHOWROOM_METRIC_KEYS = [
-  "open_purchase_requests",
   "rfqs_sent",
   "quotes_received",
   "purchase_orders_active",
@@ -40,7 +39,6 @@ export function parseShowroomHomeMetrics(raw: unknown): ShowroomHomeMetrics {
 /** Which metric backs each card — the one place a card maps to its live figure. */
 export function showroomKpiValue(key: ShowroomKpiKey, metrics: ShowroomHomeMetrics): { value: number; money: boolean } {
   switch (key) {
-    case "open_purchase_requests": return { value: metrics.open_purchase_requests, money: false };
     case "rfqs_sent": return { value: metrics.rfqs_sent, money: false };
     case "quotes_received": return { value: metrics.quotes_received, money: false };
     case "orders_in_progress": return { value: metrics.purchase_orders_active, money: false };

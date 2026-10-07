@@ -40,19 +40,20 @@ function renderDialog(props: Partial<React.ComponentProps<typeof KpiCustomizeDia
 beforeEach(() => vi.clearAllMocks());
 
 describe("KpiCustomizeDialog on the showroom suite surface", () => {
-  it("lists the ten suite cards with their direction spelled out", () => {
+  it("lists the nine suite cards with their direction spelled out", () => {
     renderDialog();
-    expect(screen.getByText("Open purchase requests (purchasing)")).toBeTruthy();
+    expect(screen.getByText("RFQs sent to suppliers (purchasing)")).toBeTruthy();
+    expect(screen.queryByText(/purchase requests/i)).toBeNull();
     expect(screen.getByText("Customer RFQs received (sales)")).toBeTruthy();
     expect(screen.getByText("Total sales (sales)")).toBeTruthy();
-    expect(screen.getAllByRole("listitem")).toHaveLength(10);
+    expect(screen.getAllByRole("listitem")).toHaveLength(9);
   });
 
-  it("allows a hidden card to be re-enabled up to ten, never past it", () => {
-    renderDialog({ initialOrder: SHOWROOM_KPI_DEFAULT_ORDER.slice(0, 9) });
+  it("allows a hidden card to be re-enabled up to nine, never past it", () => {
+    renderDialog({ initialOrder: SHOWROOM_KPI_DEFAULT_ORDER.slice(0, 8) });
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
     expect(screen.queryByRole("button", { name: "Show" })).toBeNull();
-    expect(screen.getAllByRole("listitem")).toHaveLength(10);
+    expect(screen.getAllByRole("listitem")).toHaveLength(9);
   });
 
   it("saves the member's layout for the showroom_suite surface, in the displayed order", async () => {

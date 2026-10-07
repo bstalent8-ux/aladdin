@@ -1899,9 +1899,8 @@ export const ar: Messages = {
     errorRetry: "إعادة المحاولة",
     basisNow: "حاليًا",
     direction: { purchasing: "مشتريات", sales: "مبيعات", operations: "عمليات" },
-    maxReached: "يمكنك عرض 10 بطاقات كحد أقصى — أخفِ بطاقة لإضافة أخرى.",
+    maxReached: "يمكنك عرض 9 بطاقات كحد أقصى — أخفِ بطاقة لإضافة أخرى.",
     kpi: {
-      openPurchaseRequests: "طلبات شراء مفتوحة",
       rfqsSent: "طلبات عروض أسعار صادرة",
       quotesReceived: "عروض أسعار واردة",
       ordersInProgress: "أوامر شراء قيد التنفيذ",
@@ -1913,7 +1912,6 @@ export const ar: Messages = {
       savedProducts: "منتجات محفوظة",
     },
     kpiDialog: {
-      openPurchaseRequests: "طلبات شراء مفتوحة (مشتريات)",
       rfqsSent: "طلبات عروض أسعار صادرة (مشتريات)",
       quotesReceived: "عروض أسعار واردة (مشتريات)",
       ordersInProgress: "أوامر شراء قيد التنفيذ (مشتريات)",

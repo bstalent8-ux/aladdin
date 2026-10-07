@@ -103,7 +103,6 @@ Phases 1–10 remain unimplemented on this branch. No new routes, migrations, DB
 
 | Card | Direction | Basis | Source (`showroom_home_metrics`, RLS-scoped views) | Opens |
 |---|---|---|---|---|
-| طلبات شراء مفتوحة | purchasing | now | `rfq_list` requester = org, status submitted/quoted | `purchase-requests?status=open` |
 | طلبات عروض أسعار صادرة | purchasing | period | `rfq_list` requester = org, submitted/quoted/closed, `created_at` in period | `pricing-requests-sent?period=` |
 | عروض أسعار واردة | purchasing | period | `quotation_list` requester = org, not draft, `created_at` in period | `quotes-received?period=` |
 | أوامر شراء قيد التنفيذ | purchasing | now | `order_list` requester = org, confirmed/in_progress | `purchase-orders?status=active` |
@@ -116,11 +115,13 @@ Phases 1–10 remain unimplemented on this branch. No new routes, migrations, DB
 
 The period is resolved once (`dashboardPeriodRange`, org/branch timezone) and applied in the database as the half-open range `[from 00:00, to+1 00:00)` in that timezone. Totals are exact SQL sums (not capped by the API row limit).
 
-**Layout persistence.** Per user (personal) and per organization (team default, `org.manage`) in `dashboard_kpi_layouts`, discriminated by the new `surface` column (`home` | `showroom_suite`) so suite layouts can never reach production Home. The first six cards are the first screen; the rest sit behind "show more". Defaults: the six balanced cards, then the four supporting ones. A card is offered only if its destination page is reachable (same gate as the sidebar), `total_sales` additionally needs a seller capability, and stale saved layouts are filtered against that.
+**Layout persistence.** Per user (personal) and per organization (team default, `org.manage`) in `dashboard_kpi_layouts`, discriminated by the new `surface` column (`home` | `showroom_suite`) so suite layouts can never reach production Home. The first six cards are the first screen; the rest sit behind "show more". Defaults, in order: طلبات عروض أسعار صادرة, عروض أسعار واردة, أوامر شراء قيد التنفيذ, طلبات عروض أسعار واردة, إجمالي المشتريات, إجمالي المبيعات (first screen), then عروض أسعار صادرة, مشاريع جارية, منتجات محفوظة. A card is offered only if its destination page is reachable (same gate as the sidebar), `total_sales` additionally needs a seller capability, and stale saved layouts are filtered against that.
+
+**Purchase Requests are not an RFQ (correction, 2026-10-07).** The canonical procurement flow is طلبات الشراء → طلبات عروض أسعار صادرة → عروض أسعار واردة → أوامر الشراء. A Purchase Request is a distinct procurement need that precedes an RFQ, and the data model has no such entity yet, so the first Phase 2 build's "طلبات شراء مفتوحة" card (which counted RFQs) was removed: it is not in the catalog, default layout, dialog, labels or RPC payload (`20261007090003` redefines `showroom_home_metrics` without the key). The `open_purchase_requests` enum value and its allowlist entry stay in the database (removal would be destructive) but are never offered; stale saved layouts that contain it are filtered out. **طلبات الشراء will become a real entity/domain, with its own lifecycle and KPI, when its procurement lifecycle is implemented later.**
 
 **Products.** Deterministic, not a recommendation engine: the newest published products of OTHER organizations (`published_at desc, id asc`, limit 4) from the RLS-scoped `catalog_published_products` view. The full catalog is Phase 3.
 
-**Migrations (additive).** `20261007090001_showroom_suite_kpi_layouts.sql` (5 enum values, `surface` column, surface-scoped unique indexes and RPCs with backwards-compatible defaults) and `20261007090002_showroom_home_metrics.sql` (`SECURITY INVOKER` RPC). Production apps that call the old RPC shape keep working. No service-role use at runtime.
+**Migrations (additive).** `20261007090001_showroom_suite_kpi_layouts.sql` (5 enum values, `surface` column, surface-scoped unique indexes and RPCs with backwards-compatible defaults) `20261007090002_showroom_home_metrics.sql` (`SECURITY INVOKER` RPC) and `20261007090003_showroom_home_metrics_no_purchase_requests.sql` (drops the purchase-request figure from the payload). Production apps that call the old RPC shape keep working. No service-role use at runtime.
 
 **Phase 1 shell fix found here.** At 390px RTL with a long business name the phone location row could not shrink and widened the page; the row is now `min-w-0` and the location truncates with a title.
 

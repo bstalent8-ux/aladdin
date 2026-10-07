@@ -1,4 +1,4 @@
--- pgTAP: showroom suite Home metrics (20261007090002).
+-- pgTAP: showroom suite Home metrics (20261007090002, corrected by 20261007090003).
 --
 -- The claims under test:
 --   * DIRECTION — purchasing cards count the organization as REQUESTER, sales
@@ -32,12 +32,11 @@ grant select on m to authenticated;
 
 -- A. Shape + definitions, equal to independent queries (full-history window).
 select is(
-  (select count(*)::int from jsonb_object_keys((select j from m))), 10,
-  'the RPC returns exactly the ten documented figures'
+  (select count(*)::int from jsonb_object_keys((select j from m))), 9,
+  'the RPC returns exactly the nine documented figures'
 );
-select is((select (j->>'open_purchase_requests')::int from m),
-  (select count(*)::int from public.rfq_list where requester_org_id = :'orgC'::uuid and status in ('submitted','quoted')),
-  'open_purchase_requests = RFQs the org raised that are submitted/quoted');
+select ok(not ((select j from m) ? 'open_purchase_requests'),
+  'no purchase-request figure: that entity does not exist yet and RFQs are a different procurement stage');
 select is((select (j->>'rfqs_sent')::int from m),
   (select count(*)::int from public.rfq_list where requester_org_id = :'orgC'::uuid and status in ('submitted','quoted','closed')),
   'rfqs_sent = RFQs the org sent (requester side, not draft/cancelled)');
@@ -81,8 +80,8 @@ select is(
   (select (public.showroom_home_metrics(:'orgC'::uuid, '2000-01-01', '2000-01-02')->>'total_sales')::numeric), 0::numeric,
   'a window before any record has zero total_sales');
 select is(
-  (select (public.showroom_home_metrics(:'orgC'::uuid, '2000-01-01', '2000-01-02')->>'open_purchase_requests')::int),
-  (select (j->>'open_purchase_requests')::int from m),
+  (select (public.showroom_home_metrics(:'orgC'::uuid, '2000-01-01', '2000-01-02')->>'purchase_orders_active')::int),
+  (select (j->>'purchase_orders_active')::int from m),
   'a "now" card ignores the period');
 select cmp_ok(
   (select (public.showroom_home_metrics(:'orgC'::uuid, current_date - 7, current_date)->>'rfqs_sent')::int),

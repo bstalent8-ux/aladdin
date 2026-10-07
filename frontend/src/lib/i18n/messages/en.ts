@@ -1972,9 +1972,8 @@ export const en = {
     errorRetry: "Try again",
     basisNow: "Right now",
     direction: { purchasing: "Purchasing", sales: "Sales", operations: "Operations" },
-    maxReached: "You can show at most 10 cards — hide one to add another.",
+    maxReached: "You can show at most 9 cards — hide one to add another.",
     kpi: {
-      openPurchaseRequests: "Open purchase requests",
       rfqsSent: "RFQs sent to suppliers",
       quotesReceived: "Supplier quotations received",
       ordersInProgress: "Purchase orders in progress",
@@ -1986,7 +1985,6 @@ export const en = {
       savedProducts: "Saved products",
     },
     kpiDialog: {
-      openPurchaseRequests: "Open purchase requests (purchasing)",
       rfqsSent: "RFQs sent to suppliers (purchasing)",
       quotesReceived: "Supplier quotations received (purchasing)",
       ordersInProgress: "Purchase orders in progress (purchasing)",
