@@ -28,8 +28,8 @@ export function ShowroomWorkspaceMenu({ entries, activeKey, canCreate }: { entri
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", key); };
   }, [open]);
   return <div ref={root} className="relative min-w-0">
-    <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("workspace.switch")} disabled={pending} onClick={() => setOpen(!open)} className="flex h-7 min-w-0 max-w-52 items-center gap-1.5 rounded-sm px-2 text-label font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 tablet:max-w-40 desktop:max-w-64" title={active?.name}>
-      <BuildingIcon size={16} className="shrink-0 text-fg-muted" /><span className="truncate">{active?.name ?? t("workspace.title")}</span><ChevronDownIcon size={14} className="shrink-0" />
+    <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("workspace.switch")} disabled={pending} onClick={() => setOpen(!open)} className="flex h-7 min-w-0 max-w-[min(16rem,62vw)] items-center gap-1.5 rounded-sm px-2 text-label font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 tablet:max-w-40 desktop:max-w-64" title={active?.name}>
+      <BuildingIcon size={16} className="shrink-0 text-fg-muted" /><span dir="auto" className="truncate">{active?.name ?? t("workspace.title")}</span><ChevronDownIcon size={14} className="shrink-0" />
     </button>
     {open ? <div role="menu" aria-label={t("workspace.title")} className={`${menuSurfaceClass} absolute start-0 top-full z-popover mt-1 w-64 max-w-[calc(100vw-2rem)] max-h-[60dvh] overflow-y-auto`} onKeyDown={(event) => {
       const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];

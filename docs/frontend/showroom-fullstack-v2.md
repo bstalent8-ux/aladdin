@@ -83,6 +83,16 @@ Every phase must report changed files, migrations, backend behavior, routes, reu
 
 Phases 1–10 remain unimplemented on this branch. No new routes, migrations, DB types, runtime configuration or application dependencies were added in Phase 0. Production promotion requires separate explicit approval. Browser parity, application tests and DB tests have not run for this branch yet.
 
+## Phase 1 closeout — isolated runtime validation
+
+- **Isolated local stack.** Never reuse a shared stack for this branch. Use a distinct `project_id` and unused ports in a local, *uncommitted* `supabase/config.toml` edit (validated with `project_id = "aladdin_sr2"`, API 59321, DB 59322, shadow 59320, Studio 59323, Mailpit 59324, analytics 59327, pooler 59329, edge inspector 59083) and a gitignored `frontend/.env.local` pointing at it. `pnpm supabase stop` reads that config, so keep the edit until the stack is stopped.
+- **Fixtures.** `supabase/seed-showroom-workspaces.sql` is deliberately *not* in `[db.seed].sql_paths`; apply it by hand to an isolated stack only. It creates `switch@example.test` (owner of a `showroom_dealer`, a `supplier` and a `design_office` organization) and `ineligible@example.test` (a `contractor_company` member only). Password: the documented E2E password in `frontend/e2e/helpers/auth.ts`.
+- **Validated in browser on that stack:** real three-membership switching (cookie `aladdin-org` changes, `aladdin-branch` cleared, header location/name follow the active org, no cross-tenant text), forged `aladdin-org` cookies for foreign/other-user orgs are ignored, a complete Add Business run with "المهندس" produced `organizations.org_type = 'design_office'` (status `pending_verification`) with an owner membership holding `org.manage`, one branch and a completed draft, and the new workspace appears in the switcher. An ineligible account is redirected from every `/preview/showroom-suite-v2/*` path (home, a section page, add-business) to `/b2b`.
+- **No migration.** `organization_type` already contains `design_office`; there is no `engineer` enum value. The label "المهندس" is presentation only.
+- **Sign-in `next`.** `/auth/sign-in?next=/preview/showroom-suite-v2/home` lands on `/b2b` by design: `sanitizeNext` (`server/auth/next.ts`) allowlists only `/admin`, `/b2b`, `/home`, `/onboarding` and `/auth/invite/`, and the post-auth action then pins the destination to the account's canonical landing. Preview paths are intentionally outside the allowlist, so production redirect behavior is unchanged; open the suite URL directly after signing in.
+- **Add Business redirect.** Completing the shared flow redirects to `/b2b` (the shared action's destination), not back into the suite. Left unchanged.
+- **Workspace trigger.** Truncation is now intentional: `dir="auto"` gives an end ellipsis for Latin names inside RTL, and the trigger width is capped by viewport (`max-w-[min(16rem,62vw)]` on phones, wider on desktop); the full name is in `title` and the menu.
+
 ## Consequences
 
 Existing queries and RPCs provide substantial reuse, but their production redirects and business capability assumptions need per-feature review. The old static preview is design evidence only, not an authorization or persistence layer. Shared schema changes must remain additive so production remains compatible until promotion.
