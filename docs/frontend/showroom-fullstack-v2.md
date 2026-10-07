@@ -127,6 +127,28 @@ The period is resolved once (`dashboardPeriodRange`, org/branch timezone) and ap
 
 ## Consequences
 
+## Phase 3 — تصفح المنتجات (`/preview/showroom-suite-v2/catalog`)
+
+The showroom's product browser is the PRODUCTION catalog backend in the suite shell; it is not a second catalog.
+
+**Reused unchanged:** `listCatalog` / `getCatalogProduct` / `savedProductIds` (`server/queries/commerce.ts`, reading only the RLS-scoped, `security_invoker` view `catalog_published_products`), `FilterBar`, `ProductMedia`, `SaveProductButton`, `toggleSavedProductAction` (→ `save_product` / `unsave_product` RPCs, membership-scoped, duplicate-safe), the `commerce.*` category/unit labels, and the production detail card (now `features/commerce/catalog-product-detail.tsx`, shared by `/b2b/catalog/[id]` and the suite).
+
+**Added (thin):** `features/showroom-shell/catalog/` (server composition, URL parsing, grid/list results), the `catalog` route + `loading`/`error`, the `catalog/[productId]` adapter, `lib/ui/catalog-view.ts`, `showroomCatalog.*` messages. Small additive changes to shared code: `listCatalog` takes an optional `limit` (default unchanged, 100), `ProductMedia` takes an optional `aspect` (default unchanged, 4:3), and `toggleSavedProductAction` also revalidates the suite catalog, detail and Home paths. **No migration, no SQL, no service-role.**
+
+**Visibility.** Only what the view exposes: published, non-deleted products of non-deleted organizations. Drafts, archived products and unpublished assets are absent at the database (pgTAP 23/29 and the new 68); a direct link to one is a 404 in the suite exactly as on `/b2b`.
+
+**Grid / List.** Grid is the default: 2 columns on phones, 3 at ≥768, 4 at ≥1024 (4 at 1543 with the suite sidebar), with a 4:3 (16:10 from 768) image, name, brand, category chip, supplier (+ verified mark), unit and the save toggle overlaid on the image. List is a compact horizontal row: thumbnail, name/brand, category, supplier, unit, save, "View details"; on phones it stacks (title row, one meta line, full-width action). The choice lives in the `aladdin-catalog-view` cookie (per-browser, like theme/locale/sidebar mode — no DB row, no migration), is read by the server so there is no flash, and applies instantly client-side.
+
+**Filters (what the production backend supports, nothing invented):** free-text search over name / SKU / brand, category, and supplier (`?supplier=<org id>`, the hand-off used by the Suppliers directory, shown as a "show all distributors" link). Sorting is fixed newest-published-first and there is no price, location or availability filter because the view carries no such columns. Paging is "load more" in steps of 100 up to 500 (`?limit=`), replacing the previous silent 100-row cut-off; bad `category` / `supplier` / `limit` values are dropped, not forwarded.
+
+**Price.** The production catalog has no price column by design (consultation-first: a price comes from a quotation), so cards show none. This is deliberate and documented, not an omission.
+
+**Category / taxonomy gap (Phase 0 finding, unchanged).** The database still has the broad `product_category` enum — finishing, construction, interior_design, furnishing, supply, tools, other. The requested 15 showroom categories (ورق حائط, بديل خشب, بديل رخام, شيبورد, كرانيش, زوايا, بانوهات, وزر, ابواب داخلية, ابواب مصفحة, ارضيات فينيل, ارضيات SPC, ستائر, بوسترات, دهانات) do NOT map one-to-one onto it, so no mapping was invented and the filter offers the real codes. The category control is driven by one list (`PRODUCT_CATEGORIES` + `commerce.categories.*`) and `parseShowroomCatalogParams` only accepts members of it, so adopting the canonical taxonomy in Phase 4 (additive migration with Own Products) is a swap of that list/labels, not a rewrite.
+
+**Product details.** Cards link to `/preview/showroom-suite-v2/catalog/[id]` (suite shell, same detail card, back link, save toggle). "Request quote" still points at the production RFQ flow (`/b2b/rfqs/new?product=`) until the RFQ pages are built in a later phase. Home's "منتجات مقترحة لك" cards now link to the same suite detail route and its "view all" to the catalog.
+
+**Tests.** Vitest: URL parsing and preference resolution, results component (grid default, list, toggle + cookie, saved state, links, save form), the query layer (published view only, filters, limit, errors), the save action (RPC choice, revalidation, DB refusal). pgTAP 68 (against the existing view/RPCs): published visible / draft hidden, save, duplicate save, unpublished refused, cross-organization save/read/unsave refused, idempotent unsave, no direct writes.
+
 Existing queries and RPCs provide substantial reuse, but their production redirects and business capability assumptions need per-feature review. The old static preview is design evidence only, not an authorization or persistence layer. Shared schema changes must remain additive so production remains compatible until promotion.
 
 ## Related files

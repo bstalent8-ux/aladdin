@@ -1961,6 +1961,26 @@ export const en = {
   },
   /* The showroom suite Home. A showroom is buyer AND seller, so every card
      carries its direction explicitly (purchasing / sales), never inferred. */
+  showroomCatalog: {
+    title: "Browse products",
+    subtitle: "Published products from distributors across the network. Save the ones you want to quote.",
+    display: "Display",
+    grid: "Grid",
+    list: "List",
+    count: "{count} products",
+    scopedTo: "Showing products from {name}",
+    clearSupplier: "Show all distributors",
+    clearFilters: "Clear filters",
+    noResultsTitle: "No products match your search",
+    noResultsBody: "Try different words, another category, or clear the filters.",
+    limitNote: "Showing the newest {count} products. Narrow your search or load more.",
+    showMore: "Load more products",
+    viewDetails: "View details",
+    detailBack: "Back to browse products",
+    errorTitle: "Products could not be loaded",
+    errorBody: "Something went wrong while reading the catalog. Try again.",
+    errorRetry: "Try again",
+  },
   showroomHome: {
     productsTitle: "Suggested products for you",
     productsViewAll: "Browse all products",

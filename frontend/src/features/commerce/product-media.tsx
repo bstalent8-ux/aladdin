@@ -23,16 +23,20 @@ export function ProductMedia({
   src,
   alt,
   className,
+  aspect = "aspect-[4/3]",
 }: {
   src: string | null;
   /** The product name — never "product image", which tells a screen reader nothing. */
   alt: string;
   className?: string;
+  /** Tailwind aspect class. The production grid keeps 4:3; compact surfaces pass their own. */
+  aspect?: string;
 }) {
   return (
     <div
       className={cn(
-        "relative aspect-[4/3] w-full overflow-hidden rounded-sm bg-surface-2",
+        "relative w-full overflow-hidden rounded-sm bg-surface-2",
+        aspect,
         className,
       )}
     >

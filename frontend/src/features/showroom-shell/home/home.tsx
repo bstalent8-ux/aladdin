@@ -189,7 +189,7 @@ function RecommendedProducts({ products, t }: { products: RecommendedProduct[]; 
           {products.map((product) => (
             <li key={product.id}>
               <Link
-                href={`${SHOWROOM_ROOT}/catalog?product=${encodeURIComponent(product.id)}`}
+                href={`${SHOWROOM_ROOT}/catalog/${encodeURIComponent(product.id)}`}
                 className="flex h-full w-full items-center gap-3 rounded-md bg-surface p-md transition-colors hover:bg-surface-2/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-surface-2 text-fg-secondary">

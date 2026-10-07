@@ -30,14 +30,14 @@ export type QuotationStatus = NonNullable<QuotationListRow["status"]>;
 const LIST_LIMIT = 100;
 
 // ---- Catalog (cross-tenant, published only) --------------------------------
-export type CatalogFilters = { search?: string; category?: ProductCategory; supplierOrgId?: string };
+export type CatalogFilters = { search?: string; category?: ProductCategory; supplierOrgId?: string; limit?: number };
 
 export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise<CatalogRow[]> {
   let q = supabase
     .from("catalog_published_products")
     .select("*")
     .order("published_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .limit(f.limit ?? LIST_LIMIT);
   if (f.category) q = q.eq("category", f.category);
   if (f.supplierOrgId) q = q.eq("organization_id", f.supplierOrgId);
   if (f.search && f.search.trim()) {
