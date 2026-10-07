@@ -91,7 +91,7 @@ function GridCard({ product, canWrite, canPublish }: { product: OwnProductCard; 
     <div className={cn("flex h-full flex-col gap-2 rounded-md border bg-surface p-2 tablet:p-sm", status === "archived" && "opacity-80")} data-testid="my-products-card" data-status={status}>
       <Link href={editHref(product.id)} className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" aria-label={product.name}>
         <ProductMedia src={product.imageUrl} alt={product.name} aspect="aspect-[4/3] tablet:aspect-[16/10]" />
-        <span className="absolute start-1.5 top-1.5"><StatusBadge status={status} /></span>
+        <span className="absolute start-1.5 top-1.5 rounded-pill bg-surface"><StatusBadge status={status} /></span>
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <Link href={editHref(product.id)} className="line-clamp-2 w-full text-body font-medium leading-snug text-fg hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" dir="auto">
