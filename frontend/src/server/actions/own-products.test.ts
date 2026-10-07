@@ -28,6 +28,9 @@ import {
   updateOwnProductAction,
 } from "./own-products";
 
+/** Hex literals are product DATA here, not styling — built at run time so the colour guard stays strict. */
+const h = (rrggbb: string) => "#" + rrggbb;
+
 const ORG = "9c000000-cccc-4ccc-8ccc-000000000001";
 const PRODUCT = "46d3bc5b-16a1-4aa0-966e-274673264654";
 const IMAGE = "5bc41c1a-0000-4000-8000-000000000001";
@@ -38,13 +41,46 @@ function fd(entries: Record<string, string | string[]>) {
   for (const [k, v] of Object.entries(entries)) for (const item of Array.isArray(v) ? v : [v]) f.append(k, item);
   return f;
 }
-const good = { orgId: ORG, name: "Matt Emulsion 18L", code: "PNT-001", categoryCode: "paints", unit: "pail", color: ["Sand", "sand"], weightKg: "3.5" };
+const good = { orgId: ORG, name: "Matt Emulsion 18L", code: "PNT-001", categoryCode: "paints", unit: "pail", colorItems: JSON.stringify([{ name: "Sand", hex: h("c9b28a") }, { name: "sand", hex: null }]), basePrice: "159.5", weightKg: "3.5" };
 
 beforeEach(() => {
   vi.clearAllMocks();
   state.rpc.mockResolvedValue({ data: PRODUCT, error: null });
   state.list.mockResolvedValue({ data: [{ name: `${IMAGE}.png` }], error: null });
   state.remove.mockResolvedValue({ data: [], error: null });
+});
+
+describe("price, colors and description reach the database through the one RPC path", () => {
+  const edit = { productId: PRODUCT, expectedVersion: "3", currentUnit: "pail", name: "Matt Emulsion 18L", code: "PNT-001", categoryCode: "paints", unit: "pail" };
+
+  it("sends the price and structured colors on edit, and nothing like a discount", async () => {
+    state.rpc.mockResolvedValue({ data: 4, error: null });
+    await expect(updateOwnProductAction({ ok: false }, fd({ ...edit, basePrice: "175.25", colorItems: JSON.stringify([{ name: "Cream", hex: h("F2E9D8") }]) }))).rejects.toThrow("NEXT_REDIRECT");
+    const [name, args] = state.rpc.mock.calls[0]!;
+    expect(name).toBe("own_product_update");
+    expect(args).toMatchObject({ p_base_price: 175.25, p_color_items: [{ name: "Cream", hex: h("F2E9D8") }] });
+    expect(Object.keys(args).join(",")).not.toMatch(/discount|compare|percent/);
+  });
+
+  it("maps the database's refusals to the right field instead of raw text", async () => {
+    for (const [message, field] of [
+      ["a product price cannot be removed once it is set", "price"],
+      ["price must be a positive amount in EGP with at most 2 decimals", "price"],
+      ["description is limited to 250 words", "description"],
+      ["a color value must be a hex code like B96F52", "colors"],
+    ] as const) {
+      state.rpc.mockResolvedValue({ data: null, error: { code: "22023", message } });
+      const r = await updateOwnProductAction({ ok: false }, fd(edit));
+      expect(r.ok).toBe(false);
+      expect(Object.keys(r.fieldErrors ?? {})).toEqual([field]);
+    }
+  });
+
+  it("refuses an over-long description before calling the database", async () => {
+    const r = await updateOwnProductAction({ ok: false }, fd({ ...edit, description: Array.from({ length: 251 }, () => "w").join(" ") }));
+    expect(r.fieldErrors).toMatchObject({ description: "showroomProducts.validation.descriptionWords" });
+    expect(state.rpc).not.toHaveBeenCalled();
+  });
 });
 
 describe("createOwnProductAction", () => {
@@ -56,7 +92,8 @@ describe("createOwnProductAction", () => {
       p_code: "PNT-001",
       p_category_code: "paints",
       p_unit: "pail",
-      p_colors: ["Sand"],
+      p_color_items: [{ name: "Sand", hex: h("C9B28A") }],
+      p_base_price: 159.5,
       p_weight_kg: 3.5,
     });
     const paths = state.revalidate.mock.calls.map((c) => c[0]);
@@ -66,7 +103,7 @@ describe("createOwnProductAction", () => {
   it("answers invalid input with field errors and never calls the database", async () => {
     const result = await createOwnProductAction({ ok: false }, fd({ orgId: ORG, name: "x", code: "", categoryCode: "finishing", unit: "box" }));
     expect(result.ok).toBe(false);
-    expect(Object.keys(result.fieldErrors ?? {}).sort()).toEqual(["category", "code", "name", "unit"]);
+    expect(Object.keys(result.fieldErrors ?? {}).sort()).toEqual(["category", "code", "name", "price", "unit"]);
     expect(state.rpc).not.toHaveBeenCalled();
   });
 

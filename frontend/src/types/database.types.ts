@@ -2574,11 +2574,13 @@ export type Database = {
       products: {
         Row: {
           archived_at: string | null
+          base_price: number | null
           brand: string | null
           category: Database["public"]["Enums"]["product_category"]
           category_code: string | null
           code_normalized: string | null
           colors: string[]
+          color_items: Json
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -2598,11 +2600,13 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          base_price?: number | null
           brand?: string | null
           category: Database["public"]["Enums"]["product_category"]
           category_code?: string | null
           code_normalized?: string | null
           colors?: string[]
+          color_items?: Json
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -2622,11 +2626,13 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          base_price?: number | null
           brand?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           category_code?: string | null
           code_normalized?: string | null
           colors?: string[]
+          color_items?: Json
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -5382,10 +5388,11 @@ export type Database = {
       }
       own_product_create: {
         Args: {
+          p_base_price?: number
           p_brand?: string
           p_category_code: string
           p_code: string
-          p_colors?: string[]
+          p_color_items?: Json
           p_description?: string
           p_name: string
           p_org_id: string
@@ -5405,10 +5412,11 @@ export type Database = {
       }
       own_product_update: {
         Args: {
+          p_base_price?: number
           p_brand?: string
           p_category_code: string
           p_code: string
-          p_colors?: string[]
+          p_color_items?: Json
           p_description?: string
           p_expected_version: number
           p_name: string

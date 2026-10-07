@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   availableLifecycleActions,
   isLifecycleAction,
-  normalizeColors,
+  countWords,
+  parsePrice,
   ownProductStatus,
   parseOwnProductForm,
 } from "./product-input";
+
+/** Hex literals are product DATA here, not styling — built at run time so the colour guard stays strict. */
+const h = (rrggbb: string) => "#" + rrggbb;
 
 function form(entries: Record<string, string | string[]>) {
   const fd = new FormData();
@@ -20,7 +24,7 @@ const valid = { name: "Matt Emulsion 18L", code: "PNT-001", categoryCode: "paint
 describe("own product form parsing", () => {
   it("accepts the required fields and normalizes everything it keeps", () => {
     const r = parseOwnProductForm(
-      form({ ...valid, name: "  Matt   Emulsion  ", code: "  pnt  001 ", color: ["Warm  White", "warm white", " Sand "], weightKg: "3,5", sizeLabel: " 18  L ", brand: " DeltaCoat ", description: " Washable " }),
+      form({ ...valid, name: "  Matt   Emulsion  ", code: "  pnt  001 ", colorItems: JSON.stringify([{ name: "Warm  White", hex: h("f5f0e6") }, { name: "warm white", hex: null }, { name: " Sand ", hex: h("c9b28a") }]), basePrice: "159,5", weightKg: "3,5", sizeLabel: " 18  L ", brand: " DeltaCoat ", description: " Washable " }),
     );
     expect(r).toEqual({
       ok: true,
@@ -29,7 +33,8 @@ describe("own product form parsing", () => {
         code: "pnt 001",
         categoryCode: "paints",
         unit: "pail",
-        colors: ["Warm White", "Sand"],
+        colors: [{ name: "Warm White", hex: h("F5F0E6") }, { name: "Sand", hex: h("C9B28A") }],
+        basePrice: 159.5,
         weightKg: 3.5,
         sizeLabel: "18 L",
         brand: "DeltaCoat",
@@ -40,7 +45,7 @@ describe("own product form parsing", () => {
 
   it("treats every optional field as optional", () => {
     const r = parseOwnProductForm(form(valid));
-    expect(r.ok && r.value).toMatchObject({ colors: [], weightKg: null, sizeLabel: null, brand: null, description: null });
+    expect(r.ok && r.value).toMatchObject({ colors: [], basePrice: null, weightKg: null, sizeLabel: null, brand: null, description: null });
   });
 
   it("requires a name, a code, a category and a unit with a translated reason each", () => {
@@ -90,21 +95,54 @@ describe("own product form parsing", () => {
     expect(parseOwnProductForm(form({ ...valid, weightKg: "2.34567" }))).toMatchObject({ ok: true, value: { weightKg: 2.346 } });
   });
 
+  const items = (n: number) => JSON.stringify(Array.from({ length: n }, (_, i) => ({ name: `Color ${i}`, hex: h("B96F52") })));
+
   it("limits colors to twelve distinct names of at most forty characters", () => {
-    const twelve = Array.from({ length: 12 }, (_, i) => `Color ${i}`);
-    expect(parseOwnProductForm(form({ ...valid, color: twelve })).ok).toBe(true);
-    expect(parseOwnProductForm(form({ ...valid, color: [...twelve, "One more"] }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorsTooMany" } });
-    expect(parseOwnProductForm(form({ ...valid, color: ["x".repeat(41)] }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorTooLong" } });
+    expect(parseOwnProductForm(form({ ...valid, colorItems: items(12) })).ok).toBe(true);
+    expect(parseOwnProductForm(form({ ...valid, colorItems: items(13) }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorsTooMany" } });
+    expect(parseOwnProductForm(form({ ...valid, colorItems: JSON.stringify([{ name: "x".repeat(41), hex: h("B96F52") }]) }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorTooLong" } });
+  });
+
+  it("accepts a legacy color with no value, canonicalizes hex, and refuses anything that is not #RRGGBB", () => {
+    const ok = parseOwnProductForm(form({ ...valid, colorItems: JSON.stringify([{ name: "Sand", hex: null }, { name: "Cream", hex: "f2e9d8" }]) }));
+    expect(ok.ok && ok.value.colors).toEqual([{ name: "Sand", hex: null }, { name: "Cream", hex: h("F2E9D8") }]);
+    for (const hex of ["#GGGGGG", h("fff"), "red", "#12345", "#1234567", "javascript:1"]) {
+      expect(parseOwnProductForm(form({ ...valid, colorItems: JSON.stringify([{ name: "X", hex }]) }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorHexInvalid" } });
+    }
+    expect(parseOwnProductForm(form({ ...valid, colorItems: "{not json" }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorHexInvalid" } });
+  });
+
+  it("requires a price on create when asked, and refuses zero, negative, over-precise and absurd amounts", () => {
+    expect(parseOwnProductForm(form(valid), null, { priceRequired: true })).toMatchObject({ ok: false, fieldErrors: { price: "showroomProducts.validation.priceRequired" } });
+    expect(parseOwnProductForm(form(valid)).ok).toBe(true);
+    for (const basePrice of ["0", "-5", "1.234", "abc", "1e3", "100000001", "12.", ".5"]) {
+      expect(parseOwnProductForm(form({ ...valid, basePrice }))).toMatchObject({ ok: false, fieldErrors: { price: "showroomProducts.validation.priceInvalid" } });
+    }
+    const r = parseOwnProductForm(form({ ...valid, basePrice: "159.99" }), null, { priceRequired: true });
+    expect(r.ok && r.value.basePrice).toBe(159.99);
+  });
+
+  it("limits the description to 250 words, in Arabic and English alike", () => {
+    const words = (w: string, n: number) => Array.from({ length: n }, () => w).join(" ");
+    expect(parseOwnProductForm(form({ ...valid, description: words("word", 250) })).ok).toBe(true);
+    expect(parseOwnProductForm(form({ ...valid, description: words("word", 251) }))).toMatchObject({ ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionWords" } });
+    expect(parseOwnProductForm(form({ ...valid, description: words("كلمة", 250) })).ok).toBe(true);
+    expect(parseOwnProductForm(form({ ...valid, description: words("كلمة", 251) }))).toMatchObject({ ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionWords" } });
   });
 });
 
-describe("normalizeColors", () => {
-  it("trims, collapses whitespace, drops blanks and case-insensitive duplicates, keeping the first spelling", () => {
-    expect(normalizeColors(["  Warm   White ", "", "warm white", "WARM WHITE", "Sand"])).toEqual(["Warm White", "Sand"]);
+describe("price and word helpers", () => {
+  it("parses exact money from Latin or Arabic-Indic digits", () => {
+    expect(parsePrice("159.5")).toEqual({ ok: true, value: 159.5 });
+    expect(parsePrice("١٥٩٫٥")).toEqual({ ok: true, value: 159.5 });
+    expect(parsePrice("0.01")).toEqual({ ok: true, value: 0.01 });
+    expect(parsePrice("0")).toEqual({ ok: false });
   });
 
-  it("does not alter non-Latin names — display language never rewrites stored values", () => {
-    expect(normalizeColors(["أبيض دافئ", " رمادي  فاتح ", "أبيض دافئ"])).toEqual(["أبيض دافئ", "رمادي فاتح"]);
+  it("counts words on whitespace", () => {
+    expect(countWords("")).toBe(0);
+    expect(countWords("  hello   world ")).toBe(2);
+    expect(countWords("مرحبا بالعالم الجميل")).toBe(3);
   });
 });
 

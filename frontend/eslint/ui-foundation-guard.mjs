@@ -290,5 +290,7 @@ export const FOUNDATION_FILES = [
   "src/components/layout/brand.tsx",
   "src/components/ui/charts.tsx",
   "src/types/database.types.ts",
+  // Product colour values chosen by owners (data, not styling): the Add color palette.
+  "src/features/showroom-shell/products/color-palette.ts",
   "src/lint/foundation-guard.test.ts",
 ];

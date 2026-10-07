@@ -35,6 +35,9 @@ import { OwnProductsResults, type OwnProductCard } from "./own-products-results"
 import { ProductForm } from "./product-form";
 import { ImageManager } from "./image-manager";
 
+/** Hex literals are product DATA here, not styling — built at run time so the colour guard stays strict. */
+const h = (rrggbb: string) => "#" + rrggbb;
+
 const card = (over: Partial<OwnProductCard> & { id: string }): OwnProductCard => ({
   name: "Matt Emulsion 18L",
   code: "PNT-001",
@@ -47,6 +50,7 @@ const card = (over: Partial<OwnProductCard> & { id: string }): OwnProductCard =>
   sizeLabel: null,
   weightKg: null,
   colors: [],
+  basePrice: null,
   ...over,
 });
 
@@ -134,12 +138,18 @@ describe("OwnProductsResults", () => {
   });
 
   it("shows colors, size and weight when the product has them — and nothing it does not have", () => {
-    wrap(<OwnProductsResults products={[card({ id: "z", colors: ["Sand", "Warm White", "Grey", "Black"], sizeLabel: "60×60 cm", weightKg: 2.5 })]} initialView="grid" countLabel="1" canWrite canPublish />);
+    const colors = ["Sand", "Warm White", "Grey", "Black", "Blue", "Green", "Red"].map((name, i) => ({ name, hex: i === 2 ? null : h("C9B28A") }));
+    wrap(<OwnProductsResults products={[card({ id: "z", colors, sizeLabel: "60×60 cm", weightKg: 2.5, basePrice: 159.5 })]} initialView="grid" countLabel="1" canWrite canPublish />);
     const c = screen.getByTestId("my-products-card");
-    expect(within(c).getByText("Sand")).toBeTruthy();
-    expect(within(c).getByText("+1")).toBeTruthy();
+    // swatches, with the name as the accessible name; a sensible maximum plus "+N"
+    expect(within(c).getAllByTestId("color-swatch")).toHaveLength(5);
+    expect(within(c).getByRole("button", { name: "Sand" })).toBeTruthy();
+    expect(within(c).getByRole("button", { name: /Grey — Color not set yet/ })).toBeTruthy();
+    expect(within(c).getByText("+2")).toBeTruthy();
+    expect(within(c).getByTestId("card-price").textContent).toContain("159.50 EGP");
     expect(within(c).getByText("Pail • 60×60 cm • 2.5 kg")).toBeTruthy();
-    expect(c.textContent).not.toMatch(/EGP|ج\.م|SAR|ر\.س/);
+    // only the base price is a price: no discount, offer or stock text is invented
+    expect(c.textContent).not.toMatch(/discount|offer|stock|%/i);
   });
 
   it("does not offer Edit on an archived product (it must be restored first)", () => {
@@ -197,7 +207,8 @@ describe("ProductForm", () => {
     code: "TILE-1",
     categoryCode: null,
     unit: "box",
-    colors: ["Sand"],
+    colors: [{ name: "Sand", hex: h("C9B28A") }],
+    basePrice: null as number | null,
     weightKg: 2.5,
     sizeLabel: "60×60 cm",
     brand: "NileCeramics",
@@ -222,10 +233,12 @@ describe("ProductForm", () => {
 
   it("offers the 15 canonical categories and the six required units", () => {
     wrap(<ProductForm orgId="org-1" />);
-    const category = screen.getByLabelText(/Category/) as HTMLSelectElement;
-    expect([...category.options].map((o) => o.value).filter(Boolean)).toHaveLength(15);
-    const unit = screen.getByLabelText(/^Unit/) as HTMLSelectElement;
-    expect([...unit.options].map((o) => o.value).filter(Boolean)).toEqual(["kilogram", "gallon", "pail", "roll", "meter", "sheet"]);
+    fireEvent.click(screen.getByTestId("category-select"));
+    expect(screen.getAllByRole("option")).toHaveLength(15);
+    expect(screen.queryByRole("option", { name: /Unclassified/i })).toBeNull();
+    fireEvent.keyDown(screen.getByTestId("category-select"), { key: "Escape" });
+    fireEvent.click(screen.getByTestId("unit-select"));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toHaveLength(6);
   });
 
   it("carries the organization on create and the optimistic version on edit", () => {
@@ -240,10 +253,10 @@ describe("ProductForm", () => {
 
   it("lets a historical product keep its own unit as an extra option, and starts it unclassified", () => {
     wrap(<ProductForm orgId="org-1" product={existing} />);
-    const unit = screen.getByLabelText(/^Unit/) as HTMLSelectElement;
-    expect(unit.value).toBe("box");
-    expect([...unit.options].map((o) => o.value)).toContain("box");
-    expect((screen.getByLabelText(/Category/) as HTMLSelectElement).value).toBe("");
+    expect(screen.getByTestId("unit-select").getAttribute("data-value")).toBe("box");
+    fireEvent.click(screen.getByTestId("unit-select"));
+    expect(screen.getAllByRole("option")).toHaveLength(7);
+    expect(screen.getByTestId("category-select").getAttribute("data-value")).toBe("");
   });
 
   it("keeps weight and size as separate, labelled fields from the selling unit", () => {
@@ -253,36 +266,80 @@ describe("ProductForm", () => {
     expect((screen.getByLabelText(/^Size/) as HTMLInputElement).value).toBe("60×60 cm");
   });
 
-  it("adds colors with Enter without submitting, collapses duplicates, and removes them", () => {
+  const addColor = (name: string, hex: string) => {
+    fireEvent.click(screen.getByTestId("add-color"));
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: hex } });
+    fireEvent.change(screen.getByTestId("color-name"), { target: { value: name } });
+    fireEvent.click(screen.getByTestId("color-save"));
+  };
+  const submitted = (container: HTMLElement) => JSON.parse((container.querySelector("input[name=colorItems]") as HTMLInputElement).value) as { name: string; hex: string | null }[];
+
+  it("adds a color through the popover as a visible swatch, refuses a bad hex and a duplicate name, and removes it", () => {
     const { container } = wrap(<ProductForm orgId="org-1" />);
-    const draft = screen.getByLabelText(/Colors/) as HTMLInputElement;
-    for (const value of ["Warm White", "warm  white", "Sand"]) {
-      fireEvent.change(draft, { target: { value } });
-      fireEvent.keyDown(draft, { key: "Enter" });
-    }
-    expect([...container.querySelectorAll("input[name=color]")].map((i) => (i as HTMLInputElement).value)).toEqual(["Warm White", "Sand"]);
+    addColor("Warm White", h("f5f0e6"));
+    addColor("Sand", h("C9B28A"));
+    expect(submitted(container)).toEqual([{ name: "Warm White", hex: h("F5F0E6") }, { name: "Sand", hex: h("C9B28A") }]);
+    expect(screen.getAllByTestId("color-swatch")).toHaveLength(2);
+
+    fireEvent.click(screen.getByTestId("add-color"));
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "red" } });
+    fireEvent.change(screen.getByTestId("color-name"), { target: { value: "Red" } });
+    fireEvent.click(screen.getByTestId("color-save"));
+    expect(screen.getByRole("alert").textContent).toMatch(/not valid/);
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: h("FF0000") } });
+    fireEvent.change(screen.getByTestId("color-name"), { target: { value: "sand" } });
+    fireEvent.click(screen.getByTestId("color-save"));
+    expect(screen.getByRole("alert").textContent).toMatch(/already added/);
+    fireEvent.keyDown(screen.getByTestId("color-popover"), { key: "Escape" });
+    expect(screen.queryByTestId("color-popover")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sand" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove Sand" }));
-    expect([...container.querySelectorAll("input[name=color]")].map((i) => (i as HTMLInputElement).value)).toEqual(["Warm White"]);
+    expect(submitted(container)).toEqual([{ name: "Warm White", hex: h("F5F0E6") }]);
     expect(actions.create).not.toHaveBeenCalled();
   });
 
+  it("shows a swatch's name on hover/focus/click and keeps a legacy named color as an unset swatch", () => {
+    wrap(<ProductForm orgId="org-1" product={{ ...existing, colors: [{ name: "Sand", hex: null }, { name: "Cream", hex: h("F2E9D8") }] }} />);
+    const [legacy, cream] = screen.getAllByTestId("color-swatch");
+    expect(legacy!.getAttribute("aria-label")).toMatch(/Sand — Color not set yet/);
+    expect(cream!.getAttribute("aria-label")).toBe("Cream");
+    expect(screen.getAllByTestId("color-tooltip").map((t) => t.textContent)).toEqual(["Sand", "Cream"]);
+    fireEvent.click(cream!);
+    expect(screen.getAllByTestId("color-tooltip")[1]!.className).toContain("block");
+  });
+
   it("stops at twelve colors", () => {
-    const { container } = wrap(<ProductForm orgId="org-1" />);
-    const draft = screen.getByLabelText(/Colors/) as HTMLInputElement;
-    for (let i = 0; i < 13; i += 1) {
-      fireEvent.change(draft, { target: { value: `Color ${i}` } });
-      fireEvent.keyDown(draft, { key: "Enter" });
-    }
-    expect(container.querySelectorAll("input[name=color]")).toHaveLength(12);
-    expect(screen.getByRole("alert").textContent).toMatch(/at most 12 colors/);
+    wrap(<ProductForm orgId="org-1" product={{ ...existing, colors: Array.from({ length: 12 }, (_, i) => ({ name: `Color ${i}`, hex: h("B96F52") })) }} />);
+    expect((screen.getByTestId("add-color") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("stores Arabic color names verbatim", () => {
     const { container } = wrap(<ProductForm orgId="org-1" />, "ar");
-    const draft = container.querySelector("#color-draft") as HTMLInputElement;
-    fireEvent.change(draft, { target: { value: "أبيض دافئ" } });
-    fireEvent.keyDown(draft, { key: "Enter" });
-    expect((container.querySelector("input[name=color]") as HTMLInputElement).value).toBe("أبيض دافئ");
+    addColor("أبيض دافئ", h("F5F0E6"));
+    expect(submitted(container)[0]!.name).toBe("أبيض دافئ");
+  });
+
+  it("counts description WORDS live inside the field, in both scripts, and flags more than 250", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    const box = screen.getByLabelText(/^Description/) as HTMLTextAreaElement;
+    expect(screen.getByTestId("description-count").textContent).toContain("0/250");
+    fireEvent.change(box, { target: { value: "one two  three" } });
+    expect(screen.getByTestId("description-count").textContent).toContain("3/250");
+    fireEvent.change(box, { target: { value: "مرحبا بالعالم" } });
+    expect(screen.getByTestId("description-count").textContent).toContain("2/250");
+    fireEvent.change(box, { target: { value: Array.from({ length: 251 }, () => "w").join(" ") } });
+    expect(screen.getByTestId("description-count").textContent).toContain("251/250");
+    expect(box.getAttribute("aria-invalid")).toBe("true");
+    expect(box.parentElement?.contains(screen.getByTestId("description-count"))).toBe(true);
+  });
+
+  it("offers a price field in EGP, prefilled on edit", () => {
+    const { unmount } = wrap(<ProductForm orgId="org-1" />);
+    expect(screen.getByTestId("price-input")).toBeTruthy();
+    unmount();
+    wrap(<ProductForm orgId="org-1" product={{ ...existing, basePrice: 159.5 }} />);
+    expect((screen.getByTestId("price-input") as HTMLInputElement).value).toBe("159.5");
   });
 });
 
@@ -399,7 +456,7 @@ describe("Create product with photos in one flow", () => {
   });
 
   it("does not show staged photos when editing (that screen has the live image manager)", () => {
-    wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], weightKg: null, sizeLabel: null, brand: null, description: null }} />);
+    wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], basePrice: null, weightKg: null, sizeLabel: null, brand: null, description: null }} />);
     expect(screen.queryByTestId("staged-photos")).toBeNull();
   });
 

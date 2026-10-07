@@ -4,13 +4,16 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { Card } from "@/components/ui/primitives";
-import { Button, Input, Textarea, Select, LabeledField, SubmitButton } from "@/components/ui/controls";
-import { PackageIcon, PlusIcon, XIcon } from "@/components/ui/icons";
+import { Button, Input, Textarea, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { SelectMenu } from "@/components/ui/select-menu";
+import { PackageIcon, XIcon } from "@/components/ui/icons";
 import Link from "next/link";
 import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_LIMITS, isOwnProductUnit } from "@/features/commerce/constants";
 import { createOwnProductDraftAction, updateOwnProductAction, type OwnProductFormState } from "@/server/actions/own-products";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { normalizeColors } from "./product-input";
+import { countWords } from "./product-input";
+import { ColorField } from "./color-swatches";
+import type { ProductColor } from "./color-items";
 import { StagedPhotos } from "./staged-photos";
 import { uploadProductImage } from "./upload-image";
 
@@ -23,7 +26,9 @@ export type ProductFormValues = {
   code: string | null;
   categoryCode: string | null;
   unit: string;
-  colors: string[];
+  colors: ProductColor[];
+  /** Regular selling price in EGP; null for a historical product that has none yet. */
+  basePrice: number | null;
   weightKg: number | null;
   sizeLabel: string | null;
   brand: string | null;
@@ -89,20 +94,12 @@ export function ProductForm({
     }
     router.push(`${SHOWROOM_ROOT}/my-products/${result.productId}/edit?created=1${failed ? "&photos=partial" : ""}`);
   }
-  const [colors, setColors] = useState<string[]>(product?.colors ?? []);
-  const [draftColor, setDraftColor] = useState("");
-  const [colorNote, setColorNote] = useState<string | null>(null);
+  const [colors, setColors] = useState<ProductColor[]>(product?.colors ?? []);
+  const [description, setDescription] = useState(product?.description ?? "");
+  const words = countWords(description);
+  const overWords = words > PRODUCT_LIMITS.descriptionWordsMax;
 
   const keepsHistoricalUnit = product && !isOwnProductUnit(product.unit);
-
-  const addColor = () => {
-    const next = normalizeColors([...colors, draftColor]);
-    if (next.length > PRODUCT_LIMITS.colorsMax) return setColorNote(t("showroomProducts.validation.colorsTooMany"));
-    if (draftColor.trim().length > PRODUCT_LIMITS.colorMax) return setColorNote(t("showroomProducts.validation.colorTooLong"));
-    setColorNote(null);
-    setColors(next);
-    setDraftColor("");
-  };
 
   return (
     <Card>
@@ -144,62 +141,30 @@ export function ProductForm({
               <Input id="code" name="code" required maxLength={PRODUCT_LIMITS.codeMax} dir="ltr" defaultValue={product?.code ?? ""} aria-invalid={fe.code ? true : undefined} />
             </LabeledField>
           </div>
-          <LabeledField label={t("showroomProducts.fields.category")} htmlFor="categoryCode" error={fe.category ? t(fe.category) : undefined}>
-            <Select id="categoryCode" name="categoryCode" defaultValue={product?.categoryCode ?? ""} aria-invalid={fe.category ? true : undefined}>
-              <option value="" disabled>{t("showroomProducts.fields.selectCategory")}</option>
-              {CANONICAL_CATEGORY_CODES.map((c) => (
-                <option key={c} value={c}>{t(`commerce.canonicalCategories.${c}`)}</option>
-              ))}
-            </Select>
-          </LabeledField>
+          <div className="grid min-w-0 gap-md tablet:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <LabeledField label={t("showroomProducts.fields.category")} htmlFor="categoryCode" error={fe.category ? t(fe.category) : undefined}>
+              <SelectMenu
+                id="categoryCode"
+                name="categoryCode"
+                defaultValue={product?.categoryCode ?? ""}
+                placeholder={t("showroomProducts.fields.selectCategory")}
+                invalid={Boolean(fe.category)}
+                options={CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: t(`commerce.canonicalCategories.${c}`) }))}
+                data-testid="category-select"
+              />
+            </LabeledField>
+            <LabeledField label={t("showroomProducts.fields.price")} htmlFor="basePrice" hint={t("showroomProducts.fields.priceHint")} error={fe.price ? t(fe.price) : undefined}>
+              <div className="relative">
+                <Input id="basePrice" name="basePrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" defaultValue={product?.basePrice ?? ""} aria-invalid={fe.price ? true : undefined} className="pe-14" data-testid="price-input" />
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{t("showroomProducts.fields.currency")}</span>
+              </div>
+            </LabeledField>
+          </div>
         </div>
 
           {!editing ? <div className="order-2 min-w-0"><StagedPhotos files={staged} onChange={setStaged} disabled={phase !== "idle"} /></div> : null}
-          <div className="order-3 flex min-w-0 flex-col gap-1.5">
-            <label htmlFor="color-draft" className="text-label font-medium text-fg-secondary">
-              {t("showroomProducts.fields.colors")} <span className="font-normal text-fg-muted">({t("showroomProducts.fields.optional")})</span>
-            </label>
-            <div className="flex gap-sm">
-              <Input
-                id="color-draft"
-                value={draftColor}
-                maxLength={PRODUCT_LIMITS.colorMax}
-                placeholder={t("showroomProducts.fields.colorPlaceholder")}
-                dir="auto"
-                onChange={(e) => setDraftColor(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addColor();
-                  }
-                }}
-                data-no-dirty
-              />
-              <Button type="button" variant="outline" className="shrink-0 whitespace-nowrap" onClick={addColor} disabled={!draftColor.trim() || colors.length >= PRODUCT_LIMITS.colorsMax} aria-label={t("showroomProducts.fields.addColor")}>
-                <PlusIcon size={16} />
-                <span className="hidden tablet:inline">{t("showroomProducts.fields.addColor")}</span>
-              </Button>
-            </div>
-            <p className="text-label text-fg-muted">{t("showroomProducts.fields.colorsHint")}</p>
-            {colorNote || fe.colors ? <p role="alert" className="text-label text-danger">{colorNote ?? t(fe.colors!)}</p> : null}
-            {colors.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5" data-testid="color-chips">
-                {colors.map((color) => (
-                  <li key={color} className="inline-flex max-w-full items-center gap-1 rounded-pill bg-surface-2 py-0.5 ps-3 pe-1 text-label text-fg">
-                    <span className="min-w-0 truncate" dir="auto">{color}</span>
-                    <button
-                      type="button"
-                      onClick={() => setColors(colors.filter((c) => c !== color))}
-                      aria-label={t("showroomProducts.fields.removeColor", { name: color })}
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                    >
-                      <XIcon size={12} />
-                    </button>
-                    <input type="hidden" name="color" value={color} />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+          <div className="order-3 min-w-0">
+            <ColorField colors={colors} onChange={setColors} error={fe.colors ? t(fe.colors) : undefined} />
           </div>
 
         <div className="order-4 grid min-w-0 gap-md tablet:col-span-2 tablet:grid-cols-3">
@@ -210,13 +175,18 @@ export function ProductForm({
             <Input id="sizeLabel" name="sizeLabel" maxLength={PRODUCT_LIMITS.sizeMax} defaultValue={product?.sizeLabel ?? ""} dir="auto" />
           </LabeledField>
           <LabeledField label={t("showroomProducts.fields.unit")} htmlFor="unit" error={fe.unit ? t(fe.unit) : undefined}>
-            <Select id="unit" name="unit" defaultValue={product?.unit ?? ""} aria-invalid={fe.unit ? true : undefined}>
-              <option value="" disabled>{t("showroomProducts.fields.selectUnit")}</option>
-              {OWN_PRODUCT_UNITS.map((u) => (
-                <option key={u} value={u}>{t(`commerce.units.${u}`)}</option>
-              ))}
-              {keepsHistoricalUnit ? <option value={product!.unit}>{t(`commerce.units.${product!.unit}`)}</option> : null}
-            </Select>
+            <SelectMenu
+              id="unit"
+              name="unit"
+              defaultValue={product?.unit ?? ""}
+              placeholder={t("showroomProducts.fields.selectUnit")}
+              invalid={Boolean(fe.unit)}
+              options={[
+                ...OWN_PRODUCT_UNITS.map((u) => ({ value: u, label: t(`commerce.units.${u}`) })),
+                ...(keepsHistoricalUnit ? [{ value: product!.unit, label: t(`commerce.units.${product!.unit}`) }] : []),
+              ]}
+              data-testid="unit-select"
+            />
           </LabeledField>
         </div>
 
@@ -224,8 +194,29 @@ export function ProductForm({
           <LabeledField label={t("showroomProducts.fields.brand")} htmlFor="brand" optional={t("showroomProducts.fields.optional")}>
             <Input id="brand" name="brand" maxLength={PRODUCT_LIMITS.brandMax} defaultValue={product?.brand ?? ""} dir="auto" />
           </LabeledField>
-          <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")}>
-            <Textarea id="description" name="description" maxLength={PRODUCT_LIMITS.descriptionMax} defaultValue={product?.description ?? ""} dir="auto" className="min-h-11" rows={2} />
+          <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")} error={overWords ? t("showroomProducts.validation.descriptionWords") : fe.description ? t(fe.description) : undefined}>
+            <div className="relative">
+              <Textarea
+                id="description"
+                name="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                dir="auto"
+                className="min-h-24 pb-7"
+                rows={4}
+                aria-invalid={overWords || fe.description ? true : undefined}
+                aria-describedby="description-count"
+              />
+              <span
+                id="description-count"
+                data-testid="description-count"
+                dir="ltr"
+                className={`pointer-events-none absolute bottom-1.5 end-3 text-caption tabular-nums ${overWords ? "font-semibold text-danger" : "text-fg-muted"}`}
+              >
+                {words}/{PRODUCT_LIMITS.descriptionWordsMax}
+                <span className="sr-only"> {t("showroomProducts.fields.words")}</span>
+              </span>
+            </div>
           </LabeledField>
         </div>
 

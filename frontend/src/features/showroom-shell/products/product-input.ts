@@ -4,6 +4,7 @@ import {
   isOwnProductUnit,
   type CanonicalCategoryCode,
 } from "@/features/commerce/constants";
+import { normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
 
 /**
  * One validation path for the own-product form, shared by the create and edit
@@ -18,7 +19,9 @@ export type OwnProductInput = {
   categoryCode: CanonicalCategoryCode;
   /** A canonical unit, or the product's existing historical unit when it is being kept. */
   unit: string;
-  colors: string[];
+  colors: ProductColor[];
+  /** Regular selling price in EGP (two decimals at most), or null when none was entered. */
+  basePrice: number | null;
   weightKg: number | null;
   sizeLabel: string | null;
   brand: string | null;
@@ -26,7 +29,7 @@ export type OwnProductInput = {
 };
 
 export type OwnProductFieldErrors = Partial<
-  Record<"name" | "code" | "category" | "unit" | "weight" | "colors" | "size" | "brand" | "description", string>
+  Record<"name" | "code" | "category" | "unit" | "weight" | "colors" | "size" | "brand" | "description" | "price", string>
 >;
 
 export type OwnProductParse =
@@ -35,19 +38,56 @@ export type OwnProductParse =
 
 const collapse = (v: string) => v.replace(/\s+/g, " ").trim();
 
-/** Trim, collapse inner whitespace, drop empties and case-insensitive duplicates (first spelling wins). */
-export function normalizeColors(raw: readonly string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const entry of raw) {
-    const color = collapse(entry);
-    if (!color) continue;
-    const key = color.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(color);
+/** Words are runs of non-whitespace — the same rule the database applies (`app.word_count`). */
+export function countWords(value: string): number {
+  const t = value.trim();
+  return t === "" ? 0 : t.split(/\s+/).length;
+}
+
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+
+/**
+ * Money is parsed from text into a number that is exact for what is allowed here: a
+ * positive amount, at most two decimals, at most priceMax. Arabic-Indic digits and the
+ * Arabic decimal separator are accepted as typed. Never a float computation — the
+ * regex gates the shape, and the database stores numeric(14,2).
+ */
+export function parsePrice(raw: string): { ok: true; value: number } | { ok: false } {
+  const t = raw
+    .trim()
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
+    .replace(/[٫,]/g, ".");
+  if (!/^\d{1,9}(\.\d{1,2})?$/.test(t)) return { ok: false };
+  const n = Number(t);
+  return n > 0 && n <= PRODUCT_LIMITS.priceMax ? { ok: true, value: n } : { ok: false };
+}
+
+/** The structured colors arrive as one JSON field (`colorItems`); anything malformed is rejected, not repaired. */
+function readColorItems(fd: FormData): { items: ProductColor[]; error?: string } {
+  const raw = fd.get("colorItems");
+  if (typeof raw !== "string" || raw.trim() === "") return { items: [] };
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
   }
-  return out;
+  if (!Array.isArray(data)) return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
+  const items: ProductColor[] = [];
+  for (const entry of data) {
+    const name = typeof entry?.name === "string" ? entry.name.replace(/\s+/g, " ").trim() : "";
+    if (!name) continue;
+    if (name.length > PRODUCT_LIMITS.colorMax) return { items: [], error: "showroomProducts.validation.colorTooLong" };
+    const hexRaw = entry?.hex;
+    if (hexRaw === null || hexRaw === undefined || hexRaw === "") {
+      items.push({ name, hex: null });
+      continue;
+    }
+    const hex = typeof hexRaw === "string" ? normalizeHex(hexRaw) : null;
+    if (!hex) return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
+    items.push({ name, hex });
+  }
+  return { items };
 }
 
 const text = (fd: FormData, key: string) => {
@@ -59,7 +99,7 @@ const text = (fd: FormData, key: string) => {
  * @param keepUnit the product's current unit when editing: a historical product may
  *                 keep a unit outside the six, but cannot switch to another one.
  */
-export function parseOwnProductForm(fd: FormData, keepUnit?: string | null): OwnProductParse {
+export function parseOwnProductForm(fd: FormData, keepUnit?: string | null, opts: { priceRequired?: boolean } = {}): OwnProductParse {
   const fieldErrors: OwnProductFieldErrors = {};
 
   const name = collapse(text(fd, "name"));
@@ -80,12 +120,20 @@ export function parseOwnProductForm(fd: FormData, keepUnit?: string | null): Own
   if (!unit) fieldErrors.unit = "commerce.validation.unitRequired";
   else if (!isOwnProductUnit(unit) && unit !== keepUnit) fieldErrors.unit = "showroomProducts.errors.unitInvalid";
 
-  const colorsRaw = fd.getAll("color").filter((v): v is string => typeof v === "string");
-  if (colorsRaw.some((c) => collapse(c).length > PRODUCT_LIMITS.colorMax)) {
-    fieldErrors.colors = "showroomProducts.validation.colorTooLong";
-  }
-  const colors = normalizeColors(colorsRaw);
+  const { items: parsedColors, error: colorError } = readColorItems(fd);
+  if (colorError) fieldErrors.colors = colorError;
+  const colors = normalizeColorItems(parsedColors);
   if (colors.length > PRODUCT_LIMITS.colorsMax) fieldErrors.colors = "showroomProducts.validation.colorsTooMany";
+
+  let basePrice: number | null = null;
+  const priceRaw = text(fd, "basePrice").trim();
+  if (priceRaw === "") {
+    if (opts.priceRequired) fieldErrors.price = "showroomProducts.validation.priceRequired";
+  } else {
+    const parsedPrice = parsePrice(priceRaw);
+    if (parsedPrice.ok) basePrice = parsedPrice.value;
+    else fieldErrors.price = "showroomProducts.validation.priceInvalid";
+  }
 
   let weightKg: number | null = null;
   const weightRaw = text(fd, "weightKg").trim();
@@ -100,7 +148,9 @@ export function parseOwnProductForm(fd: FormData, keepUnit?: string | null): Own
   const brand = collapse(text(fd, "brand")) || null;
   if (brand && brand.length > PRODUCT_LIMITS.brandMax) fieldErrors.brand = "showroomProducts.errors.invalid";
   const description = text(fd, "description").trim() || null;
-  if (description && description.length > PRODUCT_LIMITS.descriptionMax) fieldErrors.description = "showroomProducts.errors.invalid";
+  if (description && (countWords(description) > PRODUCT_LIMITS.descriptionWordsMax || description.length > PRODUCT_LIMITS.descriptionCharsMax)) {
+    fieldErrors.description = "showroomProducts.validation.descriptionWords";
+  }
 
   if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors };
   return {
@@ -111,6 +161,7 @@ export function parseOwnProductForm(fd: FormData, keepUnit?: string | null): Own
       categoryCode: categoryRaw as CanonicalCategoryCode,
       unit,
       colors,
+      basePrice,
       weightKg,
       sizeLabel,
       brand,

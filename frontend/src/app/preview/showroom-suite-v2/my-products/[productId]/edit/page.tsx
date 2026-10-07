@@ -12,6 +12,7 @@ import { ProductForm } from "@/features/showroom-shell/products/product-form";
 import { ImageManager } from "@/features/showroom-shell/products/image-manager";
 import { LifecycleControls } from "@/features/showroom-shell/products/lifecycle-controls";
 import { ownProductStatus } from "@/features/showroom-shell/products/product-input";
+import { effectiveColors } from "@/features/showroom-shell/products/color-items";
 import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { PackageIcon } from "@/components/ui/icons";
 
@@ -91,7 +92,8 @@ export default async function ShowroomEditProductPage({
             code: product.sku,
             categoryCode: product.category_code,
             unit: product.unit,
-            colors: product.colors,
+            colors: effectiveColors(product),
+            basePrice: product.base_price,
             weightKg: product.weight_kg,
             sizeLabel: product.size_label,
             brand: product.brand,

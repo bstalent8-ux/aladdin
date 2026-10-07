@@ -5,8 +5,12 @@ import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
 import { SubmitButton } from "@/components/ui/controls";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InboxIcon } from "@/components/ui/icons";
 import { ownProductLifecycleAction, type OwnProductFormState } from "@/server/actions/own-products";
 import { availableLifecycleActions, type OwnProductLifecycleAction, type OwnProductStatus } from "./product-input";
+
+/** The shared geometry of the three card actions (Edit / Photos / Archive): same height, full cell width, icon + label. */
+export const cardActionClass = "h-9 min-h-9 w-full gap-1 whitespace-nowrap px-1.5 text-caption font-medium";
 
 const initial: OwnProductFormState = { ok: false };
 
@@ -120,6 +124,8 @@ export function ArchiveAction({ productId, version }: { productId: string; versi
     <ConfirmDialog
       trigger={t("showroomProducts.archive")}
       triggerVariant="danger"
+      triggerIcon={<InboxIcon size={14} />}
+      triggerClassName={cardActionClass}
       title={t("showroomProducts.archiveTitle")}
       body={t("showroomProducts.archiveBody")}
       confirmLabel={t("showroomProducts.archiveConfirm")}

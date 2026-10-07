@@ -64,7 +64,7 @@ type CreateResult =
 async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
   const orgId = str(fd, "orgId");
   if (!orgId || !UUID.test(orgId)) return { ok: false, code: "states.genericRetry" };
-  const parsed = parseOwnProductForm(fd);
+  const parsed = parseOwnProductForm(fd, null, { priceRequired: true });
   if (!parsed.ok) return { ok: false, fieldErrors: parsed.fieldErrors };
   const v = parsed.value;
 
@@ -75,7 +75,8 @@ async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
     p_code: v.code,
     p_category_code: v.categoryCode,
     p_unit: v.unit as ProductUnit,
-    p_colors: v.colors,
+    p_color_items: v.colors,
+    ...(v.basePrice !== null ? { p_base_price: v.basePrice } : {}),
     ...(v.weightKg !== null ? { p_weight_kg: v.weightKg } : {}),
     ...(v.sizeLabel ? { p_size_label: v.sizeLabel } : {}),
     ...(v.brand ? { p_brand: v.brand } : {}),
@@ -122,7 +123,8 @@ export async function updateOwnProductAction(_prev: OwnProductFormState, fd: For
     p_code: v.code,
     p_category_code: v.categoryCode,
     p_unit: v.unit as ProductUnit,
-    p_colors: v.colors,
+    p_color_items: v.colors,
+    ...(v.basePrice !== null ? { p_base_price: v.basePrice } : {}),
     ...(v.weightKg !== null ? { p_weight_kg: v.weightKg } : {}),
     ...(v.sizeLabel ? { p_size_label: v.sizeLabel } : {}),
     ...(v.brand ? { p_brand: v.brand } : {}),

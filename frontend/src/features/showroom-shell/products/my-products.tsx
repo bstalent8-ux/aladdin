@@ -9,6 +9,7 @@ import { StatePanel } from "@/components/ui/primitives";
 import { BadgeCheckIcon, InboxIcon, PackageIcon, PencilIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
+import { effectiveColors } from "./color-items";
 import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { parseMyProductsParams, statusFilterToQuery, type MyProductsStatusFilter } from "./my-products-params";
 import { OwnProductsResults, type OwnProductCard } from "./own-products-results";
@@ -68,7 +69,8 @@ export async function ShowroomMyProducts({
       imageUrl: (key ? signed.get(key) : undefined) ?? r.image_ref ?? null,
       sizeLabel: r.size_label,
       weightKg: r.weight_kg,
-      colors: r.colors,
+      colors: effectiveColors(r),
+      basePrice: r.base_price,
     };
   });
 

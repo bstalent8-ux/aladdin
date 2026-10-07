@@ -79,7 +79,11 @@ export const PRODUCT_LIMITS = {
   nameMax: 160,
   codeMax: 60,
   brandMax: 120,
-  descriptionMax: 600,
+  /** The description limit is counted in WORDS (the database enforces the same rule). */
+  descriptionWordsMax: 250,
+  /** A sanity ceiling in characters so 250 "words" cannot be a megabyte. */
+  descriptionCharsMax: 5000,
+  priceMax: 100_000_000,
   sizeMax: 80,
   colorMax: 40,
   colorsMax: 12,

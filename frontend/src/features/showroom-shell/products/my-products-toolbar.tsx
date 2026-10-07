@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { Button, Input, Select } from "@/components/ui/controls";
+import { Button, Input } from "@/components/ui/controls";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { PlusIcon, SearchIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { MY_PRODUCTS_SORTS } from "./my-products-params";
@@ -77,24 +78,29 @@ export function MyProductsToolbar({
       </form>
 
       <div className="flex flex-wrap items-center gap-sm">
-        <label className="min-w-0 basis-44">
-          <span className="sr-only">{t("showroomProducts.category")}</span>
-          <Select value={category} aria-label={t("showroomProducts.category")} onChange={(e) => push({ category: e.target.value })}>
-            <option value="">{t("showroomProducts.allCategories")}</option>
-            {CANONICAL_CATEGORY_CODES.map((c) => (
-              <option key={c} value={c}>{t(`commerce.canonicalCategories.${c}`)}</option>
-            ))}
-            <option value="unclassified">{t("showroomProducts.unclassified")}</option>
-          </Select>
-        </label>
-        <label className="min-w-0 basis-44">
-          <span className="sr-only">{t("showroomProducts.sortLabel")}</span>
-          <Select value={sort} aria-label={t("showroomProducts.sortLabel")} onChange={(e) => push({ sort: e.target.value })}>
-            {MY_PRODUCTS_SORTS.map((s) => (
-              <option key={s} value={s}>{t(`showroomProducts.sort.${s}`)}</option>
-            ))}
-          </Select>
-        </label>
+        <div className="min-w-0 basis-44">
+          <SelectMenu
+            value={category}
+            aria-label={t("showroomProducts.category")}
+            onChange={(value) => push({ category: value })}
+            data-testid="category-filter"
+            options={[
+              { value: "", label: t("showroomProducts.allCategories") },
+              ...CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: t(`commerce.canonicalCategories.${c}`) })),
+              // Only a FILTER can ask for "unclassified" (historical products); a product itself never takes it.
+              { value: "unclassified", label: t("showroomProducts.unclassified") },
+            ]}
+          />
+        </div>
+        <div className="min-w-0 basis-44">
+          <SelectMenu
+            value={sort}
+            aria-label={t("showroomProducts.sortLabel")}
+            onChange={(value) => push({ sort: value })}
+            data-testid="sort-select"
+            options={MY_PRODUCTS_SORTS.map((s) => ({ value: s, label: t(`showroomProducts.sort.${s}`) }))}
+          />
+        </div>
         {q || category ? (
           <Button type="button" variant="ghost" onClick={() => { setText(""); push({ q: "", category: "" }); }}>
             {t("showroomProducts.clearFilters")}
