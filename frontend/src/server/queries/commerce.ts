@@ -37,6 +37,12 @@ export type CatalogFilters = {
   /** Canonical taxonomy code (showroom catalog); products without one are simply not matched. */
   categoryCode?: string;
   supplierOrgId?: string;
+  /**
+   * Exclude this organization's own products. Browse is for discovering OTHER
+   * organizations' products; an organization's own live in My Products. Applied in the
+   * query itself (never by hiding cards in the client).
+   */
+  excludeOrgId?: string;
   limit?: number;
 };
 
@@ -49,6 +55,7 @@ export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise
   if (f.category) q = q.eq("category", f.category);
   if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.supplierOrgId) q = q.eq("organization_id", f.supplierOrgId);
+  if (f.excludeOrgId) q = q.neq("organization_id", f.excludeOrgId);
   if (f.search && f.search.trim()) {
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);

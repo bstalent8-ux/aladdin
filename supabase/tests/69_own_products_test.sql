@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(108);
+select plan(109);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -326,8 +326,8 @@ select is((select count(*)::int from public.products where id = (select id from 
   'the published product row itself is still readable cross-tenant');
 select is((select count(*)::int from public.catalog_published_products where id = (select id from _o where name = 'p')), 1,
   'the published product still appears in the public catalog');
-select is((select color_items -> 0 ->> 'name' from public.products where id = (select id from _o where name = 'p')), 'Terracotta',
-  'public product colors stay readable to other organizations');
+select is((select color_items -> 0 ->> 'name' from public.catalog_published_products where id = (select id from _o where name = 'p')), 'Terracotta',
+  'structured colors are readable by other organizations through the catalog view');
 select throws_ok(format('insert into public.product_prices (product_id, organization_id, base_price) values (%L, %L, 1)', (select id from _o where name = 'p'), :'orgC'),
   '42501', null, 'another organization cannot write a price either');
 select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'products' and column_name = 'base_price'), 0,
@@ -345,8 +345,10 @@ select throws_ok(format('update public.products set color_items = %L::jsonb wher
 select is(app.word_count('  hello   world '), 2, 'words are counted on whitespace, ignoring padding');
 select is(app.word_count('مرحبا بالعالم الجميل'), 3, 'Arabic words are counted the same way');
 select is(app.word_count(null), 0, 'no text is zero words');
-select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name in ('base_price', 'color_items')), 0,
-  'the public catalog view does not expose the price or the structured colors');
+select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name in ('base_price', 'price')), 0,
+  'the public catalog view does not expose the price');
+select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name = 'color_items'), 1,
+  'the public catalog view exposes the structured colors');
 set local role authenticated;
 
 -- G. Anonymous callers.

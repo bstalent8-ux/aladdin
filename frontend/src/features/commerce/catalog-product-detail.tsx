@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/controls";
 import { BadgeCheckIcon } from "@/components/ui/icons";
 import { ProductMedia } from "@/features/commerce/product-media";
 import type { CatalogRow } from "@/server/queries/commerce";
+import { effectiveColors } from "@/features/showroom-shell/products/color-items";
+import { Swatch } from "@/features/showroom-shell/products/color-swatches";
 import type { getMessages } from "@/lib/i18n/translate";
 
 type Messages = ReturnType<typeof getMessages>;
@@ -48,7 +50,8 @@ export function CatalogProductDetail({
     product.category_code && product.category_code in m.commerce.canonicalCategories
       ? m.commerce.canonicalCategories[product.category_code as keyof typeof m.commerce.canonicalCategories]
       : m.commerce.categories[product.category];
-  const colors = product.colors ?? [];
+  // Public attributes only. The owner's regular price is private and never part of this read model.
+  const colors = effectiveColors(product);
   const f = m.showroomProducts.fields;
   return (
     <div className="mx-auto max-w-3xl pb-16 tablet:pb-0">
@@ -105,7 +108,10 @@ export function CatalogProductDetail({
               <Field label={f.colors}>
                 <ul className="flex flex-wrap gap-1.5" data-testid="product-detail-colors">
                   {colors.map((c) => (
-                    <li key={c}><Badge tone="neutral">{c}</Badge></li>
+                    <li key={c.name} className="inline-flex items-center gap-1.5 text-body text-fg-secondary">
+                      <Swatch color={c} size="sm" />
+                      <span dir="auto">{c.name}</span>
+                    </li>
                   ))}
                 </ul>
               </Field>

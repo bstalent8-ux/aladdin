@@ -11,7 +11,9 @@ import { ProductMedia } from "@/features/commerce/product-media";
 import type { CatalogRow } from "@/server/queries/commerce";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { ViewToggle } from "@/features/showroom-shell/view-toggle";
-import { catalogCategoryLabel } from "@/features/showroom-shell/products/labels";
+import { catalogCategoryLabel, productMetaLine } from "@/features/showroom-shell/products/labels";
+import { effectiveColors } from "@/features/showroom-shell/products/color-items";
+import { SwatchRow } from "@/features/showroom-shell/products/color-swatches";
 
 type Product = CatalogRow & { id: string; category: NonNullable<CatalogRow["category"]>; unit: NonNullable<CatalogRow["unit"]> };
 
@@ -76,6 +78,19 @@ export function CatalogResults({
   );
 }
 
+/**
+ * Public discovery metadata only: code, colors and "unit • size • weight". There is no
+ * price here by design — Aladdin is a discovery + quotation platform, and the only price
+ * another organization ever sees is a Product Offer's.
+ */
+function useMeta(product: Product) {
+  const { t } = useI18n();
+  return {
+    meta: productMetaLine(t, { unit: product.unit, sizeLabel: product.size_label, weightKg: product.weight_kg }),
+    colors: effectiveColors(product),
+  };
+}
+
 const detailHref = (id: string) => `${SHOWROOM_ROOT}/catalog/${id}`;
 
 function Supplier({ product }: { product: Product }) {
@@ -94,6 +109,7 @@ function Supplier({ product }: { product: Product }) {
 
 function GridCard({ product, orgId, saved, image }: { product: Product; orgId: string; saved: boolean; image: string | null }) {
   const { t } = useI18n();
+  const { meta, colors } = useMeta(product);
   return (
     <div className="group flex h-full flex-col gap-2 rounded-md border bg-surface p-2 transition-colors hover:border-strong tablet:p-sm" data-testid="showroom-catalog-card">
       <div className="relative">
@@ -105,20 +121,24 @@ function GridCard({ product, orgId, saved, image }: { product: Product; orgId: s
           <SaveProductButton orgId={orgId} productId={product.id} saved={saved} compact />
         </span>
       </div>
-      <Link href={detailHref(product.id)} className="flex min-w-0 flex-1 flex-col gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-        <h3 className="line-clamp-2 w-full text-body font-medium leading-snug text-fg group-hover:text-accent" dir="auto">{product.name}</h3>
-        {product.brand ? <p className="w-full truncate text-label text-fg-muted" dir="auto">{product.brand}</p> : null}
-        <div className="mt-auto flex w-full flex-col gap-0.5 border-t pt-2 text-label tablet:flex-row tablet:items-center tablet:justify-between tablet:gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Link href={detailHref(product.id)} className="line-clamp-2 w-full text-body font-medium leading-snug text-fg hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" dir="auto">
+          {product.name}
+        </Link>
+        {product.sku ? <p className="w-full truncate text-label text-fg-muted" data-testid="card-code"><span>{t("showroomProducts.code")}: </span><span dir="ltr">{product.sku}</span></p> : null}
+        <SwatchRow colors={colors} />
+        {meta ? <p className="w-full text-label text-fg-muted" dir="auto" data-testid="card-meta">{meta}</p> : null}
+        <div className="mt-auto w-full border-t pt-2 text-label">
           <Supplier product={product} />
-          <span className="shrink-0 truncate text-fg-muted">{t(`commerce.units.${product.unit}`)}</span>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }
 
 function ListRow({ product, orgId, saved, image }: { product: Product; orgId: string; saved: boolean; image: string | null }) {
   const { t } = useI18n();
+  const { meta, colors } = useMeta(product);
   return (
     <div className="group flex flex-wrap items-center gap-x-md gap-y-2 rounded-md border bg-surface p-2 transition-colors hover:border-strong tablet:flex-nowrap tablet:p-sm" data-testid="showroom-catalog-row">
       <Link href={detailHref(product.id)} className="flex min-w-0 flex-1 basis-[calc(100%-3.5rem)] items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus tablet:basis-auto">
@@ -127,13 +147,14 @@ function ListRow({ product, orgId, saved, image }: { product: Product; orgId: st
         </div>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="line-clamp-2 text-body font-medium leading-snug text-fg group-hover:text-accent" dir="auto">{product.name}</span>
-          {product.brand ? <span className="truncate text-label text-fg-muted" dir="auto">{product.brand}</span> : null}
+          {product.sku ? <span className="truncate text-label text-fg-muted" dir="ltr" data-testid="card-code">{product.sku}</span> : null}
         </span>
       </Link>
       <span className="order-last flex w-full min-w-0 items-center gap-x-sm text-label tablet:order-none tablet:w-auto tablet:gap-x-md">
         <span className="shrink-0"><Badge tone="neutral">{catalogCategoryLabel(t, product)}</Badge></span>
         <span className="flex min-w-0 flex-1 tablet:w-52 tablet:flex-none"><Supplier product={product} /></span>
-        <span className="shrink-0 text-fg-muted tablet:w-24">{t(`commerce.units.${product.unit}`)}</span>
+        <span className="min-w-0 truncate text-fg-muted tablet:w-44" dir="auto" data-testid="card-meta">{meta}</span>
+        <SwatchRow colors={colors} max={4} />
       </span>
       <SaveProductButton orgId={orgId} productId={product.id} saved={saved} compact />
       <Link

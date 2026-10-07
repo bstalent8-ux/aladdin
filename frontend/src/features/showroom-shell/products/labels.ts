@@ -21,3 +21,21 @@ export function ownCategoryLabel(t: Translate, product: { category_code?: string
     ? t(`commerce.canonicalCategories.${product.category_code}`)
     : t("showroomProducts.unclassified");
 }
+
+/**
+ * The compact "unit • size • weight" line of a product card (e.g. "Roll • 10 m • 1.2 kg").
+ * Only values the product actually has are rendered: a missing size or weight leaves no
+ * empty separator, and a product with none of them yields "" (render nothing).
+ */
+export function productMetaLine(
+  t: Translate,
+  p: { unit?: string | null; sizeLabel?: string | null; weightKg?: number | null },
+): string {
+  return [
+    p.unit ? t(`commerce.units.${p.unit}`) : null,
+    p.sizeLabel?.trim() || null,
+    p.weightKg !== null && p.weightKg !== undefined ? `${p.weightKg} ${t("showroomProducts.kg")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+}

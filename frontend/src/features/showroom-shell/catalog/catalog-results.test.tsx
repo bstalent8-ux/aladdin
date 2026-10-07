@@ -24,6 +24,7 @@ const row = (over: Partial<CatalogRow> & { id: string }): CatalogRow => ({
   unit: "square_meter",
   category_code: null,
   colors: [],
+  color_items: [],
   weight_kg: null,
   size_label: null,
   primary_image_key: null,
@@ -55,14 +56,44 @@ describe("showroom catalog results", () => {
     expect(document.body.textContent).not.toMatch(/EGP|ج\.م|price/i);
   });
 
-  it("shows name, brand, category, supplier and unit on a card", () => {
+  it("shows name, code, category, supplier and unit on a card", () => {
     renderResults();
     const card = screen.getAllByTestId("showroom-catalog-card")[0]!;
     expect(within(card).getByText("Porcelain Floor Tile 60x60")).toBeTruthy();
-    expect(within(card).getByText("NileCeramics")).toBeTruthy();
+    expect(within(card).getByTestId("card-code").textContent).toContain("TILE-1");
     expect(within(card).getByText("Finishing")).toBeTruthy();
     expect(within(card).getByText("Cairo Ceramics Showroom")).toBeTruthy();
     expect(within(card).getByText("Square meter")).toBeTruthy();
+  });
+
+  it("draws the real color swatches from color_items, then +N, with the name as the accessible label", () => {
+    const hex = (v: string) => `#${v}`;
+    const many = ["B96F52", "D8C7A6", "F2E9D8", "071A2D", "8FA88A", "6B7A8F", "A1887F"].map((v, i) => ({ name: `C${i}`, hex: hex(v) }));
+    renderResults({ products: [row({ id: "p1", color_items: many, colors: many.map((c) => c.name) })] });
+    const swatches = within(screen.getByTestId("card-colors")).getAllByTestId("color-swatch");
+    expect(swatches).toHaveLength(5);
+    expect(swatches[0]!.getAttribute("aria-label")).toBe("C0");
+    expect(screen.getByTestId("card-colors").textContent).toContain("+2");
+  });
+
+  it("falls back to the legacy names as unset swatches and never invents a value", () => {
+    renderResults({ products: [row({ id: "p1", colors: ["Sand"], color_items: [] })] });
+    const sw = screen.getByTestId("color-swatch");
+    expect(sw.getAttribute("aria-label")).toMatch(/^Sand/);
+    expect(sw.getAttribute("style") ?? "").not.toMatch(/background/);
+  });
+
+  it("renders unit • size • weight with only the values that exist", () => {
+    renderResults({ products: [row({ id: "p1", unit: "roll", size_label: "10 m", weight_kg: 1.2 })] });
+    expect(screen.getByTestId("card-meta").textContent).toBe("Roll • 10 m • 1.2 kg");
+  });
+
+  it("leaves no empty separator when the size or weight is missing", () => {
+    renderResults({ products: [row({ id: "p1", unit: "roll", size_label: null, weight_kg: 1.2 })] });
+    expect(screen.getByTestId("card-meta").textContent).toBe("Roll • 1.2 kg");
+    renderResults({ products: [row({ id: "p2", unit: "roll" })] });
+    expect(screen.getAllByTestId("card-meta").at(-1)!.textContent).toBe("Roll");
+    expect(document.body.textContent).not.toMatch(/•\s*(•|$)/);
   });
 
   it("opens the suite's own product detail, not the production catalog shell", () => {

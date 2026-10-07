@@ -44,7 +44,7 @@ export async function ShowroomCatalog({
   const view = resolveCatalogView((await cookies()).get(CATALOG_VIEW_COOKIE)?.value);
 
   const [products, saved] = await Promise.all([
-    listCatalog(supabase, { search: params.q, categoryCode: params.category, supplierOrgId: params.supplier, limit: params.limit }),
+    listCatalog(supabase, { search: params.q, categoryCode: params.category, supplierOrgId: params.supplier, excludeOrgId: org.organizationId, limit: params.limit }),
     savedProductIds(supabase, org.organizationId),
   ]);
 

@@ -83,8 +83,8 @@ select set_eq(
   $$ values ('id'),('organization_id'),('supplier_name'),('supplier_verified'),
             ('supplier_slug'),('name'),('sku'),('category'),('brand'),
             ('short_description'),('unit'),('image_ref'),('published_at'),
-            ('category_code'),('colors'),('weight_kg'),('size_label'),('primary_image_key') $$,
-  'the catalog view projects exactly the 18 approved columns (no private org data)');
+            ('category_code'),('colors'),('weight_kg'),('size_label'),('primary_image_key'),('color_items') $$,
+  'the catalog view projects exactly the 19 approved columns (no private org data, no price)');
 
 -- ===== C. Relation grants stay least-privilege ==============================
 select ok(

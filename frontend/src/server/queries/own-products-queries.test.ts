@@ -12,7 +12,7 @@ function stub(result: { data: unknown; error: unknown }, storage?: { createSigne
   const from = vi.fn((relation: string) => {
     calls.push(["from", relation]);
     const b: Record<string, unknown> = {};
-    for (const m of ["select", "order", "limit", "eq", "or", "is", "not", "in"]) {
+    for (const m of ["select", "order", "limit", "eq", "neq", "or", "is", "not", "in"]) {
       b[m] = (...args: unknown[]) => {
         calls.push([m, ...args]);
         return b;
@@ -162,5 +162,30 @@ describe("private product prices", () => {
     const { supabase, calls } = stub({ data: [], error: null });
     expect((await listProductPrices(supabase, [])).size).toBe(0);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("browse excludes the active organization's own products", () => {
+  it("filters its own organization out in the query itself", async () => {
+    const { supabase, calls } = stub({ data: [], error: null });
+    await listCatalog(supabase, { excludeOrgId: "org-active" });
+    expect(calls).toContainEqual(["from", "catalog_published_products"]);
+    expect(calls).toContainEqual(["neq", "organization_id", "org-active"]);
+  });
+
+  it("switching workspace changes the excluded organization", async () => {
+    const a = stub({ data: [], error: null });
+    const b = stub({ data: [], error: null });
+    await listCatalog(a.supabase, { excludeOrgId: "org-a" });
+    await listCatalog(b.supabase, { excludeOrgId: "org-b" });
+    expect(a.calls).toContainEqual(["neq", "organization_id", "org-a"]);
+    expect(b.calls).toContainEqual(["neq", "organization_id", "org-b"]);
+    expect(b.calls).not.toContainEqual(["neq", "organization_id", "org-a"]);
+  });
+
+  it("does not filter when no organization is given (production catalog keeps its behavior)", async () => {
+    const { supabase, calls } = stub({ data: [], error: null });
+    await listCatalog(supabase, {});
+    expect(calls.some((c) => c[0] === "neq")).toBe(false);
   });
 });

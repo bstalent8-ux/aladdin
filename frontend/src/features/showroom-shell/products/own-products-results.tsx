@@ -13,7 +13,7 @@ import { ActiveSwitch, ArchiveAction, RestoreAction, cardActionClass } from "./l
 import { SwatchRow } from "./color-swatches";
 import type { ProductColor } from "./color-items";
 import { formatProductPrice } from "./price-format";
-import { ownCategoryLabel } from "./labels";
+import { ownCategoryLabel, productMetaLine } from "./labels";
 import { ownProductStatus, type OwnProductStatus } from "./product-input";
 
 export type OwnProductCard = {
@@ -113,7 +113,7 @@ function StatusBadge({ status }: { status: OwnProductStatus }) {
 
 /** "Basic metadata" line of the reference: unit • size • weight, only what the product has. */
 function metaLine(t: (k: string) => string, p: OwnProductCard) {
-  return [t(`commerce.units.${p.unit}`), p.sizeLabel, p.weightKg !== null ? `${p.weightKg} ${t("showroomProducts.kg")}` : null].filter(Boolean).join(" • ");
+  return productMetaLine(t, { unit: p.unit, sizeLabel: p.sizeLabel, weightKg: p.weightKg });
 }
 
 const actionLink =
