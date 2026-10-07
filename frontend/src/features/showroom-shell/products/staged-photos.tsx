@@ -59,7 +59,7 @@ export function StagedPhotos({ files, onChange, disabled }: { files: File[]; onC
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-sm" data-testid="staged-photos" disabled={disabled}>
-      <legend className="mb-sm text-title text-fg">{t("showroomProducts.photosStaged")}</legend>
+      <legend className="mb-1 text-label font-medium text-fg-secondary">{t("showroomProducts.photosStaged")}</legend>
       <p className="text-label text-fg-muted">{t("showroomProducts.images.hint")}</p>
       <p className="text-label text-fg-muted" data-testid="staged-count">{t("showroomProducts.images.count", { count: files.length })}</p>
 
@@ -100,7 +100,7 @@ export function StagedPhotos({ files, onChange, disabled }: { files: File[]; onC
                 >
                   <span className="flex flex-col items-center gap-1 px-1 text-center text-label">
                     <PlusIcon size={18} />
-                    <span className="hidden tablet:inline">{t("showroomProducts.images.add")}</span>
+                    <span className="hidden tablet:inline">{t("showroomProducts.uploadPhoto")}</span>
                   </span>
                 </button>
               )}

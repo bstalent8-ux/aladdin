@@ -5,15 +5,16 @@ import type { Locale } from "@/lib/i18n/locales";
 import { CATALOG_VIEW_COOKIE, resolveCatalogView } from "@/lib/ui/catalog-view";
 import { listOwnProducts, ownProductCounts } from "@/server/queries/commerce";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
-import { FilterBar } from "@/components/ui/filter-bar";
-import { PageHeader } from "@/components/ui/workspace-layout";
 import { StatePanel } from "@/components/ui/primitives";
-import { PackageIcon, StorefrontIcon } from "@/components/ui/icons";
+import { BadgeCheckIcon, InboxIcon, PackageIcon, PencilIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { cn } from "@/lib/ui/cn";
-import { MY_PRODUCTS_STATUSES, parseMyProductsParams, statusFilterToQuery } from "./my-products-params";
+import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
+import { parseMyProductsParams, statusFilterToQuery, type MyProductsStatusFilter } from "./my-products-params";
 import { OwnProductsResults, type OwnProductCard } from "./own-products-results";
+import { ProductStatCards } from "./stat-cards";
+import { MyProductsToolbar } from "./my-products-toolbar";
+import { CategoryChips } from "./category-chips";
 import type { requireShowroomContext } from "../context";
 
 type Ctx = Awaited<ReturnType<typeof requireShowroomContext>>;
@@ -22,9 +23,10 @@ const BASE_PATH = `${SHOWROOM_ROOT}/my-products`;
 
 /**
  * منتجاتي — the products OWNED by the active organization (drafts and archived
- * ones included), through the caller's own RLS. This is the management view, not
- * the public catalog: public visibility is still decided by the existing
- * published-product rules, and "active" here means exactly "published".
+ * ones included), through the caller's own RLS. Composition follows the approved
+ * reference (hero, four summary cards, toolbar, category chips, product cards);
+ * data and rules are the real domain: public visibility is still decided by the
+ * existing published-product rules, and "active" means exactly "published".
  */
 export async function ShowroomMyProducts({
   ctx,
@@ -33,7 +35,7 @@ export async function ShowroomMyProducts({
 }: {
   ctx: Ctx;
   locale: Locale;
-  searchParams: { q?: string; category?: string; status?: string };
+  searchParams: { q?: string; category?: string; status?: string; sort?: string };
 }) {
   const { supabase, org } = ctx;
   const m = getMessages(locale);
@@ -44,7 +46,7 @@ export async function ShowroomMyProducts({
   const view = resolveCatalogView((await cookies()).get(CATALOG_VIEW_COOKIE)?.value);
 
   const [rows, counts] = await Promise.all([
-    listOwnProducts(supabase, org.organizationId, { search: params.q, categoryCode: params.category, ...statusFilterToQuery(params.status) }),
+    listOwnProducts(supabase, org.organizationId, { search: params.q, categoryCode: params.category, sort: params.sort, ...statusFilterToQuery(params.status) }),
     ownProductCounts(supabase, org.organizationId),
   ]);
 
@@ -65,60 +67,45 @@ export async function ShowroomMyProducts({
       version: r.version,
       imageUrl: (key ? signed.get(key) : undefined) ?? r.image_ref ?? null,
       sizeLabel: r.size_label,
-      colorCount: r.colors.length,
+      weightKg: r.weight_kg,
+      colors: r.colors,
     };
   });
 
   const filtered = Boolean(params.q || params.category || params.status);
-  const tabCounts: Record<(typeof MY_PRODUCTS_STATUSES)[number], number> = {
-    active: counts.published,
-    inactive: counts.draft,
-    archived: counts.archived,
-  };
-  const tabHref = (status?: string) => {
+  const href = (patch: { status?: MyProductsStatusFilter | ""; category?: string }) => {
     const next = new URLSearchParams();
+    const status = patch.status === undefined ? params.status : patch.status || undefined;
+    const category = patch.category === undefined ? params.category : patch.category || undefined;
     if (params.q) next.set("q", params.q);
-    if (params.category) next.set("category", params.category);
+    if (category) next.set("category", category);
     if (status) next.set("status", status);
+    if (params.sort !== "updated") next.set("sort", params.sort);
     const qs = next.toString();
     return qs ? `${BASE_PATH}?${qs}` : BASE_PATH;
   };
 
+  const viewAll = t("showroomProducts.viewAll");
+  const stats = [
+    { key: "total", label: t("showroomProducts.stats.total"), value: counts.total + counts.archived, href: href({ status: "" }), active: !params.status, viewAll, Icon: PackageIcon },
+    { key: "active", label: t("showroomProducts.stats.active"), value: counts.published, href: href({ status: "active" }), active: params.status === "active", viewAll, Icon: BadgeCheckIcon },
+    { key: "draft", label: t("showroomProducts.stats.draft"), value: counts.draft, href: href({ status: "inactive" }), active: params.status === "inactive", viewAll, Icon: PencilIcon },
+    { key: "archived", label: t("showroomProducts.stats.archived"), value: counts.archived, href: href({ status: "archived" }), active: params.status === "archived", viewAll, Icon: InboxIcon },
+  ];
+  const chips = [
+    { value: "", label: t("showroomProducts.chipAll") },
+    ...CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: m.commerce.canonicalCategories[c] })),
+  ];
+
   return (
     <div className="flex flex-col gap-md" data-testid="my-products">
-      <PageHeader
-        locale={locale}
-        Icon={StorefrontIcon}
-        title={t("showroomProducts.title")}
-        subtitle={t("showroomProducts.subtitle")}
-        action={canWrite ? { href: `${BASE_PATH}/new`, label: t("showroomProducts.create") } : undefined}
-      />
+      <ShowroomPageHero locale={locale} title={t("showroomProducts.title")} subtitle={t("showroomProducts.heroSubtitle")} Icon={PackageIcon} titleId="my-products-title" />
       {!canWrite ? <p className="text-label text-fg-muted" data-testid="my-products-readonly">{t("showroomProducts.readOnlyNote")}</p> : null}
 
-      <nav aria-label={t("showroomProducts.title")} className="flex flex-wrap gap-1.5" data-testid="my-products-tabs">
-        <TabLink href={tabHref()} active={!params.status} label={`${t("showroomProducts.statusAll")} (${counts.total + counts.archived})`} />
-        {MY_PRODUCTS_STATUSES.map((s) => (
-          <TabLink key={s} href={tabHref(s)} active={params.status === s} label={`${t(`showroomProducts.summary.${s}`)} (${tabCounts[s]})`} />
-        ))}
-      </nav>
+      <ProductStatCards stats={stats} />
 
-      <FilterBar
-        basePath={BASE_PATH}
-        search={{ name: "q", value: params.q ?? "", placeholder: t("showroomProducts.searchPlaceholder") }}
-        selects={[
-          {
-            name: "category",
-            label: t("showroomProducts.category"),
-            value: params.category ?? "",
-            anyLabel: t("showroomProducts.allCategories"),
-            options: [
-              ...CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: m.commerce.canonicalCategories[c] })),
-              { value: "unclassified", label: t("showroomProducts.unclassified") },
-            ],
-          },
-        ]}
-        clearLabel={t("showroomProducts.clearFilters")}
-      />
+      <MyProductsToolbar basePath={BASE_PATH} q={params.q ?? ""} category={params.category ?? ""} sort={params.sort} canCreate={canWrite} />
+      <CategoryChips chips={chips} selected={params.category ?? ""} hrefFor={(value) => href({ category: value })} label={t("showroomProducts.category")} />
 
       {cards.length === 0 ? (
         <StatePanel
@@ -143,20 +130,5 @@ export async function ShowroomMyProducts({
         />
       )}
     </div>
-  );
-}
-
-function TabLink({ href, active, label }: { href: string; active: boolean; label: string }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "inline-flex min-h-8 items-center rounded-pill border px-3 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-        active ? "border-transparent bg-primary text-primary-foreground" : "border-strong bg-surface text-fg-secondary hover:bg-surface-2",
-      )}
-    >
-      {label}
-    </Link>
   );
 }

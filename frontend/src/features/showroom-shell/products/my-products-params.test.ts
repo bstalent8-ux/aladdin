@@ -4,7 +4,7 @@ import { parseMyProductsParams, statusFilterToQuery } from "./my-products-params
 
 describe("my products URL parsing", () => {
   it("defaults to no filters", () => {
-    expect(parseMyProductsParams({})).toEqual({ q: undefined, category: undefined, status: undefined });
+    expect(parseMyProductsParams({})).toEqual({ q: undefined, category: undefined, status: undefined, sort: "updated" });
   });
 
   it("keeps a trimmed, bounded search", () => {
@@ -32,6 +32,16 @@ describe("my products URL parsing", () => {
 
   it("takes the first of repeated values", () => {
     expect(parseMyProductsParams({ status: ["archived", "active"], category: ["paints", "curtains"] })).toMatchObject({ status: "archived", category: "paints" });
+  });
+});
+
+describe("sort", () => {
+  it.each(["updated", "newest", "name"])("accepts %s", (sort) => {
+    expect(parseMyProductsParams({ sort }).sort).toBe(sort);
+  });
+
+  it("falls back to recently updated for anything else (no arbitrary column reaches the query)", () => {
+    for (const sort of ["price", "created_at; drop table products", "", "NAME"]) expect(parseMyProductsParams({ sort }).sort).toBe("updated");
   });
 });
 

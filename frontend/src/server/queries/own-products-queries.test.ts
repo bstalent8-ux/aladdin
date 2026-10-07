@@ -57,6 +57,18 @@ describe("own product queries", () => {
     expect(b.calls).toContainEqual(["is", "category_code", null]);
   });
 
+  it("sorts by recently updated by default, and only by the columns the page defines", async () => {
+    const dflt = stub({ data: [], error: null });
+    await listOwnProducts(dflt.supabase, "org-1", {});
+    expect(dflt.calls).toContainEqual(["order", "updated_at", { ascending: false }]);
+    const newest = stub({ data: [], error: null });
+    await listOwnProducts(newest.supabase, "org-1", { sort: "newest" });
+    expect(newest.calls).toContainEqual(["order", "created_at", { ascending: false }]);
+    const name = stub({ data: [], error: null });
+    await listOwnProducts(name.supabase, "org-1", { sort: "name" });
+    expect(name.calls).toContainEqual(["order", "name", { ascending: true }]);
+  });
+
   it("counts archived products apart and never as drafts", async () => {
     const rows = [
       { status: "published", archived_at: null },

@@ -169,3 +169,21 @@ Extends the existing catalog; no parallel product system. Migration `20261008090
 **Abandoning.** Before "Create": nothing exists server-side, so there is nothing to clean up. After the draft is created (mid-upload, closed tab, failed upload): the draft stays owned by the organization, inactive and invisible in the public catalog, and is resumable from My products; an upload that never confirmed leaves only a `pending` row that frees its slot after an hour (`product_image_request_upload` purges stale pending rows) and is never publicly readable. If a photo upload fails the user still lands on the new draft with a notice ("some photos could not be uploaded") and can add the rest there. No background cleanup job is required.
 
 **Accessibility notes.** A failed submit moves focus to the first invalid field (all errors are `role="alert"`); photo alt text is "<product> — Photo N" (staged: "Photo N"); every photo control has an accessible name inside a per-photo labelled group; tab order follows reading order with no positive tabindex; the archive dialog is modal and labelled, takes focus, traps Tab, closes on Escape / Cancel and returns focus to its trigger (the shared `ConfirmDialog` behaviour).
+
+
+## Visual-reference rule for showroom pages (2026-10-07)
+
+When reference images are provided for a page (`docs/references/showroom/<page>/`), do not freestyle its composition:
+
+- **Reference image = page composition and UX source.**
+- **Craftsman / Installer UI = the Aladdin shared visual-system source** (palette, type, sidebar, header, Light/Dark, responsive behavior). A reference's own legacy theme is never copied.
+- **Existing backend / domain = functional source of truth.** Presentation is aligned; real CRUD, RLS, tenancy and rules are never weakened to match a mock.
+- If these conflict (a reference shows data the domain does not have), report the conflict before choosing.
+- **Assets:** never invent decorative images or use stock/external URLs. A missing asset is an ASSET REQUEST (name, where used, dimensions/ratio, background, description, format, dark-mode need, suggested prompt); the final generated file goes under `frontend/public/images/showroom/...`. Reference images stay under `docs/references` and are never shipped.
+- **Points ("نقاطي ومكافآتي", Phase 8):** do not implement from interpretation. Inspect `docs/references/showroom/points/` first and request any missing icons, reward/level graphics, badges or illustrations before finalizing.
+
+### My products — visual alignment to `my-products-ref-01/02`
+
+Followed ref-01: page header (icon + title + subtitle), four summary cards that are also the status filters ("View all"), Add product + search row, category/sort row, scrolling category chips, count line with Grid/List toggle, product cards (status chip on the image, name, code, category pill, colors, unit • size • weight, on/off switch, Edit / Manage photos / Archive). Followed ref-02: header with back link, form card with icon header, name/code, category, colors beside the photo uploader (up to 3), unit/size/weight row, Save + Cancel, "tips" side card at the start side.
+
+Intentionally different (domain conflicts): no price, discount or stock badge (the catalog has no price/stock; price is undefined until a pricing rule is approved and offers are Phase 5); the fourth summary card is Archived instead of "products in offers" (offers are Phase 5); no "Create offer" button; "Delete" is Archive (products referenced by RFQs/saved lists/orders are never hard-deleted); colors are named chips, not hex swatches (the model stores names); filter button omitted (search, category and sort are the supported filters); extra fields kept (brand, description). The status label for an inactive product reads "Draft / مسودة" as in the reference. Asset pending: the header banner artwork (see ASSET REQUEST in the Phase 4 report) — the hero accepts a light and a dark image and shows the title block alone until they exist.

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function ShowroomMyProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; status?: string; sort?: string }>;
 }) {
   const ctx = await requireShowroomContext();
   // The same capability gate the sidebar applies to "منتجاتي".

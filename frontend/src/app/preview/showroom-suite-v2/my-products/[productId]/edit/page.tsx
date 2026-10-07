@@ -12,6 +12,8 @@ import { ProductForm } from "@/features/showroom-shell/products/product-form";
 import { ImageManager } from "@/features/showroom-shell/products/image-manager";
 import { LifecycleControls } from "@/features/showroom-shell/products/lifecycle-controls";
 import { ownProductStatus } from "@/features/showroom-shell/products/product-input";
+import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
+import { PackageIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,8 @@ export default async function ShowroomEditProductPage({
   const product = await getOwnProduct(supabase, org.organizationId, productId);
   if (!product) notFound();
 
-  const t = createTranslator(resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value));
+  const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  const t = createTranslator(locale);
   const canWrite = org.capabilities.includes("catalog.write") || org.capabilities.includes("org.manage");
   const canPublish = org.capabilities.includes("catalog.publish") || org.capabilities.includes("org.manage");
   const status = ownProductStatus(product);
@@ -45,15 +48,21 @@ export default async function ShowroomEditProductPage({
 
   return (
     <div className="flex flex-col gap-md" data-testid="edit-product" data-status={status}>
-      <div className="flex flex-col gap-1">
-        <Link href={`${SHOWROOM_ROOT}/my-products`} className="inline-flex items-center text-label text-fg-secondary hover:text-fg">
-          <span aria-hidden="true" className="me-1 rtl:rotate-180">←</span>
-          {t("showroomProducts.backToList")}
-        </Link>
-        <div className="flex flex-wrap items-center gap-x-md gap-y-1">
-          <h1 className="min-w-0 text-headline text-fg" dir="auto">{product.name}</h1>
-          <Badge tone={status === "active" ? "success" : status === "inactive" ? "warning" : "neutral"}>{t(`showroomProducts.status.${status}`)}</Badge>
-        </div>
+      <ShowroomPageHero
+        locale={locale}
+        titleId="edit-product-title"
+        Icon={PackageIcon}
+        title={t("showroomProducts.editTitle")}
+        subtitle={product.name}
+        back={
+          <Link href={`${SHOWROOM_ROOT}/my-products`} className="inline-flex w-fit items-center gap-1 rounded-sm border border-strong px-2.5 py-1 text-label text-fg-secondary hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <span aria-hidden="true" className="rtl:rotate-180">←</span>
+            {t("showroomProducts.backToList")}
+          </Link>
+        }
+      />
+      <div className="flex flex-wrap items-center gap-x-md gap-y-2">
+        <Badge tone={status === "active" ? "success" : status === "inactive" ? "warning" : "neutral"}>{t(`showroomProducts.status.${status}`)}</Badge>
         <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
       </div>
 
@@ -84,6 +93,7 @@ export default async function ShowroomEditProductPage({
       )}
 
       {canWrite ? (
+        <div id="product-photos" className="scroll-mt-24">
         <Card className="max-w-3xl">
           <ImageManager
             productId={product.id}
@@ -92,6 +102,7 @@ export default async function ShowroomEditProductPage({
             images={images.map((i) => ({ id: i.id, url: signed.get(i.objectKey) ?? null, slot: i.slot }))}
           />
         </Card>
+        </div>
       ) : null}
     </div>
   );

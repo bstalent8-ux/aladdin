@@ -6,10 +6,11 @@ import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 import type { CatalogView } from "@/lib/ui/catalog-view";
 import { Badge } from "@/components/ui/primitives";
+import { CameraIcon, PencilIcon } from "@/components/ui/icons";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { ViewToggle } from "@/features/showroom-shell/view-toggle";
-import { LifecycleControls } from "./lifecycle-controls";
+import { ActiveSwitch, ArchiveAction, RestoreAction } from "./lifecycle-controls";
 import { ownCategoryLabel } from "./labels";
 import { ownProductStatus, type OwnProductStatus } from "./product-input";
 
@@ -24,7 +25,8 @@ export type OwnProductCard = {
   version: number;
   imageUrl: string | null;
   sizeLabel: string | null;
-  colorCount: number;
+  weightKg: number | null;
+  colors: string[];
 };
 
 const TONE: Record<OwnProductStatus, "success" | "warning" | "neutral"> = { active: "success", inactive: "warning", archived: "neutral" };
@@ -84,33 +86,67 @@ function StatusBadge({ status }: { status: OwnProductStatus }) {
   return <Badge tone={TONE[status]}>{t(`showroomProducts.status.${status}`)}</Badge>;
 }
 
+/** "Basic metadata" line of the reference: unit • size • weight, only what the product has. */
+function metaLine(t: (k: string) => string, p: OwnProductCard) {
+  return [t(`commerce.units.${p.unit}`), p.sizeLabel, p.weightKg !== null ? `${p.weightKg} ${t("showroomProducts.kg")}` : null].filter(Boolean).join(" • ");
+}
+
+function ColorChips({ colors }: { colors: string[] }) {
+  if (colors.length === 0) return null;
+  return (
+    <ul className="flex min-w-0 flex-wrap gap-1" data-testid="card-colors">
+      {colors.slice(0, 3).map((c) => (
+        <li key={c} className="max-w-full truncate rounded-pill bg-surface-2 px-2 py-0.5 text-caption text-fg-secondary" dir="auto">{c}</li>
+      ))}
+      {colors.length > 3 ? <li className="rounded-pill bg-surface-2 px-2 py-0.5 text-caption text-fg-muted" dir="ltr">+{colors.length - 3}</li> : null}
+    </ul>
+  );
+}
+
+const actionLink =
+  "inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-sm border border-strong px-2 text-label font-medium text-fg transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+
+function CardActions({ product, status, canWrite }: { product: OwnProductCard; status: OwnProductStatus; canWrite: boolean }) {
+  const { t } = useI18n();
+  const edit = editHref(product.id);
+  if (status === "archived") {
+    return canWrite ? <div className="flex flex-wrap items-start gap-1.5"><RestoreAction productId={product.id} version={product.version} /></div> : null;
+  }
+  return (
+    <div className="flex flex-wrap items-start gap-1.5">
+      {canWrite ? (
+        <>
+          <Link href={edit} className={actionLink}><PencilIcon size={14} /><span className="sr-only tablet:not-sr-only">{t("showroomProducts.edit")}</span></Link>
+          <Link href={`${edit}#product-photos`} className={actionLink}><CameraIcon size={14} /><span className="sr-only tablet:not-sr-only">{t("showroomProducts.manageImages")}</span></Link>
+          <ArchiveAction productId={product.id} version={product.version} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function GridCard({ product, canWrite, canPublish }: { product: OwnProductCard; canWrite: boolean; canPublish: boolean }) {
   const { t } = useI18n();
   const status = ownProductStatus({ status: product.status, archived_at: product.archivedAt });
   return (
-    <div className={cn("flex h-full flex-col gap-2 rounded-md border bg-surface p-2 tablet:p-sm", status === "archived" && "opacity-80")} data-testid="my-products-card" data-status={status}>
+    <div className={cn("flex h-full flex-col gap-2 rounded-md border bg-surface p-2 shadow-card tablet:p-sm", status === "archived" && "opacity-80")} data-testid="my-products-card" data-status={status}>
       <Link href={editHref(product.id)} className="relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" aria-label={product.name}>
         <ProductMedia src={product.imageUrl} alt={product.name} aspect="aspect-[4/3] tablet:aspect-[16/10]" />
         <span className="absolute start-1.5 top-1.5 rounded-pill bg-surface"><StatusBadge status={status} /></span>
       </Link>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Link href={editHref(product.id)} className="line-clamp-2 w-full text-body font-medium leading-snug text-fg hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" dir="auto">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Link href={editHref(product.id)} className="line-clamp-2 w-full text-body font-semibold leading-snug text-fg hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" dir="auto">
           {product.name}
         </Link>
-        {product.code ? <p className="w-full truncate text-label text-fg-muted" dir="ltr">{product.code}</p> : null}
-        <p className="flex w-full flex-col text-label text-fg-secondary tablet:flex-row tablet:justify-between tablet:gap-2">
-          <span className="truncate">{ownCategoryLabel(t, { category_code: product.categoryCode })}</span>
-          <span className="shrink-0 text-fg-muted">{t(`commerce.units.${product.unit}`)}</span>
-        </p>
+        {product.code ? <p className="w-full truncate text-label text-fg-muted"><span>{t("showroomProducts.code")}: </span><span dir="ltr">{product.code}</span></p> : null}
+        <span className="w-fit max-w-full truncate rounded-sm bg-accent-solid/15 px-2 py-0.5 text-label font-medium text-accent">{ownCategoryLabel(t, { category_code: product.categoryCode })}</span>
+        <ColorChips colors={product.colors} />
+        <p className="w-full text-label text-fg-muted" dir="auto">{metaLine(t, product)}</p>
       </div>
-      <div className="flex flex-wrap items-start gap-1.5 border-t pt-2">
-        {canWrite && status !== "archived" ? (
-          <Link href={editHref(product.id)} className="inline-flex min-h-8 items-center rounded-sm border border-strong px-3 text-label font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            {t("showroomProducts.edit")}
-          </Link>
-        ) : null}
-        <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
+      <div className="flex items-center justify-between gap-2 border-t pt-2">
+        {canPublish && status !== "archived" ? <ActiveSwitch productId={product.id} version={product.version} active={status === "active"} /> : <span />}
       </div>
+      <CardActions product={product} status={status} canWrite={canWrite} />
     </div>
   );
 }
@@ -132,15 +168,11 @@ function ListRow({ product, canWrite, canPublish }: { product: OwnProductCard; c
       <span className="flex min-w-0 flex-wrap items-center gap-x-md gap-y-1 text-label tablet:flex-nowrap">
         <StatusBadge status={status} />
         <span className="min-w-0 truncate text-fg-secondary tablet:w-40">{ownCategoryLabel(t, { category_code: product.categoryCode })}</span>
-        <span className="shrink-0 text-fg-muted tablet:w-24">{t(`commerce.units.${product.unit}`)}</span>
+        <span className="min-w-0 truncate text-fg-muted tablet:w-44" dir="auto">{metaLine(t, product)}</span>
       </span>
-      <div className="flex flex-wrap items-start gap-1.5">
-        {canWrite && status !== "archived" ? (
-          <Link href={editHref(product.id)} className="inline-flex min-h-8 items-center rounded-sm border border-strong px-3 text-label font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            {t("showroomProducts.edit")}
-          </Link>
-        ) : null}
-        <LifecycleControls productId={product.id} version={product.version} status={status} canWrite={canWrite} canPublish={canPublish} />
+      <div className="flex flex-wrap items-center gap-2">
+        {canPublish && status !== "archived" ? <ActiveSwitch productId={product.id} version={product.version} active={status === "active"} /> : null}
+        <CardActions product={product} status={status} canWrite={canWrite} />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
 import { SubmitButton } from "@/components/ui/controls";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -77,4 +78,55 @@ export function LifecycleControls({
       )}
     </div>
   );
+}
+
+/**
+ * The reference's on/off switch: "visible in Browse products". It is the same
+ * activate / deactivate transition as the buttons (publish rights required, the
+ * database decides), presented as a switch with its state exposed to assistive tech.
+ */
+export function ActiveSwitch({ productId, version, active }: { productId: string; version: number; active: boolean }) {
+  const { t } = useI18n();
+  const [state, dispatch] = useActionState(ownProductLifecycleAction, initial);
+  return (
+    <form action={dispatch} className="inline-flex flex-col gap-1">
+      <Hidden productId={productId} version={version} action={active ? "deactivate" : "activate"} />
+      <button
+        type="submit"
+        role="switch"
+        aria-checked={active}
+        aria-label={t("showroomProducts.activeSwitch")}
+        title={t("showroomProducts.activeSwitch")}
+        data-testid="active-switch"
+        className={cn(
+          "relative inline-flex h-6 w-11 shrink-0 items-center rounded-pill border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
+          active ? "border-transparent bg-accent-solid" : "border-strong bg-surface-2",
+        )}
+      >
+        <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow-sm transition-all", active ? "end-0.5" : "start-0.5")} />
+      </button>
+      {state.code && !state.ok ? <span role="alert" className="text-label text-danger">{t(state.code)}</span> : null}
+    </form>
+  );
+}
+
+/** Archive behind its confirmation (red outline, like the reference's destructive action). */
+export function ArchiveAction({ productId, version }: { productId: string; version: number }) {
+  const { t } = useI18n();
+  return (
+    <ConfirmDialog
+      trigger={t("showroomProducts.archive")}
+      triggerVariant="danger"
+      title={t("showroomProducts.archiveTitle")}
+      body={t("showroomProducts.archiveBody")}
+      confirmLabel={t("showroomProducts.archiveConfirm")}
+      formAction={ownProductLifecycleAction}
+    >
+      <Hidden productId={productId} version={version} action="archive" />
+    </ConfirmDialog>
+  );
+}
+
+export function RestoreAction({ productId, version }: { productId: string; version: number }) {
+  return <QuickAction productId={productId} version={version} action="restore" />;
 }

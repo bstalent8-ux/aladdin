@@ -83,14 +83,17 @@ export async function listOwnProducts(
      * `include` / `only` serve the showroom's management page.
      */
     archived?: "exclude" | "include" | "only";
+    /** Default: most recently updated first (what production lists have always done). */
+    sort?: "updated" | "newest" | "name";
   } = {},
 ): Promise<ProductRow[]> {
+  const sort = f.sort ?? "updated";
   let q = supabase
     .from("products")
     .select("*")
     .eq("organization_id", orgId)
     .is("deleted_at", null)
-    .order("updated_at", { ascending: false })
+    .order(sort === "name" ? "name" : sort === "newest" ? "created_at" : "updated_at", { ascending: sort === "name" })
     .limit(LIST_LIMIT);
   const archived = f.archived ?? "exclude";
   if (archived === "exclude") q = q.is("archived_at", null);

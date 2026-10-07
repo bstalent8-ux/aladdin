@@ -45,7 +45,8 @@ const card = (over: Partial<OwnProductCard> & { id: string }): OwnProductCard =>
   version: 2,
   imageUrl: null,
   sizeLabel: null,
-  colorCount: 0,
+  weightKg: null,
+  colors: [],
   ...over,
 });
 
@@ -97,19 +98,48 @@ describe("OwnProductsResults", () => {
     results();
     const old = screen.getAllByTestId("my-products-card")[1]!;
     expect(within(old).getByText("Unclassified")).toBeTruthy();
-    expect(within(old).getByText("Inactive")).toBeTruthy();
+    expect(within(old).getByText("Draft")).toBeTruthy();
     expect(within(old).getByText("Box")).toBeTruthy();
   });
 
-  it("offers each status only its transitions: activate/archive, deactivate/archive, restore", () => {
+  it("shows the on/off switch by state, and Restore only for an archived product", () => {
     results();
     const [active, inactive, archived] = screen.getAllByTestId("my-products-card");
-    expect(within(active!).getByRole("button", { name: "Deactivate" })).toBeTruthy();
+    expect(within(active!).getByRole("switch").getAttribute("aria-checked")).toBe("true");
+    expect(within(inactive!).getByRole("switch").getAttribute("aria-checked")).toBe("false");
+    expect(within(archived!).queryByRole("switch")).toBeNull();
     expect(within(active!).getByRole("button", { name: "Archive" })).toBeTruthy();
-    expect(within(inactive!).getByRole("button", { name: "Activate" })).toBeTruthy();
     expect(within(archived!).getByRole("button", { name: "Restore" })).toBeTruthy();
     expect(within(archived!).queryByRole("button", { name: "Archive" })).toBeNull();
     expect(archived!.getAttribute("data-status")).toBe("archived");
+  });
+
+  it("the switch submits the matching transition with the version", async () => {
+    results();
+    const [active, inactive] = screen.getAllByTestId("my-products-card");
+    fireEvent.click(within(active!).getByRole("switch"));
+    await waitFor(() => expect(actions.lifecycle).toHaveBeenCalledTimes(1));
+    let sent = (actions.lifecycle.mock.calls[0] as unknown as [unknown, FormData])[1];
+    expect([sent.get("action"), sent.get("productId"), sent.get("expectedVersion")]).toEqual(["deactivate", "a", "2"]);
+    fireEvent.click(within(inactive!).getByRole("switch"));
+    await waitFor(() => expect(actions.lifecycle).toHaveBeenCalledTimes(2));
+    sent = (actions.lifecycle.mock.calls[1] as unknown as [unknown, FormData])[1];
+    expect(sent.get("action")).toBe("activate");
+  });
+
+  it("links each card to its editor and to its photos", () => {
+    results();
+    const [active] = screen.getAllByTestId("my-products-card");
+    expect(within(active!).getByRole("link", { name: "Manage photos" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/my-products/a/edit#product-photos");
+  });
+
+  it("shows colors, size and weight when the product has them — and nothing it does not have", () => {
+    wrap(<OwnProductsResults products={[card({ id: "z", colors: ["Sand", "Warm White", "Grey", "Black"], sizeLabel: "60×60 cm", weightKg: 2.5 })]} initialView="grid" countLabel="1" canWrite canPublish />);
+    const c = screen.getByTestId("my-products-card");
+    expect(within(c).getByText("Sand")).toBeTruthy();
+    expect(within(c).getByText("+1")).toBeTruthy();
+    expect(within(c).getByText("Pail • 60×60 cm • 2.5 kg")).toBeTruthy();
+    expect(c.textContent).not.toMatch(/EGP|ج\.م|SAR|ر\.س/);
   });
 
   it("does not offer Edit on an archived product (it must be restored first)", () => {
@@ -122,14 +152,16 @@ describe("OwnProductsResults", () => {
   it("is read-only without the capabilities — no edit, no lifecycle buttons", () => {
     results({ canWrite: false, canPublish: false });
     expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Activate|Deactivate|Archive|Restore/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Archive|Restore/ })).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 
-  it("publishing rights alone allow activate/deactivate but not archive or edit", () => {
+  it("publishing rights alone give the switch but not archive or edit", () => {
     results({ canWrite: false, canPublish: true });
     const [active] = screen.getAllByTestId("my-products-card");
-    expect(within(active!).getByRole("button", { name: "Deactivate" })).toBeTruthy();
+    expect(within(active!).getByRole("switch")).toBeTruthy();
     expect(within(active!).queryByRole("button", { name: "Archive" })).toBeNull();
+    expect(within(active!).queryByRole("link", { name: "Edit" })).toBeNull();
   });
 
   it("asks before archiving, and says what it does", async () => {
@@ -151,6 +183,7 @@ describe("OwnProductsResults", () => {
   it("works in Arabic with Arabic labels", () => {
     wrap(<OwnProductsResults products={[products[0]!]} initialView="grid" countLabel="1 منتج" canWrite canPublish />, "ar");
     expect(screen.getAllByText("نشط").length).toBeGreaterThan(0);
+    expect(screen.getByText("إدارة الصور")).toBeTruthy();
     expect(screen.getAllByText("دهانات").length).toBeGreaterThan(0);
     expect(screen.getAllByText("باستلة").length).toBeGreaterThan(0);
   });
