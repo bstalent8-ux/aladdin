@@ -5,7 +5,7 @@ import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
+import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { ProductForm } from "@/features/showroom-shell/products/product-form";
 import { TipsCard } from "@/features/showroom-shell/products/tips-card";
 import { PackageIcon } from "@/components/ui/icons";
@@ -24,6 +24,7 @@ export default async function ShowroomNewProductPage() {
         locale={locale}
         titleId="new-product-title"
         Icon={PackageIcon}
+        art={MY_PRODUCTS_HERO_ART}
         title={t("showroomProducts.createTitle")}
         subtitle={t("showroomProducts.createHeroSubtitle")}
         back={

@@ -9,7 +9,7 @@ import { StatePanel } from "@/components/ui/primitives";
 import { BadgeCheckIcon, InboxIcon, PackageIcon, PencilIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
+import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { parseMyProductsParams, statusFilterToQuery, type MyProductsStatusFilter } from "./my-products-params";
 import { OwnProductsResults, type OwnProductCard } from "./own-products-results";
 import { ProductStatCards } from "./stat-cards";
@@ -99,7 +99,7 @@ export async function ShowroomMyProducts({
 
   return (
     <div className="flex flex-col gap-md" data-testid="my-products">
-      <ShowroomPageHero locale={locale} title={t("showroomProducts.title")} subtitle={t("showroomProducts.heroSubtitle")} Icon={PackageIcon} titleId="my-products-title" />
+      <ShowroomPageHero locale={locale} title={t("showroomProducts.title")} subtitle={t("showroomProducts.heroSubtitle")} Icon={PackageIcon} titleId="my-products-title" art={MY_PRODUCTS_HERO_ART} />
       {!canWrite ? <p className="text-label text-fg-muted" data-testid="my-products-readonly">{t("showroomProducts.readOnlyNote")}</p> : null}
 
       <ProductStatCards stats={stats} />

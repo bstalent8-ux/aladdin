@@ -12,7 +12,7 @@ import { ProductForm } from "@/features/showroom-shell/products/product-form";
 import { ImageManager } from "@/features/showroom-shell/products/image-manager";
 import { LifecycleControls } from "@/features/showroom-shell/products/lifecycle-controls";
 import { ownProductStatus } from "@/features/showroom-shell/products/product-input";
-import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
+import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { PackageIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +52,7 @@ export default async function ShowroomEditProductPage({
         locale={locale}
         titleId="edit-product-title"
         Icon={PackageIcon}
+        art={MY_PRODUCTS_HERO_ART}
         title={t("showroomProducts.editTitle")}
         subtitle={product.name}
         back={

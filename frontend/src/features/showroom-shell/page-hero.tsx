@@ -45,7 +45,7 @@ export function ShowroomPageHero({
           dir={dir}
           className={cn(
             "relative z-raised flex min-w-0 flex-col gap-1.5 px-md py-md tablet:px-xl",
-            art && "tablet:absolute tablet:inset-y-0 tablet:end-0 tablet:w-[52%] tablet:justify-center",
+            art && "tablet:absolute tablet:inset-y-0 tablet:right-0 tablet:w-[52%] tablet:justify-center",
           )}
         >
           {back}
@@ -59,3 +59,9 @@ export function ShowroomPageHero({
     </section>
   );
 }
+
+/** My Products header artwork (production assets, panel on the right in both locales). */
+export const MY_PRODUCTS_HERO_ART: PageHeroArt = {
+  light: "/images/showroom/products/my-products-hero-light.png",
+  dark: "/images/showroom/products/my-products-hero-dark.png",
+};
