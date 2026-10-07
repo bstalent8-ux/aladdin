@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
+import { readOptions, selectValue } from "@/test/select-menu";
 import { createTranslator } from "@/lib/i18n/translate";
 import type { PersonalHomeData } from "@/server/queries/personal-home";
 
@@ -151,8 +152,8 @@ describe("PersonalSettings", () => {
     expect(screen.getByLabelText("Display name")).toBeTruthy();
     expect(screen.getByTestId("avatar-field")).toBeTruthy();
     // Egypt is the default country, not the only one.
-    expect((screen.getByLabelText("Country") as HTMLSelectElement).value).toBe("EG");
-    expect(screen.getByLabelText("Country").querySelectorAll("option").length).toBeGreaterThan(200);
+    expect(selectValue(screen.getByLabelText("Country"))).toBe("EG");
+    expect(readOptions(screen.getByLabelText("Country")).length).toBeGreaterThan(200);
   });
 
   it("flags an automatic display name as NOT confirmed until it is saved here", () => {

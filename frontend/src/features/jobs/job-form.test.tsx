@@ -17,6 +17,7 @@ vi.mock("@/server/actions/job-forms", () => ({
 }));
 
 import { JobForm } from "./job-form";
+import { openSelect, readOptions, selectValue } from "@/test/select-menu";
 import type { JobListRow } from "@/server/queries/jobs";
 
 const trades = [
@@ -28,8 +29,8 @@ const trades = [
 /** The catalog as it looks after `marble_granite` is retired: without it. */
 const tradesWithoutMarble = trades.filter((t) => t.key !== "marble_granite");
 
-const options = (c: HTMLElement) =>
-  [...c.querySelectorAll("#tradeKey option")].map((o) => (o as HTMLOptionElement).value);
+const trigger = (c: HTMLElement) => c.querySelector("#tradeKey") as HTMLElement;
+const options = (c: HTMLElement) => readOptions(trigger(c)).map((o) => o.value);
 
 const job = (over: Partial<JobListRow> = {}): JobListRow =>
   ({
@@ -82,13 +83,11 @@ describe("JobForm and a retired trade", () => {
       "en",
     );
     expect(options(container)).toContain("marble_granite");
-    expect((container.querySelector("#tradeKey") as HTMLSelectElement).value).toBe(
-      "marble_granite",
-    );
+    expect(selectValue(trigger(container))).toBe("marble_granite");
   });
 
   it("marks it as history rather than presenting it as a current choice", () => {
-    renderWithI18n(
+    const { container } = renderWithI18n(
       <JobForm
         mode="edit"
         orgId="o1"
@@ -97,6 +96,7 @@ describe("JobForm and a retired trade", () => {
       />,
       "en",
     );
+    openSelect(trigger(container));
     expect(screen.getByRole("option", { name: /Marble & granite.*no longer offered/i })).toBeTruthy();
   });
 
@@ -137,9 +137,9 @@ describe("JobForm and a retired trade", () => {
       />,
       "en",
     );
-    const select = container.querySelector("#tradeKey") as HTMLSelectElement;
+    const select = trigger(container) as HTMLButtonElement;
     expect(select.disabled).toBe(true);
-    expect(select.value).toBe("marble_granite");
+    expect(selectValue(select)).toBe("marble_granite");
     expect(
       container.querySelector('input[type="hidden"][name="tradeKey"]')?.getAttribute("value"),
     ).toBe("marble_granite");
@@ -152,7 +152,7 @@ describe("JobForm", () => {
       <JobForm mode="create" orgId="o1" trades={trades} />,
       "en",
     );
-    const options = Array.from(container.querySelectorAll("option")).map((o) => o.textContent);
+    const options = readOptions(trigger(container)).map((o) => o.label);
     expect(options).toContain("Kitchens & doors");
     expect(options).toContain("Marble & granite");
   });
@@ -166,9 +166,7 @@ describe("JobForm", () => {
       <JobForm mode="create" orgId="o1" trades={trades} />,
       "en",
     );
-    const values = Array.from(container.querySelectorAll("option"))
-      .map((o) => (o as HTMLOptionElement).value)
-      .filter(Boolean);
+    const values = readOptions(trigger(container)).map((o) => o.value).filter(Boolean);
     expect(values).toEqual(["kitchens_doors", "plumbing", "marble_granite"]);
     expect(container.textContent).not.toMatch(/\bt1\b|\bt2\b/);
   });
@@ -220,7 +218,7 @@ describe("JobForm", () => {
     );
     expect(container.querySelector<HTMLInputElement>("#offeredAmount")?.value).toBe("8500");
     expect(container.querySelector<HTMLInputElement>("#siteAddress")?.value).toBe("12 Street 90");
-    expect(container.querySelector<HTMLSelectElement>("#tradeKey")?.value).toBe("marble_granite");
+    expect(selectValue(trigger(container))).toBe("marble_granite");
   });
 
   /**

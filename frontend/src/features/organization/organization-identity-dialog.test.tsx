@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
+import { selectValue } from "@/test/select-menu";
 import { OrganizationIdentityDialog } from "./organization-identity-dialog";
 import { ar } from "@/lib/i18n/messages/ar";
 
@@ -28,10 +29,10 @@ describe("OrganizationIdentityDialog", () => {
 
     const nameAr = screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement;
     const nameEn = screen.getByLabelText(ar.settings.field.nameEn, { exact: false }) as HTMLInputElement;
-    const timezone = screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLSelectElement;
+    const timezone = screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLElement;
     expect(nameAr.value).toBe("معرض سيراميك القاهرة");
     expect(nameEn.value).toBe("Cairo Ceramics Showroom");
-    expect(timezone.value).toBe("Africa/Cairo");
+    expect(selectValue(timezone)).toBe("Africa/Cairo");
 
     // The hidden field the server action keys its update on.
     expect((dialog.querySelector('input[name="orgId"]') as HTMLInputElement).value).toBe("org-1");
@@ -41,7 +42,7 @@ describe("OrganizationIdentityDialog", () => {
     renderWithI18n(<OrganizationIdentityDialog m={ar} orgId="org-1" nameAr={null} nameEn={null} timezone={null} />);
     fireEvent.click(screen.getByRole("button", { name: ar.common.edit }));
     expect((screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLSelectElement).value).toBe("");
+    expect(selectValue(screen.getByLabelText(ar.settings.field.timezone, { exact: false }))).toBe("");
     expect(screen.getByText(ar.settings.timezoneUnset)).toBeInTheDocument();
   });
 });

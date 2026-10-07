@@ -199,3 +199,29 @@ Intentionally different (domain conflicts): no price, discount or stock badge (t
 - **Price visibility (decided)** — the base price is PRIVATE to the owning organization. It originally lived on `products.base_price`, which the published-row RLS (`products_select_published`) exposed cross-tenant through the table API; migration `20261010090001` copied it into `product_prices` (RLS: `app.is_org_member(organization_id)` only; no write grants — `own_product_create/update` are the only writers) and dropped the column. The app reads it with `listProductPrices` (server query on `product_prices`). Phase 5 offers will expose the offer / package price to eligible audiences; the regular price stays private.
 - **Color visibility (decided)** — `products.color_items` / `colors` are public product attributes: a published product's colors are readable by catalog viewers (via the table's published-row policy). The canonical `catalog_published_products` view does not list them today (its 18 columns are pinned); public product reads should keep going through that view, and adding colors to it is a deliberate, additive change for when Browse cards show swatches.
 - **Grid density** — My Products and Browse use 2 / 3 / 4 / 5 columns at mobile / tablet (768) / desktop (1024) / wide (1440); card images are 4:3 on mobile and 16:9 from tablet up.
+
+## Browse = discovery + RFQ; one dropdown system (pre-Phase-5 correction)
+
+**Price rule (final).** Aladdin is not a public-price marketplace. The regular price lives only in `product_prices` (owner organization). Browse cards, the product detail, `catalog_published_products` and every buyer-facing API show **no price**; the only price another organization will ever see is a Product Offer's (Phase 5).
+
+**Browse excludes the active organization's own products.** `listCatalog({ excludeOrgId })` adds `organization_id <> :active` to the query itself (the showroom passes `ctx.org.organizationId`; switching workspace changes the id, so the exclusion follows). The production `/b2b` catalog does not pass it and is unchanged. Own products live in My Products.
+
+**Browse card fields:** image, category badge, name, code (SKU), real color swatches (`SwatchRow`, max 5 then `+N`, name on hover/focus/tap, accessible name), the compact `unit • size • weight` line (`productMetaLine`; only values that exist, no empty separators), supplier name (+ verified mark), save button. The detail page shows the same public attributes (swatches with names, size, weight, unit, brand, description, supplier) and no price.
+
+**Public color read model.** Migration `20261011090001` appends `color_items` to `catalog_published_products` (now 19 columns, pinned by pgTAP 29). Legacy products fall back to their `colors` names as unset swatches; a value is never guessed.
+
+**RFQ action.** Browse detail keeps "Request quotation" (`commerce.catalog.requestQuote`) → the existing production flow `/b2b/rfqs/new?product=<id>`; the showroom RFQ pages are a later phase, so this adapter link stays and no new RFQ system was built.
+
+### Dropdowns
+`Select` (`@/components/ui/controls`) keeps the native API (`<option>` children, `value`/`defaultValue`, `onChange(e)`, `name`, `required`, `disabled`) but renders the shared `SelectMenu` (button + portalled listbox; anchored, flips upward, internal scroll, RTL/LTR, light/dark, keyboard, type-ahead, dirty-form events, `required` validation). Every one of the ~55 former native `<select>` call-sites (sales, organization, onboarding, auth, jobs, commerce, profile, settings, filters, header switchers) therefore uses it. ESLint now forbids a raw `<select>` JSX element. Native controls that stay native: file inputs, the `<input type="color">` inside the color popover (it is color DATA), date/time inputs.
+
+**Follow-up checklist — custom (non-native) menus not yet on `SelectMenu`.** None is a browser-native popup and all use the shared `menuSurfaceClass` / token styling, but they are separate implementations:
+| Route | Component | Control | Why not migrated |
+|---|---|---|---|
+| `/preview/installer-account` | `installer-account-preview/profile-completion-preview.tsx` | specialties multi-select listbox, governorate/city comboboxes | multi-select + searchable; needs a `SelectMenu` multi/search variant |
+| `/preview/installer-my-work` | `installer-my-work-preview/installer-my-work-preview.tsx` | filter listbox | installer preview skin, own state machine |
+| `/preview/installer-reviews` | `installer-reviews-preview/installer-reviews-preview.tsx` | filter listbox | same |
+| `/preview/installer-network/refer` | `installer-network-preview/installer-showroom-referral-preview.tsx` | governorate/city listbox | same |
+| installer job opportunities | `installer-job-opportunities-preview/opportunity-filters.tsx` | filter listbox | same |
+| installer sign-up / dashboard | `installer-dashboard-preview/installer-phone-field.tsx` | country-code listbox | searchable list |
+| `/b2b` dashboard | `home/period-select.tsx` | period menu (`menuitemradio`) | already custom + styled; different semantics |

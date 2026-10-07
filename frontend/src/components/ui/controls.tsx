@@ -1,9 +1,10 @@
 "use client";
 
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from "react";
+import { Children, forwardRef, isValidElement, type ChangeEvent, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 /**
  * Shared form controls (one canonical set — do not fork). Buttons and fields
@@ -242,11 +243,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
  * `field` matches Input and Textarea exactly, so a select in a form still lines
  * up with the text inputs beside it.
  */
-const selectSize = {
-  field: "min-h-11 pe-9",
-  compact: "h-7 min-h-0 py-0 px-2.5 pe-8 text-label",
-} as const;
-
 type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
   /**
    * `size` shadows the native attribute, which is why that one is omitted above.
@@ -255,40 +251,75 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
    * can want it, and `size` is the name every other control in this file uses
    * for its proportions.
    */
-  size?: keyof typeof selectSize;
+  size?: "field" | "compact";
 };
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { className, children, size = "field", ...rest },
-  ref,
-) {
-  const compact = size === "compact";
+type ParsedOption = { value: string; label: string; disabled?: boolean };
+
+/** Flatten `<option>` children (through fragments and arrays) into plain option data. */
+function parseOptions(children: ReactNode, out: ParsedOption[] = []): ParsedOption[] {
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child)) return;
+    const props = child.props as { value?: string | number; disabled?: boolean; children?: ReactNode };
+    if (child.type === "option") {
+      const label = Children.toArray(props.children)
+        .map((c) => (typeof c === "string" || typeof c === "number" ? String(c) : ""))
+        .join("");
+      out.push({ value: props.value === undefined ? label : String(props.value), label, disabled: props.disabled });
+    } else if (props.children) {
+      parseOptions(props.children, out);
+    }
+  });
+  return out;
+}
+
+/**
+ * The project's select. It keeps the native `<select>` API — `<option>` children,
+ * `value`/`defaultValue`, `onChange(e)` with `e.target.value`, `name`, `required`,
+ * `disabled` — but renders the shared styled dropdown (`SelectMenu`) instead of the
+ * browser's own popup, so every dropdown in the product has one look: anchored panel,
+ * the same border/radius/typography, selected + hover + focus states, internal scroll,
+ * keyboard support, RTL/LTR and light/dark. There is no raw native menu anywhere a
+ * `Select` is used.
+ */
+export function Select({
+  className,
+  children,
+  size = "field",
+  value,
+  defaultValue,
+  onChange,
+  name,
+  id,
+  required,
+  disabled,
+  ...rest
+}: SelectProps) {
+  const options = parseOptions(children);
+  // A native select with no matching value shows (and submits) its first option.
+  const resolve = (v: unknown) => {
+    const s = v === undefined || v === null ? "" : String(v);
+    return options.some((o) => o.value === s) ? s : (options[0]?.value ?? "");
+  };
   return (
-    <div className="relative">
-      <select
-        ref={ref}
-        className={cn(fieldBase, "appearance-none", selectSize[size], className)}
-        {...rest}
-      >
-        {children}
-      </select>
-      {/* The chevron tracks the field's own inset so it never floats at a
-          different distance from the edge than the text does. `end-*` and not
-          `right-*`: in Arabic the glyph belongs on the left. */}
-      <span
-        className={cn(
-          "pointer-events-none absolute inset-y-0 flex items-center text-fg-muted",
-          compact ? "end-2" : "end-3",
-        )}
-        aria-hidden="true"
-      >
-        <svg width={compact ? 14 : 16} height={compact ? 14 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </span>
-    </div>
+    <SelectMenu
+      id={id}
+      name={name}
+      required={required}
+      disabled={disabled}
+      size={size}
+      className={className}
+      options={options}
+      value={value === undefined ? undefined : resolve(value)}
+      defaultValue={resolve(defaultValue)}
+      aria-label={rest["aria-label"]}
+      aria-describedby={rest["aria-describedby"]}
+      invalid={rest["aria-invalid"] === true || rest["aria-invalid"] === "true"}
+      data-testid={(rest as Record<string, unknown>)["data-testid"] as string | undefined}
+      onChange={(next) => onChange?.({ target: { value: next, name: name ?? "", id: id ?? "" }, currentTarget: { value: next, name: name ?? "", id: id ?? "" } } as unknown as ChangeEvent<HTMLSelectElement>)}
+    />
   );
-});
+}
 
 /** Accessible labelled field wrapper with optional error/hint text. */
 export function LabeledField({

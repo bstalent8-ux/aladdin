@@ -17,6 +17,8 @@ type Props = {
   id?: string;
   placeholder?: string;
   disabled?: boolean;
+  /** Blocks form submission while nothing is chosen (the native `required` message, anchored on the trigger). */
+  required?: boolean;
   invalid?: boolean;
   size?: "field" | "compact";
   className?: string;
@@ -47,6 +49,7 @@ export function SelectMenu({
   id,
   placeholder,
   disabled,
+  required,
   invalid,
   size = "field",
   className,
@@ -59,6 +62,8 @@ export function SelectMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const typed = useRef({ text: "", at: 0 });
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const userChanged = useRef(false);
   const [inner, setInner] = useState(defaultValue);
   const current = value ?? inner;
   const [open, setOpen] = useState(false);
@@ -97,11 +102,12 @@ export function SelectMenu({
     (index: number) => {
       const option = options[index];
       if (!option || option.disabled) return;
+      userChanged.current = option.value !== current;
       setInner(option.value);
       onChange?.(option.value);
       close();
     },
-    [options, onChange, close],
+    [options, onChange, close, current],
   );
 
   const openMenu = useCallback(
@@ -114,6 +120,17 @@ export function SelectMenu({
     },
     [disabled, place, options, selectedIndex],
   );
+
+  // Tell the surrounding form something changed (its dirty-form guard and any form-level
+  // listeners watch input/change), exactly as a native <select> does.
+  useEffect(() => {
+    if (!userChanged.current) return;
+    userChanged.current = false;
+    const field = fieldRef.current;
+    if (!field) return;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  }, [current]);
 
   useLayoutEffect(() => {
     if (open) place();
@@ -213,7 +230,15 @@ export function SelectMenu({
   const compact = size === "compact";
   return (
     <div className="relative">
-      {name ? <input type="hidden" name={name} value={current} /> : null}
+      {name || required ? (
+        required ? (
+          // A visually hidden text input carries `required` (hidden/readonly inputs are exempt from
+          // validation); it sits over the trigger so the browser's message points at the control.
+          <input ref={fieldRef} tabIndex={-1} aria-hidden="true" name={name} value={current} required disabled={disabled} onChange={() => {}} className="pointer-events-none absolute inset-0 h-full w-full opacity-0" />
+        ) : (
+          <input ref={fieldRef} type="hidden" name={name} value={current} disabled={disabled} />
+        )
+      ) : null}
       <button
         ref={triggerRef}
         type="button"
@@ -280,6 +305,7 @@ export function SelectMenu({
                     aria-selected={isSelected}
                     aria-disabled={option.disabled || undefined}
                     data-index={index}
+                    data-value={option.value}
                     data-active={isActive || undefined}
                     onPointerEnter={() => !option.disabled && setActive(index)}
                     onMouseDown={(e) => e.preventDefault()}
