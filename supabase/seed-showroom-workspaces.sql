@@ -80,6 +80,14 @@ cross join unnest(array[
   'verification.submit','verification.read','activity.read'
 ]) as cap;
 
+-- Optional, ISOLATED stacks only: let the seeded Cairo Ceramics Showroom owner
+-- (hana@example.test, who holds the richest two-sided commerce data in
+-- seed-pilot.sql) sign in with the documented E2E password, so the showroom
+-- suite Home can be checked against real purchasing AND sales records.
+update auth.users
+   set encrypted_password = extensions.crypt('Zq9$Kx4#WmT7!Pn2Rb', extensions.gen_salt('bf'))
+ where email = 'hana@example.test';
+
 -- Consent, exactly as the sign-up flow records it.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"7a000001-0000-4000-8000-000000000001","role":"authenticated"}';

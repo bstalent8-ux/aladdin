@@ -615,6 +615,7 @@ export type Database = {
           id: string
           membership_id: string | null
           organization_id: string
+          surface: string
           updated_at: string
           updated_by: string
         }
@@ -623,6 +624,7 @@ export type Database = {
           id?: string
           membership_id?: string | null
           organization_id: string
+          surface?: string
           updated_at?: string
           updated_by: string
         }
@@ -631,6 +633,7 @@ export type Database = {
           id?: string
           membership_id?: string | null
           organization_id?: string
+          surface?: string
           updated_at?: string
           updated_by?: string
         }
@@ -4895,17 +4898,18 @@ export type Database = {
         Returns: string
       }
       dashboard_kpi_layout_reset_personal: {
-        Args: { p_org_id: string }
+        Args: { p_org_id: string; p_surface?: string }
         Returns: undefined
       }
       dashboard_kpi_layout_reset_team_default: {
-        Args: { p_org_id: string }
+        Args: { p_org_id: string; p_surface?: string }
         Returns: undefined
       }
       dashboard_kpi_layout_set_personal: {
         Args: {
           p_card_order: Database["public"]["Enums"]["dashboard_kpi_card_key"][]
           p_org_id: string
+          p_surface?: string
         }
         Returns: undefined
       }
@@ -4913,6 +4917,7 @@ export type Database = {
         Args: {
           p_card_order: Database["public"]["Enums"]["dashboard_kpi_card_key"][]
           p_org_id: string
+          p_surface?: string
         }
         Returns: undefined
       }
@@ -5423,6 +5428,15 @@ export type Database = {
           slug: string
         }[]
       }
+      showroom_home_metrics: {
+        Args: {
+          p_from: string
+          p_org_id: string
+          p_timezone?: string
+          p_to: string
+        }
+        Returns: Json
+      }
       showroom_join_request_cancel: {
         Args: { p_request_id: string }
         Returns: undefined
@@ -5597,6 +5611,11 @@ export type Database = {
         | "total_purchases"
         | "projects"
         | "saved_products"
+        | "rfqs_sent"
+        | "quotes_received"
+        | "customer_rfqs_received"
+        | "customer_quotes_sent"
+        | "total_sales"
       follow_up_status: "open" | "completed" | "cancelled"
       invitation_status: "pending" | "accepted" | "revoked" | "expired"
       job_application_status:
@@ -5862,6 +5881,11 @@ export const Constants = {
         "total_purchases",
         "projects",
         "saved_products",
+        "rfqs_sent",
+        "quotes_received",
+        "customer_rfqs_received",
+        "customer_quotes_sent",
+        "total_sales",
       ],
       follow_up_status: ["open", "completed", "cancelled"],
       invitation_status: ["pending", "accepted", "revoked", "expired"],

@@ -159,9 +159,9 @@ export function ShowroomTopbar({
         ) : null}
       </div>
       {/* Phones retain location, divider, and business switch in the second row. */}
-      <div className="order-last flex basis-full items-center gap-1.5 border-t pt-1.5 text-label font-medium text-fg-secondary tablet:hidden">
+      <div className="order-last flex min-w-0 basis-full items-center gap-1.5 border-t pt-1.5 text-label font-medium text-fg-secondary tablet:hidden">
         <MapPinIcon size={15} className="shrink-0 text-fg-muted" />
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 truncate" title={location ?? undefined}>
           {location || (locale === "ar" ? "الموقع غير محدد" : "Location not set")}
         </span>
         <span className="h-5 border-e" aria-hidden="true" />

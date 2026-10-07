@@ -93,6 +93,37 @@ Phases 1–10 remain unimplemented on this branch. No new routes, migrations, DB
 - **Add Business redirect.** Completing the shared flow redirects to `/b2b` (the shared action's destination), not back into the suite. Left unchanged.
 - **Workspace trigger.** Truncation is now intentional: `dir="auto"` gives an end ellipsis for Latin names inside RTL, and the trigger width is capped by viewport (`max-w-[min(16rem,62vw)]` on phones, wider on desktop); the full name is in `title` and the menu.
 
+## Phase 2 — showroom Home dashboard
+
+`/preview/showroom-suite-v2/home` (composition in `features/showroom-shell/home/`). No shortcut cards, no "needs attention" block and no marketing strip: the page is the KPI grid plus "منتجات مقترحة لك".
+
+**Reused, not rebuilt:** `StatTiles`, `ExpandCollapse`, `DashboardPeriodSelect` and its `lib/workspace/dashboard-period.ts` ranges (same keys, same custom-range rules), `KpiCustomizeDialog` (now takes an optional `surface`, default `home`), and the `dashboard_kpi_layout_*` RPCs/actions (optional `p_surface`, default `home`). Production `/b2b` Home behaves as before; its layout read is now pinned to `surface = 'home'`.
+
+**Direction.** A showroom is buyer AND seller; each card carries its direction (`مشتريات` / `مبيعات` / `عمليات`) and its basis (`حاليًا` or the selected period) in its hint.
+
+| Card | Direction | Basis | Source (`showroom_home_metrics`, RLS-scoped views) | Opens |
+|---|---|---|---|---|
+| طلبات شراء مفتوحة | purchasing | now | `rfq_list` requester = org, status submitted/quoted | `purchase-requests?status=open` |
+| طلبات عروض أسعار صادرة | purchasing | period | `rfq_list` requester = org, submitted/quoted/closed, `created_at` in period | `pricing-requests-sent?period=` |
+| عروض أسعار واردة | purchasing | period | `quotation_list` requester = org, not draft, `created_at` in period | `quotes-received?period=` |
+| أوامر شراء قيد التنفيذ | purchasing | now | `order_list` requester = org, confirmed/in_progress | `purchase-orders?status=active` |
+| إجمالي المشتريات | purchasing | period | `sum(order_list.total)` requester = org, not cancelled, `confirmed_at` in period | `purchase-orders?period=` |
+| طلبات عروض أسعار واردة | sales | period | `rfq_list` supplier = org, not draft, `created_at` in period | `customer-rfqs?period=` |
+| عروض أسعار صادرة | sales | period | `quotation_list` supplier = org, not draft, `created_at` in period | `customer-quotes?period=` |
+| إجمالي المبيعات | sales | period | `sum(order_list.total)` supplier = org, not cancelled, `confirmed_at` in period | `reports?view=sales&period=` |
+| مشاريع جارية | operations | now | `project_list` active, org requester or executor | `projects?status=active` |
+| منتجات محفوظة | operations | now | `saved_product_list` of the org | `saved` |
+
+The period is resolved once (`dashboardPeriodRange`, org/branch timezone) and applied in the database as the half-open range `[from 00:00, to+1 00:00)` in that timezone. Totals are exact SQL sums (not capped by the API row limit).
+
+**Layout persistence.** Per user (personal) and per organization (team default, `org.manage`) in `dashboard_kpi_layouts`, discriminated by the new `surface` column (`home` | `showroom_suite`) so suite layouts can never reach production Home. The first six cards are the first screen; the rest sit behind "show more". Defaults: the six balanced cards, then the four supporting ones. A card is offered only if its destination page is reachable (same gate as the sidebar), `total_sales` additionally needs a seller capability, and stale saved layouts are filtered against that.
+
+**Products.** Deterministic, not a recommendation engine: the newest published products of OTHER organizations (`published_at desc, id asc`, limit 4) from the RLS-scoped `catalog_published_products` view. The full catalog is Phase 3.
+
+**Migrations (additive).** `20261007090001_showroom_suite_kpi_layouts.sql` (5 enum values, `surface` column, surface-scoped unique indexes and RPCs with backwards-compatible defaults) and `20261007090002_showroom_home_metrics.sql` (`SECURITY INVOKER` RPC). Production apps that call the old RPC shape keep working. No service-role use at runtime.
+
+**Phase 1 shell fix found here.** At 390px RTL with a long business name the phone location row could not shrink and widened the page; the row is now `min-w-0` and the location truncates with a title.
+
 ## Consequences
 
 Existing queries and RPCs provide substantial reuse, but their production redirects and business capability assumptions need per-feature review. The old static preview is design evidence only, not an authorization or persistence layer. Shared schema changes must remain additive so production remains compatible until promotion.
