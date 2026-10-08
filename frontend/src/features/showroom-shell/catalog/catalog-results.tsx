@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { type CatalogView } from "@/lib/ui/catalog-view";
 import { Badge } from "@/components/ui/primitives";
+import { Pager } from "@/components/ui/pager";
+import { usePagedList, type PagedLoad } from "@/lib/pagination/batches";
+import { loadCatalogBatchAction } from "@/server/actions/catalog-feed";
 import { BadgeCheckIcon } from "@/components/ui/icons";
 import { SaveProductButton } from "@/features/commerce/save-product-button";
 import { ProductMedia } from "@/features/commerce/product-media";
@@ -31,29 +34,48 @@ const isRenderable = (p: CatalogRow): p is Product => Boolean(p.id && p.category
  */
 export function CatalogResults({
   products,
+  total,
+  filters,
   orgId,
   savedIds,
   initialView,
-  countLabel,
-  imageUrls = {},
+  imageUrls: initialImageUrls = {},
 }: {
+  /** The FIRST batch (server-rendered); further batches are bounded server reads. */
+  products: CatalogRow[];
+  /** Everything the current filters match — the batch size is never the count. */
+  total: number;
+  /** The URL filters, forwarded to "Show more" (the server re-validates them). */
+  filters: { q?: string; category?: string; supplier?: string };
   /** Product id -> resolved image URL (signed primary photo, else the legacy reference). */
   imageUrls?: Record<string, string>;
-  products: CatalogRow[];
   orgId: string;
   savedIds: string[];
   initialView: CatalogView;
-  countLabel: string;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<CatalogView>(initialView);
-  const saved = new Set(savedIds);
-  const items = products.filter(isRenderable);
+  const [imageUrls, setImageUrls] = useState(initialImageUrls);
+  const [saved, setSaved] = useState(() => new Set(savedIds));
+
+  // The server action is the only thing that knows the viewer's organization; a failed batch keeps the list.
+  const load = useCallback<PagedLoad<Product>>(
+    async (offset) => {
+      const res = await loadCatalogBatchAction(filters, offset);
+      if (!res.ok) return null;
+      setImageUrls((prev) => ({ ...prev, ...res.imageUrls }));
+      setSaved((prev) => new Set([...prev, ...res.savedIds]));
+      return { items: res.products.filter(isRenderable), total: res.total };
+    },
+    [filters],
+  );
+  const list = usePagedList(products.filter(isRenderable), total, load);
+  const items = list.items;
 
   return (
     <section className="flex flex-col gap-md" aria-label={t("showroomCatalog.title")}>
       <div className="flex items-center justify-between gap-sm">
-        <p className="text-label text-fg-muted" data-testid="showroom-catalog-count">{countLabel}</p>
+        <p className="text-label text-fg-muted" data-testid="showroom-catalog-count">{t("showroomCatalog.count", { count: String(list.total) })}</p>
         <ViewToggle view={view} onChange={setView} testIdPrefix="showroom-catalog" />
       </div>
 
@@ -74,6 +96,7 @@ export function CatalogResults({
           ))}
         </ul>
       )}
+      <Pager shown={items.length} total={list.total} loading={list.loading} failed={list.failed} onMore={() => void list.more()} onLess={list.less} testId="showroom-catalog" />
     </section>
   );
 }

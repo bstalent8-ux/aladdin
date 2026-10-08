@@ -46,12 +46,14 @@ export type CatalogFilters = {
   limit?: number;
 };
 
-export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise<CatalogRow[]> {
+function catalogQuery(supabase: DB, f: CatalogFilters, countExact: boolean) {
   let q = supabase
     .from("catalog_published_products")
-    .select("*")
+    .select("*", countExact ? { count: "exact" } : undefined)
+    // A TOTAL order (id breaks ties between products published in the same instant), so
+    // offset batches neither repeat nor skip a row.
     .order("published_at", { ascending: false })
-    .limit(f.limit ?? LIST_LIMIT);
+    .order("id", { ascending: false });
   if (f.category) q = q.eq("category", f.category);
   if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.supplierOrgId) q = q.eq("organization_id", f.supplierOrgId);
@@ -60,9 +62,33 @@ export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
   }
-  const { data, error } = await q;
+  return q;
+}
+
+export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise<CatalogRow[]> {
+  const { data, error } = await catalogQuery(supabase, f, false).limit(f.limit ?? LIST_LIMIT);
   if (error) throw error;
   return data ?? [];
+}
+
+/** One bounded batch of the catalog (`offset`/`limit`, a real range read) and the full matching total. */
+export async function listCatalogPage(
+  supabase: DB,
+  f: Omit<CatalogFilters, "limit">,
+  offset: number,
+  limit: number,
+): Promise<{ rows: CatalogRow[]; total: number }> {
+  const { data, error, count } = await catalogQuery(supabase, f, true).range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
+}
+
+/** Which of these products the organization has saved — only the visible batch is asked about. */
+export async function savedAmong(supabase: DB, orgId: string, productIds: readonly string[]): Promise<Set<string>> {
+  if (productIds.length === 0) return new Set();
+  const { data, error } = await supabase.from("saved_products").select("product_id").eq("organization_id", orgId).in("product_id", [...productIds]);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.product_id));
 }
 
 export async function getCatalogProduct(supabase: DB, id: string): Promise<CatalogRow | null> {
@@ -76,10 +102,7 @@ export async function getCatalogProduct(supabase: DB, id: string): Promise<Catal
 }
 
 // ---- Own-organization products (management) --------------------------------
-export async function listOwnProducts(
-  supabase: DB,
-  orgId: string,
-  f: {
+export type OwnProductFilters = {
     search?: string;
     status?: "draft" | "published";
     category?: ProductCategory;
@@ -92,16 +115,18 @@ export async function listOwnProducts(
     archived?: "exclude" | "include" | "only";
     /** Default: most recently updated first (what production lists have always done). */
     sort?: "updated" | "newest" | "name";
-  } = {},
-): Promise<ProductRow[]> {
+};
+
+function ownProductsQuery(supabase: DB, orgId: string, f: OwnProductFilters, countExact: boolean) {
   const sort = f.sort ?? "updated";
   let q = supabase
     .from("products")
-    .select("*")
+    .select("*", countExact ? { count: "exact" } : undefined)
     .eq("organization_id", orgId)
     .is("deleted_at", null)
     .order(sort === "name" ? "name" : sort === "newest" ? "created_at" : "updated_at", { ascending: sort === "name" })
-    .limit(LIST_LIMIT);
+    // id makes the order TOTAL, so offset batches neither repeat nor skip a row.
+    .order("id", { ascending: true });
   const archived = f.archived ?? "exclude";
   if (archived === "exclude") q = q.is("archived_at", null);
   if (archived === "only") q = q.not("archived_at", "is", null);
@@ -113,9 +138,26 @@ export async function listOwnProducts(
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
   }
-  const { data, error } = await q;
+  return q;
+}
+
+export async function listOwnProducts(supabase: DB, orgId: string, f: OwnProductFilters = {}): Promise<ProductRow[]> {
+  const { data, error } = await ownProductsQuery(supabase, orgId, f, false).limit(LIST_LIMIT);
   if (error) throw error;
   return data ?? [];
+}
+
+/** One bounded batch of the management list and the full matching total (the summary counts stay separate). */
+export async function listOwnProductsPage(
+  supabase: DB,
+  orgId: string,
+  f: OwnProductFilters,
+  offset: number,
+  limit: number,
+): Promise<{ rows: ProductRow[]; total: number }> {
+  const { data, error, count } = await ownProductsQuery(supabase, orgId, f, true).range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
 }
 
 /**
@@ -663,6 +705,35 @@ export async function listSavedProducts(
   const { data, error } = await q;
   if (error) throw error;
   return data ?? [];
+}
+
+/** One bounded batch of the shortlist and the full matching total. */
+export async function listSavedProductsPage(
+  supabase: DB,
+  orgId: string,
+  f: { category?: ProductCategory },
+  offset: number,
+  limit: number,
+): Promise<{ rows: SavedProductRow[]; total: number }> {
+  let q = supabase
+    .from("saved_product_list")
+    .select("*", { count: "exact" })
+    .eq("organization_id", orgId)
+    .order("saved_at", { ascending: false })
+    .order("product_id", { ascending: false });
+  if (f.category) q = q.eq("category", f.category);
+  const { data, error, count } = await q.range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
+}
+
+/** Category -> how many shortlisted products, for the tabs (one narrow column read, tallied here). */
+export async function savedCategoryCounts(supabase: DB, orgId: string): Promise<Map<string, number>> {
+  const { data, error } = await supabase.from("saved_product_list").select("category").eq("organization_id", orgId);
+  if (error) throw error;
+  const out = new Map<string, number>();
+  for (const r of data ?? []) if (r.category) out.set(r.category, (out.get(r.category) ?? 0) + 1);
+  return out;
 }
 
 /**

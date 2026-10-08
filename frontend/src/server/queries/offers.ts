@@ -6,7 +6,7 @@ import { batches, listOwnProducts } from "@/server/queries/commerce";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 import { effectiveColors, type ProductColor } from "@/features/showroom-shell/products/color-items";
 import { DEFAULT_OFFER_TIMEZONE } from "@/features/offers/offer-datetime";
-import { DEFAULT_OFFERS_PARAMS, OFFER_FEED_PAGE_SIZE, parseOffersPage, parsePublicOffer, type OfferPhase, type OffersPage, type OffersPageParams, type OfferStatus, type PublicOffer } from "@/features/offers/offer-model";
+import { DEFAULT_OFFERS_PARAMS, OFFER_FEED_PAGE_SIZE, OFFER_PHASES, parseOffersPage, parsePublicOffer, type OfferPhase, type OffersPage, type OffersPageParams, type OfferStatus, type PublicOffer } from "@/features/offers/offer-model";
 
 type DB = SupabaseClient<Database>;
 
@@ -143,19 +143,48 @@ async function loadOfferParts(supabase: DB, offerIds: string[]) {
   return { itemsByOffer, audiencesByOffer, products, imageFor };
 }
 
-/** The active organization's offers, newest change first, with a small product/photo preview each. */
-export async function listOwnOffers(supabase: DB, orgId: string): Promise<OwnOffer[]> {
-  const { data, error } = await supabase
-    .from("own_product_offers")
-    .select("*")
-    .eq("organization_id", orgId)
-    .order("updated_at", { ascending: false })
-    .limit(200);
+export type OwnOfferFilters = {
+  phase?: OfferPhase;
+  /** Audience codes of one builder group: an offer matches when it targets ANY of them. */
+  audienceCodes?: readonly string[];
+  search?: string;
+  period?: "current" | "upcoming" | "past";
+  sort?: "updated" | "ending" | "starting";
+};
+
+/** `%`, `_` and the characters PostgREST reads as filter syntax cannot widen the match. */
+const likeTerm = (raw: string) => raw.trim().toLowerCase().replace(/[\\%_,()*"']/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+
+/**
+ * One bounded page of the active organization's offers (a real range read) with the full matching
+ * total. Filtering, ordering and paging all happen in the query: phase, audience group, text
+ * (offer title + product names/codes), period and sort. The order is TOTAL (the sort key, then id), so
+ * batches neither repeat nor skip a row.
+ */
+export async function listOwnOffersPage(
+  supabase: DB,
+  orgId: string,
+  f: OwnOfferFilters,
+  offset: number,
+  limit: number,
+): Promise<{ offers: OwnOffer[]; total: number }> {
+  const nowIso = new Date().toISOString();
+  let q = supabase.from("own_product_offers").select("*", { count: "exact" }).eq("organization_id", orgId);
+  if (f.phase) q = q.eq("phase", f.phase);
+  if (f.audienceCodes && f.audienceCodes.length > 0) q = q.overlaps("audiences", [...f.audienceCodes]);
+  const term = f.search ? likeTerm(f.search) : "";
+  if (term) q = q.ilike("search_text", `%${term}%`);
+  if (f.period === "current") q = q.lte("starts_at", nowIso).gt("ends_at", nowIso);
+  if (f.period === "upcoming") q = q.gt("starts_at", nowIso);
+  if (f.period === "past") q = q.lte("ends_at", nowIso);
+  const sort = f.sort ?? "updated";
+  q = sort === "ending" ? q.order("ends_at", { ascending: true }) : sort === "starting" ? q.order("starts_at", { ascending: true }) : q.order("updated_at", { ascending: false });
+  const { data, error, count } = await q.order("id", { ascending: true }).range(offset, offset + limit - 1);
   if (error) throw error;
   const rows = data ?? [];
   const ids = rows.map((r) => r.id).filter((id): id is string => Boolean(id));
   const { itemsByOffer, audiencesByOffer, products, imageFor } = await loadOfferParts(supabase, ids);
-  return rows
+  const offers = rows
     .map((row) => {
       const items: OwnOfferItem[] = (itemsByOffer.get(row.id ?? "") ?? []).map((i) => ({
         productId: i.product_id,
@@ -167,6 +196,16 @@ export async function listOwnOffers(supabase: DB, orgId: string): Promise<OwnOff
       return toOwnOffer(row, audiencesByOffer.get(row.id ?? "") ?? [], items);
     })
     .filter((o): o is OwnOffer => o !== null);
+  return { offers, total: count ?? 0 };
+}
+
+/** Offers per lifecycle phase over the WHOLE history (the summary cards and chips), independent of any filter or page. */
+export async function ownOfferPhaseCounts(supabase: DB, orgId: string): Promise<Record<OfferPhase, number>> {
+  const { data, error } = await supabase.from("own_product_offers").select("phase").eq("organization_id", orgId);
+  if (error) throw error;
+  const out = Object.fromEntries(OFFER_PHASES.map((p) => [p, 0])) as Record<OfferPhase, number>;
+  for (const r of data ?? []) if (r.phase && r.phase in out) out[r.phase as OfferPhase] += 1;
+  return out;
 }
 
 /** One of the organization's offers for editing, or null (another tenant's offer simply is not there). */

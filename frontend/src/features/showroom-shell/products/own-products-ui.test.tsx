@@ -26,6 +26,8 @@ vi.mock("@/server/actions/own-products", () => ({
   removeProductImageAction: actions.remove,
   reorderProductImagesAction: actions.reorder,
 }));
+const feed = vi.hoisted(() => ({ load: vi.fn() }));
+vi.mock("@/server/actions/own-products-feed", () => ({ loadMyProductsBatchAction: feed.load }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: actions.refresh, push: actions.push }) }));
 vi.mock("@/lib/supabase/client", () => ({
   createBrowserSupabaseClient: () => ({ storage: { from: () => ({ upload: actions.upload }) } }),
@@ -70,7 +72,7 @@ beforeEach(() => {
 
 describe("OwnProductsResults", () => {
   const results = (props: Partial<React.ComponentProps<typeof OwnProductsResults>> = {}) =>
-    wrap(<OwnProductsResults products={products} initialView="grid" countLabel="3 products" canWrite canPublish {...props} />);
+    wrap(<OwnProductsResults products={products} total={products.length} filters={{}} initialView="grid" canWrite canPublish {...props} />);
 
   it("renders the grid by default and switches to a list that remembers the choice", () => {
     results();
@@ -141,7 +143,7 @@ describe("OwnProductsResults", () => {
 
   it("shows colors, size and weight when the product has them — and nothing it does not have", () => {
     const colors = ["Sand", "Warm White", "Grey", "Black", "Blue", "Green", "Red"].map((name, i) => ({ name, hex: i === 2 ? null : h("C9B28A") }));
-    wrap(<OwnProductsResults products={[card({ id: "z", colors, sizeLabel: "60×60 cm", weightKg: 2.5, basePrice: 159.5 })]} initialView="grid" countLabel="1" canWrite canPublish />);
+    wrap(<OwnProductsResults products={[card({ id: "z", colors, sizeLabel: "60×60 cm", weightKg: 2.5, basePrice: 159.5 })]} total={1} filters={{}} initialView="grid" canWrite canPublish />);
     const c = screen.getByTestId("my-products-card");
     // swatches, with the name as the accessible name; a sensible maximum plus "+N"
     expect(within(c).getAllByTestId("color-swatch")).toHaveLength(5);
@@ -193,7 +195,7 @@ describe("OwnProductsResults", () => {
   });
 
   it("works in Arabic with Arabic labels", () => {
-    wrap(<OwnProductsResults products={[products[0]!]} initialView="grid" countLabel="1 منتج" canWrite canPublish />, "ar");
+    wrap(<OwnProductsResults products={[products[0]!]} total={1} filters={{}} initialView="grid" canWrite canPublish />, "ar");
     expect(screen.getAllByText("نشط").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "إدارة الصور" })).toBeTruthy();
     expect(screen.getAllByText("دهانات").length).toBeGreaterThan(0);
@@ -535,5 +537,34 @@ describe("Create product with photos in one flow", () => {
     fireEvent.submit(screen.getByTestId("product-form"));
     await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1"));
     expect(actions.requestUpload).not.toHaveBeenCalled();
+  });
+});
+
+describe("OwnProductsResults — bounded batches", () => {
+  const batch = (from: number, n: number) => Array.from({ length: n }, (_, i) => card({ id: `m${from + i}`, name: `Mine ${from + i}` }));
+  const mount = (first: OwnProductCard[], total: number) => wrap(<OwnProductsResults products={first} total={total} filters={{ status: "active" }} initialView="grid" canWrite canPublish />);
+
+  it("counts the whole match, not the batch, and loads one batch per Show more at the right offset", async () => {
+    mount(batch(0, 10), 26);
+    expect(screen.getByTestId("my-products-count").textContent).toBe("26 products");
+    expect(screen.getAllByTestId("my-products-card")).toHaveLength(10);
+    feed.load.mockResolvedValueOnce({ ok: true, cards: batch(10, 10), total: 26 });
+    fireEvent.click(screen.getByTestId("my-products-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-products-card")).toHaveLength(20));
+    expect(feed.load).toHaveBeenCalledWith({ status: "active" }, 10);
+  });
+
+  it("goes 10 -> 20 -> 26 and back one batch per Show less", async () => {
+    mount(batch(0, 10), 26);
+    feed.load.mockResolvedValueOnce({ ok: true, cards: batch(10, 10), total: 26 }).mockResolvedValueOnce({ ok: true, cards: batch(20, 6), total: 26 });
+    fireEvent.click(screen.getByTestId("my-products-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-products-card")).toHaveLength(20));
+    fireEvent.click(screen.getByTestId("my-products-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-products-card")).toHaveLength(26));
+    fireEvent.click(screen.getByTestId("my-products-show-less"));
+    expect(screen.getAllByTestId("my-products-card")).toHaveLength(20);
+    fireEvent.click(screen.getByTestId("my-products-show-less"));
+    expect(screen.getAllByTestId("my-products-card")).toHaveLength(10);
+    expect(screen.queryByTestId("my-products-show-less")).toBeNull();
   });
 });

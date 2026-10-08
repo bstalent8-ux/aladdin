@@ -246,3 +246,35 @@ export function appendUnique(current: readonly PublicOffer[], batch: readonly Pu
   const seen = new Set(current.map((o) => o.id));
   return [...current, ...batch.filter((o) => !seen.has(o.id))];
 }
+
+// ---------------------------------------------------------------------------
+// The owner list (My Offers): filters + a bounded page
+// ---------------------------------------------------------------------------
+export const MY_OFFER_PERIODS = ["all", "current", "upcoming", "past"] as const;
+export const MY_OFFER_SORTS = ["updated", "ending", "starting"] as const;
+export type MyOfferPeriod = (typeof MY_OFFER_PERIODS)[number];
+export type MyOfferSort = (typeof MY_OFFER_SORTS)[number];
+
+export type MyOffersParams = {
+  q: string;
+  /** "" = every lifecycle phase. */
+  phase: OfferPhase | "";
+  /** "" = every audience, otherwise one builder group id. */
+  audience: OfferAudienceGroupId | "";
+  period: MyOfferPeriod;
+  sort: MyOfferSort;
+};
+
+export const DEFAULT_MY_OFFERS_PARAMS: MyOffersParams = { q: "", phase: "", audience: "", period: "all", sort: "updated" };
+
+/** Only values this list defines survive; anything else falls back to the default (never forwarded to a query). */
+export function sanitizeMyOffersParams(raw: Partial<Record<keyof MyOffersParams, unknown>>): MyOffersParams {
+  const pick = <T extends string>(list: readonly T[], v: unknown, fallback: T): T => (list as readonly string[]).includes(v as string) ? (v as T) : fallback;
+  return {
+    q: typeof raw.q === "string" ? raw.q.slice(0, 100) : "",
+    phase: pick(["", ...OFFER_PHASES] as const, raw.phase, ""),
+    audience: pick(["", ...OFFER_AUDIENCE_GROUPS.map((g) => g.id)] as const, raw.audience, ""),
+    period: pick(MY_OFFER_PERIODS, raw.period, "all"),
+    sort: pick(MY_OFFER_SORTS, raw.sort, "updated"),
+  };
+}

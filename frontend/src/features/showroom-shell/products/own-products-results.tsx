@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 import type { CatalogView } from "@/lib/ui/catalog-view";
 import { CameraIcon, CheckIcon, PencilIcon, TagIcon } from "@/components/ui/icons";
+import { Pager } from "@/components/ui/pager";
+import { usePagedList, type PagedLoad } from "@/lib/pagination/batches";
+import { loadMyProductsBatchAction } from "@/server/actions/own-products-feed";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { ViewToggle } from "@/features/showroom-shell/view-toggle";
@@ -45,29 +48,41 @@ const editHref = (id: string) => `${SHOWROOM_ROOT}/my-products/${id}/edit`;
  */
 export function OwnProductsResults({
   products,
+  total,
+  filters,
   initialView,
-  countLabel,
   canWrite,
   canPublish,
 }: {
+  /** The FIRST batch (server-rendered); further batches are bounded server reads. */
   products: OwnProductCard[];
+  /** Everything the current filters match — never just the batch on screen. */
+  total: number;
+  filters: { q?: string; category?: string; status?: string; sort?: string };
   initialView: CatalogView;
-  countLabel: string;
   canWrite: boolean;
   canPublish: boolean;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<CatalogView>(initialView);
+  const load = useCallback<PagedLoad<OwnProductCard>>(
+    async (offset) => {
+      const res = await loadMyProductsBatchAction(filters, offset);
+      return res.ok ? { items: res.cards, total: res.total } : null;
+    },
+    [filters],
+  );
+  const list = usePagedList(products, total, load);
 
   return (
     <section className="flex flex-col gap-md" aria-label={t("showroomProducts.title")}>
       <div className="flex items-center justify-between gap-sm">
-        <p className="text-title font-semibold text-fg" data-testid="my-products-count">{countLabel}</p>
+        <p className="text-title font-semibold text-fg" data-testid="my-products-count">{t("showroomProducts.count", { count: String(list.total) })}</p>
         <ViewToggle view={view} onChange={setView} testIdPrefix="my-products" />
       </div>
       {view === "grid" ? (
         <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 tablet:gap-md desktop:grid-cols-4 wide:grid-cols-5" data-testid="my-products-grid">
-          {products.map((p) => (
+          {list.items.map((p) => (
             <li key={p.id} className="min-w-0">
               <GridCard product={p} canWrite={canWrite} canPublish={canPublish} />
             </li>
@@ -75,13 +90,14 @@ export function OwnProductsResults({
         </ul>
       ) : (
         <ul className="flex flex-col gap-sm" data-testid="my-products-list">
-          {products.map((p) => (
+          {list.items.map((p) => (
             <li key={p.id} className="min-w-0">
               <ListRow product={p} canWrite={canWrite} canPublish={canPublish} />
             </li>
           ))}
         </ul>
       )}
+      <Pager shown={list.items.length} total={list.total} loading={list.loading} failed={list.failed} onMore={() => void list.more()} onLess={list.less} testId="my-products" />
     </section>
   );
 }

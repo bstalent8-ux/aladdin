@@ -7,7 +7,9 @@ import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
 import { MyOffersView } from "@/features/offers/my-offers-view";
-import { listOwnOffers } from "@/server/queries/offers";
+import { loadMyOffersBatch } from "@/features/offers/my-offers-data";
+import { DEFAULT_MY_OFFERS_PARAMS } from "@/features/offers/offer-model";
+import { PAGE_BATCH } from "@/lib/pagination/batches";
 import { TagIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +24,8 @@ export default async function ShowroomMyOffersPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const canWrite = org.capabilities.includes("catalog.write") || org.capabilities.includes("org.manage");
   const canPublish = org.capabilities.includes("catalog.publish") || org.capabilities.includes("org.manage");
-  const offers = await listOwnOffers(supabase, org.organizationId);
+  // First batch only (default filters); the summary counts cover the whole history.
+  const batch = await loadMyOffersBatch(supabase, org.organizationId, DEFAULT_MY_OFFERS_PARAMS, 0, PAGE_BATCH);
   const notice = sp.published === "1" ? t("showroomOffers.mine.published") : sp.saved === "1" ? t("showroomOffers.mine.saved") : null;
   return (
     <div className="flex flex-col gap-md" data-testid="showroom-my-offers">
@@ -45,7 +48,7 @@ export default async function ShowroomMyOffersPage({ searchParams }: { searchPar
           ) : undefined
         }
       />
-      <MyOffersView offers={offers} locale={locale} canWrite={canWrite} canPublish={canPublish} notice={notice} />
+      <MyOffersView offers={batch.offers} total={batch.total} counts={batch.counts} locale={locale} canWrite={canWrite} canPublish={canPublish} notice={notice} />
     </div>
   );
 }

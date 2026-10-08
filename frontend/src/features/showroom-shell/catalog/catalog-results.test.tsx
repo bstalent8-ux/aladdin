@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { I18nProvider } from "@/lib/i18n/context";
 import { CATALOG_VIEW_COOKIE } from "@/lib/ui/catalog-view";
 import type { CatalogRow } from "@/server/queries/commerce";
@@ -8,6 +8,8 @@ import { CatalogResults } from "./catalog-results";
 vi.mock("@/server/actions/saved-products", () => ({
   toggleSavedProductAction: vi.fn(async () => ({ ok: true })),
 }));
+const feed = vi.hoisted(() => ({ load: vi.fn() }));
+vi.mock("@/server/actions/catalog-feed", () => ({ loadCatalogBatchAction: feed.load }));
 
 const row = (over: Partial<CatalogRow> & { id: string }): CatalogRow => ({
   brand: "NileCeramics",
@@ -36,12 +38,13 @@ const products = [row({ id: "p1" }), row({ id: "p2", name: "Marble Slab", brand:
 function renderResults(props: Partial<React.ComponentProps<typeof CatalogResults>> = {}) {
   return render(
     <I18nProvider locale="en" dir="ltr">
-      <CatalogResults products={products} orgId="org-1" savedIds={["p2"]} initialView="grid" countLabel="2 products" {...props} />
+      <CatalogResults products={products} total={products.length} filters={{}} orgId="org-1" savedIds={["p2"]} initialView="grid" {...props} />
     </I18nProvider>,
   );
 }
 
 beforeEach(() => {
+  feed.load.mockReset();
   document.cookie = `${CATALOG_VIEW_COOKIE}=; max-age=0; path=/`;
 });
 
@@ -154,5 +157,50 @@ describe("showroom catalog results", () => {
   it("never renders a row the view could not describe", () => {
     renderResults({ products: [...products, row({ id: "p3", category: null })] });
     expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(2);
+  });
+
+  describe("bounded batches", () => {
+    const batchOf = (from: number, n: number) => Array.from({ length: n }, (_, i) => row({ id: `p${from + i}`, name: `Product ${from + i}` }));
+    const ok = (rows: CatalogRow[], total: number) => ({ ok: true, products: rows, total, imageUrls: {}, savedIds: [] });
+
+    it("shows the first batch and its total, then ONE batch per Show more, at the right offset", async () => {
+      renderResults({ products: batchOf(0, 10), total: 27, filters: { q: "tile", category: "paints" } });
+      expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(10);
+      expect(screen.getByTestId("showroom-catalog-count").textContent).toBe("27 products");
+      expect(screen.getByTestId("showroom-catalog-shown").textContent).toBe("Showing 10 of 27");
+      expect(screen.queryByTestId("showroom-catalog-show-less")).toBeNull();
+      feed.load.mockResolvedValueOnce(ok(batchOf(10, 10), 27));
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-more"));
+      await waitFor(() => expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(20));
+      expect(feed.load).toHaveBeenCalledWith({ q: "tile", category: "paints" }, 10);
+    });
+
+    it("walks 10 -> 20 -> 27 and back 27 -> 20 -> 10 one batch at a time", async () => {
+      renderResults({ products: batchOf(0, 10), total: 27 });
+      feed.load.mockResolvedValueOnce(ok(batchOf(10, 10), 27)).mockResolvedValueOnce(ok(batchOf(20, 7), 27));
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-more"));
+      await waitFor(() => expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(20));
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-more"));
+      await waitFor(() => expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(27));
+      expect(screen.queryByTestId("showroom-catalog-show-more")).toBeNull();
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-less"));
+      expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(20);
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-less"));
+      expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(10);
+      expect(screen.queryByTestId("showroom-catalog-show-less")).toBeNull();
+    });
+
+    it("offers no pager when everything fits in the first batch", () => {
+      renderResults({ products: batchOf(0, 4), total: 4 });
+      expect(screen.queryByTestId("showroom-catalog-pager")).toBeNull();
+    });
+
+    it("keeps what is shown and says so when a batch fails", async () => {
+      renderResults({ products: batchOf(0, 10), total: 27 });
+      feed.load.mockResolvedValueOnce({ ok: false });
+      fireEvent.click(screen.getByTestId("showroom-catalog-show-more"));
+      await waitFor(() => expect(screen.getByTestId("showroom-catalog-load-error")).toBeTruthy());
+      expect(screen.getAllByTestId("showroom-catalog-card")).toHaveLength(10);
+    });
   });
 });

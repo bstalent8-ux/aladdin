@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
 import { Button, Input, SubmitButton } from "@/components/ui/controls";
@@ -26,17 +26,18 @@ import {
 } from "@/components/ui/icons";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { offerStatusAction, type OfferFormState } from "@/server/actions/offers";
-import { OFFER_PHASES, type OfferPhase } from "./offer-model";
+import { DEFAULT_MY_OFFERS_PARAMS, OFFER_PHASES, type MyOffersParams, type OfferPhase } from "./offer-model";
 import { formatOfferDate } from "./offer-datetime";
 import { OfferCollage, PhaseBadge } from "./offer-parts";
 import type { OwnOffer } from "@/server/queries/offers";
 import { OFFER_AUDIENCE_GROUPS, groupsForAudienceCodes } from "./offer-model";
 import { IconStat } from "@/components/ui/icon-stat";
+import { Pager } from "@/components/ui/pager";
+import { appendUniqueById, lessCount } from "@/lib/pagination/batches";
+import { loadMyOffersBatchAction } from "@/server/actions/offer-feed";
 
 const MY_OFFERS = `${SHOWROOM_ROOT}/my-offers`;
 type StatusAction = "publish" | "pause" | "resume" | "archive" | "restore";
-type Period = "all" | "current" | "upcoming" | "past";
-type SortKey = "updated" | "ending" | "starting";
 
 /** What a phase allows, in display order: the first is the card's primary action. The database re-checks every one. */
 const PHASE_ACTIONS: Record<OfferPhase, { primary: StatusAction | "edit" | "details"; secondary: Array<StatusAction | "edit"> }> = {
@@ -190,64 +191,85 @@ function OfferCard({ offer, locale, canWrite, canPublish }: { offer: OwnOffer; l
 }
 
 export function MyOffersView({
-  offers,
+  offers: initialOffers,
+  total: initialTotal,
+  counts: initialCounts,
   locale,
   canWrite,
   canPublish,
   notice,
 }: {
+  /** The FIRST batch (server-rendered); further batches and every filter change are bounded server reads. */
   offers: OwnOffer[];
+  /** Everything the (default) filters match. */
+  total: number;
+  /** Offers per lifecycle phase over the WHOLE history — never derived from the batch on screen. */
+  counts: Record<OfferPhase, number>;
   locale: "ar" | "en";
   canWrite: boolean;
   canPublish: boolean;
   notice?: string | null;
 }) {
   const { t } = useI18n();
-  const [q, setQ] = useState("");
-  const [phase, setPhase] = useState<OfferPhase | "">("");
-  const [audience, setAudience] = useState("");
-  const [period, setPeriod] = useState<Period>("all");
-  const [sort, setSort] = useState<SortKey>("updated");
-  const now = useMemo(() => Date.now(), []);
+  const [params, setParams] = useState<MyOffersParams>(DEFAULT_MY_OFFERS_PARAMS);
+  const [items, setItems] = useState<OwnOffer[]>(initialOffers);
+  const [total, setTotal] = useState(initialTotal);
+  const [counts, setCounts] = useState(initialCounts);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const request = useRef(0);
+  const firstRun = useRef(true);
+  const lastQuery = useRef("");
 
-  const counts = useMemo(() => {
-    const by = Object.fromEntries(OFFER_PHASES.map((p) => [p, 0])) as Record<OfferPhase, number>;
-    for (const o of offers) by[o.phase] += 1;
-    return by;
-  }, [offers]);
+  const fetchPage = useCallback(async (p: MyOffersParams, offset: number, mode: "replace" | "append") => {
+    const id = ++request.current;
+    setLoading(true);
+    setFailed(false);
+    const res = await loadMyOffersBatchAction(p, offset);
+    if (id !== request.current) return; // a newer request superseded this one
+    setLoading(false);
+    if (!res.ok) return setFailed(true);
+    setItems((prev) => (mode === "replace" ? res.offers : appendUniqueById(prev, res.offers)));
+    setTotal(res.total);
+    setCounts(res.counts);
+  }, []);
 
-  const shown = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    const list = offers.filter((o) => {
-      if (phase && o.phase !== phase) return false;
-      const group = OFFER_AUDIENCE_GROUPS.find((g) => g.id === audience);
-      if (group && !group.codes.some((c) => o.audiences.includes(c))) return false;
-      if (term && !`${o.title} ${o.items.map((i) => `${i.name} ${i.code ?? ""}`).join(" ")}`.toLowerCase().includes(term)) return false;
-      const starts = new Date(o.startsAt).getTime();
-      const ends = new Date(o.endsAt).getTime();
-      if (period === "current" && !(starts <= now && now < ends)) return false;
-      if (period === "upcoming" && !(starts > now)) return false;
-      if (period === "past" && !(ends <= now)) return false;
-      return true;
-    });
-    const by: Record<SortKey, (a: OwnOffer, b: OwnOffer) => number> = {
-      updated: (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      ending: (a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime(),
-      starting: (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-    };
-    return [...list].sort(by[sort]);
-  }, [offers, q, phase, audience, period, sort, now]);
+  // A filter/sort/search change starts over from the first batch (debounced only while typing).
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      lastQuery.current = params.q;
+      return;
+    }
+    const typing = params.q !== lastQuery.current;
+    lastQuery.current = params.q;
+    const timer = setTimeout(() => void fetchPage(params, 0, "replace"), typing ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [params, fetchPage]);
 
+  // A lifecycle action (publish, pause, archive…) re-renders the page with fresh rows: restart from the first batch.
+  const seenInitial = useRef(initialOffers);
+  useEffect(() => {
+    if (seenInitial.current === initialOffers) return;
+    seenInitial.current = initialOffers;
+    void fetchPage(params, 0, "replace");
+  }, [initialOffers, params, fetchPage]);
+
+  const update = (patch: Partial<MyOffersParams>) => setParams((p) => ({ ...p, ...patch }));
+  const { q, phase, audience, period, sort } = params;
   const filtered = Boolean(q || phase || audience || period !== "all");
-  const clear = () => {
-    setQ("");
-    setPhase("");
-    setAudience("");
-    setPeriod("all");
+  const clear = () => setParams((p) => ({ ...DEFAULT_MY_OFFERS_PARAMS, sort: p.sort }));
+  const showMore = () => void fetchPage(params, items.length, "append");
+  const showLess = () => {
+    request.current++; // drop any in-flight batch so it cannot re-extend the list
+    setLoading(false);
+    setItems((prev) => prev.slice(0, lessCount(prev.length)));
   };
+  const allOffers = OFFER_PHASES.reduce((n, p) => n + counts[p], 0);
+  const shown = items;
 
   const stats = [
-    { key: "total", label: t("showroomOffers.mine.statTotal"), value: offers.length, Icon: LayersIcon, phase: "" as const },
+    { key: "total", label: t("showroomOffers.mine.statTotal"), value: allOffers, Icon: LayersIcon, phase: "" as const },
     { key: "active", label: t("showroomOffers.mine.statActive"), value: counts.active, Icon: PlayIcon, phase: "active" as const },
     { key: "scheduled", label: t("showroomOffers.mine.statScheduled"), value: counts.scheduled, Icon: ClockIcon, phase: "scheduled" as const },
     { key: "draft", label: t("showroomOffers.mine.statDraft"), value: counts.draft, Icon: FileTextIcon, phase: "draft" as const },
@@ -263,7 +285,7 @@ export function MyOffersView({
           <li key={key} className="min-w-0">
             <button
               type="button"
-              onClick={() => setPhase(target)}
+              onClick={() => update({ phase: target })}
               aria-pressed={phase === target}
               data-testid={`offers-stat-${key}`}
               className={cn(
@@ -282,13 +304,13 @@ export function MyOffersView({
           <label className="relative min-w-0 flex-[2] basis-56">
             <span className="sr-only">{t("showroomOffers.mine.searchPlaceholder")}</span>
             <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-fg-muted"><SearchIcon size={16} /></span>
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("showroomOffers.mine.searchPlaceholder")} className="ps-9" data-testid="my-offers-search" />
+            <Input value={q} onChange={(e) => update({ q: e.target.value })} placeholder={t("showroomOffers.mine.searchPlaceholder")} className="ps-9" data-testid="my-offers-search" />
           </label>
           <div className="min-w-0 flex-1 basis-40">
             <SelectMenu
               value={phase}
               aria-label={t("showroomOffers.mine.statusFilter")}
-              onChange={(v) => setPhase(v as OfferPhase | "")}
+              onChange={(v) => update({ phase: v as MyOffersParams["phase"] })}
               data-testid="my-offers-status"
               options={[{ value: "", label: t("showroomOffers.mine.allStatuses") }, ...OFFER_PHASES.map((p) => ({ value: p, label: t(`showroomOffers.status.${p}`) }))]}
             />
@@ -297,7 +319,7 @@ export function MyOffersView({
             <SelectMenu
               value={audience}
               aria-label={t("showroomOffers.mine.audienceFilter")}
-              onChange={setAudience}
+              onChange={(v) => update({ audience: v as MyOffersParams["audience"] })}
               data-testid="my-offers-audience"
               options={[{ value: "", label: t("showroomOffers.mine.allAudiences") }, ...OFFER_AUDIENCE_GROUPS.map((g) => ({ value: g.id, label: t(`showroomOffers.audienceGroup.${g.id}`) }))]}
             />
@@ -306,7 +328,7 @@ export function MyOffersView({
             <SelectMenu
               value={period}
               aria-label={t("showroomOffers.mine.periodFilter")}
-              onChange={(v) => setPeriod(v as Period)}
+              onChange={(v) => update({ period: v as MyOffersParams["period"] })}
               data-testid="my-offers-period"
               options={[
                 { value: "all", label: t("showroomOffers.mine.periodAll") },
@@ -320,7 +342,7 @@ export function MyOffersView({
             <SelectMenu
               value={sort}
               aria-label={t("showroomOffers.mine.sort")}
-              onChange={(v) => setSort(v as SortKey)}
+              onChange={(v) => update({ sort: v as MyOffersParams["sort"] })}
               data-testid="my-offers-sort"
               options={[
                 { value: "updated", label: t("showroomOffers.mine.sortUpdated") },
@@ -333,12 +355,12 @@ export function MyOffersView({
 
         <nav aria-label={t("showroomOffers.mine.statusFilter")} className="min-w-0 overflow-x-auto pb-1" data-testid="my-offers-chips">
           <ul className="flex w-max min-w-full gap-2">
-            {[{ value: "" as const, label: t("showroomOffers.mine.chipAll"), count: offers.length }, ...OFFER_PHASES.map((p) => ({ value: p, label: t(`showroomOffers.status.${p}`), count: counts[p] }))].map((chip) => (
+            {[{ value: "" as const, label: t("showroomOffers.mine.chipAll"), count: allOffers }, ...OFFER_PHASES.map((p) => ({ value: p, label: t(`showroomOffers.status.${p}`), count: counts[p] }))].map((chip) => (
               <li key={chip.value || "all"} className="shrink-0">
                 <button
                   type="button"
                   aria-pressed={phase === chip.value}
-                  onClick={() => setPhase(chip.value)}
+                  onClick={() => update({ phase: chip.value })}
                   data-testid={`offers-chip-${chip.value || "all"}`}
                   className={cn(
                     "inline-flex min-h-9 items-center gap-1.5 rounded-sm border px-3 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
@@ -354,7 +376,7 @@ export function MyOffersView({
         </nav>
       </div>
 
-      <p className="text-title font-semibold text-fg" data-testid="my-offers-count" dir="auto">{t("showroomOffers.mine.count", { count: String(shown.length) })}</p>
+      <p className="text-title font-semibold text-fg" data-testid="my-offers-count" dir="auto">{t("showroomOffers.mine.count", { count: String(total) })}</p>
 
       {shown.length === 0 ? (
         <StatePanel
@@ -378,6 +400,8 @@ export function MyOffersView({
           ))}
         </ul>
       )}
+      {failed ? <p role="alert" className="text-center text-label text-danger" data-testid="my-offers-load-error">{t("pager.loadError")}</p> : null}
+      <Pager shown={items.length} total={total} loading={loading} onMore={showMore} onLess={showLess} testId="my-offers" />
     </div>
   );
 }

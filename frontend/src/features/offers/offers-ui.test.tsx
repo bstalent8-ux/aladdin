@@ -12,10 +12,12 @@ vi.mock("@/server/actions/offers", () => ({
 }));
 const feed = vi.hoisted(() => ({
   load: vi.fn(),
+  mine: vi.fn(),
   save: vi.fn(async (_id: string, saved: boolean) => ({ ok: true, saved })),
 }));
 vi.mock("@/server/actions/offer-feed", () => ({
   loadOffersPageAction: (...args: unknown[]) => feed.load(...args),
+  loadMyOffersBatchAction: (...args: unknown[]) => feed.mine(...args),
   setOfferSavedAction: (...args: [string, boolean, string | null]) => feed.save(args[0], args[1]),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -123,11 +125,18 @@ describe("Offers feed (audience)", () => {
     const ids = screen.getAllByTestId("offer-card").map((c) => within(c).getByTestId("offer-view-details").getAttribute("href"));
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it("folds back to the first batch with Show less and keeps the filters", async () => {
+  it("removes ONE batch per Show less (25 -> 20 -> 10), keeping what remains and the filters", async () => {
     render(pageOf(many(10), 25));
     feed.load.mockResolvedValueOnce({ ok: true, page: pageOf(many(10, 10), 25), imageUrls: {} });
     fireEvent.click(screen.getByTestId("offers-show-more"));
     await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(20));
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf(many(5, 20), 25), imageUrls: {} });
+    fireEvent.click(screen.getByTestId("offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(25));
+    expect(screen.queryByTestId("offers-show-more")).toBeNull();
+    fireEvent.click(screen.getByTestId("offers-show-less"));
+    expect(screen.getAllByTestId("offer-card")).toHaveLength(20);
+    expect(screen.getByTestId("offers-shown").textContent).toBe("Showing 20 of 25");
     fireEvent.click(screen.getByTestId("offers-show-less"));
     expect(screen.getAllByTestId("offer-card")).toHaveLength(10);
     expect(screen.queryByTestId("offers-show-less")).toBeNull();
@@ -257,16 +266,62 @@ describe("My offers (management)", () => {
     items: [],
     ...over,
   });
-  const list = (["draft", "scheduled", "active", "paused", "expired", "archived"] as const).map((phase) => own({ id: phase, phase }));
-  const render = (canWrite = true, canPublish = true) => renderWithI18n(<MyOffersView offers={list} locale="en" canWrite={canWrite} canPublish={canPublish} />, "en");
+  const phases = ["draft", "scheduled", "active", "paused", "expired", "archived"] as const;
+  const list = phases.map((phase) => own({ id: phase, phase }));
+  const countsOf = (offers: OwnOffer[]) => Object.fromEntries(phases.map((p) => [p, offers.filter((o) => o.phase === p).length])) as Record<(typeof phases)[number], number>;
+  const mount = (offers: OwnOffer[], total = offers.length, counts = countsOf(offers), canWrite = true, canPublish = true) =>
+    renderWithI18n(<MyOffersView offers={offers} total={total} counts={counts} locale="en" canWrite={canWrite} canPublish={canPublish} />, "en");
+  const render = (canWrite = true, canPublish = true) => mount(list, list.length, countsOf(list), canWrite, canPublish);
+  const batch = (offers: OwnOffer[], total: number, counts = countsOf(offers)) => ({ ok: true, offers, total, counts });
+  const many = (from: number, n: number, phase: OwnOffer["phase"] = "draft") => Array.from({ length: n }, (_, i) => own({ id: `m${from + i}`, phase }));
 
-  it("summarizes the lifecycle and filters by it", () => {
+  beforeEach(() => feed.mine.mockReset());
+
+  it("summarizes the lifecycle and filters by it on the server, restarting at the first batch", async () => {
     render();
     expect(screen.getAllByTestId("my-offer-card")).toHaveLength(6);
     expect(within(screen.getByTestId("offers-stat-total")).getByText("6")).toBeTruthy();
+    feed.mine.mockResolvedValueOnce(batch([list[3]!], 1, countsOf(list)));
     fireEvent.click(screen.getByTestId("offers-chip-paused"));
-    expect(screen.getAllByTestId("my-offer-card")).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByTestId("my-offer-card")).toHaveLength(1));
+    expect(feed.mine).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "paused", q: "" }), 0);
     expect(screen.getByTestId("my-offer-card").getAttribute("data-phase")).toBe("paused");
+    // the summary still describes the whole history, not the one card on screen
+    expect(within(screen.getByTestId("offers-stat-total")).getByText("6")).toBeTruthy();
+  });
+  it("shows the first batch only; the summary counts and the title count describe the whole history", () => {
+    const counts = { draft: 12, scheduled: 3, active: 14, paused: 2, expired: 5, archived: 1 };
+    mount(many(0, 10, "active"), 37, counts);
+    expect(screen.getAllByTestId("my-offer-card")).toHaveLength(10);
+    expect(within(screen.getByTestId("offers-stat-total")).getByText("37")).toBeTruthy();
+    expect(within(screen.getByTestId("offers-stat-active")).getByText("14")).toBeTruthy();
+    expect(screen.getByTestId("my-offers-count").textContent).toBe("37 offers");
+    expect(screen.getByTestId("my-offers-shown").textContent).toBe("Showing 10 of 37");
+  });
+  it("walks 10 -> 20 -> 25 and back 25 -> 20 -> 10, one batch per click", async () => {
+    mount(many(0, 10), 25);
+    feed.mine.mockResolvedValueOnce(batch(many(10, 10), 25)).mockResolvedValueOnce(batch(many(20, 5), 25));
+    fireEvent.click(screen.getByTestId("my-offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-offer-card")).toHaveLength(20));
+    expect(feed.mine).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "" }), 10);
+    fireEvent.click(screen.getByTestId("my-offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-offer-card")).toHaveLength(25));
+    fireEvent.click(screen.getByTestId("my-offers-show-less"));
+    expect(screen.getAllByTestId("my-offer-card")).toHaveLength(20);
+    fireEvent.click(screen.getByTestId("my-offers-show-less"));
+    expect(screen.getAllByTestId("my-offer-card")).toHaveLength(10);
+    expect(screen.queryByTestId("my-offers-show-less")).toBeNull();
+  });
+  it("a filter change after loading 20 returns to the first 10 matches (offset 0)", async () => {
+    mount(many(0, 10), 25);
+    feed.mine.mockResolvedValueOnce(batch(many(10, 10), 25));
+    fireEvent.click(screen.getByTestId("my-offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("my-offer-card")).toHaveLength(20));
+    feed.mine.mockResolvedValueOnce(batch(many(100, 10, "paused"), 14));
+    fireEvent.click(screen.getByTestId("offers-chip-paused"));
+    await waitFor(() => expect(screen.getAllByTestId("my-offer-card")).toHaveLength(10));
+    expect(feed.mine).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "paused" }), 0);
+    expect(screen.getByTestId("my-offers-shown").textContent).toBe("Showing 10 of 14");
   });
   it("offers the right primary action per phase", () => {
     render();
@@ -285,11 +340,11 @@ describe("My offers (management)", () => {
     expect(screen.getByTestId("my-offers-readonly")).toBeTruthy();
   });
   it("flags offers whose products stopped being valid", () => {
-    renderWithI18n(<MyOffersView offers={[own({ id: "x", phase: "active", invalidItemCount: 2 })]} locale="en" canWrite canPublish />, "en");
+    mount([own({ id: "x", phase: "active", invalidItemCount: 2 })]);
     expect(screen.getByTestId("offer-needs-attention").textContent).toMatch(/2/);
   });
   it("shows the empty state with a create link, not fake cards", () => {
-    renderWithI18n(<MyOffersView offers={[]} locale="en" canWrite canPublish />, "en");
+    mount([]);
     expect(screen.getByText("No offers yet")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Create offer" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/my-offers/new");
   });

@@ -8,6 +8,8 @@ import { type CatalogView } from "@/lib/ui/catalog-view";
 import { Button, Input } from "@/components/ui/controls";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { StatePanel } from "@/components/ui/primitives";
+import { Pager } from "@/components/ui/pager";
+import { lessCount } from "@/lib/pagination/batches";
 import { IconStat } from "@/components/ui/icon-stat";
 import { BookmarkIcon, ClockIcon, SearchIcon, TagIcon, SparklesIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
@@ -18,7 +20,6 @@ import {
   appendUnique,
   DEFAULT_OFFERS_PARAMS,
   isAudienceCode,
-  OFFER_FEED_PAGE_SIZE,
   productsLabel,
   sellerTypeLabel,
   type OfferPeriod,
@@ -111,13 +112,11 @@ export function OffersFeedView({
   const showLess = () => {
     request.current++; // drop any in-flight batch so it cannot re-extend the list
     setLoading(false);
-    setItems((prev) => prev.slice(0, OFFER_FEED_PAGE_SIZE));
+    setItems((prev) => prev.slice(0, lessCount(prev.length)));
     gridRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   };
   const markSaved = (id: string, saved: boolean) => setItems((prev) => prev.map((o) => (o.id === id ? { ...o, saved } : o)));
 
-  const hasMore = items.length < total;
-  const canCollapse = items.length > OFFER_FEED_PAGE_SIZE;
   const chips = [{ value: "", label: t("showroomOffers.feed.chipAll") }, ...CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: t(`commerce.canonicalCategories.${c}`) }))];
   const sellerOptions = sellerTypes.filter((v) => isAudienceCode(v));
 
@@ -260,23 +259,7 @@ export function OffersFeedView({
 
       {failed ? <p role="alert" className="text-center text-label text-danger" data-testid="offers-load-error">{t("showroomOffers.feed.loadError")}</p> : null}
 
-      {hasMore || canCollapse ? (
-        <div className="flex flex-col items-center gap-2" data-testid="offers-pager">
-          <p className="text-label text-fg-muted" data-testid="offers-shown">{t("showroomOffers.feed.shown", { shown: String(items.length), total: String(total) })}</p>
-          <div className="flex flex-wrap items-center justify-center gap-sm">
-            {hasMore ? (
-              <Button type="button" variant="outline" onClick={showMore} disabled={loading} data-testid="offers-show-more">
-                {loading ? t("showroomOffers.feed.loadingMore") : t("showroomOffers.feed.showMore")}
-              </Button>
-            ) : null}
-            {canCollapse ? (
-              <Button type="button" variant="ghost" onClick={showLess} data-testid="offers-show-less">
-                {t("showroomOffers.feed.showLess")}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <Pager shown={items.length} total={total} loading={loading} onMore={showMore} onLess={showLess} testId="offers" />
     </div>
   );
 }

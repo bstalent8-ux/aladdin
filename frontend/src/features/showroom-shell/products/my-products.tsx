@@ -3,17 +3,16 @@ import { cookies } from "next/headers";
 import { getMessages, createTranslator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/locales";
 import { CATALOG_VIEW_COOKIE, resolveCatalogView } from "@/lib/ui/catalog-view";
-import { listOwnProducts, listProductPrices, ownProductCounts } from "@/server/queries/commerce";
-import { listProductOfferStates } from "@/server/queries/offers";
-import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
+import { ownProductCounts } from "@/server/queries/commerce";
+import { PAGE_BATCH } from "@/lib/pagination/batches";
 import { StatePanel } from "@/components/ui/primitives";
 import { BadgeCheckIcon, InboxIcon, PackageIcon, PencilIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { effectiveColors } from "./color-items";
 import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
-import { parseMyProductsParams, statusFilterToQuery, type MyProductsStatusFilter } from "./my-products-params";
-import { OwnProductsResults, type OwnProductCard } from "./own-products-results";
+import { parseMyProductsParams, type MyProductsStatusFilter } from "./my-products-params";
+import { OwnProductsResults } from "./own-products-results";
+import { loadMyProductsBatch } from "./my-products-data";
 import { ProductStatCards } from "./stat-cards";
 import { MyProductsToolbar } from "./my-products-toolbar";
 import { CategoryChips } from "./category-chips";
@@ -47,36 +46,13 @@ export async function ShowroomMyProducts({
   const params = parseMyProductsParams(searchParams);
   const view = resolveCatalogView((await cookies()).get(CATALOG_VIEW_COOKIE)?.value);
 
-  const [rows, counts] = await Promise.all([
-    listOwnProducts(supabase, org.organizationId, { search: params.q, categoryCode: params.category, sort: params.sort, ...statusFilterToQuery(params.status) }),
+  // First batch only; "Show more" reads the next one. The status tabs count the WHOLE shelf, not this batch.
+  const [{ cards, total }, counts] = await Promise.all([
+    loadMyProductsBatch(supabase, org.organizationId, params, 0, PAGE_BATCH),
     ownProductCounts(supabase, org.organizationId),
   ]);
-
-  const prices = await listProductPrices(supabase, rows.map((r) => r.id));
-  const offerStates = await listProductOfferStates(supabase, rows.map((r) => r.id));
-  const images = await listProductImages(supabase, rows.map((r) => r.id));
-  const primaryKeys = rows.map((r) => images.get(r.id)?.[0]?.objectKey ?? null);
-  const signed = await signProductImageUrls(supabase, primaryKeys);
-
-  const cards: OwnProductCard[] = rows.map((r) => {
-    const key = images.get(r.id)?.[0]?.objectKey;
-    return {
-      id: r.id,
-      name: r.name,
-      code: r.sku,
-      categoryCode: r.category_code,
-      unit: r.unit,
-      status: r.status,
-      archivedAt: r.archived_at,
-      version: r.version,
-      imageUrl: (key ? signed.get(key) : undefined) ?? r.image_ref ?? null,
-      sizeLabel: r.size_label,
-      weightKg: r.weight_kg,
-      colors: effectiveColors(r),
-      basePrice: prices.get(r.id) ?? null,
-      offerState: offerStates.get(r.id),
-    };
-  });
+  // A lifecycle change re-renders this page with fresh rows: the list restarts from them (new key).
+  const listKey = `${params.q ?? ""}|${params.category ?? ""}|${params.status ?? ""}|${params.sort}|${cards.map((c) => `${c.id}.${c.version}.${c.archivedAt ? 1 : 0}`).join(",")}`;
 
   const filtered = Boolean(params.q || params.category || params.status);
   const href = (patch: { status?: MyProductsStatusFilter | ""; category?: string }) => {
@@ -130,9 +106,11 @@ export async function ShowroomMyProducts({
         />
       ) : (
         <OwnProductsResults
+          key={listKey}
           products={cards}
+          total={total}
+          filters={{ q: params.q, category: params.category, status: params.status, sort: params.sort }}
           initialView={view}
-          countLabel={t("showroomProducts.count", { count: String(cards.length) })}
           canWrite={canWrite}
           canPublish={canPublish}
         />

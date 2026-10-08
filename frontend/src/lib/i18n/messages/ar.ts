@@ -42,6 +42,11 @@ export const ar: Messages = {
     showLess: "عرض أقل",
     languageName: { ar: "العربية", en: "الإنجليزية" },
   },
+  pager: {
+    shown: "عرض {shown} من {total}",
+    loading: "جارٍ التحميل…",
+    loadError: "تعذر تحميل المزيد. حاول مرة أخرى.",
+  },
   confirm: {
     archiveCustomerTitle: "أرشفة هذا العميل؟",
     archiveCustomerBody: "يبقى العميل المؤرشف في السجل لكنه يختفي من القائمة النشطة. يمكنك التعامل مع الفرص بشكل منفصل.",

@@ -50,6 +50,11 @@ export const en = {
     /* Language names as a professional would write them on their own profile. */
     languageName: { ar: "Arabic", en: "English" },
   },
+  pager: {
+    shown: "Showing {shown} of {total}",
+    loading: "Loading…",
+    loadError: "Could not load more. Try again.",
+  },
   confirm: {
     archiveCustomerTitle: "Archive this customer?",
     archiveCustomerBody: "Archived customers stay in history but are hidden from the active list. You can reopen leads separately.",

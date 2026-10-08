@@ -7,8 +7,13 @@ import {
   OFFER_SORTS,
   type OffersPage,
   type OffersPageParams,
+  type MyOffersParams,
+  sanitizeMyOffersParams,
 } from "@/features/offers/offer-model";
 import { listOffersPage, signOfferImages } from "@/server/queries/offers";
+import { requireShowroomContext } from "@/features/showroom-shell/context";
+import { loadMyOffersBatch, type MyOffersBatch } from "@/features/offers/my-offers-data";
+import { PAGE_BATCH } from "@/lib/pagination/batches";
 
 /**
  * Server Actions for the audience Offers feed (every shell uses these). Each forwards the CALLER's
@@ -55,4 +60,20 @@ export async function setOfferSavedAction(offerId: string, saved: boolean, orgId
   const { data, error } = await supabase.rpc("offer_set_saved", { p_offer_id: offerId, p_saved: saved, p_org_id: orgId ?? undefined });
   if (error) return { ok: false, saved: !saved };
   return { ok: true, saved: data === true };
+}
+
+export type MyOffersBatchResult = ({ ok: true } & MyOffersBatch) | { ok: false };
+
+/**
+ * One bounded batch of the ACTIVE organization's own offers for the given filters ("Show more" and every filter change).
+ * The organization comes from the session; the filters are re-validated here and RLS still scopes every read to its owner.
+ */
+export async function loadMyOffersBatchAction(raw: Partial<Record<keyof MyOffersParams, unknown>>, offset: number): Promise<MyOffersBatchResult> {
+  if (!Number.isInteger(offset) || offset < 0 || offset > MAX_OFFSET) return { ok: false };
+  try {
+    const { supabase, org } = await requireShowroomContext();
+    return { ok: true, ...(await loadMyOffersBatch(supabase, org.organizationId, sanitizeMyOffersParams(raw), offset, PAGE_BATCH)) };
+  } catch {
+    return { ok: false };
+  }
 }

@@ -3860,6 +3860,7 @@ export type Database = {
       own_product_offers: {
         Row: {
           archived_at: string | null
+          audiences: string[] | null
           created_at: string | null
           created_by: string | null
           currency: string | null
@@ -3872,6 +3873,7 @@ export type Database = {
           phase: string | null
           published_at: string | null
           reference_price: number | null
+          search_text: string | null
           starts_at: string | null
           status: Database["public"]["Enums"]["offer_status"] | null
           title: string | null
