@@ -168,6 +168,11 @@ begin
       raise exception 'only a draft, paused or scheduled offer can be edited; pause an active offer first' using errcode = '22023';
     end if;
     if v_o.status = 'published' then
+      -- Changing an offer that is already published (scheduled to go live) is a publishing
+      -- decision: catalog.write alone is not enough.
+      if not app.can_publish_catalog(p_org_id) then
+        raise exception 'catalog.publish required' using errcode = '42501';
+      end if;
       -- Still published afterwards, so it must keep satisfying the publishing rules.
       if p_ends_at <= now() then
         raise exception 'this offer has already ended; change its dates first' using errcode = '22023';

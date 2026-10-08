@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(95);
+select plan(96);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -207,6 +207,15 @@ set local role authenticated;
 set local request.jwt.claims = :'hana';
 select lives_ok(format($f$select public.own_offer_save(%L, %L, %L, 'Renamed package', null, 4400, null, now() + interval '1 day', now() + interval '2 days', %L::jsonb, array['importer'])$f$, :'orgC', (select id from _o where name = 'o1'), (select version from public.product_offers where id = (select id from _o where name = 'o1')), format(:'items', (select id from _o where name = 'p1'), (select id from _o where name = 'p2'), (select id from _o where name = 'p3'))), 'a scheduled offer can be edited');
 select is((select status::text from public.product_offers where id = (select id from _o where name = 'o1')), 'published', 'and stays published');
+reset role;
+insert into public.membership_capabilities (membership_id, capability_key) values ('50000002-0000-4000-8000-000000000002', 'catalog.write');
+set local role authenticated;
+set local request.jwt.claims = :'sara';
+select throws_ok(format($f$select public.own_offer_save(%L, %L, %L, 'Sneaky', null, 1, null, now() + interval '1 day', now() + interval '2 days', %L::jsonb, array['importer'])$f$, :'orgC', (select id from _o where name = 'o1'), (select version from public.product_offers where id = (select id from _o where name = 'o1')), format(:'items', (select id from _o where name = 'p1'), (select id from _o where name = 'p2'), (select id from _o where name = 'p3'))),
+  '42501', null, 'catalog.write alone cannot change an already-published (scheduled) offer');
+reset role;
+delete from public.membership_capabilities where membership_id = '50000002-0000-4000-8000-000000000002' and capability_key = 'catalog.write';
+set local role authenticated;
 reset role;
 update public.product_offers set starts_at = now() - interval '1 day', ends_at = now() + interval '1 day' where id = (select id from _o where name = 'o1');
 set local role authenticated;
