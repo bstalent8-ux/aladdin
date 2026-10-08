@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysLeft, offerPhase, parsePublicOffer, parsePublicOffers, totalQuantity, FEED_READY_AUDIENCES, OFFER_AUDIENCE_OPTIONS } from "./offer-model";
+import { daysLeft, offerPhase, parsePublicOffer, parsePublicOffers, totalQuantity, FEED_READY_AUDIENCES, OFFER_AUDIENCE_CODES, OFFER_AUDIENCE_GROUPS, audienceCodesForGroups, groupsForAudienceCodes, appendUnique, parseOffersPage } from "./offer-model";
 import { formatOfferDate, utcToZonedFields, zonedToUtcIso } from "./offer-datetime";
 import { mapOfferError, parseOfferForm } from "./offer-input";
 
@@ -27,9 +27,36 @@ describe("offerPhase (mirrors app.offer_phase)", () => {
 });
 
 describe("audiences", () => {
-  it("only the feed-ready business types are selectable, all canonical codes", () => {
-    expect(FEED_READY_AUDIENCES).toEqual(["showroom_dealer", "supplier", "manufacturer", "importer", "design_office"]);
-    expect(OFFER_AUDIENCE_OPTIONS.filter((o) => !o.enabled).length).toBeGreaterThan(0);
+  it("every canonical audience has a feed, and the eight UI groups cover the approved account types", () => {
+    expect([...FEED_READY_AUDIENCES].sort()).toEqual([...OFFER_AUDIENCE_CODES].sort());
+    expect(OFFER_AUDIENCE_GROUPS.map((g) => g.id)).toEqual(["showroom", "supplier", "manufacturer", "importer", "contractor", "engineer", "craftsman", "customer"]);
+  });
+  it("maps each group to explicit canonical rows, never to a new enum", () => {
+    expect(audienceCodesForGroups(["showroom"])).toEqual(["showroom_dealer"]);
+    expect(audienceCodesForGroups(["contractor"])).toEqual(["contractor_company", "contractor"]);
+    expect(audienceCodesForGroups(["engineer"])).toEqual(["design_office", "engineer", "interior_designer"]);
+    expect(audienceCodesForGroups(["craftsman"])).toEqual(["installer_technician"]);
+    expect(audienceCodesForGroups(["customer"])).toEqual(["end_consumer"]);
+    expect(audienceCodesForGroups(["nope"])).toEqual([]);
+    expect(audienceCodesForGroups(OFFER_AUDIENCE_GROUPS.map((g) => g.id)).sort()).toEqual(
+      OFFER_AUDIENCE_CODES.filter((c) => c !== "wholesaler").sort(),
+    );
+  });
+  it("reads groups back from stored rows", () => {
+    expect(groupsForAudienceCodes(["design_office", "supplier"])).toEqual(["supplier", "engineer"]);
+    expect(groupsForAudienceCodes(["wholesaler"])).toEqual([]);
+  });
+});
+
+describe("feed paging helpers", () => {
+  const o = (id: string) => ({ id }) as never;
+  it("appends a batch without repeating an offer already shown", () => {
+    expect(appendUnique([o("a"), o("b")], [o("b"), o("c")]).map((x) => x.id)).toEqual(["a", "b", "c"]);
+  });
+  it("parses the page envelope defensively", () => {
+    const page = parseOffersPage({ items: [], total: "7", has_more: true, stats: { available: 7, ending: 2, fresh: 1 }, seller_types: ["supplier", 3] });
+    expect(page).toEqual({ items: [], total: 7, hasMore: true, stats: { available: 7, ending: 2, fresh: 1 }, sellerTypes: ["supplier"] });
+    expect(parseOffersPage(null).total).toBe(0);
   });
 });
 

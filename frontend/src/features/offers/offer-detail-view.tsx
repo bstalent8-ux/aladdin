@@ -9,6 +9,7 @@ import { daysLeft, sellerTypeLabel, type PublicOffer, productsLabel } from "./of
 import { formatOfferDate } from "./offer-datetime";
 import { OfferPrice, SellerLine } from "./offer-parts";
 import { OfferCollage } from "./offer-parts";
+import { SaveOfferButton } from "./save-offer-button";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -27,8 +28,11 @@ export function OfferDetailView({
   t,
   canRfq,
   rfqHref,
+  orgId,
+  showRfq = true,
   backHref = `${SHOWROOM_ROOT}/offers`,
   feedHref = `${SHOWROOM_ROOT}/offers`,
+  detailBase = feedHref,
 }: {
   offer: PublicOffer;
   imageUrls: Record<string, string>;
@@ -37,14 +41,19 @@ export function OfferDetailView({
   t: T;
   canRfq: boolean;
   rfqHref: string;
+  /** The active business workspace, or null for a personal account (used by the bookmark). */
+  orgId: string | null;
+  /** Personal accounts have no RFQ entry yet; the block is hidden for them. */
+  showRfq?: boolean;
   backHref?: string;
   feedHref?: string;
+  /** Where "more offers" links point (each shell has its own Offers route). */
+  detailBase?: string;
 }) {
   const images = offer.items.map((i) => imageOf(i, imageUrls)).filter((u): u is string => Boolean(u));
   const main = images[0] ?? null;
   const thumbs = images.slice(1, 4);
   const left = daysLeft(offer.endsAt);
-  const detailBase = `${SHOWROOM_ROOT}/offers`;
 
   return (
     <div className="flex flex-col gap-md" data-testid="offer-detail">
@@ -190,18 +199,20 @@ export function OfferDetailView({
           </Card>
 
           <div className="flex flex-col gap-1.5">
-            {canRfq ? (
-              <Link
-                href={rfqHref}
-                className="inline-flex min-h-11 items-center justify-center rounded-sm bg-accent-solid px-md text-label font-semibold text-on-accent hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-                data-testid="offer-request-quote"
-              >
-                {t("showroomOffers.detail.requestQuote")}
-              </Link>
-            ) : (
-              <p className="text-label text-fg-muted">{t("showroomOffers.detail.rfqDenied")}</p>
-            )}
-            <p className="text-label text-fg-muted">{t("showroomOffers.detail.requestQuoteHint")}</p>
+            <div className="flex items-center gap-2">
+              <SaveOfferButton offerId={offer.id} orgId={orgId} saved={offer.saved} className="h-11 w-11" />
+              {showRfq && canRfq ? (
+                <Link
+                  href={rfqHref}
+                  className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-sm bg-accent-solid px-md text-label font-semibold text-on-accent hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+                  data-testid="offer-request-quote"
+                >
+                  {t("showroomOffers.detail.requestQuote")}
+                </Link>
+              ) : null}
+            </div>
+            {showRfq && !canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.rfqDenied")}</p> : null}
+            {showRfq && canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.requestQuoteHint")}</p> : null}
           </div>
 
           <Card className="flex flex-col gap-sm">

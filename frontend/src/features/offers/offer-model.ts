@@ -41,25 +41,40 @@ export const OFFER_AUDIENCE_CODES = [
   "interior_designer",
   "installer_technician",
   "contractor",
+  "end_consumer",
 ] as const;
 export type OfferAudienceCode = (typeof OFFER_AUDIENCE_CODES)[number];
 
 /**
- * What the builder offers. `enabled` mirrors `offer_audience_types.feed_ready`: the five business
- * types the showroom suite serves today. The rest are shown as "soon" and cannot be chosen — the
- * database refuses to publish to them either way.
+ * The eight audience groups the builder offers. A group is a UI grouping only: choosing one stores
+ * its explicit canonical rows (organization_type / persona_type codes) — no group enum exists in
+ * the database. Every code is feed-ready: /b2b serves every organization type and /home every persona.
  */
-export const OFFER_AUDIENCE_OPTIONS: ReadonlyArray<{ code: OfferAudienceCode; enabled: boolean }> = [
-  { code: "showroom_dealer", enabled: true },
-  { code: "supplier", enabled: true },
-  { code: "manufacturer", enabled: true },
-  { code: "importer", enabled: true },
-  { code: "design_office", enabled: true },
-  { code: "installer_technician", enabled: false },
-  { code: "contractor_company", enabled: false },
-  { code: "contractor", enabled: false },
-];
-export const FEED_READY_AUDIENCES: readonly string[] = OFFER_AUDIENCE_OPTIONS.filter((o) => o.enabled).map((o) => o.code);
+export const OFFER_AUDIENCE_GROUPS = [
+  { id: "showroom", codes: ["showroom_dealer"] },
+  { id: "supplier", codes: ["supplier"] },
+  { id: "manufacturer", codes: ["manufacturer"] },
+  { id: "importer", codes: ["importer"] },
+  { id: "contractor", codes: ["contractor_company", "contractor"] },
+  { id: "engineer", codes: ["design_office", "engineer", "interior_designer"] },
+  { id: "craftsman", codes: ["installer_technician"] },
+  { id: "customer", codes: ["end_consumer"] },
+] as const satisfies ReadonlyArray<{ id: string; codes: readonly OfferAudienceCode[] }>;
+export type OfferAudienceGroupId = (typeof OFFER_AUDIENCE_GROUPS)[number]["id"];
+
+/** The canonical rows to store for the chosen groups (deduplicated, group order). */
+export function audienceCodesForGroups(ids: readonly string[]): OfferAudienceCode[] {
+  const codes = OFFER_AUDIENCE_GROUPS.filter((g) => ids.includes(g.id)).flatMap((g) => g.codes);
+  return [...new Set<OfferAudienceCode>(codes)];
+}
+
+/** A stored offer's groups: a group is selected when any of its canonical rows is present. */
+export function groupsForAudienceCodes(codes: readonly string[]): OfferAudienceGroupId[] {
+  return OFFER_AUDIENCE_GROUPS.filter((g) => g.codes.some((c) => codes.includes(c))).map((g) => g.id);
+}
+
+/** Every canonical audience has a feed: /b2b serves each organization type, /home each persona. */
+export const FEED_READY_AUDIENCES: readonly string[] = OFFER_AUDIENCE_CODES;
 
 export function isAudienceCode(value: unknown): value is OfferAudienceCode {
   return typeof value === "string" && (OFFER_AUDIENCE_CODES as readonly string[]).includes(value);
@@ -98,6 +113,16 @@ export type PublicOffer = {
   endsAt: string;
   publishedAt: string | null;
   items: PublicOfferItem[];
+  /** The caller's own bookmark (a user preference; never access). */
+  saved: boolean;
+};
+
+export type OffersPage = {
+  items: PublicOffer[];
+  total: number;
+  hasMore: boolean;
+  stats: { available: number; ending: number; fresh: number };
+  sellerTypes: string[];
 };
 
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -162,6 +187,7 @@ export function parsePublicOffer(raw: unknown): PublicOffer | null {
     endsAt,
     publishedAt: str(r.published_at),
     items,
+    saved: r.saved === true,
   };
 }
 
@@ -180,4 +206,43 @@ export function sellerTypeLabel(t: (k: string) => string, orgType: string | null
 /** "1 product" / "13 products" — counts as Latin digits, like every figure in the suite. */
 export function productsLabel(t: (k: string, v?: Record<string, string | number>) => string, count: number): string {
   return count === 1 ? t("showroomOffers.productsOne") : t("showroomOffers.productsMany", { count: String(count) });
+}
+
+/** Defensive parse of the `offers_feed_page` envelope. */
+export function parseOffersPage(raw: unknown): OffersPage {
+  const r = obj(raw) ?? {};
+  const stats = obj(r.stats) ?? {};
+  return {
+    items: parsePublicOffers(r.items),
+    total: num(r.total) ?? 0,
+    hasMore: r.has_more === true,
+    stats: { available: num(stats.available) ?? 0, ending: num(stats.ending) ?? 0, fresh: num(stats.fresh) ?? 0 },
+    sellerTypes: (Array.isArray(r.seller_types) ? r.seller_types : []).filter((v): v is string => typeof v === "string"),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The audience feed's request shape (filters + a bounded page)
+// ---------------------------------------------------------------------------
+export const OFFER_FEED_PAGE_SIZE = 10;
+export const OFFER_SORTS = ["newest", "ending", "priceLow", "priceHigh"] as const;
+export const OFFER_PERIODS = ["all", "ending", "week"] as const;
+export type OfferSort = (typeof OFFER_SORTS)[number];
+export type OfferPeriod = (typeof OFFER_PERIODS)[number];
+
+export type OffersPageParams = {
+  search: string;
+  category: string;
+  sellerType: string;
+  period: OfferPeriod;
+  sort: OfferSort;
+  savedOnly: boolean;
+};
+
+export const DEFAULT_OFFERS_PARAMS: OffersPageParams = { search: "", category: "", sellerType: "", period: "all", sort: "newest", savedOnly: false };
+
+/** Appends a batch to the visible list without ever repeating an offer already shown. */
+export function appendUnique(current: readonly PublicOffer[], batch: readonly PublicOffer[]): PublicOffer[] {
+  const seen = new Set(current.map((o) => o.id));
+  return [...current, ...batch.filter((o) => !seen.has(o.id))];
 }

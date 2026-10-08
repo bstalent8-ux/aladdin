@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
 import { Button, Input, LabeledField, SubmitButton, Textarea } from "@/components/ui/controls";
@@ -13,8 +13,9 @@ import { formatProductPrice } from "@/features/showroom-shell/products/price-for
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { saveOfferAction, type OfferFormState } from "@/server/actions/offers";
 import type { PickerProduct } from "@/server/queries/offers";
+import { countWords } from "@/features/showroom-shell/products/product-input";
 import { OFFER_LIMITS } from "./offer-input";
-import { OFFER_AUDIENCE_OPTIONS, totalQuantity } from "./offer-model";
+import { OFFER_AUDIENCE_GROUPS, audienceCodesForGroups, groupsForAudienceCodes, totalQuantity } from "./offer-model";
 import { OfferCollage } from "./offer-parts";
 
 export type BuilderInitial = {
@@ -51,6 +52,35 @@ function Section({ icon, title, hint, children, testId }: { icon: ReactNode; tit
 
 function Counter({ value, max }: { value: number; max: number }) {
   return <span className="text-caption text-fg-muted" dir="ltr">{value}/{max}</span>;
+}
+
+/**
+ * Desktop: the builder fills the viewport below the page header (no page scroll), the live
+ * preview stays in view on one side and the editor scrolls inside its own column. The height is
+ * measured from where the workspace starts, so it follows the real header/hero size. Below the
+ * desktop breakpoint everything stacks and the page scrolls normally.
+ */
+function useFitViewport(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const fit = () => {
+      if (!mq.matches) {
+        el.style.height = "";
+        return;
+      }
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      el.style.height = `${Math.max(520, Math.floor(window.innerHeight - top - 84))}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    mq.addEventListener("change", fit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      mq.removeEventListener("change", fit);
+    };
+  }, [ref]);
 }
 
 /**
@@ -91,7 +121,9 @@ export function OfferBuilder({
   const [endDate, setEndDate] = useState(initial.endDate);
   const [endTime, setEndTime] = useState(initial.endTime);
   const [items, setItems] = useState(initial.items);
-  const [audiences, setAudiences] = useState<string[]>(initial.audiences);
+  const [groups, setGroups] = useState<string[]>(() => groupsForAudienceCodes(initial.audiences));
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  useFitViewport(workspaceRef);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -110,7 +142,10 @@ export function OfferBuilder({
     setItems((cur) => (cur.some((i) => i.productId === id) ? cur.filter((i) => i.productId !== id) : cur.length >= OFFER_LIMITS.items ? cur : [...cur, { productId: id, quantity: 1 }]));
   const setQuantity = (id: string, q: number) =>
     setItems((cur) => cur.map((i) => (i.productId === id ? { ...i, quantity: Math.min(OFFER_LIMITS.quantityMax, Math.max(1, Math.trunc(q) || 1)) } : i)));
-  const toggleAudience = (code: string) => setAudiences((cur) => (cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]));
+  const toggleGroup = (id: string) => setGroups((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
+  const audienceCodes = audienceCodesForGroups(groups);
+  const words = countWords(description);
+  const overWords = words > OFFER_LIMITS.descriptionWordsMax;
 
   const cur = t("showroomOffers.builder.currency");
   const priceNum = Number(totalPrice.replace(/,/g, "."));
@@ -121,14 +156,15 @@ export function OfferBuilder({
   const dis = readOnly;
 
   return (
-    <form action={dispatch} className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_21rem]" data-testid="offer-builder" noValidate>
+    <form action={dispatch} noValidate data-testid="offer-builder">
+    <div ref={workspaceRef} className="grid min-w-0 gap-md desktop:grid-cols-[minmax(0,1fr)_21rem] desktop:overflow-hidden" data-testid="offer-workspace">
       <input type="hidden" name="orgId" value={orgId} />
       {initial.offerId ? <input type="hidden" name="offerId" value={initial.offerId} /> : null}
       {initial.version !== null ? <input type="hidden" name="expectedVersion" value={initial.version} /> : null}
       <input type="hidden" name="items" value={JSON.stringify(items)} />
-      {audiences.map((a) => <input key={a} type="hidden" name="audience" value={a} />)}
+      {audienceCodes.map((a) => <input key={a} type="hidden" name="audience" value={a} />)}
 
-      <div className="flex min-w-0 flex-col gap-md">
+      <div className="flex min-w-0 flex-col gap-md desktop:min-h-0 desktop:overflow-y-auto desktop:overscroll-contain desktop:pe-1" data-testid="offer-editor-scroll">
         {banner ? <p role="alert" className="rounded-sm border border-danger/40 bg-danger/10 px-md py-2 text-body text-danger" data-testid="offer-error">{banner}</p> : null}
         {readOnly ? <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="offer-readonly">{t("showroomOffers.builder.notEditable")}</p> : null}
 
@@ -139,10 +175,17 @@ export function OfferBuilder({
               <Counter value={title.length} max={OFFER_LIMITS.titleMax} />
             </div>
           </LabeledField>
-          <LabeledField label={t("showroomOffers.builder.description")} htmlFor="description" optional={t("showroomOffers.builder.optional")} error={errorText(fe.description)}>
-            <div className="flex flex-col gap-1">
-              <Textarea id="description" name="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={OFFER_LIMITS.descriptionMax} placeholder={t("showroomOffers.builder.descriptionPlaceholder")} disabled={dis} dir="auto" data-testid="offer-description-input" />
-              <Counter value={description.length} max={OFFER_LIMITS.descriptionMax} />
+          <LabeledField label={t("showroomOffers.builder.description")} htmlFor="description" optional={t("showroomOffers.builder.optional")} error={overWords ? t("showroomOffers.errors.description") : errorText(fe.description)}>
+            <div className="relative">
+              <Textarea id="description" name="description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("showroomOffers.builder.descriptionPlaceholder")} disabled={dis} dir="auto" aria-invalid={overWords || fe.description ? true : undefined} className="pb-8" data-testid="offer-description-input" />
+              <span
+                className={cn("pointer-events-none absolute bottom-1.5 end-3 text-caption tabular-nums", overWords ? "font-semibold text-danger" : "text-fg-muted")}
+                dir="ltr"
+                data-testid="offer-description-counter"
+              >
+                {words}/{OFFER_LIMITS.descriptionWordsMax}
+                <span className="sr-only"> {t("showroomOffers.builder.descriptionWords")}</span>
+              </span>
             </div>
           </LabeledField>
           <div className="grid gap-md tablet:grid-cols-2">
@@ -292,25 +335,25 @@ export function OfferBuilder({
         </Section>
 
         <Section icon={<UsersIcon size={18} />} title={t("showroomOffers.builder.audienceTitle")} hint={t("showroomOffers.builder.audienceHint")} testId="offer-audience">
-          <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 desktop:grid-cols-4" role="group" aria-label={t("showroomOffers.builder.audienceTitle")}>
-            {OFFER_AUDIENCE_OPTIONS.map(({ code, enabled }) => {
-              const on = audiences.includes(code);
+          <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 desktop:grid-cols-4" role="group" aria-label={t("showroomOffers.builder.audienceTitle")} data-testid="offer-audience-groups">
+            {OFFER_AUDIENCE_GROUPS.map(({ id }) => {
+              const on = groups.includes(id);
               return (
-                <li key={code} className="min-w-0">
+                <li key={id} className="min-w-0">
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={on}
-                    disabled={!enabled || dis}
-                    onClick={() => toggleAudience(code)}
-                    data-testid={`offer-audience-${code}`}
+                    disabled={dis}
+                    onClick={() => toggleGroup(id)}
+                    data-testid={`offer-audience-${id}`}
                     className={cn(
-                      "flex min-h-11 w-full items-center justify-between gap-2 rounded-sm border px-3 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                      !enabled ? "cursor-not-allowed border-dashed border-strong bg-surface-2 text-fg-muted" : on ? "border-accent bg-accent-solid/10 text-accent" : "border-strong bg-surface text-fg hover:bg-surface-2",
+                      "flex min-h-11 w-full items-center gap-2 rounded-sm border px-3 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                      on ? "border-accent bg-accent-solid/10 text-accent" : "border-strong bg-surface text-fg hover:bg-surface-2",
                     )}
                   >
-                    <span className="min-w-0 truncate">{t(`showroomOffers.audience.${code}`)}</span>
-                    {!enabled ? <span className="shrink-0 text-caption">{t("showroomOffers.soon")}</span> : on ? <CheckIcon size={14} /> : null}
+                    <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded-sm border", on ? "border-transparent bg-accent-solid text-on-accent" : "border-strong bg-surface")}>{on ? <CheckIcon size={12} /> : null}</span>
+                    <span className="min-w-0 truncate">{t(`showroomOffers.audienceGroup.${id}`)}</span>
                   </button>
                 </li>
               );
@@ -341,7 +384,7 @@ export function OfferBuilder({
         </div>
       </div>
 
-      <aside className="flex min-w-0 flex-col gap-md" aria-label={t("showroomOffers.builder.previewTitle")} data-testid="offer-preview">
+      <aside className="flex min-w-0 flex-col gap-md desktop:min-h-0 desktop:overflow-y-auto desktop:overscroll-contain" aria-label={t("showroomOffers.builder.previewTitle")} data-testid="offer-preview">
         <section className="flex flex-col gap-sm rounded-md border bg-surface p-md shadow-card">
           <h2 className="flex items-center gap-2 text-title font-semibold text-fg">
             <TagIcon size={18} className="text-accent" />
@@ -370,9 +413,30 @@ export function OfferBuilder({
           <dl className="flex flex-col gap-2 text-label">
             <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryProducts")}</dt><dd className="font-semibold text-fg" dir="ltr">{selected.length}</dd></div>
             <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryQuantity")}</dt><dd className="font-semibold text-fg" dir="ltr">{totalQuantity(items)}</dd></div>
-            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryAudience")}</dt><dd className="text-end font-semibold text-fg">{audiences.length ? audiences.map((a) => t(`showroomOffers.audience.${a}`)).join("، ") : t("showroomOffers.builder.summaryNone")}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryAudience")}</dt><dd className="text-end font-semibold text-fg">{groups.length ? OFFER_AUDIENCE_GROUPS.filter((g) => groups.includes(g.id)).map((g) => t(`showroomOffers.audienceGroup.${g.id}`)).join("، ") : t("showroomOffers.builder.summaryNone")}</dd></div>
             <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryDuration")}</dt><dd className="text-end font-semibold text-fg" dir="ltr">{startDate && endDate ? `${startDate} → ${endDate}` : t("showroomOffers.builder.summaryNone")}</dd></div>
           </dl>
+        </section>
+
+        <section className="flex flex-col gap-2 rounded-md border bg-surface p-md shadow-card" data-testid="offer-completeness">
+          <h2 className="flex items-center gap-2 text-title font-semibold text-fg">
+            <CheckIcon size={18} className="text-accent" />
+            {t("showroomOffers.builder.completenessTitle")}
+          </h2>
+          <ul className="flex flex-col gap-1.5 text-label">
+            {[
+              { key: "name", done: title.trim().length >= OFFER_LIMITS.titleMin },
+              { key: "price", done: Number.isFinite(priceNum) && priceNum > 0 && totalPrice.trim() !== "" },
+              { key: "period", done: Boolean(startDate && startTime && endDate && endTime) },
+              { key: "products", done: selected.length > 0 },
+              { key: "audience", done: groups.length > 0 },
+            ].map(({ key, done }) => (
+              <li key={key} className={cn("flex items-center gap-2", done ? "text-success" : "text-fg-muted")} data-done={done ? "true" : "false"}>
+                <span aria-hidden="true" className={cn("grid h-4 w-4 shrink-0 place-items-center rounded-full border", done ? "border-transparent bg-success text-on-accent" : "border-strong")}>{done ? <CheckIcon size={10} /> : null}</span>
+                {t(`showroomOffers.builder.complete.${key}`)}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="flex flex-col gap-2 rounded-md border bg-surface p-md shadow-card">
@@ -390,6 +454,7 @@ export function OfferBuilder({
           </ul>
         </section>
       </aside>
+    </div>
     </form>
   );
 }

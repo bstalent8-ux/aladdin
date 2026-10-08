@@ -21,6 +21,7 @@ export function ShowroomPageHero({
   art,
   back,
   titleId = "page-title",
+  action,
 }: {
   locale: Locale;
   title: string;
@@ -30,6 +31,8 @@ export function ShowroomPageHero({
   /** A back link rendered above the title (create / edit screens). */
   back?: ReactNode;
   titleId?: string;
+  /** The page's primary action (e.g. Create), grouped with the title block at its inline end. */
+  action?: ReactNode;
 }) {
   const dir = directionFor(locale);
   return (
@@ -51,11 +54,16 @@ export function ShowroomPageHero({
           )}
         >
           {back}
-          <h1 id={titleId} className="flex min-w-0 items-center gap-2.5 text-title font-bold tracking-tight text-fg tablet:text-headline desktop:text-display">
-            {Icon ? <span className="text-accent"><Icon size={28} /></span> : null}
-            <span className="min-w-0">{title}</span>
-          </h1>
-          {subtitle ? <p className="text-label leading-relaxed text-fg-secondary tablet:text-body-lg">{subtitle}</p> : null}
+          <div className="flex flex-wrap items-center justify-between gap-x-md gap-y-sm">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <h1 id={titleId} className="flex min-w-0 items-center gap-2.5 text-title font-bold tracking-tight text-fg tablet:text-headline desktop:text-display">
+                {Icon ? <span className="text-accent"><Icon size={28} /></span> : null}
+                <span className="min-w-0">{title}</span>
+              </h1>
+              {subtitle ? <p className="text-label leading-relaxed text-fg-secondary tablet:text-body-lg">{subtitle}</p> : null}
+            </div>
+            {action ? <div className="shrink-0">{action}</div> : null}
+          </div>
         </div>
       </div>
     </section>

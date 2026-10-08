@@ -14,22 +14,18 @@ import { PackageIcon, TagIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Create an offer for the ACTIVE organization. `?product=<id>` starts it with one of the owner's products already chosen. */
-export default async function ShowroomNewOfferPage({ searchParams }: { searchParams: Promise<{ product?: string }> }) {
+/** Create an offer for the ACTIVE organization. Creation starts here (إدارة العروض) and nowhere else. */
+export default async function ShowroomNewOfferPage() {
   const { supabase, org } = await requireShowroomContext();
   if (!org.capabilities.includes("catalog.write") && !org.capabilities.includes("org.manage")) notFound();
   const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   const t = createTranslator(locale);
-  const sp = await searchParams;
   const canPublish = org.capabilities.includes("catalog.publish") || org.capabilities.includes("org.manage");
 
   const [products, zone] = await Promise.all([listPickerProducts(supabase, org.organizationId), getOrgTimezone(supabase, org.organizationId)]);
   const now = new Date();
   const start = utcToZonedFields(now.toISOString(), zone);
   const end = utcToZonedFields(new Date(now.getTime() + 14 * 86_400_000).toISOString(), zone);
-  const preselected = sp.product && UUID.test(sp.product) && products.some((p) => p.id === sp.product) ? [{ productId: sp.product, quantity: 1 }] : [];
   const initial: BuilderInitial = {
     offerId: null,
     version: null,
@@ -41,7 +37,7 @@ export default async function ShowroomNewOfferPage({ searchParams }: { searchPar
     startTime: start.time,
     endDate: end.date,
     endTime: "23:59",
-    items: preselected,
+    items: [],
     audiences: [],
   };
 

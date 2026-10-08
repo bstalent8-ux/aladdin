@@ -1,8 +1,8 @@
-import { parsePrice } from "@/features/showroom-shell/products/product-input";
+import { countWords, parsePrice } from "@/features/showroom-shell/products/product-input";
 import { zonedToUtcIso } from "./offer-datetime";
 import { isAudienceCode, type OfferAudienceCode } from "./offer-model";
 
-export const OFFER_LIMITS = { titleMin: 2, titleMax: 100, descriptionMax: 500, items: 50, quantityMax: 100_000 } as const;
+export const OFFER_LIMITS = { titleMin: 2, titleMax: 100, descriptionWordsMax: 250, descriptionCharsMax: 5000, items: 50, quantityMax: 100_000 } as const;
 
 export type OfferFormValue = {
   title: string;
@@ -34,7 +34,7 @@ export function parseOfferForm(fd: FormData, zone: string): OfferFormResult {
   const title = text(fd, "title").replace(/\s+/g, " ").trim();
   if (title.length < OFFER_LIMITS.titleMin || title.length > OFFER_LIMITS.titleMax) errors.title = "showroomOffers.errors.title";
   const descriptionRaw = text(fd, "description").trim();
-  if (descriptionRaw.length > OFFER_LIMITS.descriptionMax) errors.description = "showroomOffers.errors.description";
+  if (countWords(descriptionRaw) > OFFER_LIMITS.descriptionWordsMax || descriptionRaw.length > OFFER_LIMITS.descriptionCharsMax) errors.description = "showroomOffers.errors.description";
 
   const price = parsePrice(text(fd, "totalPrice"));
   if (!price.ok) errors.totalPrice = "showroomOffers.errors.price";

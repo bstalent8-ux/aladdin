@@ -30,7 +30,8 @@ import { OFFER_PHASES, type OfferPhase } from "./offer-model";
 import { formatOfferDate } from "./offer-datetime";
 import { OfferCollage, PhaseBadge } from "./offer-parts";
 import type { OwnOffer } from "@/server/queries/offers";
-import { OFFER_AUDIENCE_OPTIONS } from "./offer-model";
+import { OFFER_AUDIENCE_GROUPS, groupsForAudienceCodes } from "./offer-model";
+import { IconStat } from "@/components/ui/icon-stat";
 
 const MY_OFFERS = `${SHOWROOM_ROOT}/my-offers`;
 type StatusAction = "publish" | "pause" | "resume" | "archive" | "restore";
@@ -143,7 +144,7 @@ function OfferCard({ offer, locale, canWrite, canPublish }: { offer: OwnOffer; l
   const primary = plan.primary;
   const primaryAllowed = primary === "edit" ? canWrite : primary === "details" ? true : canPublish;
   const images = offer.items.map((i) => i.imageUrl).filter((u): u is string => Boolean(u)).slice(0, 3);
-  const audience = offer.audiences.map((a) => t(`showroomOffers.audience.${a}`)).join("، ");
+  const audience = groupsForAudienceCodes(offer.audiences).map((g) => t(`showroomOffers.audienceGroup.${g}`)).join("، ");
   return (
     <article className="flex h-full flex-col gap-2 rounded-md border bg-surface p-sm shadow-card" data-testid="my-offer-card" data-phase={offer.phase}>
       <div className="flex items-center justify-between gap-2">
@@ -219,7 +220,8 @@ export function MyOffersView({
     const term = q.trim().toLowerCase();
     const list = offers.filter((o) => {
       if (phase && o.phase !== phase) return false;
-      if (audience && !o.audiences.includes(audience)) return false;
+      const group = OFFER_AUDIENCE_GROUPS.find((g) => g.id === audience);
+      if (group && !group.codes.some((c) => o.audiences.includes(c))) return false;
       if (term && !`${o.title} ${o.items.map((i) => `${i.name} ${i.code ?? ""}`).join(" ")}`.toLowerCase().includes(term)) return false;
       const starts = new Date(o.startsAt).getTime();
       const ends = new Date(o.endsAt).getTime();
@@ -265,15 +267,11 @@ export function MyOffersView({
               aria-pressed={phase === target}
               data-testid={`offers-stat-${key}`}
               className={cn(
-                "flex h-full w-full items-center justify-between gap-2 rounded-md border bg-surface p-sm text-start shadow-card transition-colors hover:border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus tablet:p-md",
+                "flex h-full w-full items-center rounded-md border bg-surface p-sm text-start shadow-card transition-colors hover:border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus tablet:p-md",
                 phase === target ? "border-accent" : "border",
               )}
             >
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-sm bg-accent-solid/15 text-accent"><Icon size={20} /></span>
-              <span className="min-w-0 text-end">
-                <span className="block text-headline font-bold leading-none text-fg" dir="ltr">{String(value)}</span>
-                <span className="mt-1 block text-label text-fg-secondary">{label}</span>
-              </span>
+              <IconStat Icon={Icon} label={label} value={String(value)} />
             </button>
           </li>
         ))}
@@ -301,7 +299,7 @@ export function MyOffersView({
               aria-label={t("showroomOffers.mine.audienceFilter")}
               onChange={setAudience}
               data-testid="my-offers-audience"
-              options={[{ value: "", label: t("showroomOffers.mine.allAudiences") }, ...OFFER_AUDIENCE_OPTIONS.filter((o) => o.enabled).map((o) => ({ value: o.code, label: t(`showroomOffers.audience.${o.code}`) }))]}
+              options={[{ value: "", label: t("showroomOffers.mine.allAudiences") }, ...OFFER_AUDIENCE_GROUPS.map((g) => ({ value: g.id, label: t(`showroomOffers.audienceGroup.${g.id}`) }))]}
             />
           </div>
           <div className="min-w-0 flex-1 basis-40">

@@ -91,7 +91,7 @@ export function OfferPrice({
 }: {
   total: number;
   reference: number | null;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
 }) {
   const { t } = useI18n();
   const cur = t("showroomOffers.builder.currency");
@@ -100,11 +100,11 @@ export function OfferPrice({
       {reference !== null ? (
         <p className="flex flex-wrap items-baseline gap-x-2 text-label text-fg-muted">
           <span>{t("showroomOffers.priceBefore")}</span>
-          <span className="line-through" dir="ltr" data-testid="offer-reference-price">{formatProductPrice(reference, cur)}</span>
+          <span className="line-through decoration-danger decoration-2" dir="ltr" data-testid="offer-reference-price">{formatProductPrice(reference, cur)}</span>
         </p>
       ) : null}
       <p className="text-label font-medium text-accent">{t("showroomOffers.offerPrice")}</p>
-      <p className={cn("font-bold leading-none text-accent", size === "lg" ? "text-display" : "text-headline")} dir="ltr" data-testid="offer-total-price">
+      <p className={cn("font-bold leading-none text-accent", size === "lg" ? "text-display" : size === "sm" ? "text-title" : "text-headline")} dir="ltr" data-testid="offer-total-price">
         {formatProductPrice(total, cur)}
       </p>
     </div>
@@ -112,11 +112,11 @@ export function OfferPrice({
 }
 
 /** "Available until 25 Oct 2026" and, when it is close, how long is left. */
-export function OfferValidity({ endsAt, locale, className }: { endsAt: string; locale: "ar" | "en"; className?: string }) {
+export function OfferValidity({ endsAt, locale, className, compact = false }: { endsAt: string; locale: "ar" | "en"; className?: string; compact?: boolean }) {
   const { t } = useI18n();
   const left = daysLeft(endsAt);
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-label text-fg-secondary", className)}>
+    <div className={cn("flex gap-x-3 gap-y-1 text-label text-fg-secondary", compact ? "flex-col items-start" : "flex-wrap items-center justify-between", className)}>
       <span className="inline-flex items-center gap-1.5">
         <CalendarIcon size={14} className="text-accent" />
         {t("showroomOffers.validUntil", { date: formatOfferDate(endsAt, locale) })}
@@ -131,16 +131,16 @@ export function OfferValidity({ endsAt, locale, className }: { endsAt: string; l
   );
 }
 
-export function SellerLine({ name, verified, typeLabel }: { name: string; verified: boolean; typeLabel: string | null }) {
+export function SellerLine({ name, verified, typeLabel, compact = false }: { name: string; verified: boolean; typeLabel: string | null; compact?: boolean }) {
   const { t } = useI18n();
   const initial = name.trim().charAt(0).toUpperCase();
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid="offer-seller">
-      <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-strong bg-surface-2 text-label font-bold text-accent">
+      <span aria-hidden="true" className={cn("grid shrink-0 place-items-center rounded-full border border-strong bg-surface-2 text-label font-bold text-accent", compact ? "h-8 w-8" : "h-9 w-9")}>
         {initial}
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="flex min-w-0 items-center gap-1 text-body font-semibold text-fg">
+        <span className={cn("flex min-w-0 items-center gap-1 font-semibold text-fg", compact ? "text-label" : "text-body")}>
           <span className="truncate" dir="auto">{name}</span>
           {verified ? (
             <span className="shrink-0 text-info" title={t("showroomOffers.verified")}>

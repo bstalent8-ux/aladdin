@@ -5583,6 +5583,24 @@ export type Database = {
         Args: { p_limit?: number; p_org_id?: string }
         Returns: Json
       }
+      offers_feed_page: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_offset?: number
+          p_org_id?: string
+          p_period?: string
+          p_saved_only?: boolean
+          p_search?: string
+          p_seller_type?: string
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      offer_set_saved: {
+        Args: { p_offer_id: string; p_org_id?: string; p_saved: boolean }
+        Returns: boolean
+      }
       own_offer_save: {
         Args: {
           p_audiences: string[]

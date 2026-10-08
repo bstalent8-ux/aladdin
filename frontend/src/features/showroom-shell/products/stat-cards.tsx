@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/ui/cn";
+import { IconStat } from "@/components/ui/icon-stat";
 
 export type ProductStat = {
   key: string;
@@ -33,15 +34,7 @@ export function ProductStatCards({ stats }: { stats: ProductStat[] }) {
               active ? "border-accent" : "border",
             )}
           >
-            <span className="flex items-start justify-between gap-2">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-accent-solid/15 text-accent tablet:h-11 tablet:w-11">
-                <Icon size={20} />
-              </span>
-              <span className="min-w-0 text-end">
-                <span className="block text-headline font-bold leading-none text-fg" dir="ltr">{value}</span>
-                <span className="mt-1 block text-label text-fg-secondary">{label}</span>
-              </span>
-            </span>
+            <IconStat Icon={Icon} label={label} value={value} />
             <span className="mt-auto inline-flex items-center gap-1 text-label font-medium text-accent">
               <span aria-hidden="true" className="rtl:rotate-180">←</span>
               {viewAll}

@@ -6,7 +6,7 @@ import { createTranslator } from "@/lib/i18n/translate";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { OfferDetailView } from "@/features/offers/offer-detail-view";
-import { getOfferDetail, listOffersFeed, signOfferImages } from "@/server/queries/offers";
+import { getOfferDetail, listRelatedOffers, signOfferImages } from "@/server/queries/offers";
 import { StatePanel } from "@/components/ui/primitives";
 import { TagIcon } from "@/components/ui/icons";
 
@@ -39,14 +39,15 @@ export default async function ShowroomOfferDetailPage({ params }: { params: Prom
       />
     );
   }
-  const others = (await listOffersFeed(supabase, org.organizationId)).filter((o) => o.id !== offer.id);
-  const imageUrls = await signOfferImages(supabase, [offer, ...others.slice(0, 3)]);
+  const others = await listRelatedOffers(supabase, org.organizationId, offer.id);
+  const imageUrls = await signOfferImages(supabase, [offer, ...others]);
   const canRfq = org.canManageSales || org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
   return (
     <OfferDetailView
       offer={offer}
       imageUrls={imageUrls}
-      related={others.slice(0, 3)}
+      related={others}
+      orgId={org.organizationId}
       locale={locale}
       t={t}
       canRfq={canRfq}

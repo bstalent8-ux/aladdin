@@ -6,7 +6,7 @@ import { batches, listOwnProducts } from "@/server/queries/commerce";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 import { effectiveColors, type ProductColor } from "@/features/showroom-shell/products/color-items";
 import { DEFAULT_OFFER_TIMEZONE } from "@/features/offers/offer-datetime";
-import { parsePublicOffer, parsePublicOffers, type OfferPhase, type OfferStatus, type PublicOffer } from "@/features/offers/offer-model";
+import { DEFAULT_OFFERS_PARAMS, OFFER_FEED_PAGE_SIZE, parseOffersPage, parsePublicOffer, type OfferPhase, type OffersPage, type OffersPageParams, type OfferStatus, type PublicOffer } from "@/features/offers/offer-model";
 
 type DB = SupabaseClient<Database>;
 
@@ -26,14 +26,37 @@ export async function getOrgTimezone(supabase: DB, orgId: string): Promise<strin
 // ---------------------------------------------------------------------------
 // Audience side
 // ---------------------------------------------------------------------------
-export async function listOffersFeed(supabase: DB, orgId: string): Promise<PublicOffer[]> {
-  const { data, error } = await supabase.rpc("offers_feed", { p_org_id: orgId, p_limit: 100 });
+/** `orgId` is the ACTIVE business workspace, or null for a personal account (matched on its persona). */
+export async function listOffersPage(
+  supabase: DB,
+  orgId: string | null,
+  params: OffersPageParams = DEFAULT_OFFERS_PARAMS,
+  offset = 0,
+  limit = OFFER_FEED_PAGE_SIZE,
+): Promise<OffersPage> {
+  const { data, error } = await supabase.rpc("offers_feed_page", {
+    p_org_id: orgId ?? undefined,
+    p_limit: limit,
+    p_offset: offset,
+    p_search: params.search || undefined,
+    p_category: params.category || undefined,
+    p_seller_type: params.sellerType || undefined,
+    p_period: params.period,
+    p_sort: params.sort,
+    p_saved_only: params.savedOnly,
+  });
   if (error) throw error;
-  return parsePublicOffers(data);
+  return parseOffersPage(data);
 }
 
-export async function getOfferDetail(supabase: DB, orgId: string, offerId: string): Promise<PublicOffer | null> {
-  const { data, error } = await supabase.rpc("offer_detail", { p_offer_id: offerId, p_org_id: orgId });
+/** A few other offers for the detail page's "more offers" strip. */
+export async function listRelatedOffers(supabase: DB, orgId: string | null, exceptId: string): Promise<PublicOffer[]> {
+  const page = await listOffersPage(supabase, orgId, DEFAULT_OFFERS_PARAMS, 0, 4);
+  return page.items.filter((o) => o.id !== exceptId).slice(0, 3);
+}
+
+export async function getOfferDetail(supabase: DB, orgId: string | null, offerId: string): Promise<PublicOffer | null> {
+  const { data, error } = await supabase.rpc("offer_detail", { p_offer_id: offerId, p_org_id: orgId ?? undefined });
   if (error) throw error;
   return data ? parsePublicOffer(data) : null;
 }

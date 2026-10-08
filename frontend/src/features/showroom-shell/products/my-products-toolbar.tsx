@@ -6,8 +6,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { Button, Input } from "@/components/ui/controls";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { PlusIcon, SearchIcon, TagIcon } from "@/components/ui/icons";
-import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
+import { PlusIcon, SearchIcon } from "@/components/ui/icons";
 import { CANONICAL_CATEGORY_CODES } from "@/features/commerce/constants";
 import { MY_PRODUCTS_SORTS } from "./my-products-params";
 
@@ -64,16 +63,6 @@ export function MyProductsToolbar({
           >
             <PlusIcon size={16} />
             {t("showroomProducts.create")}
-          </Link>
-        ) : null}
-        {canCreate ? (
-          <Link
-            href={`${SHOWROOM_ROOT}/my-offers/new`}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-sm border border-accent px-md text-label font-semibold text-accent hover:bg-accent-solid/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-            data-testid="create-offer-from-products"
-          >
-            <TagIcon size={16} />
-            {t("showroomProducts.createOffer")}
           </Link>
         ) : null}
         <label className="relative min-w-0 flex-1 basis-56">

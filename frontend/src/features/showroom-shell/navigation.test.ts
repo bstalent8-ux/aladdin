@@ -31,8 +31,9 @@ describe("product offers navigation", () => {
       expect(byId(id).label.ar).not.toMatch(/طلب|عروض أسعار/);
     }
   });
-  it("targets exactly the business types the showroom suite serves (feed-ready audiences)", () => {
-    expect([...FEED_READY_AUDIENCES].sort()).toEqual([...BUSINESS_ORG_TYPES].sort());
+  it("every business type the showroom suite serves is a feed-ready audience (and so is every persona)", () => {
+    for (const type of BUSINESS_ORG_TYPES) expect(FEED_READY_AUDIENCES).toContain(type);
+    for (const persona of ["engineer", "interior_designer", "installer_technician", "contractor", "end_consumer"]) expect(FEED_READY_AUDIENCES).toContain(persona);
   });
   it("shows the feed with browse rights and the management page with product rights", () => {
     const ids = (caps: string[]) => showroomNavigation(caps).flatMap((g) => g.items).map((i) => i.id);

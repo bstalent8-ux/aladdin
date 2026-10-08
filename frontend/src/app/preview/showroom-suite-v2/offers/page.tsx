@@ -7,7 +7,7 @@ import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, canNavigate } from "@/features/showroom-shell/navigation";
 import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
 import { OffersFeedView } from "@/features/offers/offers-feed-view";
-import { listOffersFeed, signOfferImages } from "@/server/queries/offers";
+import { listOffersPage, signOfferImages } from "@/server/queries/offers";
 import { TagIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +24,12 @@ export default async function ShowroomOffersPage() {
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const t = createTranslator(locale);
-  const offers = await listOffersFeed(supabase, org.organizationId);
-  const imageUrls = await signOfferImages(supabase, offers);
+  const page = await listOffersPage(supabase, org.organizationId);
+  const imageUrls = await signOfferImages(supabase, page.items);
   return (
     <div className="flex flex-col gap-md" data-testid="showroom-offers">
       <ShowroomPageHero locale={locale} titleId="offers-title" Icon={TagIcon} title={t("showroomOffers.feed.title")} subtitle={t("showroomOffers.feed.subtitle")} />
-      <OffersFeedView offers={offers} imageUrls={imageUrls} locale={locale} initialView={resolveCatalogView(store.get(CATALOG_VIEW_COOKIE)?.value)} />
+      <OffersFeedView initialPage={page} initialImageUrls={imageUrls} orgId={org.organizationId} locale={locale} initialView={resolveCatalogView(store.get(CATALOG_VIEW_COOKIE)?.value)} />
     </div>
   );
 }

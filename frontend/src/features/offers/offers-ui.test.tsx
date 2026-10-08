@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
 import { chooseOption } from "@/test/select-menu";
 import { createTranslator } from "@/lib/i18n/translate";
-import type { PublicOffer } from "./offer-model";
+import type { OffersPage, PublicOffer } from "./offer-model";
 import type { OwnOffer, PickerProduct } from "@/server/queries/offers";
 
 vi.mock("@/server/actions/offers", () => ({
   saveOfferAction: vi.fn(async () => ({ ok: false })),
   offerStatusAction: vi.fn(async () => ({ ok: true })),
+}));
+const feed = vi.hoisted(() => ({
+  load: vi.fn(),
+  save: vi.fn(async (_id: string, saved: boolean) => ({ ok: true, saved })),
+}));
+vi.mock("@/server/actions/offer-feed", () => ({
+  loadOffersPageAction: (...args: unknown[]) => feed.load(...args),
+  setOfferSavedAction: (...args: [string, boolean, string | null]) => feed.save(args[0], args[1]),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
@@ -31,6 +39,7 @@ const offer = (over: Partial<PublicOffer> & { id: string }): PublicOffer => ({
   startsAt: future(-1),
   endsAt: future(2),
   publishedAt: future(-1),
+  saved: false,
   items: [
     { productId: "p1", name: "Interior Paint", code: "PT-001", quantity: 5, unit: "pail", brand: null, description: null, sizeLabel: "18 L", weightKg: 1.2, categoryCode: "paints", colors: [{ name: "Sand", hex: HEX("D8C7A6") }, { name: "Legacy", hex: null }], imageKey: null, imageRef: null },
     { productId: "p2", name: "Primer", code: "PT-002", quantity: 2, unit: "pail", brand: null, description: null, sizeLabel: null, weightKg: null, categoryCode: "paints", colors: [], imageKey: null, imageRef: null },
@@ -44,9 +53,22 @@ beforeEach(() => {
   document.cookie = "aladdin-catalog-view=; max-age=0; path=/";
 });
 
+const pageOf = (items: PublicOffer[], total = items.length): OffersPage => ({
+  items,
+  total,
+  hasMore: items.length < total,
+  stats: { available: total, ending: 1, fresh: 2 },
+  sellerTypes: ["supplier", "manufacturer"],
+});
+const many = (n: number, from = 0) => Array.from({ length: n }, (_, i) => offer({ id: `o${from + i + 1}`, title: `Offer ${from + i + 1}` }));
+
 describe("Offers feed (audience)", () => {
   const offers = [offer({ id: "o1" }), offer({ id: "o2", title: "Flooring", seller: { id: "s2", name: "Nile Marble", verified: false, slug: null, orgType: "manufacturer" }, referencePrice: null, totalPrice: 1200, endsAt: future(20) })];
-  const render = () => renderWithI18n(<OffersFeedView offers={offers} imageUrls={{}} locale="en" initialView="grid" />, "en");
+  const render = (page: OffersPage = pageOf(offers)) => renderWithI18n(<OffersFeedView initialPage={page} initialImageUrls={{}} orgId="org1" locale="en" initialView="grid" />, "en");
+  beforeEach(() => {
+    feed.load.mockReset();
+    feed.save.mockClear();
+  });
 
   it("shows the package price, the optional price before, the products with quantities and the seller — and no product price", () => {
     render();
@@ -56,46 +78,140 @@ describe("Offers feed (audience)", () => {
     expect(within(card).getByText("Delta Paints")).toBeTruthy();
     expect(within(card).getByText("Interior Paint")).toBeTruthy();
     expect(within(card).getByText("5 ×")).toBeTruthy();
-    expect(within(card).getByTestId("offer-more").textContent).toBe("+1 more products");
-    // No percentage, no savings, no stock.
-    expect(document.body.textContent).not.toMatch(/%|save|saving|stock|discount/i);
+    expect(within(card).getByTestId("offer-more").textContent).toBe("+2 more products");
+    expect(document.body.textContent).not.toMatch(/%|save |saving|stock|discount/i);
+  });
+  it("strikes the price before the offer through with the danger token, never the package price", () => {
+    render();
+    const card = screen.getAllByTestId("offer-card")[0]!;
+    expect(within(card).getByTestId("offer-reference-price").className).toMatch(/line-through/);
+    expect(within(card).getByTestId("offer-reference-price").className).toMatch(/decoration-danger/);
+    expect(within(card).getByTestId("offer-total-price").className).not.toMatch(/line-through/);
   });
   it("omits the price before when the owner gave none", () => {
     render();
     expect(within(screen.getAllByTestId("offer-card")[1]!).queryByTestId("offer-reference-price")).toBeNull();
   });
-  it("narrows by search and by seller type, and offers a way back from an empty result", () => {
+  it("lays the grid out as 5 columns on a wide desktop, 4 on a desktop and 3 on a tablet", () => {
     render();
-    fireEvent.change(screen.getByTestId("offers-search"), { target: { value: "flooring" } });
-    expect(screen.getAllByTestId("offer-card")).toHaveLength(1);
-    fireEvent.change(screen.getByTestId("offers-search"), { target: { value: "nothing matches" } });
-    expect(screen.queryByTestId("offer-card")).toBeNull();
-    expect(screen.getByText("No matching offers")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(screen.getAllByTestId("offer-card")).toHaveLength(2);
-    chooseOption(screen.getByTestId("offers-seller-type"), "manufacturer");
-    expect(screen.getAllByTestId("offer-card")).toHaveLength(1);
+    const cls = screen.getByTestId("offers-grid").className;
+    expect(cls).toMatch(/tablet:grid-cols-3/);
+    expect(cls).toMatch(/desktop:grid-cols-4/);
+    expect(cls).toMatch(/wide:grid-cols-5/);
   });
-  it("counts available / ending soon from the real offers", () => {
+  it("keeps the seller, image, count, summary, prices, validity, bookmark and details link on every compact card", () => {
+    render();
+    const card = screen.getAllByTestId("offer-card")[0]!;
+    expect(within(card).getByTestId("offer-seller")).toBeTruthy();
+    expect(within(card).getByTestId("offer-collage")).toBeTruthy();
+    expect(within(card).getByText("4 products")).toBeTruthy();
+    expect(within(card).getByTestId("offer-lines")).toBeTruthy();
+    expect(within(card).getByTestId("offer-price")).toBeTruthy();
+    expect(within(card).getByText(/Available until/)).toBeTruthy();
+    expect(within(card).getByTestId("offer-save")).toBeTruthy();
+    expect(within(card).getByTestId("offer-view-details")).toBeTruthy();
+  });
+  it("shows the first batch only and loads the next as a real bounded query, without duplicates", async () => {
+    render(pageOf(many(10), 25));
+    expect(screen.getAllByTestId("offer-card")).toHaveLength(10);
+    expect(screen.getByTestId("offers-shown").textContent).toBe("Showing 10 of 25");
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf([...many(2, 8), ...many(8, 10)], 25), imageUrls: {} });
+    fireEvent.click(screen.getByTestId("offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(18));
+    // offset = what is already visible; a repeated id (o9, o10) is dropped
+    expect(feed.load).toHaveBeenCalledWith("org1", expect.objectContaining({ sort: "newest", search: "" }), 10);
+    const ids = screen.getAllByTestId("offer-card").map((c) => within(c).getByTestId("offer-view-details").getAttribute("href"));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+  it("folds back to the first batch with Show less and keeps the filters", async () => {
+    render(pageOf(many(10), 25));
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf(many(10, 10), 25), imageUrls: {} });
+    fireEvent.click(screen.getByTestId("offers-show-more"));
+    await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(20));
+    fireEvent.click(screen.getByTestId("offers-show-less"));
+    expect(screen.getAllByTestId("offer-card")).toHaveLength(10);
+    expect(screen.queryByTestId("offers-show-less")).toBeNull();
+    expect(screen.getByTestId("offers-show-more")).toBeTruthy();
+  });
+  it("offers no pager when everything fits in the first batch", () => {
+    render(pageOf(many(4), 4));
+    expect(screen.queryByTestId("offers-show-more")).toBeNull();
+    expect(screen.queryByTestId("offers-show-less")).toBeNull();
+  });
+  it("sends a changed filter to the server and restarts from the first batch", async () => {
+    render(pageOf(many(10), 25));
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf([offers[1]!], 1), imageUrls: {} });
+    chooseOption(screen.getByTestId("offers-seller-type"), "manufacturer");
+    await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(1));
+    expect(feed.load).toHaveBeenLastCalledWith("org1", expect.objectContaining({ sellerType: "manufacturer" }), 0);
+    expect(screen.queryByTestId("offers-show-more")).toBeNull();
+  });
+  it("searches on the server and offers a way back from an empty result", async () => {
+    render();
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf([], 0), imageUrls: {} });
+    fireEvent.change(screen.getByTestId("offers-search"), { target: { value: "nothing matches" } });
+    await waitFor(() => expect(screen.getByText("No matching offers")).toBeTruthy());
+    expect(feed.load).toHaveBeenLastCalledWith("org1", expect.objectContaining({ search: "nothing matches" }), 0);
+    feed.load.mockResolvedValueOnce({ ok: true, page: pageOf(offers), imageUrls: {} });
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await waitFor(() => expect(screen.getAllByTestId("offer-card")).toHaveLength(2));
+  });
+  it("tells the reader when a batch could not be loaded, keeping what is shown", async () => {
+    render(pageOf(many(10), 25));
+    feed.load.mockResolvedValueOnce({ ok: false });
+    fireEvent.click(screen.getByTestId("offers-show-more"));
+    await waitFor(() => expect(screen.getByTestId("offers-load-error")).toBeTruthy());
+    expect(screen.getAllByTestId("offer-card")).toHaveLength(10);
+  });
+  it("counts available / ending soon from the whole eligible set", () => {
     render();
     expect(within(screen.getByTestId("offers-stat-available")).getByText("2")).toBeTruthy();
     expect(within(screen.getByTestId("offers-stat-ending")).getByText("1")).toBeTruthy();
   });
+  it("groups each summary icon with its own label instead of parking it at the far edge", () => {
+    render();
+    const stat = within(screen.getByTestId("offers-stat-available")).getByTestId("icon-stat");
+    expect(stat.className).not.toMatch(/justify-between/);
+    expect(stat.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
+    expect(stat.textContent).toContain("Offers available to you");
+  });
+  it("bookmarks an offer with accessible labels and a persisted server call", async () => {
+    render();
+    const btn = within(screen.getAllByTestId("offer-card")[0]!).getByTestId("offer-save");
+    expect(btn.getAttribute("aria-label")).toBe("Save offer");
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(btn);
+    await waitFor(() => expect(btn.getAttribute("aria-pressed")).toBe("true"));
+    expect(btn.getAttribute("aria-label")).toBe("Remove from saved");
+    expect(feed.save).toHaveBeenCalledWith("o1", true);
+  });
+  it("rolls the bookmark back when the server refuses", async () => {
+    feed.save.mockResolvedValueOnce({ ok: false, saved: false });
+    render();
+    const btn = within(screen.getAllByTestId("offer-card")[0]!).getByTestId("offer-save");
+    fireEvent.click(btn);
+    await waitFor(() => expect(feed.save).toHaveBeenCalled());
+    await waitFor(() => expect(btn.getAttribute("aria-pressed")).toBe("false"));
+  });
+  it("shows a saved offer as saved", () => {
+    render(pageOf([offer({ id: "o1", saved: true })]));
+    expect(screen.getByTestId("offer-save").getAttribute("data-saved")).toBe("true");
+  });
   it("shows an honest empty state with no fake cards", () => {
-    renderWithI18n(<OffersFeedView offers={[]} imageUrls={{}} locale="en" initialView="grid" />, "en");
+    render(pageOf([], 0));
     expect(screen.getByText("No offers available right now")).toBeTruthy();
     expect(screen.queryByTestId("offer-card")).toBeNull();
   });
-  it("links to the suite's own detail page", () => {
-    render();
-    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toContain("/preview/showroom-suite-v2/offers/o1");
+  it("links to the shell's own detail page", () => {
+    renderWithI18n(<OffersFeedView initialPage={pageOf(offers)} initialImageUrls={{}} orgId={null} locale="en" initialView="grid" detailBase="/home/offers" />, "en");
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toContain("/home/offers/o1");
   });
 });
 
 describe("Offer detail (audience)", () => {
   const t = createTranslator("en");
   it("lists every product with its code, quantity and real swatches; the unset legacy color stays unset; no price but the offer's", () => {
-    renderWithI18n(<OfferDetailView offer={offer({ id: "o1" })} imageUrls={{}} related={[]} locale="en" t={t} canRfq rfqHref="/b2b/rfqs/new?product=p1" />, "en");
+    renderWithI18n(<OfferDetailView offer={offer({ id: "o1" })} imageUrls={{}} related={[]} locale="en" t={t} canRfq orgId="org1" rfqHref="/b2b/rfqs/new?product=p1" />, "en");
     const rows = screen.getAllByTestId("offer-content-row");
     expect(rows).toHaveLength(4);
     expect(within(rows[0]!).getByText("PT-001")).toBeTruthy();
@@ -108,8 +224,18 @@ describe("Offer detail (audience)", () => {
     expect(screen.getByTestId("offer-request-quote").getAttribute("href")).toBe("/b2b/rfqs/new?product=p1");
   });
   it("explains the missing permission instead of showing a dead button", () => {
-    renderWithI18n(<OfferDetailView offer={offer({ id: "o1" })} imageUrls={{}} related={[]} locale="en" t={t} canRfq={false} rfqHref="/x" />, "en");
+    renderWithI18n(<OfferDetailView offer={offer({ id: "o1" })} imageUrls={{}} related={[]} locale="en" t={t} canRfq={false} orgId="org1" rfqHref="/x" />, "en");
     expect(screen.queryByTestId("offer-request-quote")).toBeNull();
+  });
+  it("carries the same bookmark as the feed, and the struck-through price before", () => {
+    renderWithI18n(<OfferDetailView offer={offer({ id: "o1", saved: true })} imageUrls={{}} related={[]} locale="en" t={t} canRfq orgId="org1" rfqHref="/x" />, "en");
+    expect(screen.getByTestId("offer-save").getAttribute("data-saved")).toBe("true");
+    expect(screen.getByTestId("offer-reference-price").className).toMatch(/decoration-danger/);
+  });
+  it("hides the quotation block for accounts without an RFQ entry yet, keeping the bookmark", () => {
+    renderWithI18n(<OfferDetailView offer={offer({ id: "o1" })} imageUrls={{}} related={[]} locale="en" t={t} canRfq={false} showRfq={false} orgId={null} rfqHref="/x" />, "en");
+    expect(screen.queryByTestId("offer-request-quote")).toBeNull();
+    expect(screen.getByTestId("offer-save")).toBeTruthy();
   });
 });
 
@@ -232,13 +358,54 @@ describe("Offer builder", () => {
     fireEvent.change(screen.getByTestId("offer-picker-search"), { target: { value: "P-7" } });
     expect(screen.getAllByTestId("offer-picker-item")).toHaveLength(1);
   });
-  it("targets canonical audiences only: five selectable, the rest shown as soon and disabled", () => {
+  it("offers all eight audience groups, every one selectable, none marked coming soon", () => {
     render();
-    fireEvent.click(screen.getByTestId("offer-audience-importer"));
-    fireEvent.click(screen.getByTestId("offer-audience-supplier"));
-    expect([...document.querySelectorAll('input[name="audience"]')].map((i) => (i as HTMLInputElement).value)).toEqual(["importer", "supplier"]);
-    expect((screen.getByTestId("offer-audience-installer_technician") as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId("offer-audience-contractor") as HTMLButtonElement).disabled).toBe(true);
+    const ids = ["showroom", "supplier", "manufacturer", "importer", "contractor", "engineer", "craftsman", "customer"];
+    for (const id of ids) expect((screen.getByTestId(`offer-audience-${id}`) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByTestId("offer-audience-groups").querySelectorAll("button")).toHaveLength(8);
+    expect(document.body.textContent).not.toMatch(/Soon|قريب/);
+  });
+  it("stores each chosen group as its explicit canonical audience rows", () => {
+    render();
+    for (const id of ["importer", "contractor", "engineer", "craftsman", "customer"]) fireEvent.click(screen.getByTestId(`offer-audience-${id}`));
+    expect([...document.querySelectorAll('input[name="audience"]')].map((i) => (i as HTMLInputElement).value)).toEqual([
+      "importer", "contractor_company", "contractor", "design_office", "engineer", "interior_designer", "installer_technician", "end_consumer",
+    ]);
+  });
+  it("restores the groups of a stored offer from its canonical rows", () => {
+    render({ audiences: ["supplier", "design_office"] });
+    expect(screen.getByTestId("offer-audience-supplier").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("offer-audience-engineer").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("offer-audience-importer").getAttribute("aria-checked")).toBe("false");
+  });
+  it("counts the description in words inside the textarea, accepts 250 and flags 251", () => {
+    render();
+    const area = screen.getByTestId("offer-description-input") as HTMLTextAreaElement;
+    const counter = screen.getByTestId("offer-description-counter");
+    expect(counter.textContent).toContain("0/250");
+    expect(area.parentElement?.contains(counter)).toBe(true);
+    fireEvent.change(area, { target: { value: "وصف عربي قصير" } });
+    expect(counter.textContent).toContain("3/250");
+    fireEvent.change(area, { target: { value: "سعر special 5 كلمات" } });
+    expect(counter.textContent).toContain("4/250");
+    fireEvent.change(area, { target: { value: Array.from({ length: 250 }, () => "كلمة").join(" ") } });
+    expect(counter.textContent).toContain("250/250");
+    expect(area.getAttribute("aria-invalid")).toBeNull();
+    fireEvent.change(area, { target: { value: Array.from({ length: 251 }, () => "word").join(" ") } });
+    expect(counter.textContent).toContain("251/250");
+    expect(area.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByText("The offer description is up to 250 words.")).toBeTruthy();
+  });
+  it("lays the desktop builder out as a fixed preview beside an editor that scrolls on its own", () => {
+    render();
+    expect(screen.getByTestId("offer-editor-scroll").className).toMatch(/desktop:overflow-y-auto/);
+    expect(screen.getByTestId("offer-workspace").className).toMatch(/desktop:overflow-hidden/);
+    expect(screen.getByTestId("offer-preview").className).toMatch(/desktop:min-h-0/);
+  });
+  it("tracks completeness live", () => {
+    render({ title: "Pack", totalPrice: "100", items: [{ productId: products[0]!.id, quantity: 1 }] });
+    const done = [...screen.getByTestId("offer-completeness").querySelectorAll("li")].map((li) => li.getAttribute("data-done"));
+    expect(done).toEqual(["true", "true", "true", "true", "false"]);
   });
   it("shows the package price and the optional price before in the preview", () => {
     render({ totalPrice: "3900", referencePrice: "5800", title: "Pack" });

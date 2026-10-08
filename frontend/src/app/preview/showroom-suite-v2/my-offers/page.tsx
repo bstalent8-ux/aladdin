@@ -8,7 +8,7 @@ import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom
 import { ShowroomPageHero } from "@/features/showroom-shell/page-hero";
 import { MyOffersView } from "@/features/offers/my-offers-view";
 import { listOwnOffers } from "@/server/queries/offers";
-import { PlusIcon, TagIcon } from "@/components/ui/icons";
+import { TagIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -26,19 +26,25 @@ export default async function ShowroomMyOffersPage({ searchParams }: { searchPar
   const notice = sp.published === "1" ? t("showroomOffers.mine.published") : sp.saved === "1" ? t("showroomOffers.mine.saved") : null;
   return (
     <div className="flex flex-col gap-md" data-testid="showroom-my-offers">
-      <ShowroomPageHero locale={locale} titleId="my-offers-title" Icon={TagIcon} title={t("showroomOffers.mine.title")} subtitle={t("showroomOffers.mine.subtitle")} />
-      {canWrite ? (
-        <div className="flex">
-          <Link
-            href={`${SHOWROOM_ROOT}/my-offers/new`}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-accent-solid px-lg text-label font-semibold text-on-accent shadow-sm hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-            data-testid="create-offer"
-          >
-            <PlusIcon size={16} />
-            {t("showroomOffers.mine.create")}
-          </Link>
-        </div>
-      ) : null}
+      <ShowroomPageHero
+        locale={locale}
+        titleId="my-offers-title"
+        Icon={TagIcon}
+        title={t("showroomOffers.mine.title")}
+        subtitle={t("showroomOffers.mine.subtitle")}
+        action={
+          canWrite ? (
+            <Link
+              href={`${SHOWROOM_ROOT}/my-offers/new`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-accent-solid px-lg text-label font-semibold text-on-accent shadow-sm hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+              data-testid="create-offer"
+            >
+              <TagIcon size={18} />
+              <span>{t("showroomOffers.mine.create")}</span>
+            </Link>
+          ) : undefined
+        }
+      />
       <MyOffersView offers={offers} locale={locale} canWrite={canWrite} canPublish={canPublish} notice={notice} />
     </div>
   );
