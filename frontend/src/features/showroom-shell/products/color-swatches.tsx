@@ -209,6 +209,7 @@ export function ColorField({
   const nameOf = useColorName();
   const wrapRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const popId = useId();
   /** -1 = closed, colors.length = adding, otherwise editing that index. */
   const [editing, setEditing] = useState<number>(-1);
@@ -235,6 +236,11 @@ export function ColorField({
     setProblem(null);
     if (returnFocus) addRef.current?.focus();
   };
+
+  // Bring the whole popover (and the room its list needs) into view when it opens.
+  useEffect(() => {
+    if (open) popRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -321,6 +327,7 @@ export function ColorField({
 
       {open ? (
         <div
+          ref={popRef}
           id={popId}
           role="dialog"
           aria-label={adding ? t("showroomProducts.fields.colorAddTitle") : t("showroomProducts.fields.colorEditTitle")}
