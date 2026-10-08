@@ -4,7 +4,7 @@ import {
   isOwnProductUnit,
   type CanonicalCategoryCode,
 } from "@/features/commerce/constants";
-import { normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
+import { COLOR_CODE_PATTERN, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
 
 /**
  * One validation path for the own-product form, shared by the create and edit
@@ -78,14 +78,19 @@ function readColorItems(fd: FormData): { items: ProductColor[]; error?: string }
     const name = typeof entry?.name === "string" ? entry.name.replace(/\s+/g, " ").trim() : "";
     if (!name) continue;
     if (name.length > PRODUCT_LIMITS.colorMax) return { items: [], error: "showroomProducts.validation.colorTooLong" };
+    const codeRaw = entry?.code;
+    if (codeRaw !== undefined && codeRaw !== null && (typeof codeRaw !== "string" || !COLOR_CODE_PATTERN.test(codeRaw))) {
+      return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
+    }
+    const code = typeof codeRaw === "string" ? { code: codeRaw } : {};
     const hexRaw = entry?.hex;
     if (hexRaw === null || hexRaw === undefined || hexRaw === "") {
-      items.push({ name, hex: null });
+      items.push({ name, hex: null, ...code });
       continue;
     }
     const hex = typeof hexRaw === "string" ? normalizeHex(hexRaw) : null;
     if (!hex) return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
-    items.push({ name, hex });
+    items.push({ name, hex, ...code });
   }
   return { items };
 }

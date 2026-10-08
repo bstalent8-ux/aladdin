@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(143);
+select plan(146);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -158,6 +158,9 @@ select throws_ok(format('select public.own_offer_set_status(%L, %L, 1)', (select
 -- F. Publish o1 and check who sees it.
 select is(public.own_offer_set_status((select id from _o where name = 'o1'), 'publish', 1), 2, 'the owner publishes (version advances)');
 select is((select phase from public.own_product_offers where id = (select id from _o where name = 'o1')), 'active', 'inside its window a published offer is active');
+select is((select audiences from public.own_product_offers where id = (select id from _o where name = 'o1')), array['importer','supplier'], 'the owner list carries the audience codes (so it can filter by audience group on the server)');
+select ok((select search_text like '%interior finishing package%' from public.own_product_offers where id = (select id from _o where name = 'o1')), 'the owner list carries a lower-cased search text with the offer title');
+select ok((select position(lower(p.name) in v.search_text) > 0 from public.own_product_offers v, public.products p where v.id = (select id from _o where name = 'o1') and p.id = (select id from _o where name = 'p1')), 'and the names of its products, so a product search finds the offer');
 set local request.jwt.claims = :'nile';
 select is(jsonb_array_length(public.offers_feed(:'orgI'::uuid)), 1, 'a targeted importer sees the active offer');
 select is((public.offers_feed(:'orgI'::uuid) -> 0 ->> 'total_price')::numeric, 4500::numeric, 'the package price is visible to the audience');

@@ -270,47 +270,66 @@ describe("ProductForm", () => {
     expect((screen.getByLabelText(/^Size/) as HTMLInputElement).value).toBe("60×60 cm");
   });
 
-  const addColor = (name: string, hex: string) => {
+  const chooseName = (query: string) => {
+    const input = screen.getByTestId("color-name");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: query } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  };
+  const addNamed = (query: string) => {
     fireEvent.click(screen.getByTestId("add-color"));
-    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: hex } });
-    fireEvent.change(screen.getByTestId("color-name"), { target: { value: name } });
+    chooseName(query);
     fireEvent.click(screen.getByTestId("color-save"));
   };
-  const submitted = (container: HTMLElement) => JSON.parse((container.querySelector("input[name=colorItems]") as HTMLInputElement).value) as { name: string; hex: string | null }[];
+  const addHex = (hex: string) => {
+    fireEvent.click(screen.getByTestId("add-color"));
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: hex } });
+    fireEvent.click(screen.getByTestId("color-save"));
+  };
+  type Submitted = { name: string; hex: string | null; code?: string };
+  const submitted = (container: HTMLElement) => JSON.parse((container.querySelector("input[name=colorItems]") as HTMLInputElement).value) as Submitted[];
 
-  it("adds a color through the popover as a visible swatch, refuses a bad hex and a duplicate name, and removes it", () => {
+  it("adds colors by NAME (the library supplies the value) or by a custom code, refuses a bad code and duplicates, and removes one", () => {
     const { container } = wrap(<ProductForm orgId="org-1" />);
-    addColor("Warm White", h("f5f0e6"));
-    addColor("Sand", h("C9B28A"));
-    expect(submitted(container)).toEqual([{ name: "Warm White", hex: h("F5F0E6") }, { name: "Sand", hex: h("C9B28A") }]);
+    addNamed("dark red");
+    addHex(h("3a5f8a"));
+    expect(submitted(container)).toEqual([
+      { name: "Dark Red", hex: h("8B1A1A"), code: "dark_red" },
+      { name: "Custom color " + h("3A5F8A"), hex: h("3A5F8A"), code: "custom" },
+    ]);
     expect(screen.getAllByTestId("color-swatch")).toHaveLength(2);
 
     fireEvent.click(screen.getByTestId("add-color"));
     fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "red" } });
-    fireEvent.change(screen.getByTestId("color-name"), { target: { value: "Red" } });
     fireEvent.click(screen.getByTestId("color-save"));
     expect(screen.getByRole("alert").textContent).toMatch(/not valid/);
-    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: h("FF0000") } });
-    fireEvent.change(screen.getByTestId("color-name"), { target: { value: "sand" } });
+    // the same library colour again — picked by name — is a duplicate
+    chooseName("dark red");
     fireEvent.click(screen.getByTestId("color-save"));
     expect(screen.getByRole("alert").textContent).toMatch(/already added/);
     fireEvent.keyDown(screen.getByTestId("color-popover"), { key: "Escape" });
     expect(screen.queryByTestId("color-popover")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sand" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove Sand" }));
-    expect(submitted(container)).toEqual([{ name: "Warm White", hex: h("F5F0E6") }]);
+    // the same custom value twice is a duplicate too
+    addHex(h("3A5F8A"));
+    expect(screen.getByRole("alert").textContent).toMatch(/already added/);
+    fireEvent.keyDown(screen.getByTestId("color-popover"), { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dark Red" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Dark Red" }));
+    expect(submitted(container)).toEqual([{ name: "Custom color " + h("3A5F8A"), hex: h("3A5F8A"), code: "custom" }]);
     expect(actions.create).not.toHaveBeenCalled();
   });
 
-  it("shows a swatch's name on hover/focus/click and keeps a legacy named color as an unset swatch", () => {
-    wrap(<ProductForm orgId="org-1" product={{ ...existing, colors: [{ name: "Sand", hex: null }, { name: "Cream", hex: h("F2E9D8") }] }} />);
+  it("keeps a legacy named color as an unset swatch; a swatch's name shows only on ITS hover, focus or click", () => {
+    wrap(<ProductForm orgId="org-1" product={{ ...existing, colors: [{ name: "Sand", hex: null }, { name: "Cream", hex: h("F2E9D8"), code: "cream" }] }} />);
     const [legacy, cream] = screen.getAllByTestId("color-swatch");
     expect(legacy!.getAttribute("aria-label")).toMatch(/Sand — Color not set yet/);
     expect(cream!.getAttribute("aria-label")).toBe("Cream");
-    expect(screen.getAllByTestId("color-tooltip").map((t) => t.textContent)).toEqual(["Sand", "Cream"]);
-    fireEvent.click(cream!);
-    expect(screen.getAllByTestId("color-tooltip")[1]!.className).toContain("block");
+    expect(screen.queryByTestId("color-tooltip")).toBeNull();
+    fireEvent.pointerEnter(cream!);
+    expect(screen.getAllByTestId("color-tooltip")).toHaveLength(1);
+    expect(screen.getByTestId("color-tooltip").textContent).toBe("Cream");
   });
 
   it("stops at twelve colors", () => {
@@ -318,10 +337,11 @@ describe("ProductForm", () => {
     expect((screen.getByTestId("add-color") as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("stores Arabic color names verbatim", () => {
+  it("shows library colors in the reader's language and stores the picker's, with a stable code", () => {
     const { container } = wrap(<ProductForm orgId="org-1" />, "ar");
-    addColor("أبيض دافئ", h("F5F0E6"));
-    expect(submitted(container)[0]!.name).toBe("أبيض دافئ");
+    addNamed("ازرق داكن");
+    expect(submitted(container)[0]).toEqual({ name: "أزرق داكن", hex: h("123A6D"), code: "dark_blue" });
+    expect(screen.getByRole("button", { name: "أزرق داكن" })).toBeTruthy();
   });
 
   it("counts description WORDS live inside the field, in both scripts, and flags more than 250", () => {

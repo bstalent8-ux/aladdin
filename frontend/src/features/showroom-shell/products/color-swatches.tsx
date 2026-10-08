@@ -1,21 +1,38 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
+import { menuSurfaceClass } from "@/components/ui/menu";
 import { Button, Input } from "@/components/ui/controls";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { PRODUCT_LIMITS } from "@/features/commerce/constants";
-import { normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
-import { DEFAULT_PRODUCT_COLOR, PRODUCT_COLOR_PALETTE } from "./color-palette";
+import { colorDisplayName, colorFromLibrary, customColor, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
+import { COLOR_LISTBOX_ATTR, ColorCombobox } from "./color-combobox";
+import { CUSTOM_COLOR_CODE, DEFAULT_PRODUCT_COLOR, colorByCode, colorByHex, libraryColorName, normalizeColorSearch, searchColors, type LibraryColor } from "./color-library";
 
 const swatchBase = "relative inline-block shrink-0 rounded-full border border-strong";
+const GAP = 6;
+const EDGE = 8;
+
+/** The name a swatch shows and announces: a library colour in the READER's language, an unnamed value as "Custom colour #hex". */
+export function useColorName() {
+  const { t, locale } = useI18n();
+  return useCallback((color: ProductColor) => colorDisplayName(color, locale, t("showroomProducts.fields.colorCustomName")), [locale, t]);
+}
 
 /**
- * One color as a visible swatch. The name is discoverable on hover, on keyboard focus
- * and on click/tap (it stays until the swatch is clicked again or loses focus), and is
- * always the accessible name. A legacy color with no stored value draws as a neutral
- * dashed circle — its value is never guessed from the name.
+ * ONE colour as a visible swatch — the single shared implementation every product card, row, detail table and
+ * the editor uses. The name belongs to THIS swatch alone: it appears on pointer hover over the swatch itself,
+ * on keyboard focus, and on click/tap (which pins it until the swatch is clicked again, Escape is pressed or
+ * focus/click moves elsewhere). It is never attached to the card, the row of swatches or any wrapper: the
+ * previous version used a CSS `group-hover`, which matches ANY ancestor marked `group` — and every card is one.
+ *
+ * The tooltip is a portalled, fixed-position popup on the shared menu surface (so it is above neighbouring
+ * cards, never clipped by an overflow, and cannot cover metadata): centred on the swatch, above it, flipping
+ * below when there is no room, and clamped to the viewport. It is also the swatch's accessible name. A legacy
+ * colour with no stored value draws as a neutral dashed circle — its value is never guessed from the name.
  */
 export function Swatch({
   color,
@@ -26,28 +43,95 @@ export function Swatch({
 }: {
   color: ProductColor;
   size?: "sm" | "md";
+  /** An action (the editor opens its popover). A plain swatch has none; its click only pins the name. */
   onClick?: () => void;
   pressed?: boolean;
   controls?: string;
 }) {
-  const { t } = useI18n();
-  const [pinned, setPinned] = useState(false);
+  const { t, locale } = useI18n();
+  const nameOf = useColorName();
+  const label = nameOf(color);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
   const tipId = useId();
+  const pointerDown = useRef(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const visible = hovered || focused || pinned;
   const dim = size === "sm" ? "h-5 w-5" : "h-7 w-7";
+
+  const place = useCallback(() => {
+    const btn = btnRef.current;
+    const tip = tipRef.current;
+    if (!btn || !tip) return;
+    const a = btn.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    const left = Math.max(EDGE, Math.min(a.left + a.width / 2 - w / 2, window.innerWidth - w - EDGE));
+    const above = a.top - h - GAP;
+    setPos({ left, top: above >= EDGE ? above : Math.min(a.bottom + GAP, window.innerHeight - h - EDGE) });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (visible) place();
+    else setPos(null);
+  }, [visible, label, place]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const onMove = () => place();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPinned(false);
+        setHovered(false);
+        setFocused(false);
+      }
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (!btnRef.current?.contains(e.target as Node)) setPinned(false);
+    };
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [visible, place]);
+
   return (
-    <span className="group relative inline-flex">
+    <>
       <button
+        ref={btnRef}
         type="button"
         data-testid="color-swatch"
-        aria-label={color.hex ? color.name : `${color.name} — ${t("showroomProducts.fields.colorUnset")}`}
-        aria-describedby={tipId}
+        aria-label={color.hex ? label : `${label} — ${t("showroomProducts.fields.colorUnset")}`}
+        aria-describedby={visible ? tipId : undefined}
         aria-expanded={controls ? pressed : undefined}
         aria-controls={controls}
+        onPointerEnter={(e) => e.pointerType !== "touch" && setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onPointerDown={() => {
+          pointerDown.current = true;
+        }}
+        // Keyboard (or programmatic) focus shows the name; a focus that merely follows a click is the click's business.
+        onFocus={() => {
+          if (!pointerDown.current) setFocused(true);
+          pointerDown.current = false;
+        }}
+        onBlur={() => {
+          setFocused(false);
+          setPinned(false);
+        }}
         onClick={() => {
           setPinned((p) => !p);
           onClick?.();
         }}
-        onBlur={() => setPinned(false)}
         style={color.hex ? { backgroundColor: color.hex } : undefined}
         className={cn(
           swatchBase,
@@ -61,36 +145,42 @@ export function Swatch({
           <span aria-hidden="true" className="absolute inset-0 grid place-items-center text-caption font-semibold text-fg-muted">?</span>
         ) : null}
       </button>
-      <span
-        id={tipId}
-        role="tooltip"
-        data-testid="color-tooltip"
-        className={cn(
-          "pointer-events-none absolute bottom-full start-1/2 z-popover mb-1.5 w-max max-w-40 -translate-x-1/2 rounded-sm border border-strong bg-surface px-2 py-1 text-caption text-fg shadow-card rtl:translate-x-1/2",
-          pinned ? "block" : "hidden group-hover:block group-focus-within:block",
-        )}
-      >
-        {color.name}
-      </span>
-    </span>
+      {visible && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              ref={tipRef}
+              id={tipId}
+              role="tooltip"
+              data-testid="color-tooltip"
+              dir={locale === "ar" ? "rtl" : "ltr"}
+              style={{ position: "fixed", top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? "visible" : "hidden" }}
+              className={cn(menuSurfaceClass, "pointer-events-none z-popover w-max max-w-[min(16rem,calc(100vw-1rem))] px-2 py-1 text-caption text-fg")}
+            >
+              {label}
+            </span>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
 /** A row of swatches with a sensible maximum and a "+N" for the rest — it never grows the card. */
 export function SwatchRow({ colors, max = 5 }: { colors: ProductColor[]; max?: number }) {
   const { t } = useI18n();
+  const nameOf = useColorName();
   if (colors.length === 0) return null;
   const shown = colors.slice(0, max);
   const rest = colors.length - shown.length;
   return (
     <ul className="flex min-w-0 flex-wrap items-center gap-1.5" data-testid="card-colors" aria-label={t("showroomProducts.fields.colors")}>
       {shown.map((c) => (
-        <li key={c.name} className="inline-flex">
+        <li key={c.code && c.code !== CUSTOM_COLOR_CODE ? c.code : c.name} className="inline-flex">
           <Swatch color={c} size="sm" />
         </li>
       ))}
       {rest > 0 ? (
-        <li className="text-caption text-fg-muted" dir="ltr" title={colors.slice(max).map((c) => c.name).join("، ")}>
+        <li className="text-caption text-fg-muted" dir="ltr" title={colors.slice(max).map(nameOf).join("، ")}>
           +{rest}
         </li>
       ) : null}
@@ -99,10 +189,12 @@ export function SwatchRow({ colors, max = 5 }: { colors: ProductColor[]; max?: n
 }
 
 /**
- * The editor's color control: the colors so far as swatches, and "Add color" opening a
- * small popover — palette, a custom picker and a hex field, plus a name. Clicking a
- * swatch re-opens the same popover to rename, recolor or remove it. The list is
- * submitted as one JSON field, `colorItems`.
+ * The editor's colour control: the colours so far as swatches, and "Add color" opening a small popover.
+ * The popover is "search a colour by NAME" (a combobox over the canonical library, Arabic or English) plus
+ * the colour code and the native colour picker: choosing a name fills the code; editing the code (or using
+ * the picker) re-resolves to a library name when it matches EXACTLY, and otherwise becomes a "Custom colour"
+ * with an automatic label — the owner never has to invent a name. Clicking a swatch re-opens the popover to
+ * change or remove it. The list is submitted as one JSON field, `colorItems`.
  */
 export function ColorField({
   colors,
@@ -113,23 +205,28 @@ export function ColorField({
   onChange: (next: ProductColor[]) => void;
   error?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const nameOf = useColorName();
   const wrapRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const popId = useId();
   /** -1 = closed, colors.length = adding, otherwise editing that index. */
   const [editing, setEditing] = useState<number>(-1);
-  const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<LibraryColor | null>(null);
   const [hexText, setHexText] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const adding = editing === colors.length;
   const open = editing >= 0;
   const full = colors.length >= PRODUCT_LIMITS.colorsMax;
+  const hex = normalizeHex(hexText);
 
   const begin = (index: number) => {
     const current = colors[index];
+    const lib = colorByCode(current?.code) ?? colorByHex(current?.hex);
     setEditing(index);
-    setName(current?.name ?? "");
+    setPicked(lib ?? null);
+    setQuery(lib ? libraryColorName(lib, locale) : "");
     setHexText(current?.hex ?? "");
     setProblem(null);
   };
@@ -142,25 +239,54 @@ export function ColorField({
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setEditing(-1);
+      const target = e.target as HTMLElement;
+      if (wrapRef.current?.contains(target) || target.closest?.(`[${COLOR_LISTBOX_ATTR}]`)) return;
+      setEditing(-1);
     };
     document.addEventListener("pointerdown", onPointer, true);
     return () => document.removeEventListener("pointerdown", onPointer, true);
   }, [open]);
 
-  const hex = normalizeHex(hexText);
+  const chooseLibrary = (lib: LibraryColor) => {
+    setPicked(lib);
+    setQuery(libraryColorName(lib, locale));
+    setHexText(lib.hex);
+    setProblem(null);
+  };
+
+  /** The colour value changed (typed code or native picker): a library name when it matches EXACTLY, otherwise custom. */
+  const changeHex = (next: string) => {
+    setHexText(next);
+    setProblem(null);
+    const value = normalizeHex(next);
+    const lib = value ? colorByHex(value) : undefined;
+    setPicked(lib ?? null);
+    setQuery(lib ? libraryColorName(lib, locale) : "");
+  };
+
+  /** Typing a name exactly equal to a library name (either language) is picking it. */
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    setProblem(null);
+    const exact = searchColors(next).find((c) => [c.ar, c.en].some((n) => normalizeColorSearch(n) === normalizeColorSearch(next)));
+    if (exact && next.trim() !== "") {
+      setPicked(exact);
+      setHexText(exact.hex);
+    } else if (picked) {
+      setPicked(null);
+    }
+  };
+
+  const preview: ProductColor | null = picked ? colorFromLibrary(picked, locale) : hex ? customColor(hex, t("showroomProducts.fields.colorCustomName")) : null;
 
   const save = () => {
-    const trimmed = name.replace(/\s+/g, " ").trim();
-    if (!trimmed) return setProblem(t("showroomProducts.validation.colorNameRequired"));
-    if (trimmed.length > PRODUCT_LIMITS.colorMax) return setProblem(t("showroomProducts.validation.colorTooLong"));
-    const legacyUnchanged = !adding && !colors[editing]?.hex && hexText.trim() === "";
-    if (!hex && !legacyUnchanged) return setProblem(t("showroomProducts.validation.colorHexInvalid"));
-    const next = adding ? [...colors, { name: trimmed, hex }] : colors.map((c, i) => (i === editing ? { name: trimmed, hex: hex ?? c.hex } : c));
-    const clean = normalizeColorItems(next);
-    // Names are unique (case-insensitively): a clash would have been silently merged.
-    if (clean.length < next.length) return setProblem(t("showroomProducts.validation.colorDuplicate"));
-    onChange(clean);
+    const legacyUnchanged = !adding && !colors[editing]?.hex && hexText.trim() === "" && !picked;
+    if (!preview && !legacyUnchanged) return setProblem(hexText.trim() !== "" ? t("showroomProducts.validation.colorHexInvalid") : t("showroomProducts.fields.colorChoose"));
+    const base = preview ?? colors[editing]!;
+    const duplicate = colors.some((c, i) => i !== editing && ((base.code && base.code !== CUSTOM_COLOR_CODE && c.code === base.code) || (base.hex && c.hex === base.hex) || c.name.toLowerCase() === base.name.toLowerCase()));
+    if (duplicate) return setProblem(t("showroomProducts.validation.colorDuplicate"));
+    const next = adding ? [...colors, base] : colors.map((c, i) => (i === editing ? base : c));
+    onChange(normalizeColorItems(next));
     close();
   };
 
@@ -171,7 +297,7 @@ export function ColorField({
       </span>
       <div className="flex flex-wrap items-center gap-2" role="group" aria-labelledby={`${popId}-label`}>
         {colors.map((c, i) => (
-          <Swatch key={c.name} color={c} pressed={editing === i} controls={editing === i ? popId : undefined} onClick={() => (editing === i ? close(false) : begin(i))} />
+          <Swatch key={`${c.code ?? ""}|${c.name}`} color={c} pressed={editing === i} controls={editing === i ? popId : undefined} onClick={() => (editing === i ? close(false) : begin(i))} />
         ))}
         <Button
           ref={addRef}
@@ -203,47 +329,54 @@ export function ColorField({
             if (e.key === "Escape") {
               e.stopPropagation();
               close();
-            } else if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+            } else if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && (e.target as HTMLElement).getAttribute("role") !== "combobox") {
               e.preventDefault();
               save();
             }
           }}
-          className="absolute start-0 top-full z-popover mt-1 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-sm rounded-md border border-strong bg-surface p-sm shadow-card"
+          className={cn(menuSurfaceClass, "absolute start-0 top-full z-popover mt-1 flex w-80 flex-col gap-sm p-sm")}
         >
           <p className="text-label font-semibold text-fg">{adding ? t("showroomProducts.fields.colorAddTitle") : t("showroomProducts.fields.colorEditTitle")}</p>
-          <div role="group" aria-label={t("showroomProducts.fields.colorPick")} className="flex flex-wrap gap-1.5">
-            {PRODUCT_COLOR_PALETTE.map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-label={p}
-                aria-pressed={hex === p}
-                onClick={() => setHexText(p)}
-                style={{ backgroundColor: p }}
-                className={cn(swatchBase, "h-6 w-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus", hex === p && "ring-2 ring-accent ring-offset-2 ring-offset-surface")}
-              />
-            ))}
+          <div className="flex flex-col gap-1 text-label text-fg-secondary">
+            <label htmlFor={`${popId}-name`}>{t("showroomProducts.fields.colorName")}</label>
+            <ColorCombobox
+              id={`${popId}-name`}
+              text={query}
+              onTextChange={changeQuery}
+              onPick={chooseLibrary}
+              selected={picked}
+              placeholder={t("showroomProducts.fields.colorNamePlaceholder")}
+              ariaLabel={t("showroomProducts.fields.colorName")}
+            />
           </div>
           <div className="flex items-end gap-2">
             <label className="flex min-w-0 flex-1 flex-col gap-1 text-label text-fg-secondary">
               {t("showroomProducts.fields.colorHex")}
-              <Input value={hexText} onChange={(e) => setHexText(e.target.value)} placeholder={DEFAULT_PRODUCT_COLOR} dir="ltr" maxLength={7} aria-invalid={hexText.trim() !== "" && !hex ? true : undefined} data-testid="color-hex" />
+              <Input value={hexText} onChange={(e) => changeHex(e.target.value)} placeholder={DEFAULT_PRODUCT_COLOR} dir="ltr" maxLength={7} aria-invalid={hexText.trim() !== "" && !hex ? true : undefined} data-testid="color-hex" />
             </label>
             <label className="flex flex-col items-center gap-1 text-label text-fg-secondary">
-              <span className="sr-only">{t("showroomProducts.fields.colorCustom")}</span>
+              <span className="sr-only">{t("showroomProducts.fields.colorPick")}</span>
               <input
                 type="color"
                 value={hex ?? DEFAULT_PRODUCT_COLOR}
-                onChange={(e) => setHexText(e.target.value.toUpperCase())}
-                aria-label={t("showroomProducts.fields.colorCustom")}
+                onChange={(e) => changeHex(e.target.value.toUpperCase())}
+                aria-label={t("showroomProducts.fields.colorPick")}
+                data-testid="color-picker"
                 className="h-11 w-11 cursor-pointer rounded-sm border border-strong bg-surface p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
           </div>
-          <label className="flex flex-col gap-1 text-label text-fg-secondary">
-            {t("showroomProducts.fields.colorName")}
-            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={PRODUCT_LIMITS.colorMax} placeholder={t("showroomProducts.fields.colorNamePlaceholder")} dir="auto" data-testid="color-name" autoFocus />
-          </label>
+          <div className="flex min-h-8 items-center gap-2 text-label text-fg-secondary" data-testid="color-preview" aria-live="polite">
+            <span className="text-fg-muted">{t("showroomProducts.fields.colorPreview")}</span>
+            {preview ? (
+              <>
+                <span aria-hidden="true" style={{ backgroundColor: preview.hex ?? undefined }} className={cn(swatchBase, "h-5 w-5")} data-testid="color-preview-swatch" />
+                <span className="min-w-0 truncate font-medium text-fg" data-testid="color-preview-name">{nameOf(preview)}</span>
+              </>
+            ) : (
+              <span className="text-fg-muted">—</span>
+            )}
+          </div>
           {problem ? <p role="alert" className="text-label text-danger">{problem}</p> : null}
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!adding ? (
@@ -254,7 +387,7 @@ export function ColorField({
                   onChange(colors.filter((_, i) => i !== editing));
                   close();
                 }}
-                aria-label={t("showroomProducts.fields.removeColor", { name: colors[editing]?.name ?? "" })}
+                aria-label={t("showroomProducts.fields.removeColor", { name: colors[editing] ? nameOf(colors[editing]!) : "" })}
                 className="text-danger"
               >
                 <XIcon size={14} />

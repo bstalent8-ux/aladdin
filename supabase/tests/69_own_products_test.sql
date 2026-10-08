@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(109);
+select plan(115);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -361,6 +361,20 @@ select throws_ok(format('select public.own_product_update(%L, 1, %L, %L, %L, %L)
 select throws_ok(format('select public.product_image_request_upload(%L, %L)', (select id from _o where name = 'a'), 'image/png'),
   '42501', null, 'anon cannot request an image upload');
 select throws_ok($$select count(*) from public.product_categories$$, '42501', null, 'anon cannot read the taxonomy table');
+
+-- I. Stable colour codes (20261016090002): a library colour keeps its code, an unnamed value is `custom`.
+reset role;
+set local role authenticated;
+set local request.jwt.claims = :'hana';
+insert into _o select 'pcode', public.own_product_create(:'orgC'::uuid, 'Coded paint', 'CODE-1', 'paints', 'pail',
+  '[{"name":"أحمر","hex":"#c62828","code":"red"},{"name":"لون مخصص #3A5F8A","hex":"#3a5f8a","code":"custom"},{"name":"لون مخصص #112233","hex":"#112233","code":"custom"}]'::jsonb, null, null, null, 'Short text', 120);
+select is((select color_items -> 0 ->> 'code' from public.products where id = (select id from _o where name = 'pcode')), 'red', 'a library colour keeps its stable code');
+select is((select jsonb_array_length(color_items) from public.products where id = (select id from _o where name = 'pcode')), 3, 'several custom colours may share the reserved custom code (their names differ)');
+select is((select color_items -> 1 ->> 'hex' from public.products where id = (select id from _o where name = 'pcode')), '#3A5F8A', 'a custom colour keeps its canonical hex');
+select is((select app.normalize_product_color_items('[{"name":"Red","hex":"#C62828","code":"red"},{"name":"أحمر","hex":"#C62828","code":"red"}]'::jsonb)),
+  '[{"hex": "#C62828", "code": "red", "name": "Red"}]'::jsonb, 'the same library colour twice (even under two language names) is stored once');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad code', 'BCD-1', 'paints', 'pail', '[{"name":"Red","hex":"#C62828","code":"Red Color!"}]'), '22023', null, 'a malformed colour code is refused');
+select ok(not ((select color_items -> 0 from public.products where id = (select id from _o where name = 'p')) ? 'code'), 'a colour saved without a code stays valid and gets none');
 
 select * from finish();
 rollback;

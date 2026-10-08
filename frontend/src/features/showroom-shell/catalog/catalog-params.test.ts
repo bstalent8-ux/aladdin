@@ -42,3 +42,14 @@ describe("showroom catalog URL parsing", () => {
     expect(parseShowroomCatalogParams({ limit: "500" } as never)).not.toHaveProperty("limit");
   });
 });
+
+
+describe("catalog display preference", () => {
+  it("defaults to grid and only honours the two known values", () => {
+    expect(resolveCatalogView(undefined)).toBe("grid");
+    expect(resolveCatalogView("grid")).toBe("grid");
+    expect(resolveCatalogView("list")).toBe("list");
+    expect(resolveCatalogView("table")).toBe("grid");
+    expect(resolveCatalogView("")).toBe("grid");
+  });
+});

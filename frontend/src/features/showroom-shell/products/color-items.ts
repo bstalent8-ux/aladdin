@@ -1,4 +1,5 @@
 import type { Json } from "@/types/database.types";
+import { CUSTOM_COLOR_CODE, colorByCode, libraryColorName, type LibraryColor } from "./color-library";
 
 /**
  * A product color: a name the owner chose and the visual value they picked.
@@ -6,7 +7,17 @@ import type { Json } from "@/types/database.types";
  * value was never chosen — it is never guessed from the name, so it renders as a
  * neutral "unset" swatch until the owner edits it.
  */
-export type ProductColor = { name: string; hex: string | null };
+export type ProductColor = {
+  name: string;
+  hex: string | null;
+  /**
+   * The stable identity of a library colour (`red`, `dark_blue`…) — what readers resolve to a name in THEIR
+   * language — or `custom` for a value with no library name. Absent on historical colours, which keep the stored name.
+   */
+  code?: string;
+};
+
+export const COLOR_CODE_PATTERN = /^[a-z][a-z0-9_]{0,39}$/;
 
 export const HEX_PATTERN = /^#[0-9A-F]{6}$/;
 
@@ -19,19 +30,47 @@ export function normalizeHex(raw: string): string | null {
 
 const collapse = (v: string) => v.replace(/\s+/g, " ").trim();
 
-/** Trim names, drop empties and case-insensitive duplicates (first wins), keep order. */
+/**
+ * Trim names, drop empties and duplicates (first wins), keep order. A duplicate is the same name
+ * (case-insensitively) or the same library colour; the reserved `custom` code may repeat — its names differ.
+ */
 export function normalizeColorItems(items: readonly ProductColor[]): ProductColor[] {
   const seen = new Set<string>();
+  const seenCodes = new Set<string>();
   const out: ProductColor[] = [];
   for (const item of items) {
     const name = collapse(item.name);
     if (!name) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
+    const code = item.code && COLOR_CODE_PATTERN.test(item.code) ? item.code : undefined;
+    if (code && code !== CUSTOM_COLOR_CODE && seenCodes.has(code)) continue;
     seen.add(key);
-    out.push({ name, hex: item.hex ? normalizeHex(item.hex) : null });
+    if (code) seenCodes.add(code);
+    out.push({ name, hex: item.hex ? normalizeHex(item.hex) : null, ...(code ? { code } : {}) });
   }
   return out;
+}
+
+/** A library colour as the product stores it: its name in the picker's language, its value and its stable code. */
+export function colorFromLibrary(color: LibraryColor, locale: "ar" | "en"): ProductColor {
+  return { name: libraryColorName(color, locale), hex: color.hex, code: color.code };
+}
+
+/** A value with no library name: an automatic, neutral label (never typed by the owner) that carries the hex so it stays unique. */
+export function customColor(hex: string, label: string): ProductColor {
+  return { name: `${label} ${hex}`, hex, code: CUSTOM_COLOR_CODE };
+}
+
+/**
+ * The name a READER sees: a library colour in their language, an unnamed value as "Custom colour #hex", and a
+ * historical colour exactly as stored.
+ */
+export function colorDisplayName(color: ProductColor, locale: "ar" | "en", customLabel: string): string {
+  const lib = colorByCode(color.code);
+  if (lib) return libraryColorName(lib, locale);
+  if (color.code === CUSTOM_COLOR_CODE && color.hex) return `${customLabel} ${color.hex}`;
+  return color.name;
 }
 
 /**
@@ -42,9 +81,9 @@ export function effectiveColors(row: { color_items?: Json | null; colors?: reado
   const items = Array.isArray(row.color_items) ? row.color_items : [];
   const structured = items.flatMap((entry): ProductColor[] => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-    const { name, hex } = entry as { name?: unknown; hex?: unknown };
+    const { name, hex, code } = entry as { name?: unknown; hex?: unknown; code?: unknown };
     if (typeof name !== "string" || !name) return [];
-    return [{ name, hex: typeof hex === "string" && HEX_PATTERN.test(hex) ? hex : null }];
+    return [{ name, hex: typeof hex === "string" && HEX_PATTERN.test(hex) ? hex : null, ...(typeof code === "string" && COLOR_CODE_PATTERN.test(code) ? { code } : {}) }];
   });
   if (structured.length > 0) return structured;
   return (row.colors ?? []).map((name) => ({ name, hex: null }));
