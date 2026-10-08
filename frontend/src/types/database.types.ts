@@ -2571,6 +2571,123 @@ export type Database = {
           },
         ]
       }
+      offer_audience_types: {
+        Row: {
+          code: string
+          feed_ready: boolean
+          kind: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          feed_ready?: boolean
+          kind: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          feed_ready?: boolean
+          kind?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_offer_audiences: {
+        Row: {
+          audience: string
+          offer_id: string
+        }
+        Insert: {
+          audience: string
+          offer_id: string
+        }
+        Update: {
+          audience?: string
+          offer_id?: string
+        }
+        Relationships: []
+      }
+      product_offer_items: {
+        Row: {
+          offer_id: string
+          organization_id: string
+          position: number
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          offer_id: string
+          organization_id: string
+          position?: number
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          offer_id?: string
+          organization_id?: string
+          position?: number
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: []
+      }
+      product_offers: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          description: string | null
+          ends_at: string
+          id: string
+          organization_id: string
+          published_at: string | null
+          reference_price: number | null
+          starts_at: string
+          status: Database["public"]["Enums"]["offer_status"]
+          title: string
+          total_price: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          organization_id: string
+          published_at?: string | null
+          reference_price?: number | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          title: string
+          total_price: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          organization_id?: string
+          published_at?: string | null
+          reference_price?: number | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          title?: string
+          total_price?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       product_prices: {
         Row: {
           base_price: number
@@ -3729,6 +3846,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      own_product_offer_links: {
+        Row: {
+          offer_id: string | null
+          organization_id: string | null
+          phase: string | null
+          product_id: string | null
+          quantity: number | null
+        }
+        Relationships: []
+      }
+      own_product_offers: {
+        Row: {
+          archived_at: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          ends_at: string | null
+          id: string | null
+          invalid_item_count: number | null
+          item_count: number | null
+          organization_id: string | null
+          phase: string | null
+          published_at: string | null
+          reference_price: number | null
+          starts_at: string | null
+          status: Database["public"]["Enums"]["offer_status"] | null
+          title: string | null
+          total_price: number | null
+          total_quantity: number | null
+          updated_at: string | null
+          version: number | null
+        }
+        Relationships: []
       }
       job_applicants: {
         Row: {
@@ -5423,6 +5575,34 @@ export type Database = {
         }
         Returns: undefined
       }
+      offer_detail: {
+        Args: { p_offer_id: string; p_org_id?: string }
+        Returns: Json
+      }
+      offers_feed: {
+        Args: { p_limit?: number; p_org_id?: string }
+        Returns: Json
+      }
+      own_offer_save: {
+        Args: {
+          p_audiences: string[]
+          p_description: string | null
+          p_ends_at: string
+          p_expected_version: number | null
+          p_items: Json
+          p_offer_id: string | null
+          p_org_id: string
+          p_reference_price: number | null
+          p_starts_at: string
+          p_title: string
+          p_total_price: number
+        }
+        Returns: Json
+      }
+      own_offer_set_status: {
+        Args: { p_action: string; p_expected_version: number; p_offer_id: string }
+        Returns: number
+      }
       own_product_create: {
         Args: {
           p_base_price?: number
@@ -5867,6 +6047,7 @@ export type Database = {
       membership_status: "invited" | "active" | "suspended" | "revoked"
       network_referral_origin: "known_organization" | "new_showroom"
       network_referral_status: "pending" | "joined" | "cancelled"
+      offer_status: "draft" | "published" | "paused" | "archived"
       onboarding_track: "consumer" | "professional" | "business"
       order_status: "confirmed" | "in_progress" | "completed" | "cancelled"
       org_status:
@@ -6145,6 +6326,7 @@ export const Constants = {
       membership_status: ["invited", "active", "suspended", "revoked"],
       network_referral_origin: ["known_organization", "new_showroom"],
       network_referral_status: ["pending", "joined", "cancelled"],
+      offer_status: ["draft", "published", "paused", "archived"],
       onboarding_track: ["consumer", "professional", "business"],
       order_status: ["confirmed", "in_progress", "completed", "cancelled"],
       org_status: [

@@ -107,9 +107,16 @@ export function SubmitButton({
   className,
   disabled = false,
   "aria-label": ariaLabel,
+  name,
+  value,
+  "data-testid": testId,
 }: {
   children: ReactNode;
   pendingLabel?: string;
+  /** Submitted with the form when THIS button is the one pressed (e.g. "save draft" vs "publish"). */
+  name?: string;
+  value?: string;
+  "data-testid"?: string;
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
   className?: string;
@@ -128,12 +135,15 @@ export function SubmitButton({
   return (
     <Button
       type="submit"
+      name={name}
+      value={value}
       variant={variant}
       size={size}
       disabled={pending || disabled}
       aria-busy={pending}
       aria-label={ariaLabel}
       className={className}
+      data-testid={testId}
     >
       {pending ? (
         <>
