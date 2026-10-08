@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(98);
+select plan(143);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -41,8 +41,8 @@ update auth.users set email_confirmed_at = now() where email_confirmed_at is nul
 
 -- A. Reference data and structure (superuser view).
 select is((select array_agg(code order by sort_order) from public.offer_audience_types where feed_ready),
-  array['showroom_dealer','supplier','manufacturer','importer','design_office'],
-  'the feed-ready audiences are the five business types the showroom suite serves');
+  array['showroom_dealer','supplier','manufacturer','importer','design_office','wholesaler','contractor_company','engineer','interior_designer','installer_technician','contractor','end_consumer'],
+  'every canonical audience is feed-ready: each account shell renders the shared Offers feed');
 select ok((select bool_and(a.code in (select unnest(enum_range(null::public.organization_type)::text[]) union select unnest(enum_range(null::public.persona_type)::text[])))
              from public.offer_audience_types a),
   'every audience code is a canonical organization_type or persona_type value (no labels)');
@@ -93,7 +93,7 @@ select is((select array_agg(audience order by audience) from public.product_offe
 select is((select title || '|' || reference_price from public.product_offers where id = (select id from _o where name = 'o1')), 'Interior finishing package|5800.00', 'title and the optional offer-level price before the offer are stored');
 select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'Bad ref', null, 4500, 4500, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'the price before the offer must be greater than the offer price');
 select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'X', null, 4500, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'a one-character offer name is refused');
-select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'Long text', %L, 4500, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', repeat('x', 501), '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'a description over 500 characters is refused');
+select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'Long text', %L, 4500, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', (select string_agg('word', ' ') from generate_series(1, 251)), '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'a description of 251 words is refused');
 
 select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 0, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'a zero price is refused');
 select throws_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, -5, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), '22023', null, 'a negative price is refused');
@@ -143,9 +143,9 @@ select throws_ok(format('select public.own_offer_set_status(%L, %L, 1)', (select
 set local request.jwt.claims = :'hana';
 select throws_ok(format('select public.own_offer_set_status(%L, %L, 99)', (select id from _o where name = 'o1'), 'publish'), '40001', null, 'a stale version is refused');
 -- an audience with no feed yet
-select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['wholesaler'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), 'a draft may name an audience that has no feed yet');
+select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['wholesaler'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), 'a draft may name the wholesaler audience');
 insert into _o (name, id, version) select 'o2', id, version from public.product_offers where organization_id = :'orgC'::uuid and id <> (select id from _o where name = 'o1');
-select throws_ok(format('select public.own_offer_set_status(%L, %L, %L)', (select id from _o where name = 'o2'), 'publish', (select version from _o where name = 'o2')), '22023', null, 'publishing to an audience that cannot receive offers yet is refused');
+select ok((select feed_ready from public.offer_audience_types where code = 'wholesaler'), 'an audience is publishable only while its feed exists, and every audience has one now');
 -- an unpublished product
 select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'pd') || '","quantity":1}]'), 'a draft offer may hold a not-yet-published product');
 insert into _o (name, id, version) select 'o3', id, version from public.product_offers where organization_id = :'orgC'::uuid and id not in (select id from _o where id is not null);
@@ -253,6 +253,110 @@ select lives_ok(format('select public.own_offer_set_status(%L, %L, %L)', (select
 select is((select phase from public.own_product_offers where id = (select id from _o where name = 'o1')), 'draft', 'a restored offer is a draft again and is hidden');
 reset role;
 select ok((select count(*) >= 5 from public.audit_log where subject_type = 'product_offer' and action in ('offer.created', 'offer.published', 'offer.paused', 'offer.resumed', 'offer.archived')), 'offer lifecycle events are audited');
+
+
+-- J. Closeout: 250 words, every audience group, saved offers, the bounded feed page.
+reset role;
+select lives_ok($$select app.offer_validate_text('Name', (select string_agg('كلمة', ' ') from generate_series(1, 250)), 100, null)$$, 'a description of exactly 250 Arabic words is accepted');
+select throws_ok($$select app.offer_validate_text('Name', (select string_agg('word', ' ') from generate_series(1, 251)), 100, null)$$, '22023', null, '251 words is refused by the database rule');
+select is(app.word_count('سعر خاص Price 5'), 4, 'mixed Arabic/English words are counted by whitespace runs');
+
+set local role authenticated;
+set local request.jwt.claims = :'hana';
+select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'All audiences', null, 3000, null, now() - interval '1 day', now() + interval '2 days', %L::jsonb, array['showroom_dealer','supplier','manufacturer','importer','design_office','wholesaler','contractor_company','engineer','interior_designer','installer_technician','contractor','end_consumer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p3') || '","quantity":2}]'), 'an offer can target every canonical audience');
+insert into _o (name, id, version) select 'oall', id, version from public.product_offers where title = 'All audiences' and organization_id = :'orgC'::uuid;
+select lives_ok(format('select public.own_offer_set_status(%L, ''publish'', %L)', (select id from _o where name = 'oall'), (select version from _o where name = 'oall')), 'and publish');
+
+reset role;
+update public.organizations set org_type = 'wholesaler' where id = :'orgH'::uuid;
+set local role authenticated; set local request.jwt.claims = :'horizon';
+select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a wholesaler workspace sees it');
+reset role;
+update public.organizations set org_type = 'design_office' where id = :'orgH'::uuid;
+set local role authenticated; set local request.jwt.claims = :'horizon';
+select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a design office workspace sees it');
+reset role;
+update public.organizations set org_type = 'contractor_company' where id = :'orgH'::uuid;
+set local role authenticated; set local request.jwt.claims = :'horizon';
+select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a contractor company workspace sees it');
+set local request.jwt.claims = :'tarek';
+select is(jsonb_array_length(public.offers_feed(:'orgM'::uuid)), 1, 'a manufacturer workspace sees it');
+reset role;
+update public.users set primary_account_type = 'engineer' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal engineer viewer sees it');
+reset role;
+update public.users set primary_account_type = 'interior_designer' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal interior_designer viewer sees it');
+reset role;
+update public.users set primary_account_type = 'installer_technician' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal installer_technician viewer sees it');
+reset role;
+update public.users set primary_account_type = 'contractor' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal contractor viewer sees it');
+reset role;
+update public.users set primary_account_type = 'end_consumer' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal end_consumer viewer sees it');
+reset role;
+update public.users set primary_account_type = 'sales' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 0, 'a personal sales viewer is not targeted');
+reset role;
+update public.users set primary_account_type = 'trainee' where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+select is(jsonb_array_length(public.offers_feed(null)), 0, 'a personal trainee viewer is not targeted');
+reset role;
+update public.users set primary_account_type = null where id = '70000004-0000-4000-8000-000000000004';
+set local role authenticated; set local request.jwt.claims = :'nile';
+
+-- saved offers
+select is(public.offer_set_saved((select id from _o where name = 'oall'), true, :'orgI'::uuid), true, 'a targeted viewer saves an offer');
+select is((public.offer_detail((select id from _o where name = 'oall'), :'orgI'::uuid) ->> 'saved')::boolean, true, 'the detail carries the saved flag');
+select is((select count(*)::int from jsonb_array_elements(public.offers_feed(:'orgI'::uuid)) e where (e ->> 'saved')::boolean), 1, 'the feed carries it too');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, null, null, 'all', 'newest', true) ->> 'total')::int, 1, 'the saved-only filter lists just the saved offer');
+select is((select count(*)::int from public.saved_product_offers), 1, 'a user reads only their own saved rows');
+select throws_ok($$insert into public.saved_product_offers (user_id, offer_id) values ('70000004-0000-4000-8000-000000000004', (select id from public.product_offers limit 1))$$, '42501', null, 'saved rows cannot be written directly');
+set local request.jwt.claims = :'delta';
+select is((select count(*)::int from public.saved_product_offers), 0, 'another user sees none of them');
+set local request.jwt.claims = :'hana';
+select throws_ok(format('select public.offer_set_saved(%L, true, %L)', (select id from _o where name = 'oall'), :'orgC'), '42501', null, 'the owner cannot save its own offer');
+set local role anon;
+select throws_ok(format('select public.offer_set_saved(%L, true, null)', (select id from _o where name = 'oall')), '42501', null, 'anonymous mutation is denied');
+set local role authenticated; set local request.jwt.claims = :'hana';
+select lives_ok(format('select public.own_offer_set_status(%L, ''pause'', %L)', (select id from _o where name = 'oall'), (select version from public.product_offers where id = (select id from _o where name = 'oall'))), 'the owner pauses the saved offer');
+set local request.jwt.claims = :'nile';
+select is(public.offer_detail((select id from _o where name = 'oall'), :'orgI'::uuid), null, 'a saved record grants no access once the offer is paused');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, null, null, 'all', 'newest', true) ->> 'total')::int, 0, 'nor does it list in the saved-only feed');
+select throws_ok(format('select public.offer_set_saved(%L, true, %L)', (select id from _o where name = 'oall'), :'orgI'), '42501', null, 'a paused offer cannot be saved');
+select is(public.offer_set_saved((select id from _o where name = 'oall'), false, :'orgI'::uuid), false, 'unsaving is always allowed');
+select is((select count(*)::int from public.saved_product_offers), 0, 'and removes the bookmark');
+
+-- the bounded feed page
+set local request.jwt.claims = :'hana';
+select lives_ok(format('select public.own_offer_set_status(%L, ''resume'', %L)', (select id from _o where name = 'oall'), (select version from public.product_offers where id = (select id from _o where name = 'oall'))), 'the owner resumes it');
+set local request.jwt.claims = :'nile';
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0) ->> 'total')::int, 1, 'the page reports the eligible total');
+select is(public.offers_feed_page(:'orgI'::uuid, 1, 1) -> 'items', '[]'::jsonb, 'an offset past the end is an empty batch');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, 'all aud') ->> 'total')::int, 1, 'search matches the offer name');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, '%') ->> 'total')::int, 0, 'search treats % literally');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, 'cornices') ->> 'total')::int, 1, 'the category filter matches a product category');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, 'wallpaper') ->> 'total')::int, 0, 'and excludes other categories');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, null, 'manufacturer') ->> 'total')::int, 0, 'the seller-type filter excludes other sellers');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, null, null, 'ending') ->> 'total')::int, 1, 'an offer ending within three days is ending soon');
+select is((public.offers_feed_page(:'orgI'::uuid, 10, 0, null, null, null, 'week') ->> 'total')::int, 1, 'but is in the next week');
+select is(public.offers_feed_page(:'orgI'::uuid, 10, 0) -> 'stats' ->> 'available', '1', 'the summary counts the whole eligible set');
+select is(jsonb_array_length(public.offers_feed_page(:'orgI'::uuid, 1000, 0) -> 'items'), 1, 'a huge limit is clamped');
+set local request.jwt.claims = :'hana';
+select is(public.offers_feed_page(:'orgC'::uuid, 10, 0) ->> 'total', '0', 'the owner''s own offers are not in its own page');
+select ok(not has_function_privilege('authenticated', 'app.offer_visible_to(uuid, uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'app.offer_is_saved(uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'app.offer_viewer_json(uuid)', 'execute')
+      and not has_function_privilege('anon', 'public.offers_feed_page(uuid, integer, integer, text, text, text, text, text, boolean)', 'execute'),
+  'the new helpers stay internal and the page RPC is not anonymous');
 
 select * from finish();
 rollback;
