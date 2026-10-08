@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(96);
+select plan(98);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -53,6 +53,16 @@ select ok((select relrowsecurity from pg_class where oid = 'public.product_offer
       and (select relrowsecurity from pg_class where oid = 'public.product_offer_items'::regclass)
       and (select relrowsecurity from pg_class where oid = 'public.product_offer_audiences'::regclass),
   'RLS is enabled on all three offer tables');
+
+select ok(not has_function_privilege('authenticated', 'app.offer_public_json(uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'app.offer_is_live(uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'app.viewer_offer_audience(uuid)', 'execute')
+      and not has_function_privilege('anon', 'app.offer_public_json(uuid)', 'execute'),
+  'the internal eligibility / projection helpers are not callable by clients (only through the RPCs)');
+select ok(has_function_privilege('authenticated', 'public.offers_feed(uuid, integer)', 'execute')
+      and has_function_privilege('authenticated', 'public.offer_detail(uuid, uuid)', 'execute')
+      and not has_function_privilege('anon', 'public.offers_feed(uuid, integer)', 'execute'),
+  'the viewer RPCs are granted to authenticated only');
 
 set local role authenticated;
 set local request.jwt.claims = :'hana';
