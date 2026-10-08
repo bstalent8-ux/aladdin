@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 import type { CatalogView } from "@/lib/ui/catalog-view";
-import { CameraIcon, CheckIcon, PencilIcon } from "@/components/ui/icons";
+import { CameraIcon, CheckIcon, PencilIcon, TagIcon } from "@/components/ui/icons";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { ViewToggle } from "@/features/showroom-shell/view-toggle";
@@ -31,6 +31,8 @@ export type OwnProductCard = {
   colors: ProductColor[];
   /** Regular selling price in EGP; null for a historical product with none recorded. */
   basePrice: number | null;
+  /** Real offer state from the offers domain (never a price or a discount): live now, or sitting in a draft / scheduled / paused offer. */
+  offerState?: "active" | "included";
 };
 
 const editHref = (id: string) => `${SHOWROOM_ROOT}/my-products/${id}/edit`;
@@ -131,6 +133,21 @@ function PriceLine({ price }: { price: number | null }) {
   );
 }
 
+function OfferChip({ state }: { state?: "active" | "included" }) {
+  const { t } = useI18n();
+  if (!state) return null;
+  return (
+    <span
+      data-testid="product-offer-chip"
+      data-state={state}
+      className={cn("inline-flex w-fit items-center gap-1 rounded-sm border px-2 py-0.5 text-label font-medium", state === "active" ? "border-success/60 text-success" : "border-strong text-fg-secondary")}
+    >
+      <TagIcon size={12} />
+      {state === "active" ? t("showroomProducts.offerActive") : t("showroomProducts.offerIncluded")}
+    </span>
+  );
+}
+
 function CardActions({ product, status, canWrite }: { product: OwnProductCard; status: OwnProductStatus; canWrite: boolean }) {
   const { t } = useI18n();
   const edit = editHref(product.id);
@@ -168,6 +185,7 @@ function GridCard({ product, canWrite, canPublish }: { product: OwnProductCard; 
         <SwatchRow colors={product.colors} />
         <p className="w-full text-label text-fg-muted" dir="auto">{metaLine(t, product)}</p>
         <PriceLine price={product.basePrice} />
+        <OfferChip state={product.offerState} />
       </div>
       <div className="flex items-center justify-between gap-2 border-t pt-2">
         {canPublish && status !== "archived" ? <ActiveSwitch productId={product.id} version={product.version} active={status === "active"} labelled /> : <span />}
@@ -196,6 +214,7 @@ function ListRow({ product, canWrite, canPublish }: { product: OwnProductCard; c
         <span className="min-w-0 truncate text-fg-secondary tablet:w-40">{ownCategoryLabel(t, { category_code: product.categoryCode })}</span>
         <span className="min-w-0 truncate text-fg-muted tablet:w-44" dir="auto">{metaLine(t, product)}</span>
         <span className="min-w-0 tablet:w-28"><PriceLine price={product.basePrice} /></span>
+        <OfferChip state={product.offerState} />
         <SwatchRow colors={product.colors} max={4} />
       </span>
       <div className="flex flex-wrap items-center gap-2">

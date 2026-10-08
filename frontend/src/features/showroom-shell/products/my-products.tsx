@@ -4,6 +4,7 @@ import { getMessages, createTranslator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/locales";
 import { CATALOG_VIEW_COOKIE, resolveCatalogView } from "@/lib/ui/catalog-view";
 import { listOwnProducts, listProductPrices, ownProductCounts } from "@/server/queries/commerce";
+import { listProductOfferStates } from "@/server/queries/offers";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 import { StatePanel } from "@/components/ui/primitives";
 import { BadgeCheckIcon, InboxIcon, PackageIcon, PencilIcon } from "@/components/ui/icons";
@@ -52,6 +53,7 @@ export async function ShowroomMyProducts({
   ]);
 
   const prices = await listProductPrices(supabase, rows.map((r) => r.id));
+  const offerStates = await listProductOfferStates(supabase, rows.map((r) => r.id));
   const images = await listProductImages(supabase, rows.map((r) => r.id));
   const primaryKeys = rows.map((r) => images.get(r.id)?.[0]?.objectKey ?? null);
   const signed = await signProductImageUrls(supabase, primaryKeys);
@@ -72,6 +74,7 @@ export async function ShowroomMyProducts({
       weightKg: r.weight_kg,
       colors: effectiveColors(r),
       basePrice: prices.get(r.id) ?? null,
+      offerState: offerStates.get(r.id),
     };
   });
 

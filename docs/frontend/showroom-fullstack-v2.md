@@ -225,3 +225,31 @@ Intentionally different (domain conflicts): no price, discount or stock badge (t
 | installer job opportunities | `installer-job-opportunities-preview/opportunity-filters.tsx` | filter listbox | same |
 | installer sign-up / dashboard | `installer-dashboard-preview/installer-phone-field.tsx` | country-code listbox | searchable list |
 | `/b2b` dashboard | `home/period-select.tsx` | period menu (`menuitemradio`) | already custom + styled; different semantics |
+
+## Phase 5 — Product Offers
+
+**One shared domain, not showroom-only.** `product_offers` / `product_offer_items` / `product_offer_audiences` (+ `offer_audience_types`), migrations `20261012090001`, `20261013090001`, `20261014090001`. Any product-owning business can own offers; each shell renders the same shared components (`frontend/src/features/offers/*`) through a thin route adapter. Offers are NOT RFQs, quotations, purchase requests or orders and share no table with them.
+
+**Pricing.** One package price per offer (`total_price numeric(14,2)`, EGP, `> 0`). Optional offer-level `reference_price` ("price before the offer"): typed by the owner, strictly greater than the package price, never derived from `product_prices`, never turned into a percentage. No per-product offer price, no discount / savings figure, no stock. Offers never read or write `product_prices`; a product may sit in many offers.
+
+**Quantity.** `product_offer_items.quantity` integer 1…100000, validated in the UI, the server action and the database; one row per product per offer.
+
+**Lifecycle.** Stored status `draft | published | paused | archived`; `scheduled | active | expired` are DERIVED (`app.offer_phase`) from the status and `starts_at <= now() < ends_at`, so nothing has to run at expiry. Transitions (RPC `own_offer_set_status`, `catalog.publish`): publish (draft→published), pause (published→paused), resume (paused→published), archive (draft / paused / expired-published only), restore (archived→draft). Editing (`own_offer_save`, `catalog.write`) is allowed for draft, paused and scheduled offers; changing an already-published (scheduled) offer additionally needs `catalog.publish`. An active offer must be paused first. Rows are never hard-deleted.
+
+**Product eligibility.** Draft offers may hold any of the owner's non-archived, non-deleted products. Publishing/resuming re-validates the whole package: every product published, owned, not archived; audiences feed-ready; window not already over. If a product later stops being valid (unpublished / archived / deleted) the offer is **hidden from audiences automatically** (`app.offer_is_live` checks every product on every read) and the owner sees "N products need review" on the card; republishing the product brings the offer back while still inside its window.
+
+**Audiences.** Canonical codes only (`organization_type` for business viewers, `persona_type` for personal viewers; the sets are disjoint), stored one row per audience. `offer_audience_types.feed_ready` marks audiences whose shell has an Offers feed today. **Supported (selectable, publishable): showroom_dealer, supplier, manufacturer, importer, design_office** — the five business types the showroom suite serves. Stored-valid but not yet targetable ("soon" in the builder, refused at publish): wholesaler, contractor_company, engineer, interior_designer, installer_technician, contractor.
+
+**One visibility rule** (`app.offer_is_live` + `app.viewer_offer_audience`), applied inside `offers_feed(p_org_id)` / `offer_detail(p_offer_id, p_org_id)`: published AND inside the window AND the viewer's workspace type is one of the offer's audiences AND the owner organization is live AND every product is still valid AND it is not the viewer's own offer. A business viewer is matched on the ACTIVE workspace's `organization_type`, so switching workspace changes the feed. The tables are owner-readable only (RLS); audiences read through the two RPCs, which return a fixed, price-safe projection (no `product_prices`). The internal helpers are not granted to clients (`20261014090001`).
+
+**Pages (showroom suite).** `/offers` (العروض — audience feed), `/offers/[offerId]` (detail), `/my-offers` (إدارة العروض), `/my-offers/new`, `/my-offers/[offerId]/edit`. Navigation: "Offers" (browse capability) and "My offers" (product capability) in the Products group. My Products shows a real offer chip ("Active offer" / "In an offer") and a "Create offer" entry; `/my-offers/new?product=<id>` starts an offer with that product.
+
+**RFQ action on the offer detail.** "Request a quotation" → the existing production flow `/b2b/rfqs/new?product=<first product>`; a package-level RFQ belongs to the later RFQ phase (same adapter as Browse).
+
+**Intentionally different from the references.**
+- Header art strips (feed / management / builder) are not shown — no asset supplied (see ASSET REQUEST in the phase report).
+- Builder: no "offer type" selector (only one type exists); audience cards for craftsmen / contractor / contracting company are disabled ("soon") although the reference shows craftsmen enabled — no craftsman Offers feed exists yet.
+- Feed: no featured wide card and no bookmark/"save offer" (not part of the Phase 5 domain); detail: no "save offer", the contact button is "Request a quotation" (offers are not chat subjects), no business-profile link (no showroom profile page yet), related offers come from the same feed.
+- Builder preview "total quantity" is the plain sum of per-product quantities (units differ per product).
+
+**Remaining shell integrations.** The shared feed/detail components and RPCs already serve every `feed_ready` audience; remaining: (1) `/b2b` production shell Offers page for supplier/wholesaler/contractor-company accounts, (2) installer/craftsman shell Offers page + `installer_technician` feed_ready, (3) engineer/interior-designer personal shells, (4) saved offers, (5) multi-product RFQ from an offer.

@@ -1,0 +1,395 @@
+"use client";
+
+import Link from "next/link";
+import { useActionState, useMemo, useState, type ReactNode } from "react";
+import { cn } from "@/lib/ui/cn";
+import { useI18n } from "@/lib/i18n/context";
+import { Button, Input, LabeledField, SubmitButton, Textarea } from "@/components/ui/controls";
+import { CalendarIcon, CheckIcon, FileTextIcon, PackageIcon, PlusIcon, SearchIcon, SendIcon, TagIcon, TrashIcon, UsersIcon, XIcon, LightbulbIcon, ClockIcon } from "@/components/ui/icons";
+import { ProductMedia } from "@/features/commerce/product-media";
+import { SwatchRow } from "@/features/showroom-shell/products/color-swatches";
+import { productMetaLine } from "@/features/showroom-shell/products/labels";
+import { formatProductPrice } from "@/features/showroom-shell/products/price-format";
+import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
+import { saveOfferAction, type OfferFormState } from "@/server/actions/offers";
+import type { PickerProduct } from "@/server/queries/offers";
+import { OFFER_LIMITS } from "./offer-input";
+import { OFFER_AUDIENCE_OPTIONS, totalQuantity } from "./offer-model";
+import { OfferCollage } from "./offer-parts";
+
+export type BuilderInitial = {
+  offerId: string | null;
+  version: number | null;
+  title: string;
+  description: string;
+  totalPrice: string;
+  referencePrice: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  items: Array<{ productId: string; quantity: number }>;
+  audiences: string[];
+};
+
+const initialState: OfferFormState = { ok: false };
+
+function Section({ icon, title, hint, children, testId }: { icon: ReactNode; title: string; hint?: string; children: ReactNode; testId?: string }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-md rounded-md border bg-surface p-md shadow-card tablet:p-lg" data-testid={testId}>
+      <header className="flex flex-col gap-0.5">
+        <h2 className="flex items-center gap-2 text-title font-semibold text-fg">
+          <span className="text-accent">{icon}</span>
+          {title}
+        </h2>
+        {hint ? <p className="text-label text-fg-muted">{hint}</p> : null}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function Counter({ value, max }: { value: number; max: number }) {
+  return <span className="text-caption text-fg-muted" dir="ltr">{value}/{max}</span>;
+}
+
+/**
+ * Create / edit one offer. The same component serves both: `initial` carries the stored values on
+ * edit. The package price is ONE number for the whole package; each product carries only a
+ * quantity. The selected-products list scrolls INSIDE its own region, so adding many products never
+ * stretches the form. Everything is validated again by the server action and the database.
+ */
+export function OfferBuilder({
+  orgId,
+  zone,
+  products,
+  initial,
+  readOnly,
+  errorKey,
+  canPublish,
+}: {
+  orgId: string;
+  zone: string;
+  products: PickerProduct[];
+  initial: BuilderInitial;
+  /** True when the offer's state does not allow editing (or the caller cannot write). */
+  readOnly: boolean;
+  errorKey?: string | null;
+  canPublish: boolean;
+}) {
+  const { t } = useI18n();
+  const [state, dispatch] = useActionState(saveOfferAction, initialState);
+  const fe = state.fieldErrors ?? {};
+  const editing = initial.offerId !== null;
+
+  const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description);
+  const [totalPrice, setTotalPrice] = useState(initial.totalPrice);
+  const [referencePrice, setReferencePrice] = useState(initial.referencePrice);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [startTime, setStartTime] = useState(initial.startTime);
+  const [endDate, setEndDate] = useState(initial.endDate);
+  const [endTime, setEndTime] = useState(initial.endTime);
+  const [items, setItems] = useState(initial.items);
+  const [audiences, setAudiences] = useState<string[]>(initial.audiences);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const selectedIds = useMemo(() => new Set(items.map((i) => i.productId)), [items]);
+  const selected = items.flatMap((i) => {
+    const p = byId.get(i.productId);
+    return p ? [{ product: p, quantity: i.quantity }] : [];
+  });
+  const matches = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return products.filter((p) => !term || `${p.name} ${p.code ?? ""}`.toLowerCase().includes(term));
+  }, [products, query]);
+
+  const toggleProduct = (id: string) =>
+    setItems((cur) => (cur.some((i) => i.productId === id) ? cur.filter((i) => i.productId !== id) : cur.length >= OFFER_LIMITS.items ? cur : [...cur, { productId: id, quantity: 1 }]));
+  const setQuantity = (id: string, q: number) =>
+    setItems((cur) => cur.map((i) => (i.productId === id ? { ...i, quantity: Math.min(OFFER_LIMITS.quantityMax, Math.max(1, Math.trunc(q) || 1)) } : i)));
+  const toggleAudience = (code: string) => setAudiences((cur) => (cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]));
+
+  const cur = t("showroomOffers.builder.currency");
+  const priceNum = Number(totalPrice.replace(/,/g, "."));
+  const refNum = Number(referencePrice.replace(/,/g, "."));
+  const previewImages = selected.map((s) => s.product.imageUrl).filter((u): u is string => Boolean(u)).slice(0, 3);
+  const errorText = (key?: string) => (key ? t(key) : undefined);
+  const banner = state.code && !state.ok ? t(state.code) : errorKey ? t(errorKey) : null;
+  const dis = readOnly;
+
+  return (
+    <form action={dispatch} className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_21rem]" data-testid="offer-builder" noValidate>
+      <input type="hidden" name="orgId" value={orgId} />
+      {initial.offerId ? <input type="hidden" name="offerId" value={initial.offerId} /> : null}
+      {initial.version !== null ? <input type="hidden" name="expectedVersion" value={initial.version} /> : null}
+      <input type="hidden" name="items" value={JSON.stringify(items)} />
+      {audiences.map((a) => <input key={a} type="hidden" name="audience" value={a} />)}
+
+      <div className="flex min-w-0 flex-col gap-md">
+        {banner ? <p role="alert" className="rounded-sm border border-danger/40 bg-danger/10 px-md py-2 text-body text-danger" data-testid="offer-error">{banner}</p> : null}
+        {readOnly ? <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="offer-readonly">{t("showroomOffers.builder.notEditable")}</p> : null}
+
+        <Section icon={<FileTextIcon size={18} />} title={t("showroomOffers.builder.dataTitle")} testId="offer-data">
+          <LabeledField label={t("showroomOffers.builder.name")} htmlFor="title" error={errorText(fe.title)}>
+            <div className="flex flex-col gap-1">
+              <Input id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={OFFER_LIMITS.titleMax} placeholder={t("showroomOffers.builder.namePlaceholder")} disabled={dis} aria-invalid={fe.title ? true : undefined} dir="auto" data-testid="offer-title-input" />
+              <Counter value={title.length} max={OFFER_LIMITS.titleMax} />
+            </div>
+          </LabeledField>
+          <LabeledField label={t("showroomOffers.builder.description")} htmlFor="description" optional={t("showroomOffers.builder.optional")} error={errorText(fe.description)}>
+            <div className="flex flex-col gap-1">
+              <Textarea id="description" name="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={OFFER_LIMITS.descriptionMax} placeholder={t("showroomOffers.builder.descriptionPlaceholder")} disabled={dis} dir="auto" data-testid="offer-description-input" />
+              <Counter value={description.length} max={OFFER_LIMITS.descriptionMax} />
+            </div>
+          </LabeledField>
+          <div className="grid gap-md tablet:grid-cols-2">
+            <LabeledField label={t("showroomOffers.builder.offerPrice")} htmlFor="totalPrice" hint={t("showroomOffers.builder.offerPriceHint")} error={errorText(fe.totalPrice)}>
+              <div className="relative">
+                <Input id="totalPrice" name="totalPrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} disabled={dis} aria-invalid={fe.totalPrice ? true : undefined} className="pr-14" data-testid="offer-price-input" />
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{cur}</span>
+              </div>
+            </LabeledField>
+            <LabeledField label={t("showroomOffers.builder.priceBefore")} htmlFor="referencePrice" optional={t("showroomOffers.builder.optional")} hint={t("showroomOffers.builder.priceBeforeHint")} error={errorText(fe.referencePrice)}>
+              <div className="relative">
+                <Input id="referencePrice" name="referencePrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" value={referencePrice} onChange={(e) => setReferencePrice(e.target.value)} disabled={dis} aria-invalid={fe.referencePrice ? true : undefined} className="pr-14" data-testid="offer-reference-input" />
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{cur}</span>
+              </div>
+            </LabeledField>
+          </div>
+        </Section>
+
+        <Section icon={<CalendarIcon size={18} />} title={t("showroomOffers.builder.durationTitle")} hint={t("showroomOffers.builder.timezoneNote", { zone })} testId="offer-duration">
+          <div className="grid gap-md tablet:grid-cols-2">
+            <fieldset className="grid min-w-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-sm" disabled={dis}>
+              <legend className="mb-1 text-label font-medium text-fg-secondary">{t("showroomOffers.builder.startsAt")}</legend>
+              <Input type="date" name="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} aria-label={t("showroomOffers.builder.startDate")} dir="ltr" aria-invalid={fe.dates ? true : undefined} data-testid="offer-start-date" />
+              <Input type="time" name="startTime" value={startTime} onChange={(e) => setStartTime(e.target.value)} aria-label={t("showroomOffers.builder.startTime")} dir="ltr" aria-invalid={fe.dates ? true : undefined} data-testid="offer-start-time" />
+            </fieldset>
+            <fieldset className="grid min-w-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-sm" disabled={dis}>
+              <legend className="mb-1 text-label font-medium text-fg-secondary">{t("showroomOffers.builder.endsAt")}</legend>
+              <Input type="date" name="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label={t("showroomOffers.builder.endDate")} dir="ltr" aria-invalid={fe.dates ? true : undefined} data-testid="offer-end-date" />
+              <Input type="time" name="endTime" value={endTime} onChange={(e) => setEndTime(e.target.value)} aria-label={t("showroomOffers.builder.endTime")} dir="ltr" aria-invalid={fe.dates ? true : undefined} data-testid="offer-end-time" />
+            </fieldset>
+          </div>
+          {fe.dates ? <p role="alert" className="text-label text-danger">{t(fe.dates)}</p> : null}
+        </Section>
+
+        <Section icon={<PackageIcon size={18} />} title={t("showroomOffers.builder.productsTitle")} hint={t("showroomOffers.builder.productsHint")} testId="offer-products">
+          {!dis ? (
+            <div className="flex flex-wrap items-stretch gap-sm">
+              <Button type="button" variant="outline" onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen} className="shrink-0" data-testid="offer-add-products">
+                {pickerOpen ? <XIcon size={16} /> : <PlusIcon size={16} />}
+                {pickerOpen ? t("showroomOffers.builder.closePicker") : t("showroomOffers.builder.addProducts")}
+              </Button>
+              <label className="relative min-w-0 flex-1 basis-56">
+                <span className="sr-only">{t("showroomOffers.builder.pickerSearch")}</span>
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-fg-muted"><SearchIcon size={16} /></span>
+                <Input value={query} onChange={(e) => { setQuery(e.target.value); setPickerOpen(true); }} onFocus={() => setPickerOpen(true)} placeholder={t("showroomOffers.builder.pickerSearch")} className="ps-9" data-testid="offer-picker-search" />
+              </label>
+            </div>
+          ) : null}
+
+          {pickerOpen && !dis ? (
+            <ul className="max-h-72 overflow-y-auto overscroll-contain rounded-md border border-strong bg-surface-2/40 p-1" data-testid="offer-picker" aria-label={t("showroomOffers.builder.addProducts")}>
+              {products.length === 0 ? (
+                <li className="p-md text-center text-label text-fg-muted">{t("showroomOffers.builder.pickerNone")}</li>
+              ) : matches.length === 0 ? (
+                <li className="p-md text-center text-label text-fg-muted">{t("showroomOffers.builder.pickerEmpty")}</li>
+              ) : (
+                matches.map((p) => {
+                  const on = selectedIds.has(p.id);
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        onClick={() => toggleProduct(p.id)}
+                        data-testid="offer-picker-item"
+                        className={cn("flex w-full min-w-0 items-center gap-3 rounded-sm p-2 text-start transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus", on && "bg-accent-solid/10")}
+                      >
+                        <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded-sm border", on ? "border-transparent bg-accent-solid text-on-accent" : "border-strong bg-surface")}>{on ? <CheckIcon size={12} /> : null}</span>
+                        <span className="w-10 shrink-0"><ProductMedia src={p.imageUrl} alt="" aspect="aspect-square" /></span>
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-body font-medium text-fg" dir="auto">{p.name}</span>
+                          <span className="truncate text-label text-fg-muted">
+                            <span dir="ltr">{p.code ?? "—"}</span>
+                            {p.categoryCode ? <> • {t(`commerce.canonicalCategories.${p.categoryCode}`)}</> : null}
+                            {!p.published ? <> • {t("showroomOffers.builder.pickerDraftNote")}</> : null}
+                          </span>
+                        </span>
+                        {on ? <span className="shrink-0 text-label font-medium text-accent">{t("showroomOffers.builder.pickerAdded")}</span> : null}
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-label font-medium text-fg-secondary" data-testid="offer-selected-count">{t("showroomOffers.builder.selectedCount", { count: String(selected.length) })}</p>
+          </div>
+          {fe.items ? <p role="alert" className="text-label text-danger">{t(fe.items)}</p> : null}
+
+          {selected.length === 0 ? (
+            <p className="rounded-sm border border-dashed border-strong p-md text-center text-label text-fg-muted" data-testid="offer-no-selected">{t("showroomOffers.builder.noSelected")}</p>
+          ) : (
+            <div className="min-w-0 rounded-md border border-strong" data-testid="offer-selected-table">
+              <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_14rem_2.5rem] items-center gap-2 border-b bg-surface-2 px-3 py-2 text-label font-medium text-fg-muted desktop:grid">
+                <span>{t("showroomOffers.builder.colProduct")}</span>
+                <span>{t("showroomOffers.builder.colCategory")}</span>
+                <span>{t("showroomOffers.builder.colColors")}</span>
+                <span>{t("showroomOffers.builder.colSpecs")}</span>
+                <span>{t("showroomOffers.builder.colQuantity")}</span>
+                <span className="sr-only">{t("showroomOffers.builder.colActions")}</span>
+              </div>
+              {/* The ONLY scrolling region: more products never lengthen the form. */}
+              <ul className="max-h-80 overflow-y-auto overscroll-contain" data-testid="offer-selected-scroll" tabIndex={0} aria-label={t("showroomOffers.builder.productsTitle")}>
+                {selected.map(({ product: p, quantity }) => (
+                  <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b px-3 py-2 last:border-b-0 desktop:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_14rem_2.5rem]" data-testid="offer-selected-row">
+                    <span className="order-1 flex min-w-0 items-center gap-2">
+                      <span className="w-12 shrink-0"><ProductMedia src={p.imageUrl} alt={p.name} aspect="aspect-square" /></span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-body font-medium text-fg" dir="auto">{p.name}</span>
+                        <span className="truncate text-label text-fg-muted" dir="ltr">{p.code ?? "—"}</span>
+                      </span>
+                    </span>
+                    <span className="order-2 hidden truncate text-label text-fg-secondary desktop:block">{p.categoryCode ? t(`commerce.canonicalCategories.${p.categoryCode}`) : "—"}</span>
+                    <span className="order-3 hidden desktop:block">{p.colors.length > 0 ? <SwatchRow colors={p.colors} max={3} /> : <span className="text-fg-muted">—</span>}</span>
+                    <span className="order-4 hidden truncate text-label text-fg-secondary desktop:block" dir="auto">{productMetaLine(t, { unit: null, sizeLabel: p.sizeLabel, weightKg: p.weightKg }) || "—"}</span>
+                    <span className="order-6 col-span-2 flex items-center gap-2 desktop:order-5 desktop:col-span-1">
+                      <span role="group" dir="ltr" aria-label={t("showroomOffers.builder.quantityOf", { name: p.name })} className="inline-flex shrink-0 items-center rounded-sm border border-strong bg-surface">
+                        <button type="button" disabled={dis || quantity <= 1} aria-label={t("showroomOffers.builder.decrease")} onClick={() => setQuantity(p.id, quantity - 1)} className="grid h-9 w-9 place-items-center text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40" data-testid="offer-qty-minus">−</button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={quantity}
+                          disabled={dis}
+                          aria-label={t("showroomOffers.builder.quantityOf", { name: p.name })}
+                          onChange={(e) => setQuantity(p.id, Number(e.target.value.replace(/[^\d]/g, "")))}
+                          className="h-9 w-12 border-x border-strong bg-transparent text-center text-body text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                          dir="ltr"
+                          data-testid="offer-qty-input"
+                        />
+                        <button type="button" disabled={dis || quantity >= OFFER_LIMITS.quantityMax} aria-label={t("showroomOffers.builder.increase")} onClick={() => setQuantity(p.id, quantity + 1)} className="grid h-9 w-9 place-items-center text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40" data-testid="offer-qty-plus">+</button>
+                      </span>
+                      <span className="whitespace-nowrap text-label text-fg-muted">{t(`commerce.units.${p.unit}`)}</span>
+                    </span>
+                    {!dis ? (
+                      <button type="button" aria-label={t("showroomOffers.builder.remove", { name: p.name })} onClick={() => toggleProduct(p.id)} className="order-2 grid h-9 w-9 place-items-center justify-self-end rounded-sm text-danger hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus desktop:order-6 desktop:justify-self-auto" data-testid="offer-remove">
+                        <TrashIcon size={16} />
+                      </button>
+                    ) : <span className="order-2 desktop:order-6" />}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Section>
+
+        <Section icon={<UsersIcon size={18} />} title={t("showroomOffers.builder.audienceTitle")} hint={t("showroomOffers.builder.audienceHint")} testId="offer-audience">
+          <ul className="grid grid-cols-2 gap-sm tablet:grid-cols-3 desktop:grid-cols-4" role="group" aria-label={t("showroomOffers.builder.audienceTitle")}>
+            {OFFER_AUDIENCE_OPTIONS.map(({ code, enabled }) => {
+              const on = audiences.includes(code);
+              return (
+                <li key={code} className="min-w-0">
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    disabled={!enabled || dis}
+                    onClick={() => toggleAudience(code)}
+                    data-testid={`offer-audience-${code}`}
+                    className={cn(
+                      "flex min-h-11 w-full items-center justify-between gap-2 rounded-sm border px-3 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                      !enabled ? "cursor-not-allowed border-dashed border-strong bg-surface-2 text-fg-muted" : on ? "border-accent bg-accent-solid/10 text-accent" : "border-strong bg-surface text-fg hover:bg-surface-2",
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{t(`showroomOffers.audience.${code}`)}</span>
+                    {!enabled ? <span className="shrink-0 text-caption">{t("showroomOffers.soon")}</span> : on ? <CheckIcon size={14} /> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {fe.audiences ? <p role="alert" className="text-label text-danger">{t(fe.audiences)}</p> : null}
+          <p className="text-label text-fg-muted">{t("showroomOffers.builder.audienceNote")}</p>
+        </Section>
+
+        <div className="sticky bottom-0 z-raised -mx-1 flex flex-wrap items-center justify-between gap-sm border-t bg-canvas/95 px-1 py-sm backdrop-blur" data-testid="offer-actions">
+          <div className="flex flex-wrap items-center gap-sm">
+            <Link href={`${SHOWROOM_ROOT}/my-offers`} className="inline-flex min-h-11 items-center justify-center rounded-sm border border-strong px-md text-label font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              {t("showroomOffers.builder.cancel")}
+            </Link>
+            {!dis ? (
+              <SubmitButton name="intent" value="draft" variant="outline" pendingLabel={t("showroomOffers.builder.saving")} data-testid="offer-save-draft">
+                <FileTextIcon size={16} />
+                {editing ? t("showroomOffers.builder.saveChanges") : t("showroomOffers.builder.saveDraft")}
+              </SubmitButton>
+            ) : null}
+          </div>
+          {!dis && canPublish ? (
+            <SubmitButton name="intent" value="publish" variant="accent" pendingLabel={t("showroomOffers.builder.saving")} data-testid="offer-publish">
+              <SendIcon size={16} />
+              {t("showroomOffers.builder.publish")}
+            </SubmitButton>
+          ) : null}
+        </div>
+      </div>
+
+      <aside className="flex min-w-0 flex-col gap-md" aria-label={t("showroomOffers.builder.previewTitle")} data-testid="offer-preview">
+        <section className="flex flex-col gap-sm rounded-md border bg-surface p-md shadow-card">
+          <h2 className="flex items-center gap-2 text-title font-semibold text-fg">
+            <TagIcon size={18} className="text-accent" />
+            {t("showroomOffers.builder.previewTitle")}
+          </h2>
+          <OfferCollage images={previewImages} count={selected.length} alt={title || t("showroomOffers.builder.previewName")} />
+          <h3 className="text-title font-bold text-fg" dir="auto">{title || <span className="text-fg-muted">{t("showroomOffers.builder.previewName")}</span>}</h3>
+          {description ? <p className="line-clamp-3 text-label text-fg-secondary" dir="auto">{description}</p> : null}
+          <div className="rounded-sm bg-accent-solid/5 p-sm">
+            {Number.isFinite(refNum) && refNum > 0 && referencePrice ? (
+              <p className="flex items-baseline gap-2 text-label text-fg-muted">
+                <span>{t("showroomOffers.priceBefore")}</span>
+                <span className="line-through" dir="ltr">{formatProductPrice(refNum, cur)}</span>
+              </p>
+            ) : null}
+            <p className="text-label font-medium text-accent">{t("showroomOffers.offerPrice")}</p>
+            <p className="text-headline font-bold text-accent" dir="ltr" data-testid="offer-preview-price">{Number.isFinite(priceNum) && priceNum > 0 && totalPrice ? formatProductPrice(priceNum, cur) : "—"}</p>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-2 rounded-md border bg-surface p-md shadow-card">
+          <h2 className="flex items-center gap-2 text-title font-semibold text-fg">
+            <ClockIcon size={18} className="text-accent" />
+            {t("showroomOffers.builder.summaryTitle")}
+          </h2>
+          <dl className="flex flex-col gap-2 text-label">
+            <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryProducts")}</dt><dd className="font-semibold text-fg" dir="ltr">{selected.length}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryQuantity")}</dt><dd className="font-semibold text-fg" dir="ltr">{totalQuantity(items)}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryAudience")}</dt><dd className="text-end font-semibold text-fg">{audiences.length ? audiences.map((a) => t(`showroomOffers.audience.${a}`)).join("، ") : t("showroomOffers.builder.summaryNone")}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryDuration")}</dt><dd className="text-end font-semibold text-fg" dir="ltr">{startDate && endDate ? `${startDate} → ${endDate}` : t("showroomOffers.builder.summaryNone")}</dd></div>
+          </dl>
+        </section>
+
+        <section className="flex flex-col gap-2 rounded-md border bg-surface p-md shadow-card">
+          <h2 className="flex items-center gap-2 text-title font-semibold text-accent">
+            <LightbulbIcon size={18} />
+            {t("showroomOffers.builder.tipsTitle")}
+          </h2>
+          <ul className="flex flex-col gap-1.5 text-label text-fg-secondary">
+            {["tip1", "tip2", "tip3", "tip4"].map((k) => (
+              <li key={k} className="flex items-start gap-2">
+                <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-solid" />
+                {t(`showroomOffers.builder.${k}`)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </aside>
+    </form>
+  );
+}

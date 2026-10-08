@@ -1,4 +1,4 @@
-import { HomeIcon, ClipboardIcon, StorefrontIcon, UserIcon, BriefcaseIcon, GiftIcon, SettingsIcon, StarIcon, ScrollIcon } from "@/components/ui/icons";
+import { HomeIcon, ClipboardIcon, StorefrontIcon, UserIcon, BriefcaseIcon, GiftIcon, SettingsIcon, StarIcon, ScrollIcon, TagIcon } from "@/components/ui/icons";
 import type { InstallerNavItem } from "@/features/installer-dashboard-preview/installer-nav";
 import { NAV_CAPS } from "@/lib/nav/modules";
 
@@ -20,8 +20,10 @@ export const SHOWROOM_GROUPS = [
   ] },
   { label: { ar: "المنتجات", en: "Products" }, items: [
     item("catalog", "تصفح المنتجات", "Browse products", StorefrontIcon, NAV_CAPS.catalog ?? []),
+    item("offers", "العروض", "Offers", TagIcon, NAV_CAPS.catalog ?? []),
     item("saved", "المنتجات المحفوظة", "Saved products", StarIcon, NAV_CAPS.saved ?? []),
     item("my-products", "منتجاتي", "My products", StorefrontIcon, NAV_CAPS.products ?? []),
+    item("my-offers", "إدارة العروض", "My offers", TagIcon, NAV_CAPS.products ?? []),
   ] },
   { label: { ar: "الشبكة", en: "Network" }, items: [
     item("suppliers", "الموردون", "Suppliers", StorefrontIcon),

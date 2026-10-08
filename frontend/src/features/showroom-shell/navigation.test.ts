@@ -3,12 +3,13 @@ import { canNavigate, showroomNavigation, SHOWROOM_GROUPS, SHOWROOM_ROOT } from 
 import { eligibleWorkspaces, isShowroomBusinessType, SHOWROOM_BUSINESS_LABELS } from "./workspace-model";
 import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, REGISTRATION_CHOICE_ORDER, CHOICE_GROUPS } from "@/lib/onboarding/account-types";
 import type { WorkspaceEntry } from "@/lib/workspace/model";
+import { FEED_READY_AUDIENCES } from "@/features/offers/offer-model";
 
 describe("showroom phase 1 navigation", () => {
   const items = SHOWROOM_GROUPS.flatMap((group) => group.items);
   it("has the agreed group order, directional commerce and no institutions", () => {
     expect(SHOWROOM_GROUPS.map((group) => group.label.ar)).toEqual(["", "المشتريات", "المبيعات", "المنتجات", "الشبكة", "الفريق", "إدارة النشاط"]);
-    expect(items.map((item) => item.id)).toEqual(["home", "purchase-requests", "pricing-requests-sent", "quotes-received", "purchase-orders", "customer-rfqs", "customer-quotes", "customers", "catalog", "saved", "my-products", "suppliers", "craftsmen", "jobs", "sales-team", "projects", "reports", "points", "settings"]);
+    expect(items.map((item) => item.id)).toEqual(["home", "purchase-requests", "pricing-requests-sent", "quotes-received", "purchase-orders", "customer-rfqs", "customer-quotes", "customers", "catalog", "offers", "saved", "my-products", "my-offers", "suppliers", "craftsmen", "jobs", "sales-team", "projects", "reports", "points", "settings"]);
     expect(items.every((item) => item.href === `${SHOWROOM_ROOT}/${item.id}`)).toBe(true);
   });
   it("filters nav and direct-page authorization with the same capability rule", () => {
@@ -18,6 +19,26 @@ describe("showroom phase 1 navigation", () => {
     expect(showroomNavigation(["org.manage"]).flatMap((group) => group.items)).toEqual(items);
     expect(showroomNavigation(["job.manage"]).flatMap((group) => group.items).some((item) => item.id === "jobs")).toBe(true);
     expect(showroomNavigation(["sales.manage"]).flatMap((group) => group.items).some((item) => item.id === "sales-team")).toBe(false);
+  });
+});
+
+describe("product offers navigation", () => {
+  const byId = (id: string) => SHOWROOM_GROUPS.flatMap((g) => g.items).find((i) => i.id === id)!;
+  it("keeps the audience feed (العروض) and the owner's management page (إدارة العروض) distinct from RFQs and quotations", () => {
+    expect(byId("offers").label).toEqual({ ar: "العروض", en: "Offers" });
+    expect(byId("my-offers").label).toEqual({ ar: "إدارة العروض", en: "My offers" });
+    for (const id of ["offers", "my-offers"]) {
+      expect(byId(id).label.ar).not.toMatch(/طلب|عروض أسعار/);
+    }
+  });
+  it("targets exactly the business types the showroom suite serves (feed-ready audiences)", () => {
+    expect([...FEED_READY_AUDIENCES].sort()).toEqual([...BUSINESS_ORG_TYPES].sort());
+  });
+  it("shows the feed with browse rights and the management page with product rights", () => {
+    const ids = (caps: string[]) => showroomNavigation(caps).flatMap((g) => g.items).map((i) => i.id);
+    expect(ids(["catalog.read"])).toContain("offers");
+    expect(ids(["catalog.read"])).not.toContain("my-offers");
+    expect(ids(["catalog.write"])).toContain("my-offers");
   });
 });
 
