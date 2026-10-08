@@ -88,10 +88,13 @@ export function OfferPrice({
   total,
   reference,
   size = "md",
+  reserveReference = false,
 }: {
   total: number;
   reference: number | null;
   size?: "sm" | "md" | "lg";
+  /** Keep the previous-price line's height when there is none, so prices align across a row of cards. */
+  reserveReference?: boolean;
 }) {
   const { t } = useI18n();
   const cur = t("showroomOffers.builder.currency");
@@ -102,6 +105,8 @@ export function OfferPrice({
           <span>{t("showroomOffers.priceBefore")}</span>
           <span className="line-through decoration-danger decoration-2" dir="ltr" data-testid="offer-reference-price">{formatProductPrice(reference, cur)}</span>
         </p>
+      ) : reserveReference ? (
+        <p aria-hidden="true" className="min-h-[1.25rem]" />
       ) : null}
       <p className="text-label font-medium text-accent">{t("showroomOffers.offerPrice")}</p>
       <p className={cn("font-bold leading-none text-accent", size === "lg" ? "text-display" : size === "sm" ? "text-title" : "text-headline")} dir="ltr" data-testid="offer-total-price">

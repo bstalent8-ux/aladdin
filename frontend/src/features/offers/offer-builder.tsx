@@ -97,6 +97,7 @@ export function OfferBuilder({
   readOnly,
   errorKey,
   canPublish,
+  header,
 }: {
   orgId: string;
   zone: string;
@@ -106,6 +107,8 @@ export function OfferBuilder({
   readOnly: boolean;
   errorKey?: string | null;
   canPublish: boolean;
+  /** The page header. It lives at the top of the scrolling editor so the workspace can start right under the top bar. */
+  header?: ReactNode;
 }) {
   const { t } = useI18n();
   const [state, dispatch] = useActionState(saveOfferAction, initialState);
@@ -157,7 +160,7 @@ export function OfferBuilder({
 
   return (
     <form action={dispatch} noValidate data-testid="offer-builder">
-    <div ref={workspaceRef} className="grid min-w-0 gap-md desktop:grid-cols-[minmax(0,1fr)_21rem] desktop:overflow-hidden" data-testid="offer-workspace">
+    <div ref={workspaceRef} className="relative grid min-w-0 gap-md desktop:grid-cols-[minmax(0,1fr)_21rem] desktop:overflow-hidden" data-testid="offer-workspace">
       <input type="hidden" name="orgId" value={orgId} />
       {initial.offerId ? <input type="hidden" name="offerId" value={initial.offerId} /> : null}
       {initial.version !== null ? <input type="hidden" name="expectedVersion" value={initial.version} /> : null}
@@ -165,6 +168,7 @@ export function OfferBuilder({
       {audienceCodes.map((a) => <input key={a} type="hidden" name="audience" value={a} />)}
 
       <div className="flex min-w-0 flex-col gap-md desktop:min-h-0 desktop:overflow-y-auto desktop:overscroll-contain desktop:pe-1" data-testid="offer-editor-scroll">
+        {header ? <div className="shrink-0">{header}</div> : null}
         {banner ? <p role="alert" className="rounded-sm border border-danger/40 bg-danger/10 px-md py-2 text-body text-danger" data-testid="offer-error">{banner}</p> : null}
         {readOnly ? <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="offer-readonly">{t("showroomOffers.builder.notEditable")}</p> : null}
 
@@ -431,8 +435,8 @@ export function OfferBuilder({
               { key: "products", done: selected.length > 0 },
               { key: "audience", done: groups.length > 0 },
             ].map(({ key, done }) => (
-              <li key={key} className={cn("flex items-center gap-2", done ? "text-success" : "text-fg-muted")} data-done={done ? "true" : "false"}>
-                <span aria-hidden="true" className={cn("grid h-4 w-4 shrink-0 place-items-center rounded-full border", done ? "border-transparent bg-success text-on-accent" : "border-strong")}>{done ? <CheckIcon size={10} /> : null}</span>
+              <li key={key} className={cn("flex items-center gap-2", done ? "text-fg" : "text-fg-muted")} data-done={done ? "true" : "false"}>
+                <span aria-hidden="true" className={cn("grid h-4 w-4 shrink-0 place-items-center rounded-full border", done ? "border-transparent bg-accent-solid text-on-accent" : "border-strong")}>{done ? <CheckIcon size={10} /> : null}</span>
                 {t(`showroomOffers.builder.complete.${key}`)}
               </li>
             ))}

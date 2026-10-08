@@ -63,23 +63,28 @@ export default async function ShowroomEditOfferPage({
   };
   const errorKey = sp.err && SAFE_ERROR_KEY.test(sp.err) ? sp.err : null;
 
+  const header = (
+    <>
+      <ShowroomPageHero
+          locale={locale}
+          titleId="edit-offer-title"
+          Icon={TagIcon}
+          title={t("showroomOffers.builder.editTitle")}
+          subtitle={offer.title}
+          back={
+            <Link href={`${SHOWROOM_ROOT}/my-offers`} className="inline-flex w-fit items-center gap-1 rounded-sm border border-strong px-2.5 py-1 text-label text-fg-secondary hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <span aria-hidden="true" className="rtl:rotate-180">←</span>
+              {t("showroomOffers.builder.back")}
+            </Link>
+          }
+        />
+      {sp.saved === "1" && !errorKey ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="offer-saved-note">{t("showroomOffers.mine.saved")}</p> : null}
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-md" data-testid="edit-offer" data-phase={offer.phase}>
-      <ShowroomPageHero
-        locale={locale}
-        titleId="edit-offer-title"
-        Icon={TagIcon}
-        title={t("showroomOffers.builder.editTitle")}
-        subtitle={offer.title}
-        back={
-          <Link href={`${SHOWROOM_ROOT}/my-offers`} className="inline-flex w-fit items-center gap-1 rounded-sm border border-strong px-2.5 py-1 text-label text-fg-secondary hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            <span aria-hidden="true" className="rtl:rotate-180">←</span>
-            {t("showroomOffers.builder.back")}
-          </Link>
-        }
-      />
-      {sp.saved === "1" && !errorKey ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="offer-saved-note">{t("showroomOffers.mine.saved")}</p> : null}
-      <OfferBuilder orgId={org.organizationId} zone={zone} products={products} initial={initial} readOnly={!canWrite || !editable} errorKey={errorKey} canPublish={canPublish} />
+      <OfferBuilder orgId={org.organizationId} zone={zone} products={products} initial={initial} readOnly={!canWrite || !editable} errorKey={errorKey} canPublish={canPublish} header={header} />
     </div>
   );
 }

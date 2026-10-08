@@ -228,7 +228,7 @@ Intentionally different (domain conflicts): no price, discount or stock badge (t
 
 ## Phase 5 — Product Offers
 
-**One shared domain, not showroom-only.** `product_offers` / `product_offer_items` / `product_offer_audiences` (+ `offer_audience_types`), migrations `20261012090001`, `20261013090001`, `20261014090001`. Any product-owning business can own offers; each shell renders the same shared components (`frontend/src/features/offers/*`) through a thin route adapter. Offers are NOT RFQs, quotations, purchase requests or orders and share no table with them.
+**One shared domain, not showroom-only.** `product_offers` / `product_offer_items` / `product_offer_audiences` (+ `offer_audience_types`), migrations `20261012090001`, `20261013090001`, `20261014090001`, `20261015090001` (closeout). Any product-owning business can own offers; each shell renders the same shared components (`frontend/src/features/offers/*`) through a thin route adapter. Offers are NOT RFQs, quotations, purchase requests or orders and share no table with them.
 
 **Pricing.** One package price per offer (`total_price numeric(14,2)`, EGP, `> 0`). Optional offer-level `reference_price` ("price before the offer"): typed by the owner, strictly greater than the package price, never derived from `product_prices`, never turned into a percentage. No per-product offer price, no discount / savings figure, no stock. Offers never read or write `product_prices`; a product may sit in many offers.
 
@@ -238,18 +238,42 @@ Intentionally different (domain conflicts): no price, discount or stock badge (t
 
 **Product eligibility.** Draft offers may hold any of the owner's non-archived, non-deleted products. Publishing/resuming re-validates the whole package: every product published, owned, not archived; audiences feed-ready; window not already over. If a product later stops being valid (unpublished / archived / deleted) the offer is **hidden from audiences automatically** (`app.offer_is_live` checks every product on every read) and the owner sees "N products need review" on the card; republishing the product brings the offer back while still inside its window.
 
-**Audiences.** Canonical codes only (`organization_type` for business viewers, `persona_type` for personal viewers; the sets are disjoint), stored one row per audience. `offer_audience_types.feed_ready` marks audiences whose shell has an Offers feed today. **Supported (selectable, publishable): showroom_dealer, supplier, manufacturer, importer, design_office** — the five business types the showroom suite serves. Stored-valid but not yet targetable ("soon" in the builder, refused at publish): wholesaler, contractor_company, engineer, interior_designer, installer_technician, contractor.
+**Audiences.** Canonical codes only (`organization_type` for business viewers, `persona_type` for personal viewers; the sets are disjoint), stored one row per audience. The builder offers **eight audience groups**; a group is a UI grouping only — choosing one stores its explicit canonical rows (no group enum exists in the database):
+
+| Group (AR / EN) | Stored canonical rows |
+|---|---|
+| معرض / Showroom | `showroom_dealer` |
+| مورد / Supplier | `supplier` |
+| مصنع / Manufacturer | `manufacturer` |
+| مستورد / Importer | `importer` |
+| مقاول / Contractor | `contractor_company` (business) + `contractor` (persona) |
+| مهندس / Engineer | `design_office` (business) + `engineer` + `interior_designer` (personas) |
+| صنايعي / Craftsman | `installer_technician` |
+| العميل النهائي / End customer | `end_consumer` (added to the catalogue) |
+
+`wholesaler` stays a valid stored audience and its workspaces see the feed, but it has no builder group (it was not among the approved eight). All catalogue rows are `feed_ready`: `/b2b` serves every organization type and `/home` every persona. Nothing is shown as "coming soon".
 
 **One visibility rule** (`app.offer_is_live` + `app.viewer_offer_audience`), applied inside `offers_feed(p_org_id)` / `offer_detail(p_offer_id, p_org_id)`: published AND inside the window AND the viewer's workspace type is one of the offer's audiences AND the owner organization is live AND every product is still valid AND it is not the viewer's own offer. A business viewer is matched on the ACTIVE workspace's `organization_type`, so switching workspace changes the feed. The tables are owner-readable only (RLS); audiences read through the two RPCs, which return a fixed, price-safe projection (no `product_prices`). The internal helpers are not granted to clients (`20261014090001`).
 
-**Pages (showroom suite).** `/offers` (العروض — audience feed), `/offers/[offerId]` (detail), `/my-offers` (إدارة العروض), `/my-offers/new`, `/my-offers/[offerId]/edit`. Navigation: "Offers" (browse capability) and "My offers" (product capability) in the Products group. My Products shows a real offer chip ("Active offer" / "In an offer") and a "Create offer" entry; `/my-offers/new?product=<id>` starts an offer with that product.
+**Pages.** Showroom suite: `/offers`, `/offers/[offerId]`, `/my-offers` (إدارة العروض — the only place an offer is created), `/my-offers/new`, `/my-offers/[offerId]/edit`. Other shells (thin adapters over the same `features/offers` feed/detail): `/b2b/offers` + detail (every business workspace; nav key `productOffers`, same browse capability as the catalog — distinct from the existing "offers" key that means incoming quotations) and `/home/offers` + detail (every personal persona; rows in the personal rail and the installer rail). My Products keeps only the real offer chips ("Active offer" / "In an offer"); it has no Create-offer entry.
 
 **RFQ action on the offer detail.** "Request a quotation" → the existing production flow `/b2b/rfqs/new?product=<first product>`; a package-level RFQ belongs to the later RFQ phase (same adapter as Browse).
 
 **Intentionally different from the references.**
-- Header art strips (feed / management / builder) are not shown — no asset supplied (see ASSET REQUEST in the phase report).
-- Builder: no "offer type" selector (only one type exists); audience cards for craftsmen / contractor / contracting company are disabled ("soon") although the reference shows craftsmen enabled — no craftsman Offers feed exists yet.
-- Feed: no featured wide card and no bookmark/"save offer" (not part of the Phase 5 domain); detail: no "save offer", the contact button is "Request a quotation" (offers are not chat subjects), no business-profile link (no showroom profile page yet), related offers come from the same feed.
+- Header art strips (feed / management / builder) are not shown — no asset supplied (ASSET REQUEST in the phase report).
+- Builder: no "offer type" selector (only one type exists); the Create-offer button on My Offers uses the offer/tag icon grouped with its label (the reference draws a plus at the far end).
+- Feed: no featured wide card; detail: no business-profile link (no showroom profile page yet), the contact button is "Request a quotation" (offers are not chat subjects), related offers come from the same feed.
 - Builder preview "total quantity" is the plain sum of per-product quantities (units differ per product).
 
-**Remaining shell integrations.** The shared feed/detail components and RPCs already serve every `feed_ready` audience; remaining: (1) `/b2b` production shell Offers page for supplier/wholesaler/contractor-company accounts, (2) installer/craftsman shell Offers page + `installer_technician` feed_ready, (3) engineer/interior-designer personal shells, (4) saved offers, (5) multi-product RFQ from an offer.
+## Phase 5 closeout (2026-10-08)
+
+Migration `20261015090001_offers_closeout.sql`; no backend rebuilt, everything additive.
+
+- **Feed density.** 1 / 2 / 3 / 4 / **5** columns at mobile / ≥560 / tablet / desktop / wide (1440). My Offers is untouched (management density).
+- **Pagination (`offers_feed_page`).** One RPC applies search (title, seller, product name/code; `%`/`_` escaped), category, seller type, period (`ending` ≤ 3 days, `week` ≤ 7 days), sort (`newest`, `ending`, `priceLow`, `priceHigh`) and the saved-only filter, then returns ONE bounded page via `row_number()` over a TOTAL order (the sort key, then `published_at`, then `id`) with `LIMIT`/`OFFSET` (limit clamped 1..50, offset ≤ 10 000), plus `total`, `has_more`, whole-eligible-set `stats` and `seller_types`. The first batch (10 = 2 × 5) is rendered by the server; **Show more** is a server action that asks for the next 10 at `offset = items already shown`; **Show less** folds the list to the first 10 without touching filters; any filter/sort/search change restarts at offset 0 (search debounced 300 ms); stale responses are dropped; the client also de-duplicates by id. Chosen over a cursor because the sort keys are not unique and offsets over a total order give the same no-overlap/no-gap guarantee for a stable eligible set; if offers appear or expire between two clicks a row can shift by one, never duplicate (client dedup) — acceptable for a browse feed.
+- **Saved offers.** `saved_product_offers (user_id, offer_id)`: a USER bookmark (unlike the organization-owned `saved_products`), select-own RLS, no client writes; `offer_set_saved(offer, saved, org)` saves only an offer the caller can see **right now** (`app.offer_visible_to` — the same rule as the detail RPC), unsaving is always allowed, anonymous is denied. The feed and detail projections carry `saved`, so both share one state. A bookmark never grants access: once an offer is paused/expired/out of audience, `offer_detail` returns null and it drops out of the feed and the saved-only list.
+- **Description.** 250 WORDS (`app.word_count`, whitespace runs — Arabic/English/mixed), a 5000-character sanity ceiling, the old 500-character check dropped; validated in the form (live counter inside the textarea), the server action and the RPC/CHECK.
+- **Builder.** At desktop the workspace fills the viewport below the top bar (height measured from its own top, no page scroll); the live preview (with a completeness checklist) stays on one side, the editor — header included — scrolls inside its own column, the sticky action bar stays in it, and the selected-products list keeps its own nested scroll. Stacked and page-scrolled below 1024.
+- **Price before the offer.** Struck through with `decoration-danger`. In this palette `--danger` resolves to the approved muted terracotta (the installer theme has no separate red), which is the sanctioned fallback; the package price stays dominant.
+- **Icon + label rule.** Summary cards use one `IconStat` (icon, label and figure form one inline group that follows the reading direction); My Products and My Offers cards were moved onto it. Page titles and section headings already group icon and text; genuine independent actions (bookmark, row menus) were left alone.
+- **Remaining shells.** Done: showroom suite, `/b2b`, `/home` (personal rail and installer rail). Not done: a package-level RFQ from an offer; personal accounts have no RFQ entry yet (the block is hidden for them); mobile bottom bars were not curated for the new Offers entry (final mobile polish is deferred).

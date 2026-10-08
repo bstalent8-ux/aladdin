@@ -318,7 +318,7 @@ function OfferCard({ offer, imageUrls, locale, detailBase, orgId, onSaved }: Car
         {more > 0 ? <li className="text-accent" data-testid="offer-more">{t("showroomOffers.moreProducts", { count: String(more) })}</li> : null}
       </ul>
       <div className="mt-auto flex flex-col gap-2 border-t pt-2">
-        <OfferPrice size="sm" total={offer.totalPrice} reference={offer.referencePrice} />
+        <OfferPrice size="sm" reserveReference total={offer.totalPrice} reference={offer.referencePrice} />
         <OfferValidity compact endsAt={offer.endsAt} locale={locale} />
         <div className="flex items-center gap-2">
           <SaveOfferButton offerId={offer.id} orgId={orgId} saved={offer.saved} onChange={(s) => onSaved(offer.id, s)} className="h-10 w-10" />

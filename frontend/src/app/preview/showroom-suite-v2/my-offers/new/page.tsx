@@ -41,30 +41,36 @@ export default async function ShowroomNewOfferPage() {
     audiences: [],
   };
 
+  const hero = (
+    <ShowroomPageHero
+      locale={locale}
+      titleId="new-offer-title"
+      Icon={TagIcon}
+      title={t("showroomOffers.builder.createTitle")}
+      subtitle={t("showroomOffers.builder.subtitle")}
+      back={
+        <Link href={`${SHOWROOM_ROOT}/my-offers`} className="inline-flex w-fit items-center gap-1 rounded-sm border border-strong px-2.5 py-1 text-label text-fg-secondary hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+          <span aria-hidden="true" className="rtl:rotate-180">←</span>
+          {t("showroomOffers.builder.back")}
+        </Link>
+      }
+    />
+  );
+
   return (
     <div className="flex flex-col gap-md" data-testid="new-offer">
-      <ShowroomPageHero
-        locale={locale}
-        titleId="new-offer-title"
-        Icon={TagIcon}
-        title={t("showroomOffers.builder.createTitle")}
-        subtitle={t("showroomOffers.builder.subtitle")}
-        back={
-          <Link href={`${SHOWROOM_ROOT}/my-offers`} className="inline-flex w-fit items-center gap-1 rounded-sm border border-strong px-2.5 py-1 text-label text-fg-secondary hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            <span aria-hidden="true" className="rtl:rotate-180">←</span>
-            {t("showroomOffers.builder.back")}
-          </Link>
-        }
-      />
       {products.length === 0 ? (
+        <>
+        {hero}
         <StatePanel
           icon={<PackageIcon size={22} />}
           title={t("showroomOffers.mine.noProductsTitle")}
           body={t("showroomOffers.mine.noProductsBody")}
           action={<Link href={`${SHOWROOM_ROOT}/my-products`} className="text-label font-medium text-accent hover:underline">{t("showroomOffers.mine.goProducts")}</Link>}
         />
+        </>
       ) : (
-        <OfferBuilder orgId={org.organizationId} zone={zone} products={products} initial={initial} readOnly={false} canPublish={canPublish} />
+        <OfferBuilder orgId={org.organizationId} zone={zone} products={products} initial={initial} readOnly={false} canPublish={canPublish} header={hero} />
       )}
     </div>
   );
