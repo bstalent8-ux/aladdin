@@ -71,8 +71,12 @@ export function customColor(hex: string, customName?: string): ProductColor {
 export function isAutoCustomName(color: ProductColor): boolean {
   if (color.code !== CUSTOM_COLOR_CODE || !color.hex) return false;
   const name = collapse(color.name);
-  return name.toUpperCase() === color.hex || new RegExp(`^(Custom colou?r|لون مخصص) ${color.hex}$`, "i").test(name);
+  if (name.toUpperCase() === color.hex) return true;
+  // older automatic labels: "<label> #hex" with the English or Arabic label
+  return AUTO_LABELS.some((label) => name.toLowerCase() === `${label} ${color.hex}`.toLowerCase());
 }
+
+const AUTO_LABELS = ["custom color", "custom colour", "لون مخصص"];
 
 /**
  * The name a READER sees: a library colour in their language, a custom value with the owner's own name as that name,
