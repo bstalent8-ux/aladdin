@@ -4915,6 +4915,7 @@ export type Database = {
         Row: {
           brand: string | null
           category: Database["public"]["Enums"]["product_category"] | null
+          category_code: string | null
           image_ref: string | null
           name: string | null
           note: string | null

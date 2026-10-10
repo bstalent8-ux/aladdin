@@ -32,5 +32,11 @@ export function usePagedList<T extends { id: string }>(initial: readonly T[], in
     setItems((prev) => prev.slice(0, lessCount(prev.length)));
   }, []);
 
-  return { items, setItems, total, loading, failed, more, less, hasMore: items.length < total, canLess: items.length > PAGE_BATCH };
+  /** Drop one row the user just removed (e.g. un-saved); the server total shrinks with it. */
+  const remove = useCallback((id: string) => {
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    setTotal((n) => Math.max(0, n - 1));
+  }, []);
+
+  return { items, setItems, remove, total, loading, failed, more, less, hasMore: items.length < total, canLess: items.length > PAGE_BATCH };
 }

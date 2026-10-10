@@ -46,6 +46,7 @@ export async function toggleSavedProductAction(
   // The showroom suite shows the same save state (catalog, product detail, and the Home count).
   revalidatePath(`${SHOWROOM_ROOT}/catalog`);
   revalidatePath(`${SHOWROOM_ROOT}/catalog/${productId}`);
+  revalidatePath(`${SHOWROOM_ROOT}/saved`);
   revalidatePath(`${SHOWROOM_ROOT}/home`);
   return { ok: true };
 }

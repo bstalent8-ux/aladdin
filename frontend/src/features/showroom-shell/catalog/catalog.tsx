@@ -60,6 +60,7 @@ export async function ShowroomCatalog({
         subtitle={supplierName ? t("showroomCatalog.scopedTo", { name: supplierName }) : t("showroomCatalog.subtitle")}
       />
       <FilterBar
+        liveSearch
         basePath={BASE_PATH}
         search={{ name: "q", value: params.q ?? "", placeholder: m.commerce.catalog.searchPlaceholder }}
         selects={[

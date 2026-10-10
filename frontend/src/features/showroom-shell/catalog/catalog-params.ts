@@ -1,3 +1,4 @@
+import { normalizeSearchInput } from "@/lib/search/normalize";
 import { CANONICAL_CATEGORY_CODES, type CanonicalCategoryCode } from "@/features/commerce/constants";
 
 export type ShowroomCatalogParams = {
@@ -20,7 +21,7 @@ export function parseShowroomCatalogParams(raw: {
   category?: string | string[];
   supplier?: string | string[];
 }): ShowroomCatalogParams {
-  const q = first(raw.q)?.trim().slice(0, 100) || undefined;
+  const q = normalizeSearchInput(first(raw.q)) || undefined;
   const category = CANONICAL_CATEGORY_CODES.find((c) => c === first(raw.category));
   const supplierRaw = first(raw.supplier);
   const supplier = supplierRaw && UUID.test(supplierRaw) ? supplierRaw : undefined;

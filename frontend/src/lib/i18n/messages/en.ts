@@ -2421,6 +2421,17 @@ export const en = {
     errorBody: "Something went wrong while reading the catalog. Try again.",
     errorRetry: "Try again",
   },
+  showroomSaved: {
+    title: "Saved products",
+    subtitle: "The products your team shortlisted. Open one to see details, or remove it with the bookmark.",
+    count: "{count} saved",
+    emptyTitle: "No saved products yet",
+    emptyBody: "Use the bookmark on any product in Browse products to keep it here.",
+    browse: "Browse products",
+    errorTitle: "Saved products could not be loaded",
+    errorBody: "Something went wrong while reading your saved products. Try again.",
+    errorRetry: "Try again",
+  },
   showroomHome: {
     productsTitle: "Suggested products for you",
     productsViewAll: "Browse all products",

@@ -52,4 +52,10 @@ describe("catalog display preference", () => {
     expect(resolveCatalogView("table")).toBe("grid");
     expect(resolveCatalogView("")).toBe("grid");
   });
+
+  it("normalizes the search text: trimmed, repeated spaces collapsed, letter case kept for the database to match", () => {
+    expect(parseShowroomCatalogParams({ q: "  Interior   Wall  Paint " }).q).toBe("Interior Wall Paint");
+    expect(parseShowroomCatalogParams({ q: "fx-SARA-58" }).q).toBe("fx-SARA-58");
+    expect(parseShowroomCatalogParams({ q: "   " }).q).toBeUndefined();
+  });
 });

@@ -707,11 +707,13 @@ export async function listSavedProducts(
   return data ?? [];
 }
 
+export type SavedFilters = { category?: ProductCategory; categoryCode?: string; search?: string };
+
 /** One bounded batch of the shortlist and the full matching total. */
 export async function listSavedProductsPage(
   supabase: DB,
   orgId: string,
-  f: { category?: ProductCategory },
+  f: SavedFilters,
   offset: number,
   limit: number,
 ): Promise<{ rows: SavedProductRow[]; total: number }> {
@@ -722,9 +724,24 @@ export async function listSavedProductsPage(
     .order("saved_at", { ascending: false })
     .order("product_id", { ascending: false });
   if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
+  const term = f.search ? sanitizeSearchTerm(f.search) : "";
+  if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
   const { data, error, count } = await q.range(offset, offset + limit - 1);
   if (error) throw error;
   return { rows: data ?? [], total: count ?? 0 };
+}
+
+/** Full catalog rows for a known set of ids (a batch the caller already bounded), in the order asked for. */
+export async function listCatalogByIds(supabase: DB, ids: readonly string[]): Promise<CatalogRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("catalog_published_products").select("*").in("id", [...ids]);
+  if (error) throw error;
+  const byId = new Map((data ?? []).map((r) => [r.id, r]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
+  });
 }
 
 /** Category -> how many shortlisted products, for the tabs (one narrow column read, tallied here). */
