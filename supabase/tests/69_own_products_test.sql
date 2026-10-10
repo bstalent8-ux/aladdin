@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(115);
+select plan(116);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -290,7 +290,7 @@ select lives_ok(format('select public.own_product_set_archived(%L, true, %L)', (
 select throws_ok(format('select public.product_image_request_upload(%L, %L)', (select id from _o where name = 'a'), 'image/jpeg'),
   '22023', null, 'an archived product takes no new images');
 
--- H. Base price, structured colors, 250-word description (20261009090001).
+-- H. Base price, structured colors, 250-CHARACTER description (20261017090002) (20261009090001).
 set local request.jwt.claims = :'hana';
 insert into _o select 'p', public.own_product_create(:'orgC'::uuid, 'Priced paint', 'PRC-1', 'paints', 'pail',
   '[{"name":"Terracotta","hex":"#b96f52"},{"name":"Cream","hex":"#F2E9D8"}]'::jsonb, null, null, null, 'Short text', 159.99);
@@ -306,11 +306,12 @@ select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L
 select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad hex', 'BH-2', 'paints', 'pail', '[{"name":"Red","hex":"#fff"}]'), '22023', null, 'a 3-digit hex is refused (canonical form is #RRGGBB)');
 select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad hex', 'BH-3', 'paints', 'pail', '[{"name":"Red","hex":"red"}]'), '22023', null, 'a color keyword is refused');
 select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L)', :'orgC', 'Bad colors', 'BC-1', 'paints', 'pail', '{"name":"Red"}'), '22023', null, 'colors that are not a list are refused');
-insert into _o select 'w250', public.own_product_create(:'orgC'::uuid, 'Long text', 'LT-1', 'paints', 'pail', '[]', null, null, null, (select string_agg('word', ' ') from generate_series(1, 250)));
-select ok((select id from _o where name = 'w250') is not null, 'a 250-word description is accepted (far beyond the old 600 characters)');
-select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Long text', 'LT-2', 'paints', 'pail', '[]', null, null, null, (select string_agg('word', ' ') from generate_series(1, 251))), '22023', null, 'a 251-word description is refused');
-select lives_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-3', 'paints', 'pail', '[]', null, null, null, (select string_agg('كلمة', ' ') from generate_series(1, 250))), '250 Arabic words are accepted');
-select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-4', 'paints', 'pail', '[]', null, null, null, (select string_agg('كلمة', ' ') from generate_series(1, 251))), '22023', null, '251 Arabic words are refused');
+insert into _o select 'w250', public.own_product_create(:'orgC'::uuid, 'Long text', 'LT-1', 'paints', 'pail', '[]', null, null, null, repeat('a', 250));
+select ok((select id from _o where name = 'w250') is not null, 'a 250-character description is accepted');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Long text', 'LT-2', 'paints', 'pail', '[]', null, null, null, repeat('a', 251)), '22023', null, 'a 251-character description is refused');
+select lives_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-3', 'paints', 'pail', '[]', null, null, null, repeat('ك', 250)), '250 Arabic characters are accepted (characters, not bytes)');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Arabic text', 'LT-4', 'paints', 'pail', '[]', null, null, null, repeat('ك', 251)), '22023', null, '251 Arabic characters are refused');
+select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', :'orgC', 'Words text', 'LT-5', 'paints', 'pail', '[]', null, null, null, (select string_agg('w', ' ') from generate_series(1, 250))), '22023', null, '250 one-letter words (499 characters) are refused: the unit is characters, not words');
 select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, null),
   '22023', null, 'a price, once set, cannot be blanked');
 select is(public.own_product_update((select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[{"name":"Terracotta","hex":"#B96F52"}]', null, null, null, null, 175.25), 2, 'the price can be changed');

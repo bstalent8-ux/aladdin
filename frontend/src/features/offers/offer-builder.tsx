@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
-import { Button, Input, LabeledField, SubmitButton, Textarea } from "@/components/ui/controls";
+import { Button, Input, LabeledField, SubmitButton } from "@/components/ui/controls";
 import { CalendarIcon, CheckIcon, FileTextIcon, PackageIcon, PlusIcon, SearchIcon, SendIcon, TagIcon, TrashIcon, UsersIcon, XIcon, LightbulbIcon, ClockIcon } from "@/components/ui/icons";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { SwatchRow } from "@/features/showroom-shell/products/color-swatches";
@@ -13,7 +13,8 @@ import { formatProductPrice } from "@/features/showroom-shell/products/price-for
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { saveOfferAction, type OfferFormState } from "@/server/actions/offers";
 import type { PickerProduct } from "@/server/queries/offers";
-import { countWords } from "@/features/showroom-shell/products/product-input";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { countChars } from "@/lib/text/count-chars";
 import { OFFER_LIMITS } from "./offer-input";
 import { OFFER_AUDIENCE_GROUPS, audienceCodesForGroups, groupsForAudienceCodes, totalQuantity } from "./offer-model";
 import { OfferCollage } from "./offer-parts";
@@ -147,8 +148,7 @@ export function OfferBuilder({
     setItems((cur) => cur.map((i) => (i.productId === id ? { ...i, quantity: Math.min(OFFER_LIMITS.quantityMax, Math.max(1, Math.trunc(q) || 1)) } : i)));
   const toggleGroup = (id: string) => setGroups((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
   const audienceCodes = audienceCodesForGroups(groups);
-  const words = countWords(description);
-  const overWords = words > OFFER_LIMITS.descriptionWordsMax;
+  const overLimit = countChars(description) > OFFER_LIMITS.descriptionMax;
 
   const cur = t("showroomOffers.builder.currency");
   const priceNum = Number(totalPrice.replace(/,/g, "."));
@@ -179,18 +179,22 @@ export function OfferBuilder({
               <Counter value={title.length} max={OFFER_LIMITS.titleMax} />
             </div>
           </LabeledField>
-          <LabeledField label={t("showroomOffers.builder.description")} htmlFor="description" optional={t("showroomOffers.builder.optional")} error={overWords ? t("showroomOffers.errors.description") : errorText(fe.description)}>
-            <div className="relative">
-              <Textarea id="description" name="description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("showroomOffers.builder.descriptionPlaceholder")} disabled={dis} dir="auto" aria-invalid={overWords || fe.description ? true : undefined} className="pb-8" data-testid="offer-description-input" />
-              <span
-                className={cn("pointer-events-none absolute bottom-1.5 end-3 text-caption tabular-nums", overWords ? "font-semibold text-danger" : "text-fg-muted")}
-                dir="ltr"
-                data-testid="offer-description-counter"
-              >
-                {words}/{OFFER_LIMITS.descriptionWordsMax}
-                <span className="sr-only"> {t("showroomOffers.builder.descriptionWords")}</span>
-              </span>
-            </div>
+          <LabeledField label={t("showroomOffers.builder.description")} htmlFor="description" optional={t("showroomOffers.builder.optional")} error={overLimit ? t("showroomOffers.errors.description") : errorText(fe.description)}>
+            <CountedTextarea
+              id="description"
+              name="description"
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              max={OFFER_LIMITS.descriptionMax}
+              unitLabel={t("showroomOffers.builder.descriptionChars")}
+              counterTestId="offer-description-counter"
+              placeholder={t("showroomOffers.builder.descriptionPlaceholder")}
+              disabled={dis}
+              dir="auto"
+              aria-invalid={fe.description ? true : undefined}
+              data-testid="offer-description-input"
+            />
           </LabeledField>
           <div className="grid gap-md tablet:grid-cols-2">
             <LabeledField label={t("showroomOffers.builder.offerPrice")} htmlFor="totalPrice" hint={t("showroomOffers.builder.offerPriceHint")} error={errorText(fe.totalPrice)}>

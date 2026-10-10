@@ -344,18 +344,24 @@ describe("ProductForm", () => {
     expect(screen.getByRole("button", { name: "أزرق داكن" })).toBeTruthy();
   });
 
-  it("counts description WORDS live inside the field, in both scripts, and flags more than 250", () => {
+  it("counts description CHARACTERS live inside the field, in both scripts, and flags more than 250", () => {
     wrap(<ProductForm orgId="org-1" />);
     const box = screen.getByLabelText(/^Description/) as HTMLTextAreaElement;
-    expect(screen.getByTestId("description-count").textContent).toContain("0/250");
+    const counter = () => screen.getByTestId("description-count");
+    expect(counter().textContent).toContain("0/250");
     fireEvent.change(box, { target: { value: "one two  three" } });
-    expect(screen.getByTestId("description-count").textContent).toContain("3/250");
+    expect(counter().textContent).toContain("14/250");
     fireEvent.change(box, { target: { value: "مرحبا بالعالم" } });
-    expect(screen.getByTestId("description-count").textContent).toContain("2/250");
-    fireEvent.change(box, { target: { value: Array.from({ length: 251 }, () => "w").join(" ") } });
-    expect(screen.getByTestId("description-count").textContent).toContain("251/250");
+    expect(counter().textContent).toContain("13/250");
+    fireEvent.change(box, { target: { value: "a".repeat(250) } });
+    expect(counter().textContent).toContain("250/250");
+    expect(box.getAttribute("aria-invalid")).toBeNull();
+    fireEvent.change(box, { target: { value: "a".repeat(251) } });
+    expect(counter().textContent).toContain("251/250");
     expect(box.getAttribute("aria-invalid")).toBe("true");
-    expect(box.parentElement?.contains(screen.getByTestId("description-count"))).toBe(true);
+    expect(counter().className).toMatch(/text-danger/);
+    expect(box.parentElement?.contains(counter())).toBe(true);
+    expect(counter().getAttribute("dir")).toBe("ltr");
   });
 
   it("offers a price field in EGP, prefilled on edit", () => {

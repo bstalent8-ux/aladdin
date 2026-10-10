@@ -433,23 +433,23 @@ describe("Offer builder", () => {
     expect(screen.getByTestId("offer-audience-engineer").getAttribute("aria-checked")).toBe("true");
     expect(screen.getByTestId("offer-audience-importer").getAttribute("aria-checked")).toBe("false");
   });
-  it("counts the description in words inside the textarea, accepts 250 and flags 251", () => {
+  it("counts the description in CHARACTERS inside the textarea, accepts 250 and flags 251", () => {
     render();
     const area = screen.getByTestId("offer-description-input") as HTMLTextAreaElement;
     const counter = screen.getByTestId("offer-description-counter");
     expect(counter.textContent).toContain("0/250");
     expect(area.parentElement?.contains(counter)).toBe(true);
     fireEvent.change(area, { target: { value: "وصف عربي قصير" } });
-    expect(counter.textContent).toContain("3/250");
+    expect(counter.textContent).toContain("13/250");
     fireEvent.change(area, { target: { value: "سعر special 5 كلمات" } });
-    expect(counter.textContent).toContain("4/250");
-    fireEvent.change(area, { target: { value: Array.from({ length: 250 }, () => "كلمة").join(" ") } });
+    expect(counter.textContent).toContain("19/250");
+    fireEvent.change(area, { target: { value: "كلمة".repeat(62) + "ab" } });
     expect(counter.textContent).toContain("250/250");
     expect(area.getAttribute("aria-invalid")).toBeNull();
-    fireEvent.change(area, { target: { value: Array.from({ length: 251 }, () => "word").join(" ") } });
+    fireEvent.change(area, { target: { value: "w".repeat(251) } });
     expect(counter.textContent).toContain("251/250");
     expect(area.getAttribute("aria-invalid")).toBe("true");
-    expect(screen.getByText("The offer description is up to 250 words.")).toBeTruthy();
+    expect(screen.getByText("The offer description is up to 250 characters.")).toBeTruthy();
   });
   it("lays the desktop builder out as a fixed preview beside an editor that scrolls on its own", () => {
     render();

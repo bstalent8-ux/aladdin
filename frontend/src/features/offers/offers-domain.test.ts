@@ -151,6 +151,15 @@ describe("parseOfferForm", () => {
     expect(r.value.audiences).toEqual(["supplier", "importer"]);
     expect(new Date(r.value.endsAt) > new Date(r.value.startsAt)).toBe(true);
   });
+  it("limits the offer description to 250 CHARACTERS: 250 accepted, 251 refused, Arabic and English alike", () => {
+    const parse = (description: string) => parseOfferForm(form({ totalPrice: "3900", description }), "Africa/Cairo");
+    expect(parse("").ok).toBe(true);
+    expect(parse("a".repeat(250)).ok).toBe(true);
+    expect(parse("ع".repeat(250)).ok).toBe(true);
+    expect(parse("a".repeat(251))).toMatchObject({ ok: false, fieldErrors: { description: "showroomOffers.errors.description" } });
+    expect(parse("ع".repeat(251))).toMatchObject({ ok: false, fieldErrors: { description: "showroomOffers.errors.description" } });
+    expect(parse(Array.from({ length: 200 }, () => "w").join(" "))).toMatchObject({ ok: false });
+  });
   it("treats the price before the offer as optional", () => {
     const r = parseOfferForm(form({ totalPrice: "3900", referencePrice: "" }), "Africa/Cairo");
     expect(r.ok && r.value.referencePrice).toBe(null);

@@ -11,7 +11,8 @@ import Link from "next/link";
 import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_LIMITS, isOwnProductUnit } from "@/features/commerce/constants";
 import { createOwnProductDraftAction, updateOwnProductAction, type OwnProductFormState } from "@/server/actions/own-products";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
-import { countWords } from "./product-input";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { countChars } from "@/lib/text/count-chars";
 import { ColorField } from "./color-swatches";
 import type { ProductColor } from "./color-items";
 import { StagedPhotos } from "./staged-photos";
@@ -96,8 +97,7 @@ export function ProductForm({
   }
   const [colors, setColors] = useState<ProductColor[]>(product?.colors ?? []);
   const [description, setDescription] = useState(product?.description ?? "");
-  const words = countWords(description);
-  const overWords = words > PRODUCT_LIMITS.descriptionWordsMax;
+  const overLimit = countChars(description) > PRODUCT_LIMITS.descriptionMax;
 
   const keepsHistoricalUnit = product && !isOwnProductUnit(product.unit);
 
@@ -194,29 +194,18 @@ export function ProductForm({
           <LabeledField label={t("showroomProducts.fields.brand")} htmlFor="brand" optional={t("showroomProducts.fields.optional")}>
             <Input id="brand" name="brand" maxLength={PRODUCT_LIMITS.brandMax} defaultValue={product?.brand ?? ""} dir="auto" />
           </LabeledField>
-          <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")} error={overWords ? t("showroomProducts.validation.descriptionWords") : fe.description ? t(fe.description) : undefined}>
-            <div className="relative">
-              <Textarea
-                id="description"
-                name="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                dir="auto"
-                className="min-h-24 pb-7"
-                rows={4}
-                aria-invalid={overWords || fe.description ? true : undefined}
-                aria-describedby="description-count"
-              />
-              <span
-                id="description-count"
-                data-testid="description-count"
-                dir="ltr"
-                className={`pointer-events-none absolute bottom-1.5 end-3 text-caption tabular-nums ${overWords ? "font-semibold text-danger" : "text-fg-muted"}`}
-              >
-                {words}/{PRODUCT_LIMITS.descriptionWordsMax}
-                <span className="sr-only"> {t("showroomProducts.fields.words")}</span>
-              </span>
-            </div>
+          <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")} error={overLimit ? t("showroomProducts.validation.descriptionChars") : fe.description ? t(fe.description) : undefined}>
+            <CountedTextarea
+              id="description"
+              name="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              max={PRODUCT_LIMITS.descriptionMax}
+              unitLabel={t("showroomProducts.fields.chars")}
+              dir="auto"
+              rows={4}
+              aria-invalid={fe.description ? true : undefined}
+            />
           </LabeledField>
         </div>
 

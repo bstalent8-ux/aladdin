@@ -73,16 +73,17 @@ export function isOwnProductUnit(value: unknown): value is OwnProductUnit {
   return typeof value === "string" && (OWN_PRODUCT_UNITS as readonly string[]).includes(value);
 }
 
+/** The one limit for every showroom Description / Details free-text field. */
+export const DESCRIPTION_MAX_CHARS = 250;
+
 /** Limits mirrored from the database (the database is the authority). */
 export const PRODUCT_LIMITS = {
   nameMin: 2,
   nameMax: 160,
   codeMax: 60,
   brandMax: 120,
-  /** The description limit is counted in WORDS (the database enforces the same rule). */
-  descriptionWordsMax: 250,
-  /** A sanity ceiling in characters so 250 "words" cannot be a megabyte. */
-  descriptionCharsMax: 5000,
+  /** The description limit is 250 CHARACTERS (Unicode, not bytes, not words); the database enforces the same rule. */
+  descriptionMax: DESCRIPTION_MAX_CHARS,
   priceMax: 100_000_000,
   sizeMax: 80,
   colorMax: 40,

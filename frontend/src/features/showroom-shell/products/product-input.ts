@@ -4,6 +4,7 @@ import {
   isOwnProductUnit,
   type CanonicalCategoryCode,
 } from "@/features/commerce/constants";
+import { countChars } from "@/lib/text/count-chars";
 import { COLOR_CODE_PATTERN, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
 
 /**
@@ -37,12 +38,6 @@ export type OwnProductParse =
   | { ok: false; fieldErrors: OwnProductFieldErrors };
 
 const collapse = (v: string) => v.replace(/\s+/g, " ").trim();
-
-/** Words are runs of non-whitespace — the same rule the database applies (`app.word_count`). */
-export function countWords(value: string): number {
-  const t = value.trim();
-  return t === "" ? 0 : t.split(/\s+/).length;
-}
 
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 
@@ -152,9 +147,9 @@ export function parseOwnProductForm(fd: FormData, keepUnit?: string | null, opts
   if (sizeLabel && sizeLabel.length > PRODUCT_LIMITS.sizeMax) fieldErrors.size = "showroomProducts.errors.invalid";
   const brand = collapse(text(fd, "brand")) || null;
   if (brand && brand.length > PRODUCT_LIMITS.brandMax) fieldErrors.brand = "showroomProducts.errors.invalid";
-  const description = text(fd, "description").trim() || null;
-  if (description && (countWords(description) > PRODUCT_LIMITS.descriptionWordsMax || description.length > PRODUCT_LIMITS.descriptionCharsMax)) {
-    fieldErrors.description = "showroomProducts.validation.descriptionWords";
+  const description = text(fd, "description").replace(/\r\n?/g, "\n").trim() || null;
+  if (description && countChars(description) > PRODUCT_LIMITS.descriptionMax) {
+    fieldErrors.description = "showroomProducts.validation.descriptionChars";
   }
 
   if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors };

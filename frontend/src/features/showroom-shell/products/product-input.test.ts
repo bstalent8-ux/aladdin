@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   availableLifecycleActions,
   isLifecycleAction,
-  countWords,
   parsePrice,
   ownProductStatus,
   parseOwnProductForm,
@@ -122,27 +121,32 @@ describe("own product form parsing", () => {
     expect(r.ok && r.value.basePrice).toBe(159.99);
   });
 
-  it("limits the description to 250 words, in Arabic and English alike", () => {
-    const words = (w: string, n: number) => Array.from({ length: n }, () => w).join(" ");
-    expect(parseOwnProductForm(form({ ...valid, description: words("word", 250) })).ok).toBe(true);
-    expect(parseOwnProductForm(form({ ...valid, description: words("word", 251) }))).toMatchObject({ ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionWords" } });
-    expect(parseOwnProductForm(form({ ...valid, description: words("كلمة", 250) })).ok).toBe(true);
-    expect(parseOwnProductForm(form({ ...valid, description: words("كلمة", 251) }))).toMatchObject({ ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionWords" } });
+  it("limits the description to 250 CHARACTERS (not words), in Arabic, English and mixed text", () => {
+    const desc = (description: string) => parseOwnProductForm(form({ ...valid, description }));
+    const tooLong = { ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionChars" } };
+    expect(desc("").ok).toBe(true); // optional
+    expect(desc("a".repeat(250)).ok).toBe(true);
+    expect(desc("a".repeat(251))).toMatchObject(tooLong);
+    expect(desc("ك".repeat(250)).ok).toBe(true);
+    expect(desc("ك".repeat(251))).toMatchObject(tooLong);
+    expect(desc("كلمة ".repeat(40) + "mix ".repeat(12).trim()).ok).toBe(true);
+    expect(desc("كلمة ".repeat(50) + "mix ".repeat(4))).toMatchObject(tooLong);
+    // 250 one-letter WORDS is 499 characters: the unit is characters now, so it is refused.
+    expect(desc(Array.from({ length: 250 }, () => "w").join(" "))).toMatchObject(tooLong);
+    // an astral character (emoji) is one character, like the database's char_length
+    expect(desc("😀".repeat(250)).ok).toBe(true);
+    expect(desc("😀".repeat(251))).toMatchObject(tooLong);
+    // line breaks count once, whichever way the browser sends them
+    expect(desc(("a".repeat(124) + String.fromCharCode(13, 10)).repeat(2)).ok).toBe(true);
   });
 });
 
-describe("price and word helpers", () => {
+describe("price helpers", () => {
   it("parses exact money from Latin or Arabic-Indic digits", () => {
     expect(parsePrice("159.5")).toEqual({ ok: true, value: 159.5 });
     expect(parsePrice("١٥٩٫٥")).toEqual({ ok: true, value: 159.5 });
     expect(parsePrice("0.01")).toEqual({ ok: true, value: 0.01 });
     expect(parsePrice("0")).toEqual({ ok: false });
-  });
-
-  it("counts words on whitespace", () => {
-    expect(countWords("")).toBe(0);
-    expect(countWords("  hello   world ")).toBe(2);
-    expect(countWords("مرحبا بالعالم الجميل")).toBe(3);
   });
 });
 
