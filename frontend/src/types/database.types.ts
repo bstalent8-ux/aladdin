@@ -3806,6 +3806,187 @@ export type Database = {
           },
         ]
       }
+      network_candidates: {
+        Row: {
+          business_type: string | null
+          candidate_kind: string
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          contact_whatsapp: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          display_name: string
+          governorate: string | null
+          id: string
+          note: string | null
+          status: string
+          submitted_by: string
+          submitted_by_org_id: string
+          trade_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_type?: string | null
+          candidate_kind: string
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          display_name: string
+          governorate?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          submitted_by: string
+          submitted_by_org_id: string
+          trade_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_type?: string | null
+          candidate_kind?: string
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          display_name?: string
+          governorate?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          submitted_by?: string
+          submitted_by_org_id?: string
+          trade_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_candidates_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_org_id_fkey"
+            columns: ["submitted_by_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_trade_key_fkey"
+            columns: ["trade_key"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      organization_contacts: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          organization_id: string
+          phone_e164: string | null
+          show_email: boolean
+          show_phone: boolean
+          show_whatsapp: boolean
+          updated_at: string
+          updated_by: string | null
+          whatsapp_e164: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          organization_id: string
+          phone_e164?: string | null
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_e164?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          organization_id?: string
+          phone_e164?: string | null
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_e164?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_contacts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_contact_visibility: {
+        Row: {
+          show_email: boolean
+          show_phone: boolean
+          show_whatsapp: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_contact_visibility_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       catalog_published_products: {
@@ -4968,6 +5149,88 @@ export type Database = {
           },
         ]
       }
+      my_network_candidates: {
+        Row: {
+          business_type: string | null
+          candidate_kind: string | null
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          contact_whatsapp: string | null
+          created_at: string | null
+          decided_at: string | null
+          decision_reason: string | null
+          display_name: string | null
+          governorate: string | null
+          id: string | null
+          note: string | null
+          status: string | null
+          submitted_by: string | null
+          submitted_by_org_id: string | null
+          trade_key: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          candidate_kind?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision_reason?: string | null
+          display_name?: string | null
+          governorate?: string | null
+          id?: string | null
+          note?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          submitted_by_org_id?: string | null
+          trade_key?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          candidate_kind?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision_reason?: string | null
+          display_name?: string | null
+          governorate?: string | null
+          id?: string | null
+          note?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          submitted_by_org_id?: string | null
+          trade_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_candidates_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_org_id_fkey"
+            columns: ["submitted_by_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_trade_key_fkey"
+            columns: ["trade_key"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
     }
     Functions: {
       activate_project: {
@@ -6013,6 +6276,70 @@ export type Database = {
         Returns: undefined
       }
       username_available: { Args: { p_username: string }; Returns: boolean }
+      business_contact: {
+        Args: { p_organization_id: string; p_viewer_org_id: string }
+        Returns: {
+          email: string
+          phone: string
+          whatsapp: string
+        }[]
+      }
+      craftsman_contact: {
+        Args: { p_profile_id: string; p_viewer_org_id: string }
+        Returns: {
+          email: string
+          phone: string
+          whatsapp: string
+        }[]
+      }
+      network_candidate_create: {
+        Args: {
+          p_business_type?: string
+          p_city?: string
+          p_display_name: string
+          p_email?: string
+          p_governorate?: string
+          p_kind: string
+          p_note?: string
+          p_org_id: string
+          p_phone?: string
+          p_trade_key?: string
+          p_whatsapp?: string
+        }
+        Returns: string
+      }
+      network_candidate_cancel: {
+        Args: { p_candidate_id: string }
+        Returns: undefined
+      }
+      network_candidate_approve: {
+        Args: { p_candidate_id: string; p_note?: string }
+        Returns: undefined
+      }
+      network_candidate_reject: {
+        Args: { p_candidate_id: string; p_reason: string }
+        Returns: undefined
+      }
+      organization_contact_set: {
+        Args: {
+          p_contact_email: string
+          p_org_id: string
+          p_phone_e164: string
+          p_show_email: boolean
+          p_show_phone: boolean
+          p_show_whatsapp: boolean
+          p_whatsapp_e164: string
+        }
+        Returns: undefined
+      }
+      profile_contact_visibility_set: {
+        Args: {
+          p_show_email: boolean
+          p_show_phone: boolean
+          p_show_whatsapp: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_audience_kind: "organization_type" | "persona_type"
