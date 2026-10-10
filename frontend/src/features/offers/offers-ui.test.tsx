@@ -177,12 +177,18 @@ describe("Offers feed (audience)", () => {
     expect(within(screen.getByTestId("offers-stat-available")).getByText("2")).toBeTruthy();
     expect(within(screen.getByTestId("offers-stat-ending")).getByText("1")).toBeTruthy();
   });
-  it("groups each summary icon with its own label instead of parking it at the far edge", () => {
+  it("groups each summary icon with its own label (one group), the figure underneath, never justify-between", () => {
     render();
     const stat = within(screen.getByTestId("offers-stat-available")).getByTestId("icon-stat");
     expect(stat.className).not.toMatch(/justify-between/);
-    expect(stat.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
-    expect(stat.textContent).toContain("Offers available to you");
+    const head = within(stat).getByTestId("icon-stat-head");
+    expect(head.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
+    expect(head.textContent).toContain("Offers available to you");
+    const value = within(stat).getByTestId("icon-stat-value");
+    expect(stat.firstElementChild).toBe(head);
+    expect(head.nextElementSibling).toBe(value);
+    expect(value.className).toMatch(/text-start/);
+    expect(value.querySelector("bdi")?.getAttribute("dir")).toBe("ltr");
   });
   it("bookmarks an offer with accessible labels and a persisted server call", async () => {
     render();

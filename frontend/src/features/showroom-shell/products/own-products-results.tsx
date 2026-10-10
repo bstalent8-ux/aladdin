@@ -16,7 +16,7 @@ import { ViewToggle } from "@/features/showroom-shell/view-toggle";
 import { ActiveSwitch, ArchiveAction, RestoreAction, cardActionClass } from "./lifecycle-controls";
 import { SwatchRow } from "./color-swatches";
 import type { ProductColor } from "./color-items";
-import { formatProductPrice } from "./price-format";
+import { Money } from "@/components/ui/money";
 import { ownCategoryLabel, productMetaLine } from "./labels";
 import { ownProductStatus, type OwnProductStatus } from "./product-input";
 
@@ -139,11 +139,11 @@ const actionLink =
   "inline-flex items-center justify-center rounded-sm border border-strong text-fg transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function PriceLine({ price }: { price: number | null }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   return price !== null ? (
     <p className="flex w-full items-baseline gap-1.5" data-testid="card-price">
       <span className="sr-only">{t("showroomProducts.basePrice")}: </span>
-      <span className="text-body font-bold text-fg" dir="ltr">{formatProductPrice(price, t("showroomProducts.fields.currency"))}</span>
+      <Money amount={price} currency={t("showroomProducts.fields.currency")} locale={locale} className="text-body font-bold text-fg" />
     </p>
   ) : (
     <p className="w-full text-label text-fg-muted" data-testid="card-price-none">{t("showroomProducts.noPrice")}</p>

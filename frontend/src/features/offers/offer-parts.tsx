@@ -4,7 +4,7 @@ import { cn } from "@/lib/ui/cn";
 import { useI18n } from "@/lib/i18n/context";
 import { ProductMedia } from "@/features/commerce/product-media";
 import { BadgeCheckIcon, CalendarIcon, ClockIcon, PauseIcon, PlayIcon, PencilIcon, InboxIcon, PackageIcon, TrashIcon } from "@/components/ui/icons";
-import { formatProductPrice } from "@/features/showroom-shell/products/price-format";
+import { Money } from "@/components/ui/money";
 import type { ComponentType } from "react";
 import { daysLeft, productsLabel, type OfferPhase } from "./offer-model";
 import { formatOfferDate } from "./offer-datetime";
@@ -96,21 +96,21 @@ export function OfferPrice({
   /** Keep the previous-price line's height when there is none, so prices align across a row of cards. */
   reserveReference?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const cur = t("showroomOffers.builder.currency");
   return (
     <div className="flex min-w-0 flex-col gap-0.5" data-testid="offer-price">
       {reference !== null ? (
         <p className="flex flex-wrap items-baseline gap-x-2 text-label text-fg-muted">
           <span>{t("showroomOffers.priceBefore")}</span>
-          <span className="line-through decoration-danger decoration-2" dir="ltr" data-testid="offer-reference-price">{formatProductPrice(reference, cur)}</span>
+          <Money amount={reference} currency={cur} locale={locale} className="line-through decoration-danger decoration-2" testId="offer-reference-price" />
         </p>
       ) : reserveReference ? (
         <p aria-hidden="true" className="min-h-[1.25rem]" />
       ) : null}
       <p className="text-label font-medium text-accent">{t("showroomOffers.offerPrice")}</p>
-      <p className={cn("font-bold leading-none text-accent", size === "lg" ? "text-display" : size === "sm" ? "text-title" : "text-headline")} dir="ltr" data-testid="offer-total-price">
-        {formatProductPrice(total, cur)}
+      <p className={cn("font-bold leading-none text-accent", size === "lg" ? "text-display" : size === "sm" ? "text-title" : "text-headline")} data-testid="offer-total-price">
+        <Money amount={total} currency={cur} locale={locale} />
       </p>
     </div>
   );

@@ -56,7 +56,7 @@ export function ShowroomPageHero({
           {back}
           <div className="flex flex-wrap items-center justify-between gap-x-md gap-y-sm">
             <div className="flex min-w-0 flex-col gap-1.5">
-              <h1 id={titleId} className="flex min-w-0 items-center gap-2.5 text-title font-bold tracking-tight text-fg tablet:text-headline desktop:text-display">
+              <h1 id={titleId} className="flex min-w-0 items-center gap-2.5 pb-2 text-title font-bold leading-[1.5] tracking-tight text-fg tablet:text-headline desktop:text-display">
                 {Icon ? <span className="text-accent"><Icon size={28} /></span> : null}
                 <span className="min-w-0">{title}</span>
               </h1>

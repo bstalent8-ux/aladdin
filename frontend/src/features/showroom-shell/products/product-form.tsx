@@ -4,7 +4,8 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { Card } from "@/components/ui/primitives";
-import { Button, Input, Textarea, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { Button, Input, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { PriceInput } from "@/components/ui/price-input";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PackageIcon, XIcon } from "@/components/ui/icons";
 import Link from "next/link";
@@ -106,7 +107,7 @@ export function ProductForm({
       <div className="mb-md flex flex-wrap items-center justify-between gap-x-md gap-y-sm border-b pb-md">
         <div className="flex min-w-0 items-center gap-sm">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-sm bg-accent-solid/15 text-accent"><PackageIcon size={22} /></span>
-          <div className="min-w-0">
+          <div className="min-w-0 text-start">
             <h2 className="text-title leading-snug text-fg">{t("showroomProducts.cardTitle")}</h2>
             <p className="mt-0.5 text-label leading-relaxed text-fg-muted">{t("showroomProducts.cardSubtitle")}</p>
           </div>
@@ -114,34 +115,42 @@ export function ProductForm({
       </div>
 
       {state.code && !state.ok ? (
-        <p role="alert" className="mb-md rounded-sm border border-danger/40 bg-danger/10 px-md py-2 text-body text-danger" data-testid="product-form-error">
+        <p role="alert" className="mb-md rounded-sm border border-danger/40 bg-danger/10 px-md py-2 text-start text-body text-danger" data-testid="product-form-error">
           {t(state.code)}
         </p>
       ) : null}
 
-      {/* One editor grid for create AND edit. The <form> is display:contents so its sections are grid items; the edit photo manager (its own forms/buttons) is a sibling placed by order. */}
-      <div className="grid min-w-0 gap-md tablet:grid-cols-2 desktop:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-      <form ref={formRef} action={editing ? editAction : undefined} onSubmit={editing ? undefined : onCreate} className="contents" noValidate data-testid="product-form">
-        {editing ? (
-          <>
-            <input type="hidden" name="productId" value={product!.id} />
-            <input type="hidden" name="expectedVersion" value={product!.version} />
-            <input type="hidden" name="currentUnit" value={product!.unit} />
-          </>
-        ) : (
-          <input type="hidden" name="orgId" value={orgId} />
-        )}
+      {/*
+        One editor grid for create AND edit, in the reference's reading order. The <form> is display:contents so its
+        sections are grid items (the edit photo manager has its own forms/buttons, so it is a sibling placed by `order`):
+          row 1  name | code            row 2  category | price
+          row 3  colours | photos       row 4  weight | size | unit
+          row 5  brand | description     last   save / cancel
+        Everything follows the page direction (start = right in Arabic), so the first field of each row is on the right.
+      */}
+      <div className="grid min-w-0 items-start gap-x-md gap-y-md text-start tablet:grid-cols-2" data-testid="product-editor-grid">
+        <form ref={formRef} action={editing ? editAction : undefined} onSubmit={editing ? undefined : onCreate} className="contents" noValidate data-testid="product-form">
+          {editing ? (
+            <>
+              <input type="hidden" name="productId" value={product!.id} />
+              <input type="hidden" name="expectedVersion" value={product!.version} />
+              <input type="hidden" name="currentUnit" value={product!.unit} />
+            </>
+          ) : (
+            <input type="hidden" name="orgId" value={orgId} />
+          )}
 
-        <div className="order-1 flex min-w-0 flex-col gap-md tablet:col-span-2">
-          <div className="grid min-w-0 gap-md tablet:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="order-1 min-w-0">
             <LabeledField label={t("showroomProducts.fields.name")} htmlFor="name" error={fe.name ? t(fe.name) : undefined}>
               <Input id="name" name="name" required maxLength={PRODUCT_LIMITS.nameMax} defaultValue={product?.name ?? ""} dir="auto" aria-invalid={fe.name ? true : undefined} />
             </LabeledField>
+          </div>
+          <div className="order-2 min-w-0">
             <LabeledField label={t("showroomProducts.fields.code")} htmlFor="code" hint={t("showroomProducts.fields.codeHint")} error={fe.code ? t(fe.code) : undefined}>
-              <Input id="code" name="code" required maxLength={PRODUCT_LIMITS.codeMax} dir="ltr" defaultValue={product?.code ?? ""} aria-invalid={fe.code ? true : undefined} />
+              <Input id="code" name="code" required maxLength={PRODUCT_LIMITS.codeMax} dir="ltr" defaultValue={product?.code ?? ""} aria-invalid={fe.code ? true : undefined} className="text-start rtl:text-right" />
             </LabeledField>
           </div>
-          <div className="grid min-w-0 gap-md tablet:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="order-3 min-w-0">
             <LabeledField label={t("showroomProducts.fields.category")} htmlFor="categoryCode" error={fe.category ? t(fe.category) : undefined}>
               <SelectMenu
                 id="categoryCode"
@@ -153,80 +162,80 @@ export function ProductForm({
                 data-testid="category-select"
               />
             </LabeledField>
+          </div>
+          <div className="order-4 min-w-0">
             <LabeledField label={t("showroomProducts.fields.price")} htmlFor="basePrice" hint={t("showroomProducts.fields.priceHint")} error={fe.price ? t(fe.price) : undefined}>
-              <div className="relative">
-                <Input id="basePrice" name="basePrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" defaultValue={product?.basePrice ?? ""} aria-invalid={fe.price ? true : undefined} className="pe-14" data-testid="price-input" />
-                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{t("showroomProducts.fields.currency")}</span>
-              </div>
+              <PriceInput id="basePrice" name="basePrice" currency={t("showroomProducts.fields.currency")} defaultValue={product?.basePrice ?? ""} invalid={Boolean(fe.price)} testId="price-input" />
             </LabeledField>
           </div>
-        </div>
 
-          {!editing ? <div className="order-2 min-w-0"><StagedPhotos files={staged} onChange={setStaged} disabled={phase !== "idle"} /></div> : null}
-          <div className="order-3 min-w-0">
+          <div className="order-5 min-w-0">
             <ColorField colors={colors} onChange={setColors} error={fe.colors ? t(fe.colors) : undefined} />
           </div>
+          {!editing ? <div className="order-6 min-w-0"><StagedPhotos files={staged} onChange={setStaged} disabled={phase !== "idle"} /></div> : null}
 
-        <div className="order-4 grid min-w-0 gap-md tablet:col-span-2 tablet:grid-cols-3">
-          <LabeledField label={t("showroomProducts.fields.weight")} htmlFor="weightKg" hint={t("showroomProducts.fields.weightHint")} optional={t("showroomProducts.fields.optional")} error={fe.weight ? t(fe.weight) : undefined}>
-            <Input id="weightKg" name="weightKg" type="number" inputMode="decimal" min={0} max={PRODUCT_LIMITS.weightMax} step="0.001" dir="ltr" defaultValue={product?.weightKg ?? ""} aria-invalid={fe.weight ? true : undefined} />
-          </LabeledField>
-          <LabeledField label={t("showroomProducts.fields.size")} htmlFor="sizeLabel" hint={t("showroomProducts.fields.sizeHint")} optional={t("showroomProducts.fields.optional")} error={fe.size ? t(fe.size) : undefined}>
-            <Input id="sizeLabel" name="sizeLabel" maxLength={PRODUCT_LIMITS.sizeMax} defaultValue={product?.sizeLabel ?? ""} dir="auto" />
-          </LabeledField>
-          <LabeledField label={t("showroomProducts.fields.unit")} htmlFor="unit" error={fe.unit ? t(fe.unit) : undefined}>
-            <SelectMenu
-              id="unit"
-              name="unit"
-              defaultValue={product?.unit ?? ""}
-              placeholder={t("showroomProducts.fields.selectUnit")}
-              invalid={Boolean(fe.unit)}
-              options={[
-                ...OWN_PRODUCT_UNITS.map((u) => ({ value: u, label: t(`commerce.units.${u}`) })),
-                ...(keepsHistoricalUnit ? [{ value: product!.unit, label: t(`commerce.units.${product!.unit}`) }] : []),
-              ]}
-              data-testid="unit-select"
-            />
-          </LabeledField>
-        </div>
+          <div className="order-7 grid min-w-0 gap-md tablet:col-span-2 tablet:grid-cols-3">
+            <LabeledField label={t("showroomProducts.fields.weight")} htmlFor="weightKg" hint={t("showroomProducts.fields.weightHint")} optional={t("showroomProducts.fields.optional")} error={fe.weight ? t(fe.weight) : undefined}>
+              <Input id="weightKg" name="weightKg" type="number" inputMode="decimal" min={0} max={PRODUCT_LIMITS.weightMax} step="0.001" dir="ltr" defaultValue={product?.weightKg ?? ""} aria-invalid={fe.weight ? true : undefined} className="text-start rtl:text-right" />
+            </LabeledField>
+            <LabeledField label={t("showroomProducts.fields.size")} htmlFor="sizeLabel" hint={t("showroomProducts.fields.sizeHint")} optional={t("showroomProducts.fields.optional")} error={fe.size ? t(fe.size) : undefined}>
+              <Input id="sizeLabel" name="sizeLabel" maxLength={PRODUCT_LIMITS.sizeMax} defaultValue={product?.sizeLabel ?? ""} dir="auto" />
+            </LabeledField>
+            <LabeledField label={t("showroomProducts.fields.unit")} htmlFor="unit" error={fe.unit ? t(fe.unit) : undefined}>
+              <SelectMenu
+                id="unit"
+                name="unit"
+                defaultValue={product?.unit ?? ""}
+                placeholder={t("showroomProducts.fields.selectUnit")}
+                invalid={Boolean(fe.unit)}
+                options={[
+                  ...OWN_PRODUCT_UNITS.map((u) => ({ value: u, label: t(`commerce.units.${u}`) })),
+                  ...(keepsHistoricalUnit ? [{ value: product!.unit, label: t(`commerce.units.${product!.unit}`) }] : []),
+                ]}
+                data-testid="unit-select"
+              />
+            </LabeledField>
+          </div>
 
-        <div className="order-5 grid min-w-0 gap-md tablet:col-span-2 tablet:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-          <LabeledField label={t("showroomProducts.fields.brand")} htmlFor="brand" optional={t("showroomProducts.fields.optional")}>
-            <Input id="brand" name="brand" maxLength={PRODUCT_LIMITS.brandMax} defaultValue={product?.brand ?? ""} dir="auto" />
-          </LabeledField>
-          <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")} error={overLimit ? t("showroomProducts.validation.descriptionChars") : fe.description ? t(fe.description) : undefined}>
-            <CountedTextarea
-              id="description"
-              name="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              max={PRODUCT_LIMITS.descriptionMax}
-              unitLabel={t("showroomProducts.fields.chars")}
-              dir="auto"
-              rows={4}
-              aria-invalid={fe.description ? true : undefined}
-            />
-          </LabeledField>
-        </div>
+          <div className="order-8 min-w-0">
+            <LabeledField label={t("showroomProducts.fields.brand")} htmlFor="brand" optional={t("showroomProducts.fields.optional")}>
+              <Input id="brand" name="brand" maxLength={PRODUCT_LIMITS.brandMax} defaultValue={product?.brand ?? ""} dir="auto" />
+            </LabeledField>
+          </div>
+          <div className="order-9 min-w-0">
+            <LabeledField label={t("showroomProducts.fields.description")} htmlFor="description" optional={t("showroomProducts.fields.optional")} error={overLimit ? t("showroomProducts.validation.descriptionChars") : fe.description ? t(fe.description) : undefined}>
+              <CountedTextarea
+                id="description"
+                name="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                max={PRODUCT_LIMITS.descriptionMax}
+                unitLabel={t("showroomProducts.fields.chars")}
+                dir="auto"
+                rows={4}
+                aria-invalid={fe.description ? true : undefined}
+              />
+            </LabeledField>
+          </div>
 
-        <div className="order-6 flex flex-wrap items-center gap-sm border-t pt-md tablet:col-span-2">
-          {editing ? (
-            <SubmitButton variant="accent" pendingLabel={t("common.saving")}>{t("common.saveChanges")}</SubmitButton>
-          ) : (
-            <Button type="submit" variant="accent" disabled={phase !== "idle"} aria-busy={phase !== "idle"}>
-              {phase === "creating" ? t("showroomProducts.creating") : phase === "uploading" ? t("showroomProducts.uploadingPhotos") : t("showroomProducts.saveProduct")}
-            </Button>
-          )}
-          <Link
-            href={`${SHOWROOM_ROOT}/my-products`}
-            className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-strong px-md text-label font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            <XIcon size={14} />
-            {t("showroomProducts.cancel")}
-          </Link>
-        </div>
-      </form>
-      {photos ? <div id="product-photos" className="order-2 min-w-0 scroll-mt-24">{photos}</div> : null}
+          <div className="order-10 flex flex-wrap items-center gap-sm border-t pt-md tablet:col-span-2">
+            {editing ? (
+              <SubmitButton variant="accent" pendingLabel={t("common.saving")}>{t("common.saveChanges")}</SubmitButton>
+            ) : (
+              <Button type="submit" variant="accent" disabled={phase !== "idle"} aria-busy={phase !== "idle"}>
+                {phase === "creating" ? t("showroomProducts.creating") : phase === "uploading" ? t("showroomProducts.uploadingPhotos") : t("showroomProducts.saveProduct")}
+              </Button>
+            )}
+            <Link
+              href={`${SHOWROOM_ROOT}/my-products`}
+              className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-strong px-md text-label font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              <XIcon size={14} />
+              {t("showroomProducts.cancel")}
+            </Link>
+          </div>
+        </form>
+        {photos ? <div id="product-photos" className="order-6 min-w-0 scroll-mt-24">{photos}</div> : null}
       </div>
     </Card>
   );

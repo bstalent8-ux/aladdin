@@ -295,7 +295,7 @@ describe("ProductForm", () => {
     addHex(h("3a5f8a"));
     expect(submitted(container)).toEqual([
       { name: "Dark Red", hex: h("8B1A1A"), code: "dark_red" },
-      { name: "Custom color " + h("3A5F8A"), hex: h("3A5F8A"), code: "custom" },
+      { name: h("3A5F8A"), hex: h("3A5F8A"), code: "custom" },
     ]);
     expect(screen.getAllByTestId("color-swatch")).toHaveLength(2);
 
@@ -317,7 +317,7 @@ describe("ProductForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Dark Red" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove Dark Red" }));
-    expect(submitted(container)).toEqual([{ name: "Custom color " + h("3A5F8A"), hex: h("3A5F8A"), code: "custom" }]);
+    expect(submitted(container)).toEqual([{ name: h("3A5F8A"), hex: h("3A5F8A"), code: "custom" }]);
     expect(actions.create).not.toHaveBeenCalled();
   });
 

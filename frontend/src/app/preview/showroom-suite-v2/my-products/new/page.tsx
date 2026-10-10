@@ -35,7 +35,7 @@ export default async function ShowroomNewProductPage() {
         }
       />
       {/* Form first (the wide track), tips second: in RTL that puts the form on the right and the tips panel on the left, as in the reference. */}
-      <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,78fr)_minmax(0,22fr)]">
         <ProductForm orgId={org.organizationId} />
         <TipsCard
           title={t("showroomProducts.tipsTitle")}

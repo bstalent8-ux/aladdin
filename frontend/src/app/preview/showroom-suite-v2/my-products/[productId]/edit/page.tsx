@@ -76,7 +76,7 @@ export default async function ShowroomEditProductPage({
       {sp.created === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="created-note">{sp.photos === "partial" ? t("showroomProducts.createdPartial") : t("showroomProducts.created")}</p> : null}
       {sp.saved === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="saved-note">{t("showroomProducts.saved")}</p> : null}
 
-      <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,78fr)_minmax(0,22fr)]">
       {status === "archived" ? (
         <div className="flex min-w-0 flex-col gap-md">
           <p className="rounded-sm border bg-surface px-md py-2 text-body text-fg-secondary" data-testid="archived-note">{t("showroomProducts.errors.archived")}</p>

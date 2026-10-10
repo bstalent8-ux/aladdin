@@ -160,7 +160,59 @@ describe("ColorField — searchable colour name", () => {
     expect(screen.getByTestId("color-preview-name").textContent).toBe("Custom color #C62829");
     expect((screen.getByTestId("color-name") as HTMLInputElement).value).toBe("");
     fireEvent.click(screen.getByTestId("color-save"));
-    expect(onChange).toHaveBeenCalledWith([{ name: "Custom color #C62829", hex: "#C62829", code: "custom" }]);
+    expect(onChange).toHaveBeenCalledWith([{ name: "#C62829", hex: "#C62829", code: "custom" }]);
+  });
+
+  it("offers an OPTIONAL name only for a custom value, never for a library colour", () => {
+    mount();
+    open();
+    expect(screen.queryByTestId("color-custom-name")).toBeNull(); // nothing chosen yet
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "#AF725A" } });
+    expect(screen.getByTestId("color-custom-name")).toBeTruthy();
+    expect(screen.getByLabelText(/Color name \(optional\)/)).toBeTruthy();
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "#C62828" } }); // exactly the library "Red"
+    expect(screen.queryByTestId("color-custom-name")).toBeNull();
+    expect(screen.getByTestId("color-preview-name").textContent).toBe("Red");
+  });
+
+  it("stores the owner's own name for a custom value and shows it in the preview and the swatch tooltip", () => {
+    const { onChange } = mount();
+    open();
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "#AF725A" } });
+    expect(screen.getByTestId("color-preview-name").textContent).toBe("Custom color #AF725A");
+    fireEvent.change(screen.getByTestId("color-custom-name"), { target: { value: "Brick brown" } });
+    expect(screen.getByTestId("color-preview-name").textContent).toBe("Brick brown");
+    fireEvent.click(screen.getByTestId("color-save"));
+    expect(onChange).toHaveBeenCalledWith([{ name: "Brick brown", hex: "#AF725A", code: "custom" }]);
+  });
+
+  it("a blank custom name falls back to Custom colour + hex (no naming is forced)", () => {
+    const { onChange } = mount();
+    open();
+    fireEvent.change(screen.getByTestId("color-hex"), { target: { value: "#AF725A" } });
+    fireEvent.change(screen.getByTestId("color-custom-name"), { target: { value: "   " } });
+    fireEvent.click(screen.getByTestId("color-save"));
+    expect(onChange).toHaveBeenCalledWith([{ name: "#AF725A", hex: "#AF725A", code: "custom" }]);
+  });
+
+  it("re-opening a named custom colour restores its name; the Arabic UI keeps the owner's name and reads auto labels in Arabic", () => {
+    const named: ProductColor = { name: "بني طوبي", hex: "#AF725A", code: "custom" };
+    const auto: ProductColor = { name: "#3A5F8A", hex: "#3A5F8A", code: "custom" };
+    const { onChange } = mount([named, auto], "ar");
+    const [first, second] = screen.getAllByTestId("color-swatch");
+    expect(first!.getAttribute("aria-label")).toBe("بني طوبي");
+    expect(second!.getAttribute("aria-label")).toBe("لون مخصص #3A5F8A");
+    fireEvent.click(first!);
+    expect((screen.getByTestId("color-custom-name") as HTMLInputElement).value).toBe("بني طوبي");
+    fireEvent.click(screen.getByTestId("color-save"));
+    expect(onChange).toHaveBeenCalledWith([named, auto]);
+  });
+
+  it("the Add / Cancel actions put the primary action first, so it is on the right in Arabic", () => {
+    mount([], "ar");
+    open();
+    const save = screen.getByTestId("color-save");
+    expect(save.nextElementSibling?.textContent).toBe("إلغاء");
   });
 
   it("updates the preview from the native picker", () => {

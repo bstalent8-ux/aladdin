@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COLOR_LIBRARY, colorByCode, colorByHex, normalizeColorSearch, searchColors } from "./color-library";
-import { colorDisplayName, colorFromLibrary, customColor, normalizeColorItems } from "./color-items";
+import { colorDisplayName, colorFromLibrary, customColor, isAutoCustomName, normalizeColorItems } from "./color-items";
 
 const names = (q: string, n = 99) => searchColors(q, n).map((c) => c.en);
 
@@ -62,11 +62,28 @@ describe("stored colours", () => {
     expect(colorDisplayName(stored, "en", "Custom color")).toBe("Dark Red");
     expect(colorDisplayName(stored, "ar", "لون مخصص")).toBe("أحمر داكن");
   });
-  it("a value with no library name is a Custom colour with its hex and stays unique per value", () => {
-    const a = customColor("#3A5F8A", "Custom color");
-    const b = customColor("#112233", "Custom color");
+  it("a value with no library name is a Custom colour: stored under its hex, shown as 'Custom colour #hex' in the reader's language, unique per value", () => {
+    const a = customColor("#3A5F8A");
+    const b = customColor("#112233");
+    expect(a).toEqual({ name: "#3A5F8A", hex: "#3A5F8A", code: "custom" });
     expect(colorDisplayName(a, "ar", "لون مخصص")).toBe("لون مخصص #3A5F8A");
+    expect(colorDisplayName(a, "en", "Custom colour")).toBe("Custom colour #3A5F8A");
+    expect(isAutoCustomName(a)).toBe(true);
     expect(normalizeColorItems([a, b, a])).toHaveLength(2);
+  });
+  it("an OPTIONAL owner name for a custom value is what every reader sees; a blank name falls back to Custom colour + hex", () => {
+    const named = customColor("#AF725A", "  بني   طوبي ");
+    expect(named).toEqual({ name: "بني طوبي", hex: "#AF725A", code: "custom" });
+    expect(isAutoCustomName(named)).toBe(false);
+    expect(colorDisplayName(named, "en", "Custom colour")).toBe("بني طوبي");
+    expect(colorDisplayName(named, "ar", "لون مخصص")).toBe("بني طوبي");
+    expect(colorDisplayName(customColor("#AF725A", "   "), "ar", "لون مخصص")).toBe("لون مخصص #AF725A");
+  });
+  it("older automatic labels (stored as 'Custom color #hex') still read as automatic; a name that merely ends in a hex does not", () => {
+    expect(isAutoCustomName({ name: "Custom color #3A5F8A", hex: "#3A5F8A", code: "custom" })).toBe(true);
+    expect(isAutoCustomName({ name: "لون مخصص #3A5F8A", hex: "#3A5F8A", code: "custom" })).toBe(true);
+    expect(isAutoCustomName({ name: "Brick #3A5F8A", hex: "#3A5F8A", code: "custom" })).toBe(false);
+    expect(isAutoCustomName({ name: "Sand", hex: "#D8C7A6" })).toBe(false);
   });
   it("one library colour is stored once, even under two language names; historical colours are untouched", () => {
     expect(normalizeColorItems([{ name: "Red", hex: "#C62828", code: "red" }, { name: "أحمر", hex: "#C62828", code: "red" }, { name: "Sand", hex: null }])).toEqual([

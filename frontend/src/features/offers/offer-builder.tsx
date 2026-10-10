@@ -9,7 +9,8 @@ import { CalendarIcon, CheckIcon, FileTextIcon, PackageIcon, PlusIcon, SearchIco
 import { ProductMedia } from "@/features/commerce/product-media";
 import { SwatchRow } from "@/features/showroom-shell/products/color-swatches";
 import { productMetaLine } from "@/features/showroom-shell/products/labels";
-import { formatProductPrice } from "@/features/showroom-shell/products/price-format";
+import { Money } from "@/components/ui/money";
+import { PriceInput } from "@/components/ui/price-input";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { saveOfferAction, type OfferFormState } from "@/server/actions/offers";
 import type { PickerProduct } from "@/server/queries/offers";
@@ -111,7 +112,7 @@ export function OfferBuilder({
   /** The page header. It lives at the top of the scrolling editor so the workspace can start right under the top bar. */
   header?: ReactNode;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, dispatch] = useActionState(saveOfferAction, initialState);
   const fe = state.fieldErrors ?? {};
   const editing = initial.offerId !== null;
@@ -198,16 +199,10 @@ export function OfferBuilder({
           </LabeledField>
           <div className="grid gap-md tablet:grid-cols-2">
             <LabeledField label={t("showroomOffers.builder.offerPrice")} htmlFor="totalPrice" hint={t("showroomOffers.builder.offerPriceHint")} error={errorText(fe.totalPrice)}>
-              <div className="relative">
-                <Input id="totalPrice" name="totalPrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} disabled={dis} aria-invalid={fe.totalPrice ? true : undefined} className="pr-14" data-testid="offer-price-input" />
-                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{cur}</span>
-              </div>
+              <PriceInput id="totalPrice" name="totalPrice" currency={cur} value={totalPrice} onChange={setTotalPrice} disabled={dis} invalid={Boolean(fe.totalPrice)} testId="offer-price-input" />
             </LabeledField>
             <LabeledField label={t("showroomOffers.builder.priceBefore")} htmlFor="referencePrice" optional={t("showroomOffers.builder.optional")} hint={t("showroomOffers.builder.priceBeforeHint")} error={errorText(fe.referencePrice)}>
-              <div className="relative">
-                <Input id="referencePrice" name="referencePrice" inputMode="decimal" autoComplete="off" dir="ltr" placeholder="0.00" value={referencePrice} onChange={(e) => setReferencePrice(e.target.value)} disabled={dis} aria-invalid={fe.referencePrice ? true : undefined} className="pr-14" data-testid="offer-reference-input" />
-                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-label text-fg-muted">{cur}</span>
-              </div>
+              <PriceInput id="referencePrice" name="referencePrice" currency={cur} value={referencePrice} onChange={setReferencePrice} disabled={dis} invalid={Boolean(fe.referencePrice)} testId="offer-reference-input" />
             </LabeledField>
           </div>
         </Section>
@@ -405,11 +400,11 @@ export function OfferBuilder({
             {Number.isFinite(refNum) && refNum > 0 && referencePrice ? (
               <p className="flex items-baseline gap-2 text-label text-fg-muted">
                 <span>{t("showroomOffers.priceBefore")}</span>
-                <span className="line-through" dir="ltr">{formatProductPrice(refNum, cur)}</span>
+                <Money amount={refNum} currency={cur} locale={locale} className="line-through" />
               </p>
             ) : null}
             <p className="text-label font-medium text-accent">{t("showroomOffers.offerPrice")}</p>
-            <p className="text-headline font-bold text-accent" dir="ltr" data-testid="offer-preview-price">{Number.isFinite(priceNum) && priceNum > 0 && totalPrice ? formatProductPrice(priceNum, cur) : "—"}</p>
+            <p className="text-headline font-bold text-accent" data-testid="offer-preview-price">{Number.isFinite(priceNum) && priceNum > 0 && totalPrice ? <Money amount={priceNum} currency={cur} locale={locale} /> : "—"}</p>
           </div>
         </section>
 

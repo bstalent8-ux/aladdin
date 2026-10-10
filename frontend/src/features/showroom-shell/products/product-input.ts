@@ -6,6 +6,7 @@ import {
 } from "@/features/commerce/constants";
 import { countChars } from "@/lib/text/count-chars";
 import { COLOR_CODE_PATTERN, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
+import { CUSTOM_COLOR_CODE, colorByCode, colorByHex } from "./color-library";
 
 /**
  * One validation path for the own-product form, shared by the create and edit
@@ -85,6 +86,18 @@ function readColorItems(fd: FormData): { items: ProductColor[]; error?: string }
     }
     const hex = typeof hexRaw === "string" ? normalizeHex(hexRaw) : null;
     if (!hex) return { items: [], error: "showroomProducts.validation.colorHexInvalid" };
+    // A canonical library colour keeps its canonical name and value: it cannot be renamed or re-valued.
+    const lib = colorByCode(typeof codeRaw === "string" ? codeRaw : undefined);
+    if (lib) {
+      items.push({ name: name === lib.ar || name === lib.en ? name : lib.en, hex: lib.hex, code: lib.code });
+      continue;
+    }
+    // A "custom" value that is exactly a library colour IS that library colour (the name was never the owner's to invent).
+    const exact = colorByHex(hex);
+    if (exact && codeRaw === CUSTOM_COLOR_CODE) {
+      items.push({ name: exact.en, hex: exact.hex, code: exact.code });
+      continue;
+    }
     items.push({ name, hex, ...code });
   }
   return { items };

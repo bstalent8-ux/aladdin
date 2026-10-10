@@ -8,7 +8,7 @@ import { menuSurfaceClass } from "@/components/ui/menu";
 import { Button, Input } from "@/components/ui/controls";
 import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { PRODUCT_LIMITS } from "@/features/commerce/constants";
-import { colorDisplayName, colorFromLibrary, customColor, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
+import { colorDisplayName, colorFromLibrary, customColor, isAutoCustomName, normalizeColorItems, normalizeHex, type ProductColor } from "./color-items";
 import { COLOR_LISTBOX_ATTR, ColorCombobox } from "./color-combobox";
 import { CUSTOM_COLOR_CODE, DEFAULT_PRODUCT_COLOR, colorByCode, colorByHex, libraryColorName, normalizeColorSearch, searchColors, type LibraryColor } from "./color-library";
 
@@ -216,6 +216,8 @@ export function ColorField({
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<LibraryColor | null>(null);
   const [hexText, setHexText] = useState("");
+  /** The OPTIONAL name of a custom value; a library colour is never renamed, so it is only read while no library colour is picked. */
+  const [customName, setCustomName] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const adding = editing === colors.length;
   const open = editing >= 0;
@@ -229,6 +231,7 @@ export function ColorField({
     setPicked(lib ?? null);
     setQuery(lib ? libraryColorName(lib, locale) : "");
     setHexText(current?.hex ?? "");
+    setCustomName(!lib && current?.hex && !isAutoCustomName(current) ? current.name : "");
     setProblem(null);
   };
   const close = (returnFocus = true) => {
@@ -238,9 +241,10 @@ export function ColorField({
   };
 
   // Bring the whole popover (and the room its list needs) into view when it opens.
+  const showsCustomName = !picked && Boolean(hex);
   useEffect(() => {
     if (open) popRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [open]);
+  }, [open, showsCustomName]);
 
   useEffect(() => {
     if (!open) return;
@@ -283,7 +287,7 @@ export function ColorField({
     }
   };
 
-  const preview: ProductColor | null = picked ? colorFromLibrary(picked, locale) : hex ? customColor(hex, t("showroomProducts.fields.colorCustomName")) : null;
+  const preview: ProductColor | null = picked ? colorFromLibrary(picked, locale) : hex ? customColor(hex, customName) : null;
 
   const save = () => {
     const legacyUnchanged = !adding && !colors[editing]?.hex && hexText.trim() === "" && !picked;
@@ -341,7 +345,7 @@ export function ColorField({
               save();
             }
           }}
-          className={cn(menuSurfaceClass, "absolute start-0 top-full z-popover mt-1 flex w-80 flex-col gap-sm p-sm")}
+          className={cn(menuSurfaceClass, "absolute start-0 top-full z-popover mt-1 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-sm p-sm text-start")}
         >
           <p className="text-label font-semibold text-fg">{adding ? t("showroomProducts.fields.colorAddTitle") : t("showroomProducts.fields.colorEditTitle")}</p>
           <div className="flex flex-col gap-1 text-label text-fg-secondary">
@@ -359,7 +363,7 @@ export function ColorField({
           <div className="flex items-end gap-2">
             <label className="flex min-w-0 flex-1 flex-col gap-1 text-label text-fg-secondary">
               {t("showroomProducts.fields.colorHex")}
-              <Input value={hexText} onChange={(e) => changeHex(e.target.value)} placeholder={DEFAULT_PRODUCT_COLOR} dir="ltr" maxLength={7} aria-invalid={hexText.trim() !== "" && !hex ? true : undefined} data-testid="color-hex" />
+              <Input value={hexText} onChange={(e) => changeHex(e.target.value)} placeholder={DEFAULT_PRODUCT_COLOR} dir="ltr" maxLength={7} className="text-start rtl:text-right" aria-invalid={hexText.trim() !== "" && !hex ? true : undefined} data-testid="color-hex" />
             </label>
             <label className="flex flex-col items-center gap-1 text-label text-fg-secondary">
               <span className="sr-only">{t("showroomProducts.fields.colorPick")}</span>
@@ -373,6 +377,22 @@ export function ColorField({
               />
             </label>
           </div>
+          {!picked && hex ? (
+            <label className="flex flex-col gap-1 text-label text-fg-secondary">
+              {t("showroomProducts.fields.colorCustomNameField")}
+              <Input
+                value={customName}
+                onChange={(e) => {
+                  setCustomName(e.target.value);
+                  setProblem(null);
+                }}
+                maxLength={PRODUCT_LIMITS.colorMax}
+                placeholder={t("showroomProducts.fields.colorCustomNamePlaceholder")}
+                dir="auto"
+                data-testid="color-custom-name"
+              />
+            </label>
+          ) : null}
           <div className="flex min-h-8 items-center gap-2 text-label text-fg-secondary" data-testid="color-preview" aria-live="polite">
             <span className="text-fg-muted">{t("showroomProducts.fields.colorPreview")}</span>
             {preview ? (
@@ -402,8 +422,8 @@ export function ColorField({
               </Button>
             ) : <span />}
             <span className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => close()}>{t("showroomProducts.fields.colorCancel")}</Button>
               <Button type="button" variant="accent" onClick={save} data-testid="color-save">{adding ? t("showroomProducts.fields.colorAdd") : t("showroomProducts.fields.colorSave")}</Button>
+              <Button type="button" variant="outline" onClick={() => close()}>{t("showroomProducts.fields.colorCancel")}</Button>
             </span>
           </div>
         </div>

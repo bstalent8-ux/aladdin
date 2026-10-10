@@ -121,6 +121,24 @@ describe("own product form parsing", () => {
     expect(r.ok && r.value.basePrice).toBe(159.99);
   });
 
+  it("keeps the owner's own name for a custom colour, but never lets a canonical library colour be renamed or re-valued", () => {
+    const parse = (items: unknown[]) => {
+      const r = parseOwnProductForm(form({ ...valid, colorItems: JSON.stringify(items) }));
+      return r.ok ? r.value.colors : null;
+    };
+    // custom value: the owner's name survives, a blank one falls back to the hex placeholder
+    expect(parse([{ name: "بني طوبي", hex: h("AF725A"), code: "custom" }])).toEqual([{ name: "بني طوبي", hex: h("AF725A"), code: "custom" }]);
+    expect(parse([{ name: h("AF725A"), hex: h("AF725A"), code: "custom" }])).toEqual([{ name: h("AF725A"), hex: h("AF725A"), code: "custom" }]);
+    // a library code cannot carry an invented name or a different value
+    expect(parse([{ name: "Sky maroon", hex: h("000001"), code: "dark_red" }])).toEqual([{ name: "Dark Red", hex: h("8B1A1A"), code: "dark_red" }]);
+    // either canonical language name is kept as is
+    expect(parse([{ name: "أحمر داكن", hex: h("8B1A1A"), code: "dark_red" }])).toEqual([{ name: "أحمر داكن", hex: h("8B1A1A"), code: "dark_red" }]);
+    // a "custom" value that is exactly a library colour IS that library colour
+    expect(parse([{ name: "My red", hex: h("8B1A1A"), code: "custom" }])).toEqual([{ name: "Dark Red", hex: h("8B1A1A"), code: "dark_red" }]);
+    // the custom name obeys the 40-character colour-name limit
+    expect(parseOwnProductForm(form({ ...valid, colorItems: JSON.stringify([{ name: "x".repeat(41), hex: h("AF725A"), code: "custom" }]) }))).toMatchObject({ ok: false, fieldErrors: { colors: "showroomProducts.validation.colorTooLong" } });
+  });
+
   it("limits the description to 250 CHARACTERS (not words), in Arabic, English and mixed text", () => {
     const desc = (description: string) => parseOwnProductForm(form({ ...valid, description }));
     const tooLong = { ok: false, fieldErrors: { description: "showroomProducts.validation.descriptionChars" } };

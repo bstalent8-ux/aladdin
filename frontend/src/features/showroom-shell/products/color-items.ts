@@ -57,19 +57,31 @@ export function colorFromLibrary(color: LibraryColor, locale: "ar" | "en"): Prod
   return { name: libraryColorName(color, locale), hex: color.hex, code: color.code };
 }
 
-/** A value with no library name: an automatic, neutral label (never typed by the owner) that carries the hex so it stays unique. */
-export function customColor(hex: string, label: string): ProductColor {
-  return { name: `${label} ${hex}`, hex, code: CUSTOM_COLOR_CODE };
+/**
+ * A value with no library name. The owner MAY give it a name of their own (`customName`); otherwise the stored name is
+ * just the hex — a language-neutral placeholder that keeps the value unique and that every reader shows as
+ * "Custom colour #hex" in their own language. A library colour is never built here, so it cannot be renamed.
+ */
+export function customColor(hex: string, customName?: string): ProductColor {
+  const named = collapse(customName ?? "");
+  return { name: named || hex, hex, code: CUSTOM_COLOR_CODE };
+}
+
+/** Is the stored name of a custom colour just the automatic placeholder (the hex itself, or the older "Custom colour #hex" labels)? */
+export function isAutoCustomName(color: ProductColor): boolean {
+  if (color.code !== CUSTOM_COLOR_CODE || !color.hex) return false;
+  const name = collapse(color.name);
+  return name.toUpperCase() === color.hex || new RegExp(`^(Custom colou?r|لون مخصص) ${color.hex}$`, "i").test(name);
 }
 
 /**
- * The name a READER sees: a library colour in their language, an unnamed value as "Custom colour #hex", and a
- * historical colour exactly as stored.
+ * The name a READER sees: a library colour in their language, a custom value with the owner's own name as that name,
+ * an unnamed custom value as "Custom colour #hex", and a historical colour exactly as stored.
  */
 export function colorDisplayName(color: ProductColor, locale: "ar" | "en", customLabel: string): string {
   const lib = colorByCode(color.code);
   if (lib) return libraryColorName(lib, locale);
-  if (color.code === CUSTOM_COLOR_CODE && color.hex) return `${customLabel} ${color.hex}`;
+  if (color.code === CUSTOM_COLOR_CODE && color.hex && isAutoCustomName(color)) return `${customLabel} ${color.hex}`;
   return color.name;
 }
 
