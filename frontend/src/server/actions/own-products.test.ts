@@ -66,7 +66,7 @@ describe("price, colors and description reach the database through the one RPC p
     for (const [message, field] of [
       ["a product price cannot be removed once it is set", "price"],
       ["price must be a positive amount in EGP with at most 2 decimals", "price"],
-      ["description is limited to 250 words", "description"],
+      ["description is limited to 250 characters", "description"],
       ["a color value must be a hex code like B96F52", "colors"],
     ] as const) {
       state.rpc.mockResolvedValue({ data: null, error: { code: "22023", message } });
@@ -77,8 +77,8 @@ describe("price, colors and description reach the database through the one RPC p
   });
 
   it("refuses an over-long description before calling the database", async () => {
-    const r = await updateOwnProductAction({ ok: false }, fd({ ...edit, description: Array.from({ length: 251 }, () => "w").join(" ") }));
-    expect(r.fieldErrors).toMatchObject({ description: "showroomProducts.validation.descriptionWords" });
+    const r = await updateOwnProductAction({ ok: false }, fd({ ...edit, description: "w".repeat(251) }));
+    expect(r.fieldErrors).toMatchObject({ description: "showroomProducts.validation.descriptionChars" });
     expect(state.rpc).not.toHaveBeenCalled();
   });
 });
