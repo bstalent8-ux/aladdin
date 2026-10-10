@@ -39,10 +39,9 @@ export const CountedTextarea = forwardRef<
       <span
         id={counterId}
         data-testid={counterTestId}
-        dir="ltr"
         className={cn("pointer-events-none absolute bottom-1.5 end-3 text-caption tabular-nums", over ? "font-semibold text-danger" : "text-fg-muted")}
       >
-        {count}/{max}
+        <bdi dir="ltr" data-testid={`${counterTestId}-figure`}>{count}/{max}</bdi>
         <span className="sr-only"> {unitLabel}</span>
       </span>
     </div>

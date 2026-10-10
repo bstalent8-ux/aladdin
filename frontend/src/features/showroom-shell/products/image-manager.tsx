@@ -123,8 +123,8 @@ export function ImageManager({ productId, productName, images, archived }: { pro
 
   return (
     <section className="flex flex-col gap-sm" aria-labelledby="product-images-title" data-testid="image-manager">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-md gap-y-1">
-        <h2 id="product-images-title" className="text-title text-fg">{t("showroomProducts.images.title")}</h2>
+      <div className="flex flex-wrap items-baseline gap-x-md gap-y-1">
+        <h2 id="product-images-title" className="text-label font-medium text-fg-secondary">{t("showroomProducts.images.title")}</h2>
         <p className="text-label text-fg-muted" data-testid="image-count">{t("showroomProducts.images.count", { count: String(images.length) })}</p>
       </div>
       <p className="text-label text-fg-muted">{t("showroomProducts.images.hint")}</p>
@@ -145,10 +145,10 @@ export function ImageManager({ productId, productName, images, archived }: { pro
                   {!archived ? (
                     <div className="flex flex-wrap justify-center gap-1" role="group" aria-label={t("showroomProducts.images.photoN", { n: index + 1 })}>
                       <button type="button" className={iconButton} disabled={busy || index === 0} onClick={() => void onMove(index, -1)} aria-label={t("showroomProducts.images.moveEarlier")} title={t("showroomProducts.images.moveEarlier")}>
-                        <ChevronLeftIcon size={15} />
+                        <span aria-hidden="true" className="inline-flex rtl:rotate-180"><ChevronLeftIcon size={15} /></span>
                       </button>
                       <button type="button" className={iconButton} disabled={busy || index === images.length - 1} onClick={() => void onMove(index, 1)} aria-label={t("showroomProducts.images.moveLater")} title={t("showroomProducts.images.moveLater")}>
-                        <ChevronRightIcon size={15} />
+                        <span aria-hidden="true" className="inline-flex rtl:rotate-180"><ChevronRightIcon size={15} /></span>
                       </button>
                       <button
                         type="button"

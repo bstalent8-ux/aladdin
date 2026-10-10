@@ -417,7 +417,9 @@ export function OfferBuilder({
             <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryProducts")}</dt><dd className="font-semibold text-fg" dir="ltr">{selected.length}</dd></div>
             <div className="flex justify-between gap-2"><dt className="text-fg-muted">{t("showroomOffers.builder.summaryQuantity")}</dt><dd className="font-semibold text-fg" dir="ltr">{totalQuantity(items)}</dd></div>
             <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryAudience")}</dt><dd className="text-end font-semibold text-fg">{groups.length ? OFFER_AUDIENCE_GROUPS.filter((g) => groups.includes(g.id)).map((g) => t(`showroomOffers.audienceGroup.${g.id}`)).join("، ") : t("showroomOffers.builder.summaryNone")}</dd></div>
-            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryDuration")}</dt><dd className="text-end font-semibold text-fg" dir="ltr">{startDate && endDate ? `${startDate} → ${endDate}` : t("showroomOffers.builder.summaryNone")}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="shrink-0 text-fg-muted">{t("showroomOffers.builder.summaryDuration")}</dt><dd className="text-end font-semibold text-fg">{startDate && endDate ? (
+              <span className="inline-flex items-center gap-1.5" data-testid="offer-summary-range"><bdi dir="ltr">{startDate}</bdi><span aria-hidden="true" className="rtl:rotate-180">→</span><bdi dir="ltr">{endDate}</bdi></span>
+            ) : t("showroomOffers.builder.summaryNone")}</dd></div>
           </dl>
         </section>
 

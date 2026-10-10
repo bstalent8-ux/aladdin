@@ -76,10 +76,10 @@ export function StagedPhotos({ files, onChange, disabled }: { files: File[]; onC
                   </div>
                   <div className="flex flex-wrap justify-center gap-1" role="group" aria-label={t("showroomProducts.images.photoN", { n: index + 1 })}>
                     <button type="button" className={iconButton} disabled={index === 0} onClick={() => onChange(moveImage(files, index, -1))} aria-label={t("showroomProducts.images.moveEarlier")} title={t("showroomProducts.images.moveEarlier")}>
-                      <ChevronLeftIcon size={15} />
+                      <span aria-hidden="true" className="inline-flex rtl:rotate-180"><ChevronLeftIcon size={15} /></span>
                     </button>
                     <button type="button" className={iconButton} disabled={index === files.length - 1} onClick={() => onChange(moveImage(files, index, 1))} aria-label={t("showroomProducts.images.moveLater")} title={t("showroomProducts.images.moveLater")}>
-                      <ChevronRightIcon size={15} />
+                      <span aria-hidden="true" className="inline-flex rtl:rotate-180"><ChevronRightIcon size={15} /></span>
                     </button>
                     <button type="button" className={iconButton} onClick={() => { replaceIndex.current = index; replaceInput.current?.click(); }} aria-label={t("showroomProducts.images.replace")} title={t("showroomProducts.images.replace")}>
                       <PencilIcon size={15} />

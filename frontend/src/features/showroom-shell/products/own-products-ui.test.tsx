@@ -361,7 +361,7 @@ describe("ProductForm", () => {
     expect(box.getAttribute("aria-invalid")).toBe("true");
     expect(counter().className).toMatch(/text-danger/);
     expect(box.parentElement?.contains(counter())).toBe(true);
-    expect(counter().getAttribute("dir")).toBe("ltr");
+    expect(screen.getByTestId("description-count-figure").getAttribute("dir")).toBe("ltr");
   });
 
   it("offers a price field in EGP, prefilled on edit", () => {
