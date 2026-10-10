@@ -240,6 +240,27 @@ describe("ColorField — searchable colour name", () => {
     expect(onChange).toHaveBeenCalledWith([red, sand]);
   });
 
+  it("the colour search starts at the logical start: an EMPTY field inherits the page direction (an empty dir=auto resolves to LTR), text switches it to auto", () => {
+    mount([], "ar");
+    open();
+    const input = screen.getByTestId("color-name");
+    expect(input.getAttribute("dir")).toBeNull();
+    expect(input.className).toMatch(/text-start/);
+    type("احمر");
+    expect(input.getAttribute("dir")).toBe("auto");
+    type("");
+    expect(input.getAttribute("dir")).toBeNull();
+  });
+
+  it("the HEX field stays left-to-right in Arabic, and the Add Color icon is the first child (right of the label in RTL, left in LTR) with no reversal", () => {
+    mount([], "ar");
+    const add = screen.getByTestId("add-color");
+    expect(add.firstElementChild?.tagName.toLowerCase()).toBe("svg");
+    expect(add.className).not.toMatch(/flex-row-reverse|flex-reverse/);
+    open();
+    expect(screen.getByTestId("color-hex").getAttribute("dir")).toBe("ltr");
+  });
+
   it("closes the popover on an outside click, but not on a click inside the list", () => {
     mount();
     open();

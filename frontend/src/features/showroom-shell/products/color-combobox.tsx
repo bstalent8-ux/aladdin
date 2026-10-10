@@ -152,7 +152,9 @@ export function ColorCombobox({
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
-        dir="auto"
+        // An EMPTY dir="auto" input resolves to LTR (placeholder and caret at the left of an Arabic page): inherit the
+        // page direction while empty, detect from the text once there is some.
+        dir={text === "" ? undefined : "auto"}
         value={text}
         placeholder={placeholder}
         data-testid={testId}
@@ -171,7 +173,7 @@ export function ColorCombobox({
           setOpen(true);
         }}
         onKeyDown={onKeyDown}
-        className="min-h-11 w-full rounded-sm border border-strong bg-surface ps-3 pe-9 text-body text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        className="min-h-11 w-full rounded-sm border border-strong bg-surface ps-3 pe-9 text-start text-body text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       />
       <button
         type="button"
