@@ -32,11 +32,8 @@ Status words: **implemented** (works, reusable as-is), **partial** (exists, need
 
 ## C. Proposed design (for approval, nothing built)
 
-### Purchase Request (new, internal)
-- `purchase_requests` (org-owned): `id, organization_id, title, note, needed_by, status (draft | open | fulfilled | cancelled), version, created_by, timestamps`.
-- `purchase_request_items`: `product_id` (soft, real catalog product) + snapshot name/unit, `quantity`, optional preferred `supplier_org_id`.
-- Link, not merge: `rfqs.purchase_request_id` (nullable FK, additive) so one need can fan out to several RFQs, one per supplier, because an RFQ is single-supplier by constraint. The request is `fulfilled` when an order exists for any linked RFQ (derived, not typed in).
-- RPC-only writes, `rfq.create` capability, audit events, RLS = own organization only. Never visible to a supplier.
+### Purchase Request — SUPERSEDED
+The internal-only model proposed in revision 1 is withdrawn. See **Revision 2** below.
 
 ### Contact visibility (new, additive)
 - Organization: `organization_contact_settings` (`show_phone`, `show_whatsapp`, `show_email`, default **all false**) and a SECURITY DEFINER reader behind a security_invoker view that returns a contact only when the owner opted in AND the viewer is an authenticated member of a business org.
@@ -53,7 +50,7 @@ Status words: **implemented** (works, reusable as-is), **partial** (exists, need
 
 ## D. Migrations proposed (none written)
 
-1. `purchase_requests` + items + `rfqs.purchase_request_id` + RPCs/views/RLS/audit actions.
+1. (withdrawn - see Revision 2, section R7)
 2. `contact_visibility` for organizations and craftsmen + `supplier_directory` / `craftsman_directory` projections (paged, filterable, case-insensitive search).
 3. `network_referrals` candidate kinds + org attribution + approve/reject paths for supplier/craftsman (no Auth user).
 4. `business_job_opportunities` read projection.
@@ -77,3 +74,147 @@ Status words: **implemented** (works, reusable as-is), **partial** (exists, need
 ## G. UI references
 
 Existing: showroom `my-products`, `offers`, `points`; Installer-Technician `02-job-opportunities`, `06-showroom-network`; legacy Distributor set (old theme, composition only). **Missing:** a dedicated Suppliers directory, Craftsmen directory, Purchase request / RFQ / quotation / order list+detail pages, Jobs (business view). A reference request accompanies the checkpoint.
+
+---
+
+# Revision 2 — shared demand publishing, product audiences, contacts, network.refer
+
+Supersedes the Purchase Request parts of revision 1. Nothing here is implemented. Items marked **DECISION** need approval before any migration is written.
+
+## R1. Revised Purchase Request domain
+
+A Purchase Request is a **published buyer-defined demand**, visible to a defined set of business/persona audiences, answerable by several of them. It is not an RFQ (single requester -> single supplier), not a catalog product, not an Offer (supplier-published price package).
+
+- `purchase_requests`: `id`, `requester_user_id` (always the actor), `requester_org_id` (nullable: personal requesters have no organization), `requester_kind` (canonical audience code, derived server-side from the active workspace, never client-supplied), `title`, `note` (250-char rule), `needed_by`, `share_with_showrooms boolean` (the "إظهار لمعارض أخرى" switch, showroom requesters only), `status` (`draft | published | closed | cancelled`), `version`, timestamps.
+- `purchase_request_items`: `request_id`, `position`, `name` (required), `sku` (optional), `category_code` (FK `product_categories`, the 15 canonical codes, required), `color_items jsonb` (same `{name,hex,code}` shape and validators as products), `quantity numeric`, `unit` (existing `product_unit` enum), `spec` (250 chars via `DESCRIPTION_MAX_CHARS` / the characters validator). No `product_id`: items are free-form requirements and **never create catalog products**.
+- `purchase_request_images`: at most **2 per item**, modelled on `product_images` (state machine, slot, owner-bound metadata) in a **new private bucket** `purchase-request-images`. Read = requester (own user/org) + currently-eligible viewers of a **published** request, sign-only (same `sign`/`sign_many` pattern as `product_images_select_public`).
+- Writes: RPC only, security definer, actor from `auth.uid()`, optimistic `version`, audit events; no client DML.
+- Requester capability: org requesters need `rfq.create` (reuse) on the active workspace; personal requesters need an active, supported persona. Unsupported personas (`sales`, `trainer`, `trainee`) cannot publish.
+- Removed from revision 1: `rfqs.purchase_request_id` fan-out. Not needed until the acceptance model (R5) is approved.
+
+## R2. Exact audience mapping
+
+Canonical viewer/requester kind = `app.viewer_offer_audience(p_org_id)` semantics (active workspace `organization_type`, or the personal `persona_type`). No new enum. Only an **additive reference table** `purchase_request_audience_rules(requester_kind, viewer_kind)` (seeded, read-only, RLS select for authenticated), so the matrix is data, not scattered `case` logic.
+
+| Requester kind (canonical) | UI label | Eligible viewer kinds |
+|---|---|---|
+| `installer_technician` | صنايعي | `showroom_dealer` |
+| `contractor`, `contractor_company` | مقاول | `showroom_dealer` |
+| `engineer`, `design_office` | مهندس / مكتب تصميم | `showroom_dealer` |
+| `end_consumer` | عميل نهائي | `showroom_dealer` |
+| `showroom_dealer` | معرض | `supplier`, `manufacturer`, `importer` |
+| `showroom_dealer` + `share_with_showrooms` | معرض | `supplier`, `manufacturer`, `importer`, `showroom_dealer` (other showrooms) |
+| `supplier` (and legacy `wholesaler`) | مورد | `supplier` |
+| `manufacturer` | مصنع | `manufacturer` |
+| `importer` | مستورد | `importer` |
+
+Rules enforced in one function `app.request_visible_to(p_request_id, p_org_id)`:
+1. viewer must be authenticated and (if `p_org_id` given) a member of it, with the audience taken from that organization;
+2. viewer kind is in the matrix row for the request's `requester_kind` (plus showrooms only if `share_with_showrooms`);
+3. **a request is never an opportunity to its own requester**: `p_org_id <> requester_org_id` and `auth.uid() <> requester_user_id`, so two workspaces of one person cannot answer each other's requests either;
+4. request is `published`, requester org live (verified/active/non-deleted, same liveness rule as jobs/offers).
+
+**DECISIONS:** (a) `interior_designer` persona is not named in the matrix: treat as Engineer (recommended) or unsupported? (b) `wholesaler` rows are remapped to `supplier` already; confirm no separate wholesaler audience.
+
+## R3. Product audience-targeting architecture
+
+- New `product_audiences (product_id, audience)` with `audience` FK to a **product** audience catalogue. Create Offer uses `offer_audience_types`, which lacks `end_consumer` and has `feed_ready` flags tied to Offers feeds, so Products get their own catalogue table (`product_audience_types`) that seeds the same canonical codes plus `end_consumer`; **no Offer audience rules are reused** for Requests or Products (both stay separate tables).
+- Eight UI choices map to canonical codes: معرض `showroom_dealer`; مورد `supplier`; مصنع `manufacturer`; مستورد `importer`; مقاول `contractor`+`contractor_company`; مهندس `engineer`+`design_office`; صنايعي `installer_technician`; العميل النهائي `end_consumer`. The picker stores the UI choice; the catalogue expands it to canonical codes (so `design_office` orgs and `engineer` personas both see "مهندس" products).
+- **Backward-compatible policy:** every product that is `published` at migration time receives **all eight** audiences (behaviour unchanged for existing data). Drafts get none. New products must choose at least one audience to publish (validated in `set_product_published` / `own_product_*`, plus a `ck`-style trigger so a published product with zero audiences cannot exist). Editing audiences on a published product takes effect immediately.
+- Own-organization exclusion from Browse stays; an owner always reads their own products.
+- Saved products: a saved row whose product stops being visible to the viewer's audience is hidden from the Saved list (same view-level filter) and cannot be re-saved; `save_product` re-checks audience.
+
+## R4. Existing catalog RLS implications (the bypass)
+
+Findings from the audit:
+
+1. `products_select_published` (`20260810090001`): **any authenticated user may `select` any published row of `public.products`** straight through PostgREST. `catalog_published_products` became `security_invoker = true` (`20260817100000`), so it inherits that policy: the view and the table have **the same hole**. Audience filtering in the view alone would be bypassable by `from("products")`.
+2. `product_images_select_public` (table) and the storage policy `product_images_select_public` both gate on `app.product_is_public(product_id)` = published only. Image keys are therefore signable by any authenticated user for any published product.
+3. `add_rfq_item` accepts a published product of the supplier org with no viewer audience check, so a non-targeted viewer who guessed an id could build an RFQ line for it.
+4. `saved_products`/`saved_product_list` and `search.ts` (which reads `catalog_published_products` and `products`) inherit the same exposure.
+5. Frontend already does `from("products")` in `search.ts`, `commerce.ts`, `offers.ts`: those cross-tenant reads must be re-routed.
+
+Proposed secure architecture (to be proven by pgTAP **before** the UI work):
+
+- **Hard floor in RLS**: replace `products_select_published` with a policy `using (status='published' and deleted_at is null and app.product_audience_allows_caller(id))`, where the predicate is the **union** of all audiences the caller holds across their active memberships + personal persona (RLS cannot see the "active workspace"). A user holding several workspaces can therefore see any product that *one* of their own workspaces may see, never one that none may. Same predicate on `product_images_select_public`, storage policy and `app.product_is_public`.
+- **Exact per-workspace read**: browse, detail, search, saved and direct links go through `security definer` readers taking `p_org_id` (the offers pattern: `catalog_feed(p_org_id, ...)`, `catalog_detail(p_org_id, id)`), which apply the *active workspace* audience and exclude own organization. `catalog_published_products` is reduced to the exact reader's projection or dropped; no frontend code reads `products` for other tenants.
+- `product_prices` untouched (owner-select policy only); no price columns in any new reader (pgTAP asserts it).
+- Pagination: readers take `(offset, limit<=10 batches)` with a total order, as today's 10/+10/-10 queries do.
+- Risk: the union predicate is a deliberate, documented compromise. If you prefer **exact** isolation per workspace, the alternative is to deny direct table reads of other tenants' products altogether (revoke SELECT on the published path, readers only). That removes the union weakness but is a larger change to `search.ts`/RFQ/offers code. **DECISION.**
+
+## R5. Multi-responder quotation approach
+
+Audit result - the existing RFQ/quotation lifecycle cannot carry a broadcast request through a thin adapter:
+
+1. `rfqs.requester_org_id` is `NOT NULL` and every RFQ RPC requires org membership + `rfq.create`: **personal requesters (customer, craftsman, engineer without an org) have no RFQ identity.**
+2. An RFQ names exactly one `supplier_org_id`; `uq_quotations_rfq_live` allows one live quotation per RFQ.
+3. `rfq_items` snapshot a product name and an enum unit; requests have free-form items with images/colours/category the RFQ tables cannot hold.
+4. Creating one RFQ per responder automatically would have a responder (or the system) create an RFQ **as** the requester: impersonation, forbidden.
+
+Options for approval (**DECISION**):
+
+- **A (recommended).** Additive `purchase_request_responses` (+ `_items` priced against the request's items): one non-binding response per responding business per request (`draft | submitted | withdrawn | declined | selected`), unique per `(request_id, responder_org_id)`, same mechanics as quotations (RPC-only, version, capability `quote.submit`, price visible only to requester and that responder, never to other responders). Needed because of 1-3 above. Acceptance/selection and order creation are **not specified here**.
+- **B.** Same as A, plus a requester-initiated bridge: "ask this responder for a formal quotation" creates a canonical direct RFQ *by the requester themself* (org requesters only), reusing the existing RFQ -> quotation -> order lifecycle for the binding part.
+- **C (rejected).** Auto-create per-responder RFQs: impersonation and fails for personal requesters.
+
+Open acceptance questions I will not assume: can a requester select several responses (partial fulfilment by item), does selection close the request, who creates the order for a personal requester (orders require `requester_org_id`)?
+
+## R6. Direct RFQs stay unchanged
+
+No change to `rfqs`, `quotations`, `orders`, their RPCs, views, or `Browse product -> Request quotation`. Distinct nav entries and metrics: Published Purchase Request (my / browse), Direct RFQ (sent / received), Supplier Quotation (received / sent), Purchase Order, Public Offer. `showroom_home_metrics` keeps no purchase-request figure until the request domain exists and then adds its own keys.
+
+## R7. Contact visibility design
+
+`organizations` has **no phone/email columns** and `contacts` is user-level. So:
+- New `organization_contact_settings (organization_id, phone, whatsapp, email, show_phone, show_whatsapp, show_email)`: values owned by the org, three flags default **false**; write RPC requires `org.manage`.
+- Craftsmen: reuse `contacts` (verified WhatsApp/email) and a profile-level `show_whatsapp/show_email` flags (default false); phone only if the profile already stores one (to check in the build step).
+- A `security definer` reader returns a field only if its flag is on **and** the viewer is an authenticated member of a business organization (and, for craftsmen, an eligible viewer). Values never appear in `organization_public_directory` or `profile_public_directory`.
+- Unregistered candidate contact stays in `network_referrals` columns, readable only by the submitter, their org's `network.refer`/`org.manage` members and platform reviewers, and never projected into any directory until approved and claimed.
+
+## R8. network.refer integration
+
+- `network.refer` is a new key in the fixed capability allow-list `ck_membership_capability_key` (recreated, as 6 prior migrations did), assignable by `org.members.manage`/owner like any capability; `org.manage` implies it.
+- `network_referrals` gets `candidate_kind` (`showroom` default, `supplier`, `craftsman`), `submitted_by_org_id` (nullable), and contact columns; existing rows backfill as `showroom`.
+- New RPC `network_candidate_create(kind, ...)`: caller needs `network.refer` on the active org; never creates an Auth user; `status='pending'`, stores submitter, org, kind, contact, timestamps, audit event. Existing `network_referral_create_*` (craftsman refers showroom) are untouched.
+- Approve/reject for the new kinds ends in "reviewed" state only; it does **not** create accounts (claiming an organization/profile is a later, separate flow - **DECISION** whether approval should create an unowned supplier organization like showrooms do).
+
+## R9. Points compatibility
+
+`referral.organization_approved` is awarded only inside the `new_showroom` branch of `network_referral_approve`. The new approve path for `supplier`/`craftsman` candidates calls no `app.award_points`; a pgTAP test asserts zero `points_ledger` rows after approval. Craftsman-refers-showroom reward stays as is. Approval status and reward eligibility remain separate columns/events.
+
+## R10. Proposed schema changes (none applied)
+
+1. `product_audience_types`, `product_audiences`, backfill (all eight on published rows), publish guard, RLS/reader rework (R3/R4), storage policy update.
+2. `organization_contact_settings` + profile contact flags + contact reader.
+3. `network.refer` capability; `network_referrals` candidate columns; `network_candidate_create/approve/reject`.
+4. `purchase_requests`, `_items`, `_images` (+ bucket), `purchase_request_audience_rules`, `app.request_visible_to`, create/publish/close/cancel RPCs, `purchase_request_feed` / `_detail` readers.
+5. `purchase_request_responses` (+ items) once R5 is approved.
+6. Business jobs read projection.
+
+Order proposal: (2) and (3) are approved and independent of R4/R5, so they go first; (1) needs the RLS decision; (4) needs R2 decisions; (5) is blocked on R5.
+
+## R11. Shared account routes
+
+Shared feature module `features/purchase-requests/*` and `server/*/purchase-requests*` with one data layer, mounted by each shell as a thin adapter (no per-account tables):
+- Showroom: `/preview/showroom-suite-v2/purchase-requests` (mine), `.../purchase-requests/new`, `.../purchase-requests/[id]`, `.../browse-requests` (+ `[id]`, `[id]/respond`).
+- Other shells (craftsman, engineer/design office, customer, supplier/manufacturer/importer) mount the same components under their own roots when their reference exists. Navigation label split: **طلبات الشراء** (mine) vs **تصفح الطلبات** (browse); direct RFQ entries stay separate.
+
+## R12. Suppliers page - UI composition brief (not a final layout)
+
+Reuses shell, tokens, RTL/Light/Dark, `PageHero`, `FilterBar liveSearch`, `Select`/`SelectMenu`, `Pager`+`usePagedList` (10 / +10 / -10), `IconStat`. Proposed sections for your reference mock:
+1. Page hero: icon + "الموردون" title, one-line description. No fake counters.
+2. Filter bar: live search (name), organization type (مورد / مصنع / مستورد), product category, governorate/city, "verified only" toggle.
+3. Optional summary tiles only from real data (count of eligible businesses, how many already worked with this showroom).
+4. Results, Grid/List toggle: card = logo, name, type badge, verified mark, location, category chips (from real published products), product count, shared-work badge, actions: **View details**, **Request quotation** (existing direct RFQ), **Contact** (only fields the owner opted in).
+5. Detail page: header, about, categories, published products (links into Browse filtered by supplier), contact block (opt-in only), "Request quotation" CTA.
+6. Empty/no-result/error states; pagination footer.
+7. "Suggest a supplier" secondary action for `network.refer` holders (pending-review form, no account created).
+Need from you: reference image(s) for the grid/list card and the detail page, and any logo/placeholder asset (ASSET REQUEST will follow with exact sizes once the reference is in).
+
+## R13. Decisions still needed
+
+1. `interior_designer` audience mapping and confirm the eight-to-canonical expansion in R3.
+2. Exact vs union product-audience enforcement (R4).
+3. Response/acceptance model A or B, and the acceptance questions in R5.
+4. Whether approving a supplier/craftsman candidate creates an unowned organization/profile.
+5. Confirm backfill "all eight audiences" for existing published products.
