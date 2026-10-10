@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(146);
+select plan(147);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -260,8 +260,9 @@ select ok((select count(*) >= 5 from public.audit_log where subject_type = 'prod
 
 -- J. Closeout: 250 words, every audience group, saved offers, the bounded feed page.
 reset role;
-select lives_ok($$select app.offer_validate_text('Name', (select string_agg('كلمة', ' ') from generate_series(1, 250)), 100, null)$$, 'a description of exactly 250 Arabic words is accepted');
-select throws_ok($$select app.offer_validate_text('Name', (select string_agg('word', ' ') from generate_series(1, 251)), 100, null)$$, '22023', null, '251 words is refused by the database rule');
+select lives_ok($$select app.offer_validate_text('Name', repeat('ع', 250), 100, null)$$, 'a description of exactly 250 Arabic characters is accepted');
+select throws_ok($$select app.offer_validate_text('Name', repeat('a', 251), 100, null)$$, '22023', null, '251 characters is refused by the database rule');
+select throws_ok($$select app.offer_validate_text('Name', (select string_agg('w', ' ') from generate_series(1, 200)), 100, null)$$, '22023', null, '200 one-letter words (399 characters) are refused: the unit is characters');
 select is(app.word_count('سعر خاص Price 5'), 4, 'mixed Arabic/English words are counted by whitespace runs');
 
 set local role authenticated;
