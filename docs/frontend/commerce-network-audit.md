@@ -218,3 +218,77 @@ Need from you: reference image(s) for the grid/list card and the detail page, an
 3. Response/acceptance model A or B, and the acceptance questions in R5.
 4. Whether approving a supplier/craftsman candidate creates an unowned organization/profile.
 5. Confirm backfill "all eight audiences" for existing published products.
+
+---
+
+# Revision 3 — approved decisions (supersedes Revision 2 where they differ)
+
+## V1. The nine official account types (canonical identifiers already in the repo)
+
+Source of truth: `frontend/src/lib/onboarding/account-types.ts` (`ACCOUNT_TYPE_CHOICES`, `REGISTRATION_CHOICE_ORDER`). Nothing is invented here.
+
+| # | Label | Canonical identifier(s) | Kind |
+|---|---|---|---|
+| 1 | المعرض Showroom | `organization_type = showroom_dealer` | business |
+| 2 | المورد Supplier | `organization_type = supplier` | business |
+| 3 | المصنع Manufacturer | `organization_type = manufacturer` | business |
+| 4 | المستورد Importer | `organization_type = importer` | business |
+| 5 | المقاول Contractor | `persona_type = contractor` | personal persona (there is no contractor org type) |
+| 6 | المهندس Engineer | `persona_type = engineer`; its business form is `organization_type = design_office` ("the canonical business behind the Engineer label", per the repo comment) | persona + business |
+| 7 | الصنايعي Craftsman | `persona_type = installer_technician` (key unchanged, label only) | personal persona |
+| 8 | فريق المبيعات Sales Team | `persona_type = sales` | persona that acts through an organization membership |
+| 9 | حساب شخصي Personal | `persona_type = end_consumer` | personal persona |
+
+**Legacy / technical values (kept for compatibility, never offered, never a new category):** `interior_designer` (persona; transitional registration key), `wholesaler` (org type; already remapped to `supplier` by `20260924090004`), `contractor_company` (org type, unused), `trainer`, `trainee`. None of them gets an audience, a label or a selector entry. Compatibility implications, stated explicitly instead of silently merging:
+- a legacy `interior_designer` persona user has **no audience**; under exact-only enforcement they see no audience-restricted product and cannot publish a purchase request until they hold a supported account type (no automatic relabel to Engineer);
+- legacy `wholesaler` organizations are already `supplier`; a `contractor_company` organization has no audience and no request privileges;
+- the `design_office` organization type is covered because it is the repo's own canonical Engineer business, not because a legacy value was merged.
+
+## V2. Product audiences (eight) vs account types (nine)
+
+The eight audiences are targeting groups: **معرض, مورد, مصنع, مستورد, مقاول, مهندس, صنايعي, العميل النهائي**. Expansion to canonical codes, explicit and closed:
+
+| Audience | Matches viewer whose active workspace/persona is |
+|---|---|
+| معرض | org `showroom_dealer` |
+| مورد | org `supplier` |
+| مصنع | org `manufacturer` |
+| مستورد | org `importer` |
+| مقاول | persona `contractor` |
+| مهندس | persona `engineer` or org `design_office` |
+| صنايعي | persona `installer_technician` |
+| العميل النهائي | persona `end_consumer` |
+
+Sales Team is **not** a ninth audience. A Sales Team user acts through the organization they are a member of: the viewer's audience is that **workspace's** `organization_type` (same rule as `app.viewer_offer_audience(p_org_id)`), so access never widens beyond the workspace they are authorised for. A Sales person with no active workspace has no audience.
+
+**Narrow business decision (does not block foundation work):** should a Sales Team user ever be targetable on their own (e.g. a "sales team" audience for training/promo products)? Default until decided: no.
+
+## V3. Product audience security — exact-only (approved)
+
+The union-of-workspaces floor in R4 is **withdrawn**. Design:
+- RLS on `public.products` for other tenants' rows is **removed** (`products_select_published` dropped). Other tenants' products are read **only** through workspace-aware `security definer` readers that take `p_org_id`, verify membership via `app.is_org_member`, derive the audience from that workspace (`organization_type`, or the persona when no workspace), exclude the viewer's own organization, and filter on `product_audiences`.
+- Owner reads stay on the existing own-organization policy; platform support policy stays.
+- `product_images_select_public` (table) and the storage `product_images_select_public` policy stop depending on "published only": signing requires the viewer's workspace to be eligible. Because storage policies cannot receive a workspace argument, image URLs are minted by a definer function the reader calls, not by a policy on `storage.objects` for arbitrary callers (design detail verified in the Milestone B spike before broad changes).
+- `catalog_published_products` becomes the reader's projection (or is dropped); `saved_product_list`, `search.ts`, `offers` product reads and `add_rfq_item` all re-route through an eligibility function.
+- Required pgTAP: direct `from("products")` of another tenant's published row fails; targeted workspace succeeds; non-targeted fails; switching `p_org_id` flips access for the same person; direct URL/detail, image and saved-list reads cannot bypass; `product_prices` stays unreadable.
+- A full impact audit (every consumer of `products`, `product_images`, `catalog_published_products`, `saved_product_list`) precedes the RLS change; it is Milestone B step 1.
+
+## V4. Purchase Requests — ownership correction (approved)
+
+Request ownership has two explicit shapes, **no fake organization**:
+- **A. Individual** requester: `requester_user_id` set, `requester_org_id` null. Allowed for Craftsman, Contractor, Engineer and Personal personas.
+- **B. Organization** requester: acting through an active workspace; `requester_org_id` set; capability `rfq.create` (reuse) on that workspace.
+
+The earlier "requester organization must be live" condition applies **only when `requester_org_id` is set**. A personal request is visible to eligible showrooms with no organization check on the requester, and the requester always manages their own requests (owner policy by `requester_user_id`, or by org membership + capability for case B) regardless of whether the request appears in Browse. Browse excludes the viewer's own requests and, for case B, every request of the viewer's own workspace.
+
+## V5. Responses — Option A with full / partial quotes (approved)
+
+`purchase_request_responses` + `purchase_request_response_items`: per responder, per request, independent and private to responder and requester; an item references the original `request_item_id`, stores original quantity and unit (snapshot), offered quantity (`> 0`, `<= requested`), `unit_price numeric(14,2)`, stored line total, optional note; unit must equal the requested unit (no cross-unit conversion). Requester may **shortlist** several responses (non-binding flag). Shortlisting creates no order, closes nothing, allocates nothing. Not approved yet and **not built**: binding acceptance, allocation across responders, order creation, payment, request fulfilment states. They can later bridge to the canonical direct RFQ -> quotation -> order lifecycle without schema changes here.
+
+## V6. network.refer / candidates / contacts / Points
+
+Implemented in Milestone A (`20261018090001`, `20261018090002`):
+- `network.refer` capability; owners grant it through the existing no-escalation RPC without receiving anything extra; `org.manage` implies it.
+- `network_candidates` is a **separate** table (not new columns on `network_referrals`) so the showroom approve RPC, which materialises an organization and pays the Points event, can never be reached by the new kinds. Approve/reject are status changes: no Auth user, no organization, no profile, no contact exposure, no Points.
+- `organization_contacts` + `profile_contact_visibility`: three independent flags, default false; readers `business_contact` / `craftsman_contact` need an active member workspace and a directory-eligible target; candidate contacts are never read by them.
+- Existing `network_referral_*` (craftsman refers showroom) and its Points award are untouched; the full pgTAP suite including `50_*`/`51_*` passes.
