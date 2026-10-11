@@ -20,7 +20,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(179);
+select plan(187);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -382,6 +382,18 @@ select is(public.purchase_request_detail(:'orgS'::uuid, (select id from _r where
 set local request.jwt.claims = :'show2';
 select is(public.purchase_request_detail(:'orgC2'::uuid, (select id from _r where name = 'show')), null, 'a non-responder cannot open a closed request');
 
+-- A responder keeps a CLOSED request, but a CANCELLED one disappears for everyone but its owner side.
+set local request.jwt.claims = :'sup2';
+select lives_ok(format($f$select public.purchase_request_response_save(%L, %L, null, null, %L::jsonb)$f$, :'orgS2', (select id from _r where name = 'sup'),
+    jsonb_build_array(jsonb_build_object('request_item_id', (select id from _it where req = 'sup' and pos = 1), 'offered_quantity', 20, 'unit_price', 9))::text),
+  'another supplier answers a supplier request');
+select is((public.purchase_request_detail(:'orgS2'::uuid, (select id from _r where name = 'sup')) ->> 'status'), 'published', 'the responder reads the live request');
+set local request.jwt.claims = :'khaled';
+select lives_ok(format($f$select public.purchase_request_cancel(%L, 2)$f$, (select id from _r where name = 'sup')), 'the requester cancels it');
+set local request.jwt.claims = :'sup2';
+select is(public.purchase_request_detail(:'orgS2'::uuid, (select id from _r where name = 'sup')), null, 'a cancelled request is gone for its responders too');
+select is((select count(*)::int from public.purchase_requests_discover(:'orgS2'::uuid) where id = (select id from _r where name = 'sup')), 0, 'and from discovery');
+
 -- Cancel.
 set local request.jwt.claims = :'imp2';
 select throws_ok(format($f$select public.purchase_request_cancel(%L, 2)$f$, (select id from _r where name = 'imp')), 'P0002', null, 'someone else cannot cancel a request');
@@ -413,6 +425,9 @@ select is(public.purchase_request_image_remove((select id from public.purchase_r
 select lives_ok($f$insert into _k select 'k3', public.purchase_request_image_request_upload((select id from _it where req = 'img' and pos = 1), 'image/webp')$f$, 'and the freed slot can be used again');
 select lives_ok(format($f$select public.purchase_request_publish(%L, 1)$f$, (select id from _r where name = 'img')), 'publish the request');
 select throws_ok($f$select public.purchase_request_image_request_upload((select id from _it where req = 'img' and pos = 1), 'image/png')$f$, '22023', null, 'a published request''s attachments are frozen');
+select ok(not app.can_upload_request_image_object((select key from _k where name = 'k3')), 'an old ticket cannot upload bytes once the request is published');
+select throws_ok(format($f$select public.purchase_request_image_confirm_upload(%L)$f$, (select key from _k where name = 'k3')), '22023', null, 'and cannot be confirmed after publishing: attachments are draft-only');
+select is((select state::text from public.purchase_request_images where object_key = (select key from _k where name = 'k3')), 'pending', 'the late ticket never became a ready image');
 select ok(app.can_read_request_image_object((select key from _k where name = 'k2')), 'the owner side reads its image object');
 
 set local request.jwt.claims = :'hana';
