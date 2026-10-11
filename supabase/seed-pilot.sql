@@ -483,7 +483,7 @@ update public.users set primary_account_type = null, status = 'active'
 update public.users set primary_account_type = 'installer_technician', status = 'active'
   where id in ('71000006-0000-4000-8000-000000000006','71000007-0000-4000-8000-000000000007',
                '71000008-0000-4000-8000-000000000008','71000009-0000-4000-8000-000000000009');
-update public.users set primary_account_type = 'interior_designer', status = 'active'
+update public.users set primary_account_type = 'engineer', status = 'active'
   where id = '71000010-0000-4000-8000-000000000010';
 update public.users set primary_account_type = 'engineer', status = 'active'
   where id = '71000011-0000-4000-8000-000000000011';

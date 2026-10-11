@@ -104,7 +104,7 @@ select throws_ok(format($f$select public.purchase_request_save(null, null, null,
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"a","category_code":"paints","quantity":1,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'a one-character item name is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"nope","quantity":1,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'an unknown category is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","quantity":1,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'the category is required');
-select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"paints","quantity":1,"unit":"box"}]'::jsonb)$f$, '22023', null, 'an unsupported unit is refused');
+select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"paints","quantity":1,"unit":"ton"}]'::jsonb)$f$, '22023', null, 'an unsupported unit is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"paints","quantity":0,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'a zero quantity is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"paints","quantity":1.2345,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'more than three decimals is refused');
 select throws_ok(format($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, %L::jsonb)$f$,
@@ -142,7 +142,7 @@ select lives_ok(format($f$select public.purchase_request_publish(%L, 1)$f$, (sel
 set local request.jwt.claims = :'mostafa';
 select lives_ok(format($f$insert into _r select 'contractor', public.purchase_request_save(null, null, null, 'Contractor needs', null, null, false, %L::jsonb)$f$, :'item1'), 'a contractor persona creates an individual request');
 select lives_ok(format($f$select public.purchase_request_publish(%L, 1)$f$, (select id from _r where name = 'contractor')), 'and publishes it');
-select throws_ok(format($f$select public.purchase_request_save(%L, null, null, 'Company', null, null, false, %L::jsonb)$f$, :'orgK', :'item1'), '22023', null, 'an organization type with no audience cannot publish requests');
+select lives_ok(format($f$select public.purchase_request_save(%L, null, null, 'Company', null, null, false, %L::jsonb)$f$, :'orgK', :'item1'), 'a contractor company workspace acts as the Contractor account and can create a request');
 
 set local request.jwt.claims = :'hana';
 select is((select count(*)::int from public.purchase_requests_discover(:'orgC'::uuid) where id in (select id from _r where name in ('craft', 'consumer', 'contractor', 'eng'))), 4,
@@ -153,6 +153,9 @@ set local request.jwt.claims = :'tarek';
 select is((select count(*)::int from public.purchase_requests_discover(:'orgM'::uuid) where id in (select id from _r where name in ('craft', 'consumer', 'contractor', 'eng'))), 0, 'nor to a manufacturer');
 set local request.jwt.claims = :'sara';
 select is((select count(*)::int from public.purchase_requests_discover(:'orgI'::uuid) where id in (select id from _r where name in ('craft', 'consumer', 'contractor', 'eng'))), 0, 'nor to an importer');
+reset role;
+update public.users set primary_account_type = null where id = '71000010-0000-4000-8000-000000000010';
+set local role authenticated;
 set local request.jwt.claims = :'legacy';
 select throws_ok(format($f$select public.purchase_request_save(null, null, null, 'Legacy', null, null, false, %L::jsonb)$f$, :'item1'), '22023', null, 'a legacy persona with no supported account type cannot publish an individual request');
 set local request.jwt.claims = :'youssef';

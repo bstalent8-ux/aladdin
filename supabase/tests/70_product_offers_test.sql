@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(147);
+select plan(145);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -41,7 +41,7 @@ update auth.users set email_confirmed_at = now() where email_confirmed_at is nul
 
 -- A. Reference data and structure (superuser view).
 select is((select array_agg(code order by sort_order) from public.offer_audience_types where feed_ready),
-  array['showroom_dealer','supplier','manufacturer','importer','design_office','wholesaler','contractor_company','engineer','interior_designer','installer_technician','contractor','end_consumer'],
+  array['showroom_dealer','supplier','manufacturer','importer','design_office','contractor_company','engineer','installer_technician','contractor','end_consumer'],
   'every canonical audience is feed-ready: each account shell renders the shared Offers feed');
 select ok((select bool_and(a.code in (select unnest(enum_range(null::public.organization_type)::text[]) union select unnest(enum_range(null::public.persona_type)::text[])))
              from public.offer_audience_types a),
@@ -144,9 +144,9 @@ select throws_ok(format('select public.own_offer_set_status(%L, %L, 1)', (select
 set local request.jwt.claims = :'hana';
 select throws_ok(format('select public.own_offer_set_status(%L, %L, 99)', (select id from _o where name = 'o1'), 'publish'), '40001', null, 'a stale version is refused');
 -- an audience with no feed yet
-select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['wholesaler'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), 'a draft may name the wholesaler audience');
+select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['design_office'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), 'a draft may name the wholesaler audience');
 insert into _o (name, id, version) select 'o2', id, version from public.product_offers where organization_id = :'orgC'::uuid and id <> (select id from _o where name = 'o1');
-select ok((select feed_ready from public.offer_audience_types where code = 'wholesaler'), 'an audience is publishable only while its feed exists, and every audience has one now');
+select ok((select feed_ready from public.offer_audience_types where code = 'design_office'), 'an audience is publishable only while its feed exists, and every audience has one now');
 -- an unpublished product
 select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'pd') || '","quantity":1}]'), 'a draft offer may hold a not-yet-published product');
 insert into _o (name, id, version) select 'o3', id, version from public.product_offers where organization_id = :'orgC'::uuid and id not in (select id from _o where id is not null);
@@ -268,14 +268,14 @@ select is(app.word_count('سعر خاص Price 5'), 4, 'mixed Arabic/English word
 
 set local role authenticated;
 set local request.jwt.claims = :'hana';
-select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'All audiences', null, 3000, null, now() - interval '1 day', now() + interval '2 days', %L::jsonb, array['showroom_dealer','supplier','manufacturer','importer','design_office','wholesaler','contractor_company','engineer','interior_designer','installer_technician','contractor','end_consumer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p3') || '","quantity":2}]'), 'an offer can target every canonical audience');
+select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'All audiences', null, 3000, null, now() - interval '1 day', now() + interval '2 days', %L::jsonb, array['showroom_dealer','supplier','manufacturer','importer','design_office','contractor_company','engineer','installer_technician','contractor','end_consumer'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p3') || '","quantity":2}]'), 'an offer can target every canonical audience');
 insert into _o (name, id, version) select 'oall', id, version from public.product_offers where title = 'All audiences' and organization_id = :'orgC'::uuid;
 select lives_ok(format('select public.own_offer_set_status(%L, ''publish'', %L)', (select id from _o where name = 'oall'), (select version from _o where name = 'oall')), 'and publish');
 
 reset role;
-update public.organizations set org_type = 'wholesaler' where id = :'orgH'::uuid;
+update public.organizations set org_type = 'supplier' where id = :'orgH'::uuid;
 set local role authenticated; set local request.jwt.claims = :'horizon';
-select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a wholesaler workspace sees it');
+select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a supplier workspace sees it');
 reset role;
 update public.organizations set org_type = 'design_office' where id = :'orgH'::uuid;
 set local role authenticated; set local request.jwt.claims = :'horizon';
@@ -290,10 +290,6 @@ reset role;
 update public.users set primary_account_type = 'engineer' where id = '70000004-0000-4000-8000-000000000004';
 set local role authenticated; set local request.jwt.claims = :'nile';
 select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal engineer viewer sees it');
-reset role;
-update public.users set primary_account_type = 'interior_designer' where id = '70000004-0000-4000-8000-000000000004';
-set local role authenticated; set local request.jwt.claims = :'nile';
-select is(jsonb_array_length(public.offers_feed(null)), 1, 'a personal interior_designer viewer sees it');
 reset role;
 update public.users set primary_account_type = 'installer_technician' where id = '70000004-0000-4000-8000-000000000004';
 set local role authenticated; set local request.jwt.claims = :'nile';
@@ -310,10 +306,6 @@ reset role;
 update public.users set primary_account_type = 'sales' where id = '70000004-0000-4000-8000-000000000004';
 set local role authenticated; set local request.jwt.claims = :'nile';
 select is(jsonb_array_length(public.offers_feed(null)), 0, 'a personal sales viewer is not targeted');
-reset role;
-update public.users set primary_account_type = 'trainee' where id = '70000004-0000-4000-8000-000000000004';
-set local role authenticated; set local request.jwt.claims = :'nile';
-select is(jsonb_array_length(public.offers_feed(null)), 0, 'a personal trainee viewer is not targeted');
 reset role;
 update public.users set primary_account_type = null where id = '70000004-0000-4000-8000-000000000004';
 set local role authenticated; set local request.jwt.claims = :'nile';

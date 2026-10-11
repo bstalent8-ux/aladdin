@@ -19,7 +19,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(79);
+select plan(81);
 
 -- Fixtures, all from seed-pilot: a real showroom with a real owner and branch.
 --   70000001 — owner of Cairo Ceramics Showroom (business-only: NULL persona)
@@ -54,25 +54,31 @@ on conflict (user_id) do update
 -- the point of Sprint 13 is that a violating row cannot be WRITTEN.
 select is(
   (select count(*)::int from unnest(enum_range(null::public.persona_type)) e
-   where e::text in ('showroom_dealer','supplier','manufacturer','importer','wholesaler',
+   where e::text in ('showroom_dealer','supplier','manufacturer','importer',
                      'contractor_company','design_office')),
   0, '1: persona_type contains NO business classification');
 select is(
   (select count(*)::int from unnest(enum_range(null::public.organization_type)) e
-   where e::text in ('end_consumer','engineer','interior_designer','installer_technician',
-                     'contractor','sales','trainer','trainee')),
+   where e::text in ('end_consumer','engineer','installer_technician',
+                     'contractor','sales')),
   0, '2: organization_type contains NO personal persona');
 
 -- The legitimate personal personas, including the legacy training ones, survive.
 select ok(
   (select bool_and(v = any (enum_range(null::public.persona_type)::text[]))
-   from unnest(array['end_consumer','engineer','interior_designer','installer_technician',
-                     'contractor','sales','trainer','trainee']) v),
-  '1: every supported personal persona is preserved (trainer/trainee included)');
+   from unnest(array['end_consumer','engineer','installer_technician',
+                     'contractor','sales']) v),
+  '1: every supported personal persona is preserved');
+select is(
+  (select count(*)::int from unnest(enum_range(null::public.persona_type))),
+  5, '1: persona_type holds exactly the five personal personas (no interior_designer / trainer / trainee)');
 select ok(
   (select bool_and(v = any (enum_range(null::public.organization_type)::text[]))
-   from unnest(array['showroom_dealer','supplier','manufacturer','importer','wholesaler']) v),
+   from unnest(array['showroom_dealer','supplier','manufacturer','importer','contractor_company','design_office']) v),
   '2: every supported business classification is preserved');
+select is(
+  (select count(*)::int from unnest(enum_range(null::public.organization_type))),
+  6, '2: organization_type holds exactly the six business classifications (no wholesaler)');
 
 -- The columns carry the right type, so the separation is structural.
 select is(

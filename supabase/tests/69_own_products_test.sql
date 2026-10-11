@@ -76,8 +76,8 @@ select throws_ok(
   format('select public.own_product_create(%L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-2', null, 'pail'),
   '22023', null, 'a missing category is refused');
 select throws_ok(
-  format('select public.own_product_create(%L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-3', 'paints', 'box'),
-  '22023', null, 'a unit outside the six required units is refused for a new product');
+  format('select public.own_product_create(%L, %L, %L, %L, %L)', :'orgC', 'X product', 'NEW-3', 'paints', 'ton'),
+  '22023', null, 'a unit outside the shared unit list is refused for a new product');
 select throws_ok(
   format('select public.own_product_create(%L, %L, %L, %L, %L)', :'orgC', 'X', 'NEW-4', 'paints', 'pail'),
   '22023', null, 'a one-character name is refused');

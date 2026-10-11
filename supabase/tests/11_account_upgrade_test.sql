@@ -119,7 +119,7 @@ select throws_ok(
   '42501', null, 'the user cannot change their own public_profile_status');
 
 -- ===== Rejection path does not change account type =====
--- Nadia (33, interior_designer) requests a different professional type, gets rejected.
+-- Nadia (33, engineer) requests a different professional type, gets rejected.
 set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';
 select lives_ok($$ select public.request_account_upgrade('contractor') $$, 'B-owner submits an upgrade request');
 set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
@@ -131,7 +131,7 @@ select lives_ok(
   'reviewer rejects with a reason');
 select is(
   (select primary_account_type::text from public.users where id='33333333-3333-4333-8333-333333333333'),
-  'interior_designer', 'a rejected request does not change the account type');
+  'engineer', 'a rejected request does not change the account type');
 
 -- 12. service_role cannot bypass the constrained reviewer/apply workflow.
 reset role;

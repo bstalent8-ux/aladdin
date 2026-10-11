@@ -143,7 +143,7 @@ insert into public.onboarding_progress
 values
   -- seed.sql personal identities
   ('22222222-2222-4222-8222-222222222222', '01012000101', 'professional', 'sales',                null, now() - interval '210 days', now() - interval '210 days', now() - interval '210 days', now() - interval '210 days'),
-  ('33333333-3333-4333-8333-333333333333', '01012000102', 'professional', 'interior_designer',    null, now() - interval '205 days', now() - interval '205 days', now() - interval '205 days', now() - interval '205 days'),
+  ('33333333-3333-4333-8333-333333333333', '01012000102', 'professional', 'engineer',             null, now() - interval '205 days', now() - interval '205 days', now() - interval '205 days', now() - interval '205 days'),
   ('44444444-4444-4444-8444-444444444444', '01012000103', 'consumer',      null,                  null, now() - interval '60 days',  now() - interval '60 days',  now() - interval '60 days',  now() - interval '60 days'),
   -- pilot world
   ('70000002-0000-4000-8000-000000000002', '01012000104', 'professional', 'sales',                null, now() - interval '150 days', now() - interval '150 days', now() - interval '150 days', now() - interval '150 days'),
@@ -156,7 +156,7 @@ values
   ('71000007-0000-4000-8000-000000000007', '01012000110', 'professional', 'installer_technician', null, now() - interval '90 days',  now() - interval '90 days',  now() - interval '90 days',  now() - interval '90 days'),
   ('71000008-0000-4000-8000-000000000008', '01012000111', 'professional', 'installer_technician', null, now() - interval '85 days',  now() - interval '85 days',  now() - interval '85 days',  now() - interval '85 days'),
   ('71000009-0000-4000-8000-000000000009', '01012000112', 'professional', 'installer_technician', null, now() - interval '80 days',  now() - interval '80 days',  now() - interval '80 days',  now() - interval '80 days'),
-  ('71000010-0000-4000-8000-000000000010', '01012000113', 'professional', 'interior_designer',    null, now() - interval '75 days',  now() - interval '75 days',  now() - interval '75 days',  now() - interval '75 days'),
+  ('71000010-0000-4000-8000-000000000010', '01012000113', 'professional', 'engineer',             null, now() - interval '75 days',  now() - interval '75 days',  now() - interval '75 days',  now() - interval '75 days'),
   ('71000011-0000-4000-8000-000000000011', '01012000114', 'professional', 'engineer',             null, now() - interval '70 days',  now() - interval '70 days',  now() - interval '70 days',  now() - interval '70 days');
 
 -- The consumer track. Omar is the one B2C identity in the demo: a real stated
@@ -183,7 +183,7 @@ values
    'full_time', array['Cairo','Nasr City','Heliopolis'], false, 'Cairo', 'Nasr City', 40,
    now() - interval '210 days'),
   -- Nadia Salem — interior designer who also owns Delta Interiors Studio.
-  ('33333333-3333-4333-8333-333333333333', 'interior_designer', 12, 'Residential and boutique retail interiors',
+  ('33333333-3333-4333-8333-333333333333', 'engineer', 12, 'Residential and boutique retail interiors',
    array['concept_design','finishing_schedule','site_supervision','3d_visualisation'], array['furniture_sourcing'],
    'full_time', array['Cairo','Maadi','New Cairo'], true, 'Cairo', 'Maadi', 60,
    now() - interval '205 days'),
@@ -231,7 +231,7 @@ values
    now() - interval '80 days'),
   -- Heba Kamal — remote-capable, so the travel-radius item drops out of her
   -- completeness denominator rather than penalising her forever.
-  ('71000010-0000-4000-8000-000000000010', 'interior_designer', 9, 'Residential interior design',
+  ('71000010-0000-4000-8000-000000000010', 'engineer', 9, 'Residential interior design',
    array['concept_design','finishing_schedule','site_supervision','mood_boards'], array['procurement_support'],
    'full_time', array['Cairo','New Cairo','Sheikh Zayed'], true, 'Cairo', 'New Cairo', null,
    now() - interval '75 days'),

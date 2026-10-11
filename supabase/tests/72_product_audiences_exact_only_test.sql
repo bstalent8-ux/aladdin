@@ -67,10 +67,10 @@ select ok(not has_function_privilege('anon', 'public.catalog_products(uuid)', 'e
 select is(app.org_product_audience(:'orgC'), 'showroom_dealer', 'showroom workspace -> showroom_dealer');
 select is(app.org_product_audience(:'orgM'), 'manufacturer', 'manufacturer workspace -> manufacturer');
 select is(app.org_product_audience(:'orgDesign'), 'engineer', 'design office workspace -> engineer (the repo''s canonical Engineer business)');
-select is(app.org_product_audience(:'orgContractor'), null, 'a contractor company has no audience (not a ninth type, not merged)');
+select is(app.org_product_audience(:'orgContractor'), 'contractor', 'a contractor company workspace acts as the Contractor account (internal business behind it, not a tenth type)');
 select is((select array_agg(app.persona_product_audience(x) order by x) from unnest(array['contractor','end_consumer','engineer','installer_technician']) x),
   array['contractor','end_consumer','engineer','installer_technician'], 'the four personal audiences map to themselves');
-select is((select count(app.persona_product_audience(x))::int from unnest(array['sales','interior_designer','trainer','trainee','showroom_dealer','wholesaler']) x), 0,
+select is((select count(app.persona_product_audience(x))::int from unnest(array['sales','interior_designer','trainer','trainee','showroom_dealer','wholesaler','design_office','contractor_company']) x), 0,
   'sales and every legacy / business value is no personal audience');
 
 -- C. Owner write path -----------------------------------------------------------------
@@ -139,7 +139,7 @@ select is((select count(*)::int from public.catalog_products(:'orgC'::uuid) wher
 select is((select count(*)::int from public.catalog_products(null)), 0, 'a Sales Team user with no workspace has no audience');
 select throws_ok(format('select * from public.catalog_products(%L)', :'orgM'), '42501', null, 'a Sales Team user cannot borrow a workspace they do not belong to');
 set local request.jwt.claims = :'salesx';
-select is((select count(*)::int from public.catalog_products(:'orgContractor'::uuid)), 0, 'Sales Team of a company with no audience reads nothing');
+select cmp_ok((select count(*)::int from public.catalog_products(:'orgContractor'::uuid)), '>', 0, 'Sales Team of a contractor company reads exactly the Contractor audience of that workspace');
 
 -- Personal personas.
 set local request.jwt.claims = :'engineer';
@@ -154,10 +154,15 @@ update public.users set primary_account_type = 'end_consumer' where id = '710000
 set local role authenticated;
 set local request.jwt.claims = :'consumer';
 select is((select count(*)::int from public.catalog_products(null) where id in (select id from _p)), 0, 'end customer reads none of the products that are not targeted at them');
+-- The retired interior_designer persona no longer exists: such a person was moved to Engineer by
+-- migration, and a person holding NO supported account type has no audience at all.
+reset role;
+update public.users set primary_account_type = null where id = '71000010-0000-4000-8000-000000000010';
+set local role authenticated;
 set local request.jwt.claims = :'legacy';
-select is((select count(*)::int from public.catalog_products(null)), 0, 'a legacy interior_designer persona has no audience (not silently merged)');
+select is((select count(*)::int from public.catalog_products(null)), 0, 'a person with no supported account type has no audience');
 set local request.jwt.claims = :'contractor';
-select is((select count(*)::int from public.catalog_products(:'orgContractor'::uuid)), 0, 'the contractor persona does not apply when a contractor-company workspace is named (exact workspace wins)');
+select is((select count(*)::int from public.catalog_products(:'orgContractor'::uuid)), (select count(*)::int from public.catalog_products(null)), 'the contractor persona and the contractor company workspace read the same single Contractor audience');
 
 -- Retargeting changes access immediately, per audience.
 set local request.jwt.claims = :'delta';
