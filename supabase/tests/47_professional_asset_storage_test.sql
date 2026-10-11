@@ -210,14 +210,15 @@ select ok(
 -- bucket (avatars), mirroring this exact same 3-certificates/3-portfolio shape
 -- plus its own public door: 4 more policies (insert/select-own/delete-own/
 -- select-published), for 11 total; Own Products (20261008090001) then added the
--- four named product_images_* policies of the private product-images bucket, for 15. Updated here rather than left stale,
+-- four named product_images_* policies of the private product-images bucket, for 15; Milestone C (20261020090001) added
+-- the four request_images_* policies of the private purchase-request-images bucket, for 19. Updated here rather than left stale,
 -- since this file's own point is to name every policy explicitly so a NEW
 -- one cannot pass quietly — the avatars bucket is a reviewed addition, named.
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  15,
-  'Fifteen policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261008090001)'
+  19,
+  'Nineteen policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261008090001), plus the four request-images policies (Purchase Requests, 20261020090001)'
 );
 
 select is(
@@ -238,7 +239,11 @@ select is(
     'professional_portfolio_delete_own',
     'professional_portfolio_insert_authorized',
     'professional_portfolio_select_own',
-    'professional_portfolio_select_published'
+    'professional_portfolio_select_published',
+    'request_images_delete_manager',
+    'request_images_insert_authorized',
+    'request_images_select_owner',
+    'request_images_select_viewer'
   ],
   'Each policy still names ONE bucket in its own name, so widening one bucket''s reads cannot silently widen another''s'
 );
