@@ -4067,6 +4067,365 @@ export type Database = {
           },
         ]
       }
+      purchase_requests: {
+        Row: {
+          cancelled_at: string | null
+          closed_at: string | null
+          created_at: string
+          id: string
+          needed_by: string | null
+          notes: string | null
+          published_at: string | null
+          requester_audience: string
+          requester_org_id: string | null
+          requester_user_id: string
+          share_with_showrooms: boolean
+          status: Database["public"]["Enums"]["purchase_request_status"]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          needed_by?: string | null
+          notes?: string | null
+          published_at?: string | null
+          requester_audience: string
+          requester_org_id?: string | null
+          requester_user_id: string
+          share_with_showrooms?: boolean
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          needed_by?: string | null
+          notes?: string | null
+          published_at?: string | null
+          requester_audience?: string
+          requester_org_id?: string | null
+          requester_user_id?: string
+          share_with_showrooms?: boolean
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_requester_audience_fkey"
+            columns: ["requester_audience"]
+            isOneToOne: false
+            referencedRelation: "product_audience_types"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "purchase_requests_requester_org_id_fkey"
+            columns: ["requester_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_items: {
+        Row: {
+          category_code: string
+          code: string | null
+          color_items: Json
+          created_at: string
+          id: string
+          name: string
+          position: number
+          quantity: number
+          request_id: string
+          specs: string | null
+          unit: Database["public"]["Enums"]["product_unit"]
+          updated_at: string
+        }
+        Insert: {
+          category_code: string
+          code?: string | null
+          color_items?: Json
+          created_at?: string
+          id?: string
+          name: string
+          position: number
+          quantity: number
+          request_id: string
+          specs?: string | null
+          unit: Database["public"]["Enums"]["product_unit"]
+          updated_at?: string
+        }
+        Update: {
+          category_code?: string
+          code?: string | null
+          color_items?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          quantity?: number
+          request_id?: string
+          specs?: string | null
+          unit?: Database["public"]["Enums"]["product_unit"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_items_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "purchase_request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          created_by: string
+          id: string
+          item_id: string
+          object_key: string
+          owner_scope: string
+          request_id: string
+          slot: number
+          state: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          created_by: string
+          id?: string
+          item_id: string
+          object_key: string
+          owner_scope: string
+          request_id: string
+          slot: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          item_id?: string
+          object_key?: string
+          owner_scope?: string
+          request_id?: string
+          slot?: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pri_img_item"
+            columns: ["request_id", "item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_items"
+            referencedColumns: ["request_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_request_images_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_responses: {
+        Row: {
+          coverage: string
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          request_id: string
+          responder_org_id: string
+          shortlisted: boolean
+          shortlisted_at: string | null
+          shortlisted_by: string | null
+          status: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by: string
+          total: number
+          updated_at: string
+          valid_until: string | null
+          version: number
+        }
+        Insert: {
+          coverage: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id: string
+          responder_org_id: string
+          shortlisted?: boolean
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by: string
+          total: number
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+        }
+        Update: {
+          coverage?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id?: string
+          responder_org_id?: string
+          shortlisted?: boolean
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by?: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_responder_org_id_fkey"
+            columns: ["responder_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_shortlisted_by_fkey"
+            columns: ["shortlisted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_response_items: {
+        Row: {
+          id: string
+          line_total: number | null
+          note: string | null
+          offered_quantity: number
+          request_item_id: string
+          requested_quantity: number
+          response_id: string
+          unit: Database["public"]["Enums"]["product_unit"]
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          line_total?: number | null
+          note?: string | null
+          offered_quantity: number
+          request_item_id: string
+          requested_quantity: number
+          response_id: string
+          unit: Database["public"]["Enums"]["product_unit"]
+          unit_price: number
+        }
+        Update: {
+          id?: string
+          line_total?: number | null
+          note?: string | null
+          offered_quantity?: number
+          request_item_id?: string
+          requested_quantity?: number
+          response_id?: string
+          unit?: Database["public"]["Enums"]["product_unit"]
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_response_items_request_item_id_fkey"
+            columns: ["request_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_response_items_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_image_grants: {
+        Row: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string
+        }
+        Insert: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string
+        }
+        Update: {
+          expires_at?: string
+          object_key?: string
+          user_id?: string
+          workspace_org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_image_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       own_product_offer_links: {
@@ -6386,6 +6745,91 @@ export type Database = {
         Args: { p_keys: string[]; p_org_id: string }
         Returns: string[]
       }
+      purchase_request_save: {
+        Args: {
+          p_expected_version: number
+          p_items: Json
+          p_needed_by: string
+          p_notes: string
+          p_org_id: string
+          p_request_id: string
+          p_share_with_showrooms: boolean
+          p_title: string
+        }
+        Returns: string
+      }
+      purchase_request_publish: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_close: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_cancel: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_image_request_upload: {
+        Args: { p_content_type: string; p_item_id: string }
+        Returns: string
+      }
+      purchase_request_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      purchase_request_image_remove: {
+        Args: { p_image_id: string }
+        Returns: string
+      }
+      request_image_access_grant: {
+        Args: { p_keys: string[]; p_org_id: string }
+        Returns: string[]
+      }
+      purchase_requests_discover: {
+        Args: { p_org_id: string }
+        Returns: {
+          category_codes: string[]
+          id: string
+          item_count: number
+          my_response_id: string
+          my_response_status: string
+          needed_by: string
+          notes: string
+          published_at: string
+          requester_audience: string
+          requester_name: string
+          requester_org_id: string
+          requester_verified: boolean
+          title: string
+        }[]
+      }
+      purchase_request_detail: {
+        Args: { p_org_id: string; p_request_id: string }
+        Returns: Json
+      }
+      purchase_request_responses_for_requester: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      purchase_request_response_save: {
+        Args: {
+          p_items: Json
+          p_note: string
+          p_org_id: string
+          p_request_id: string
+          p_valid_until: string
+        }
+        Returns: string
+      }
+      purchase_request_response_withdraw: {
+        Args: { p_response_id: string }
+        Returns: undefined
+      }
+      purchase_request_response_shortlist: {
+        Args: { p_response_id: string; p_shortlisted: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_audience_kind: "organization_type" | "persona_type"
@@ -6531,6 +6975,8 @@ export type Database = {
         | "expired"
       verification_subject: "user" | "organization"
       verification_type: "identity" | "professional" | "organization"
+      purchase_request_status: "draft" | "published" | "closed" | "cancelled"
+      purchase_response_status: "submitted" | "withdrawn"
     }
     CompositeTypes: {
       [_ in never]: never

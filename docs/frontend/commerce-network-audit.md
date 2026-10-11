@@ -351,3 +351,60 @@ Every consumer of the published-product policy / views, and what happened to it:
 - `app.is_public_product_image_object` is now unused by policies (kept for compatibility); remove in a later cleanup.
 - Browser-level (Playwright) pass over the rewired pages was **not** re-run in this milestone; type-check, unit tests and the live PostgREST/Storage check cover the call shapes, but the visual pages should get an e2e sweep with the next UI milestone.
 - Not built here: any UI to *see* the audience on cards, the purchase request model (Milestone C), contact settings and candidate forms (waiting on Settings / Suppliers / Craftsmen pages).
+
+---
+
+# Revision 5 - Milestone C: the shared Purchase Request foundation (implemented)
+
+## X1. Ownership (no fake organization)
+
+| Shape | Who | Stored as | Who manages |
+|---|---|---|---|
+| Individual | Craftsman (`installer_technician`), Contractor, Engineer, Personal (`end_consumer`) personas | `requester_org_id = null`, `requester_user_id = author` | the author, always |
+| Organization | showroom / supplier / manufacturer / importer / design office (= Engineer business) acting through an ACTIVE workspace | `requester_org_id` set | members holding `rfq.create` (or `org.manage`) |
+
+A Sales Team member cannot publish as an individual (their persona is not a requester audience); they act through their workspace and the request carries that workspace's audience. A `contractor_company` organization (no audience) cannot publish. "Requester organization is live" is checked only when an organization owns the request; an individual request never depends on any organization. The requester audience is derived by the database from the persona or workspace - never accepted from the client.
+
+## X2. Visibility matrix (workspace-based, exact-only)
+
+| Requester | Discovered by (viewer workspace type) |
+|---|---|
+| Craftsman / Contractor / Engineer (persona or design office) / Personal | Showroom |
+| Showroom | Supplier, Manufacturer, Importer; also other Showrooms only with the "إظهار لمعارض أخرى" option |
+| Supplier | other Suppliers |
+| Manufacturer | other Manufacturers |
+| Importer | other Importers |
+
+Viewers are workspaces: audience comes from the ONE workspace named (membership verified), Sales Team inherits it, a workspace with no audience sees nothing, switching workspace changes the result, nothing is unioned. A request is never discovered by its own organization or its own author (even through another workspace of theirs). A responder keeps a request it answered after the requester CLOSES it, but a DRAFT or CANCELLED request is gone for everyone except the owner side.
+
+## X3. Data model (one shared system)
+
+`purchase_requests` (status draft/published/closed/cancelled, optimistic `version`, `share_with_showrooms` only for showrooms), `purchase_request_items` (name, optional code, canonical category from the 15, colours via the same normalizer as products, `numeric(14,3)` quantity, unit from the six showroom units, specs <= 250 characters, no product reference - no catalog product is created), `purchase_request_images` (<= 2 per item, private bucket `purchase-request-images`, owner scope = organization or person), `purchase_request_responses` (one live response per responder organization), `purchase_request_response_items` (snapshot of requested quantity/unit, offered quantity, `numeric(14,2)` unit price, stored generated line total, optional line note).
+
+Writes are RPC-only: `purchase_request_save` (create/edit a DRAFT, items merged by id), `purchase_request_publish/close/cancel`, image `request_upload/confirm_upload/remove`, `purchase_request_response_save/withdraw/shortlist`. Reads: owner side by RLS; everything cross-tenant through `purchase_requests_discover(p_org_id)` (bounded, filterable, exact count), `purchase_request_detail`, `purchase_request_responses_for_requester`, and per-workspace re-validated image signing (`request_image_access_grant`).
+
+## X4. Responses (Option A, non-binding)
+
+Many independent responses; a responder reads only its own, the requester reads every submitted one. FULL or PARTIAL is derived by the database (every item at the full requested quantity = full). Server-validated: `0 < offered <= requested`, quantity <= 3 decimals, unit = the requested unit (no conversion; a stated different unit is refused), price > 0, <= 2 decimals, <= 100,000,000 EGP; line total is a stored generated column; the response total is the sum. Revising a response clears any shortlist mark (it must be re-reviewed); withdrawing removes it from the comparison. Shortlisting any number of responses creates no RFQ, quotation or order, allocates nothing and does not close the request (verified by row counts in pgTAP and in the live check). Not built, not approved: binding acceptance, allocation across responders, order creation, partial fulfilment, payment, request expiry.
+
+Future bridge to RFQ -> Quotation -> Order is possible without schema changes here (a response is already a priced, per-item offer addressed to one requester); the direct RFQ flow is untouched.
+
+## X5. Security review findings addressed
+
+An automated review of the first commit reported an authorization-state-bypass. Two real gaps were closed in `20261020090002`: (1) a reference-image ticket issued while the request was a draft could still be uploaded and confirmed after publishing - confirm and the storage INSERT predicate now require a draft; (2) a responder kept reading and signing a request the requester had CANCELLED - responder retention now covers published/closed only. Regression tests added.
+
+## X6. Tests
+
+- pgTAP `73_shared_purchase_requests_test.sql` (187): ownership shapes, no fake org, item validation (category, unit, quantity, 250-character specs in characters, 30-item cap), the whole matrix incl. design office / Sales Team / share option / own-request exclusion / org-liveness only for org requests, direct reads fail, responses full/partial + all refusals, isolation, non-binding shortlist (row counts unchanged), revise/withdraw/close/cancel lifecycle, images (<= 2, draft-only, grants, re-validation, cancel), audit without money. `47_*` storage-policy inventory updated for the four new policies. Full suite: 74 files, 3161 tests passing on a clean reset.
+- Vitest: model/parsers/mapper, actions (23), queries (11). Total 208 files, 2573+ tests.
+- Live check on the isolated runtime with real supabase-js + Storage (31 assertions): exact discover call shape (rpc + contains + ilike + range + count), individual identity hidden, owner uploads a real PNG, audience is granted and the signed URL serves the bytes, outside audience gets nothing, full + partial responses, over-offer refused, comparison totals computed by the database, two shortlisted without closing or creating any order, cancel hides it from responders.
+
+## X7. Known limits / decisions still open
+
+- A published request is not editable (close or cancel it); draft editing only. Whether to allow editing details after publishing is unapproved.
+- Individual requesters' identity is never shown to responders; how/when contact is exposed (owner-controlled visibility from Milestone A) in the request/response flow is not wired.
+- Request expiry / auto-close, notifications and chat for responses are not built.
+- Units are the six showroom product units; adding more is a one-line migration.
+- `purchase_requests_discover` is plpgsql (filters apply after the visible set is built); fine at pilot scale, push filters into the function before large volumes.
+- Deleting an item removes its image rows; the bytes are orphaned in the private bucket (unreachable). A cleanup job is not built.
+- No UI yet for any of this (Milestone D); typed actions, queries, parsers, error mapping and i18n error keys are ready for the pages.

@@ -42,6 +42,8 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   "commerce.canonicalCategories.spc_flooring",
   "showroomProducts.fields.codeHint",
   "showroomProducts.images.errorType",
+  // Purchase request reference images: the accepted image format names (JPEG / PNG / WebP).
+  "purchaseRequests.errors.imageType",
   "showroomProducts.fields.colorHex",
   // A FILE FORMAT NAME. "PDF" is written PDF in Arabic — it is the name of the
   // format, not a word — and transliterating it would tell a reader less about
