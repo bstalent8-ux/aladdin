@@ -29,7 +29,7 @@ export default async function PersonalOffersPage() {
   const t = createTranslator(locale);
   const supabase = await getServerSupabase();
   const page = await listOffersPage(supabase, null);
-  const imageUrls = await signOfferImages(supabase, page.items);
+  const imageUrls = await signOfferImages(supabase, null, page.items);
   return (
     <div className="flex flex-col gap-md" data-testid="personal-offers">
       <HomeHeader eyebrow={t("showroomOffers.feed.badge")} title={t("showroomOffers.feed.title")} lead={t("showroomOffers.feed.subtitle")} />

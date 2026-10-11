@@ -5,7 +5,8 @@ import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
-import { getOwnProduct, listProductPrices } from "@/server/queries/commerce";
+import { getOwnProduct, getProductAudiences, listProductPrices } from "@/server/queries/commerce";
+import { isProductAudienceCode } from "@/features/showroom-shell/products/product-audiences";
 import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
 import { Card, Badge } from "@/components/ui/primitives";
 import { ProductForm } from "@/features/showroom-shell/products/product-form";
@@ -25,7 +26,7 @@ export default async function ShowroomEditProductPage({
   searchParams,
 }: {
   params: Promise<{ productId: string }>;
-  searchParams: Promise<{ created?: string; saved?: string; photos?: string }>;
+  searchParams: Promise<{ created?: string; saved?: string; photos?: string; audiences?: string }>;
 }) {
   const { supabase, org } = await requireShowroomContext();
   const item = SHOWROOM_GROUPS.flatMap((g) => g.items).find((entry) => entry.id === "my-products");
@@ -38,6 +39,7 @@ export default async function ShowroomEditProductPage({
   const product = await getOwnProduct(supabase, org.organizationId, productId);
   if (!product) notFound();
   const price = (await listProductPrices(supabase, [product.id])).get(product.id) ?? null;
+  const audiences = (await getProductAudiences(supabase, product.id)).filter(isProductAudienceCode);
 
   const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   const t = createTranslator(locale);
@@ -74,6 +76,7 @@ export default async function ShowroomEditProductPage({
         }
       />
       {sp.created === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="created-note">{sp.photos === "partial" ? t("showroomProducts.createdPartial") : t("showroomProducts.created")}</p> : null}
+      {sp.audiences === "missing" ? <p role="alert" className="rounded-sm border border-warning/40 bg-warning/10 px-md py-2 text-body text-warning" data-testid="audiences-missing-note">{t("showroomProducts.audience.saveFailed")}</p> : null}
       {sp.saved === "1" ? <p role="status" className="rounded-sm border border-success/40 bg-success/10 px-md py-2 text-body text-success" data-testid="saved-note">{t("showroomProducts.saved")}</p> : null}
 
       <div className="grid min-w-0 items-start gap-md desktop:grid-cols-[minmax(0,78fr)_minmax(0,22fr)]">
@@ -99,6 +102,7 @@ export default async function ShowroomEditProductPage({
             sizeLabel: product.size_label,
             brand: product.brand,
             description: product.short_description,
+            audiences,
           }}
         />
       ) : (

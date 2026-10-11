@@ -25,7 +25,7 @@ export default async function ShowroomOffersPage() {
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const t = createTranslator(locale);
   const page = await listOffersPage(supabase, org.organizationId);
-  const imageUrls = await signOfferImages(supabase, page.items);
+  const imageUrls = await signOfferImages(supabase, org.organizationId, page.items);
   return (
     <div className="flex flex-col gap-md" data-testid="showroom-offers">
       <ShowroomPageHero locale={locale} titleId="offers-title" Icon={TagIcon} title={t("showroomOffers.feed.title")} subtitle={t("showroomOffers.feed.subtitle")} />

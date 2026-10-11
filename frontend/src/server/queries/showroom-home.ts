@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import type { CatalogRow } from "@/server/queries/commerce";
 import { parseShowroomHomeMetrics, type ShowroomHomeMetrics } from "@/features/showroom-shell/home/metrics";
 
 type DB = SupabaseClient<Database>;
@@ -78,7 +79,7 @@ export async function loadShowroomKpiLayout(
 }
 
 export type RecommendedProduct = Pick<
-  Database["public"]["Views"]["catalog_published_products"]["Row"],
+  CatalogRow,
   "id" | "name" | "brand" | "supplier_name" | "supplier_verified" | "unit" | "category"
 > & { id: string; name: string };
 
@@ -98,12 +99,14 @@ export async function loadRecommendedProducts(
   limit = RECOMMENDED_PRODUCT_LIMIT,
 ): Promise<RecommendedProduct[]> {
   const { data, error } = await supabase
-    .from("catalog_published_products")
+    .rpc("catalog_products", { p_org_id: orgId })
     .select("id, name, brand, supplier_name, supplier_verified, unit, category")
     .neq("organization_id", orgId)
     .order("published_at", { ascending: false })
     .order("id", { ascending: true })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []).filter((row): row is RecommendedProduct => !!row.id && !!row.name);
+  return ((data ?? []) as Array<Pick<CatalogRow, "id" | "name" | "brand" | "supplier_name" | "supplier_verified" | "unit" | "category">>).filter(
+    (row): row is RecommendedProduct => !!row.id && !!row.name,
+  );
 }

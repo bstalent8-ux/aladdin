@@ -25,8 +25,8 @@ export async function loadSavedBatch(
   limit: number,
 ): Promise<SavedBatch> {
   const { rows, total } = await listSavedProductsPage(supabase, orgId, { categoryCode: params.category, search: params.q }, offset, limit);
-  const products = await listCatalogByIds(supabase, rows.flatMap((r) => (r.product_id ? [r.product_id] : [])));
-  const signed = await signProductImageUrls(supabase, products.map((p) => p.primary_image_key));
+  const products = await listCatalogByIds(supabase, orgId, rows.flatMap((r) => (r.product_id ? [r.product_id] : [])));
+  const signed = await signProductImageUrls(supabase, products.map((p) => p.primary_image_key), { orgId });
   const imageUrls: Record<string, string> = {};
   for (const p of products) {
     const url = p.id ? resolveProductImage(p, signed) : null;

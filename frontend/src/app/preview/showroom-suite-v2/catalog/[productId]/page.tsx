@@ -7,7 +7,7 @@ import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { getCatalogProduct, savedProductIds } from "@/server/queries/commerce";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
-import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
+import { listCatalogImages, signProductImageUrls } from "@/server/queries/product-images";
 import { SaveProductButton } from "@/features/commerce/save-product-button";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +29,12 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
   const m = getMessages(locale);
   const t = createTranslator(locale);
 
-  const [product, saved] = await Promise.all([getCatalogProduct(supabase, productId), savedProductIds(supabase, org.organizationId)]);
+  const [product, saved] = await Promise.all([getCatalogProduct(supabase, org.organizationId, productId), savedProductIds(supabase, org.organizationId)]);
   if (!product || !product.id || !product.category || !product.unit || !product.organization_id) notFound();
 
   // The uploaded photos (RLS: a published product's ready images), signed with the caller's own access.
-  const gallery = (await listProductImages(supabase, [product.id])).get(product.id) ?? [];
-  const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey));
+  const gallery = (await listCatalogImages(supabase, org.organizationId, [product.id])).get(product.id) ?? [];
+  const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey), { orgId: org.organizationId });
   const imageUrls = gallery.map((g) => signed.get(g.objectKey)).filter((u): u is string => Boolean(u));
 
   const isOwnOrg = product.organization_id === org.organizationId;

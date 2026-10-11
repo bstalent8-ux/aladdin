@@ -590,7 +590,7 @@ export async function projectSummary(supabase: DB, orgId: string, f: ReportFilte
 /** How the shortlist splits across the sector taxonomy. */
 export async function savedByCategory(supabase: DB, orgId: string): Promise<Record<string, number>> {
   const { data, error } = await supabase
-    .from("saved_product_list")
+    .rpc("saved_products_for", { p_org_id: orgId })
     .select("category")
     .eq("organization_id", orgId);
   if (error) throw error;

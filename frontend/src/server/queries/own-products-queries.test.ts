@@ -3,16 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { getOwnProduct, listCatalog, listOwnProducts, listProductPrices, ownProductCounts } from "./commerce";
-import { listProductImages, resolveProductImage, signProductImageUrls } from "./product-images";
+import { listCatalogImages, listProductImages, resolveProductImage, signProductImageUrls } from "./product-images";
 
 type Call = [string, ...unknown[]];
 
 function stub(result: { data: unknown; error: unknown }, storage?: { createSignedUrls: (keys: string[], s: number) => unknown }) {
   const calls: Call[] = [];
-  const from = vi.fn((relation: string) => {
-    calls.push(["from", relation]);
+  const make = () => {
     const b: Record<string, unknown> = {};
-    for (const m of ["select", "order", "limit", "eq", "neq", "or", "is", "not", "in"]) {
+    for (const m of ["select", "order", "limit", "eq", "neq", "or", "is", "not", "in", "range"]) {
       b[m] = (...args: unknown[]) => {
         calls.push([m, ...args]);
         return b;
@@ -21,8 +20,16 @@ function stub(result: { data: unknown; error: unknown }, storage?: { createSigne
     b.maybeSingle = () => Promise.resolve(result);
     b.then = (resolve: (v: unknown) => unknown) => resolve(result);
     return b;
+  };
+  const from = vi.fn((relation: string) => {
+    calls.push(["from", relation]);
+    return make();
   });
-  return { supabase: { from, storage: { from: () => storage } } as never, calls };
+  const rpc = vi.fn((fn: string, args: unknown) => {
+    calls.push(["rpc", fn, args]);
+    return make();
+  });
+  return { supabase: { from, rpc, storage: { from: () => storage } } as never, calls };
 }
 
 describe("own product queries", () => {
@@ -88,7 +95,7 @@ describe("own product queries", () => {
 
   it("matches the public catalog by canonical code without disturbing the legacy filter", async () => {
     const { supabase, calls } = stub({ data: [], error: null });
-    await listCatalog(supabase, { categoryCode: "paints" });
+    await listCatalog(supabase, "org-1", { categoryCode: "paints" });
     expect(calls).toContainEqual(["eq", "category_code", "paints"]);
     expect(calls.some((c) => c[0] === "eq" && c[1] === "category")).toBe(false);
   });
@@ -139,6 +146,40 @@ describe("product image queries", () => {
     expect((await signProductImageUrls(failing.supabase, ["a"])).size).toBe(0);
   });
 
+  it("another organization's images are signed only after the ACTIVE workspace is granted them", async () => {
+    const createSignedUrls = vi.fn(async (keys: string[]) => ({ data: keys.map((k) => ({ path: k, signedUrl: `https://signed/${k}`, error: null })), error: null }));
+    const { supabase, calls } = stub({ data: ["a"], error: null }, { createSignedUrls });
+    const urls = await signProductImageUrls(supabase, ["a"], { orgId: "org-1" });
+    expect(calls[0]).toEqual(["rpc", "product_image_access_grant", { p_org_id: "org-1", p_keys: ["a"] }]);
+    expect(urls.get("a")).toBe("https://signed/a");
+  });
+
+  it("signs nothing when the grant is refused (not a member / not targeted) - the card falls back to its placeholder", async () => {
+    const createSignedUrls = vi.fn();
+    const { supabase } = stub({ data: null, error: { code: "42501", message: "not a member of this organization" } }, { createSignedUrls });
+    expect((await signProductImageUrls(supabase, ["a"], { orgId: "org-x" })).size).toBe(0);
+    expect(createSignedUrls).not.toHaveBeenCalled();
+  });
+
+  it("grants in batches of 60 keys and never grants for the owner's own images", async () => {
+    const createSignedUrls = vi.fn(async (keys: string[]) => ({ data: keys.map((k) => ({ path: k, signedUrl: `u/${k}`, error: null })), error: null }));
+    const many = Array.from({ length: 130 }, (_, i) => `k${i}`);
+    const viewer = stub({ data: [], error: null }, { createSignedUrls });
+    await signProductImageUrls(viewer.supabase, many, { orgId: "org-1" });
+    expect(viewer.calls.filter((c) => c[0] === "rpc").map((c) => ((c[2] as { p_keys: string[] }).p_keys.length))).toEqual([60, 60, 10]);
+    const own = stub({ data: [], error: null }, { createSignedUrls });
+    await signProductImageUrls(own.supabase, ["a"]);
+    expect(own.calls.some((c) => c[0] === "rpc")).toBe(false);
+  });
+
+  it("lists another organization's gallery through the workspace-aware reader, never the table", async () => {
+    const { supabase, calls } = stub({ data: [{ product_id: "p1", id: "i1", object_key: "k1", slot: 1 }], error: null });
+    const map = await listCatalogImages(supabase, "org-1", ["p1"]);
+    expect(map.get("p1")).toEqual([{ id: "i1", objectKey: "k1", slot: 1 }]);
+    expect(calls[0]).toEqual(["rpc", "catalog_product_images", { p_org_id: "org-1", p_product_ids: ["p1"] }]);
+    expect(calls.some((c) => c[0] === "from")).toBe(false);
+  });
+
   it("shows the uploaded primary photo, else the legacy reference, else nothing", () => {
     const signed = new Map([["k1", "https://signed/k1"]]);
     expect(resolveProductImage({ primary_image_key: "k1", image_ref: "https://legacy/x.png" }, signed)).toBe("https://signed/k1");
@@ -168,16 +209,16 @@ describe("private product prices", () => {
 describe("browse excludes the active organization's own products", () => {
   it("filters its own organization out in the query itself", async () => {
     const { supabase, calls } = stub({ data: [], error: null });
-    await listCatalog(supabase, { excludeOrgId: "org-active" });
-    expect(calls).toContainEqual(["from", "catalog_published_products"]);
+    await listCatalog(supabase, "org-active", { excludeOrgId: "org-active" });
+    expect(calls).toContainEqual(["rpc", "catalog_products", { p_org_id: "org-active" }]);
     expect(calls).toContainEqual(["neq", "organization_id", "org-active"]);
   });
 
   it("switching workspace changes the excluded organization", async () => {
     const a = stub({ data: [], error: null });
     const b = stub({ data: [], error: null });
-    await listCatalog(a.supabase, { excludeOrgId: "org-a" });
-    await listCatalog(b.supabase, { excludeOrgId: "org-b" });
+    await listCatalog(a.supabase, "org-a", { excludeOrgId: "org-a" });
+    await listCatalog(b.supabase, "org-b", { excludeOrgId: "org-b" });
     expect(a.calls).toContainEqual(["neq", "organization_id", "org-a"]);
     expect(b.calls).toContainEqual(["neq", "organization_id", "org-b"]);
     expect(b.calls).not.toContainEqual(["neq", "organization_id", "org-a"]);
@@ -185,7 +226,7 @@ describe("browse excludes the active organization's own products", () => {
 
   it("does not filter when no organization is given (production catalog keeps its behavior)", async () => {
     const { supabase, calls } = stub({ data: [], error: null });
-    await listCatalog(supabase, {});
+    await listCatalog(supabase, "org-1", {});
     expect(calls.some((c) => c[0] === "neq")).toBe(false);
   });
 });

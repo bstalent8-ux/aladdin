@@ -3987,47 +3987,88 @@ export type Database = {
           },
         ]
       }
-    }
-    Views: {
-      catalog_published_products: {
+      product_audience_types: {
         Row: {
-          brand: string | null
-          category: Database["public"]["Enums"]["product_category"] | null
-          category_code: string | null
-          color_items: Json | null
-          colors: string[] | null
-          id: string | null
-          image_ref: string | null
-          name: string | null
-          organization_id: string | null
-          primary_image_key: string | null
-          published_at: string | null
-          short_description: string | null
-          size_label: string | null
-          sku: string | null
-          supplier_name: string | null
-          supplier_slug: string | null
-          supplier_verified: boolean | null
-          unit: Database["public"]["Enums"]["product_unit"] | null
-          weight_kg: number | null
+          code: string
+          kind: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          kind: string
+          sort_order: number
+        }
+        Update: {
+          code?: string
+          kind?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_audiences: {
+        Row: {
+          audience: string
+          created_at: string
+          product_id: string
+        }
+        Insert: {
+          audience: string
+          created_at?: string
+          product_id: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          product_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "products_category_code_fkey"
-            columns: ["category_code"]
+            foreignKeyName: "product_audiences_audience_fkey"
+            columns: ["audience"]
             isOneToOne: false
-            referencedRelation: "product_categories"
+            referencedRelation: "product_audience_types"
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "products_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: "product_audiences_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
+      product_image_grants: {
+        Row: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string | null
+        }
+        Insert: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id?: string | null
+        }
+        Update: {
+          expires_at?: string
+          object_key?: string
+          user_id?: string
+          workspace_org_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_image_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
       own_product_offer_links: {
         Row: {
           offer_id: string | null
@@ -5088,63 +5129,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      saved_product_list: {
-        Row: {
-          brand: string | null
-          category: Database["public"]["Enums"]["product_category"] | null
-          category_code: string | null
-          image_ref: string | null
-          name: string | null
-          note: string | null
-          organization_id: string | null
-          product_id: string | null
-          saved_at: string | null
-          saved_by: string | null
-          short_description: string | null
-          sku: string | null
-          supplier_name: string | null
-          supplier_org_id: string | null
-          supplier_verified: boolean | null
-          unit: Database["public"]["Enums"]["product_unit"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "products_organization_id_fkey"
-            columns: ["supplier_org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "catalog_published_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_saved_by_fkey"
-            columns: ["saved_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -6339,6 +6323,68 @@ export type Database = {
           p_show_whatsapp: boolean
         }
         Returns: undefined
+      }
+      catalog_products: {
+        Args: { p_org_id?: string }
+        Returns: {
+          brand: string
+          category: Database["public"]["Enums"]["product_category"]
+          category_code: string
+          color_items: Json
+          colors: string[]
+          id: string
+          image_ref: string
+          name: string
+          organization_id: string
+          primary_image_key: string
+          published_at: string
+          short_description: string
+          size_label: string
+          sku: string
+          supplier_name: string
+          supplier_slug: string
+          supplier_verified: boolean
+          unit: Database["public"]["Enums"]["product_unit"]
+          weight_kg: number
+        }[]
+      }
+      saved_products_for: {
+        Args: { p_org_id: string }
+        Returns: {
+          brand: string
+          category: Database["public"]["Enums"]["product_category"]
+          category_code: string
+          image_ref: string
+          name: string
+          note: string
+          organization_id: string
+          product_id: string
+          saved_at: string
+          saved_by: string
+          short_description: string
+          sku: string
+          supplier_name: string
+          supplier_org_id: string
+          supplier_verified: boolean
+          unit: Database["public"]["Enums"]["product_unit"]
+        }[]
+      }
+      catalog_product_images: {
+        Args: { p_org_id: string; p_product_ids: string[] }
+        Returns: {
+          id: string
+          object_key: string
+          product_id: string
+          slot: number
+        }[]
+      }
+      product_audiences_set: {
+        Args: { p_audiences: string[]; p_product_id: string }
+        Returns: undefined
+      }
+      product_image_access_grant: {
+        Args: { p_keys: string[]; p_org_id: string }
+        Returns: string[]
       }
     }
     Enums: {

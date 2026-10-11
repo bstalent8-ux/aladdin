@@ -46,7 +46,7 @@ export async function loadOffersPageAction(
   try {
     const supabase = await getServerSupabase();
     const page = await listOffersPage(supabase, orgId, safe, offset, limit);
-    const imageUrls = await signOfferImages(supabase, page.items);
+    const imageUrls = await signOfferImages(supabase, orgId, page.items);
     return { ok: true, page, imageUrls };
   } catch {
     return { ok: false };

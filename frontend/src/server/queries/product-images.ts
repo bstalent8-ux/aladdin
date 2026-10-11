@@ -39,16 +39,56 @@ export async function listProductImages(supabase: DB, productIds: readonly strin
 }
 
 /**
- * Object key -> signed URL, signed with the CALLER's identity (no service role):
- * Storage only signs what the bucket policies already let that caller read — the
- * owning organization's images, or the ready images of a published product.
- * A key that cannot be signed is simply absent, so a card falls back to its
- * legacy `image_ref` or the placeholder instead of failing the page.
+ * The ready images of products ANOTHER organization published, as the ACTIVE workspace may see them:
+ * the database derives the audience from `viewerOrgId` (or the personal persona when null) and
+ * returns only the images of products that workspace is targeted by. Exact-only, never a union.
  */
-export async function signProductImageUrls(supabase: DB, keys: readonly (string | null | undefined)[]): Promise<Map<string, string>> {
+export async function listCatalogImages(
+  supabase: DB,
+  viewerOrgId: string | null,
+  productIds: readonly string[],
+): Promise<Map<string, OwnProductImage[]>> {
+  const out = new Map<string, OwnProductImage[]>();
+  if (productIds.length === 0) return out;
+  // `p_org_id` has no SQL default; a personal viewer passes an explicit null.
+  const { data, error } = await supabase.rpc("catalog_product_images", {
+    p_org_id: viewerOrgId as string,
+    p_product_ids: [...productIds],
+  });
+  if (error) throw error;
+  for (const row of data ?? []) {
+    const list = out.get(row.product_id) ?? [];
+    list.push({ id: row.id, objectKey: row.object_key, slot: row.slot });
+    out.set(row.product_id, list);
+  }
+  return out;
+}
+
+/**
+ * Object key -> signed URL, signed with the CALLER's identity (no service role).
+ *
+ * OWN images (the owning organization's members) sign directly. ANOTHER organization's images need a
+ * permission minted for the ACTIVE workspace first: pass `viewer` and the database grants signing only
+ * for products that workspace is targeted by, and re-checks that on every use. A key that cannot be
+ * signed is simply absent, so a card falls back to its legacy `image_ref` or the placeholder.
+ */
+export async function signProductImageUrls(
+  supabase: DB,
+  keys: readonly (string | null | undefined)[],
+  viewer?: { orgId: string | null },
+): Promise<Map<string, string>> {
   const unique = [...new Set(keys.filter((k): k is string => Boolean(k)))];
   const out = new Map<string, string>();
   if (unique.length === 0) return out;
+  if (viewer) {
+    for (let i = 0; i < unique.length; i += 60) {
+      const { error: grantError } = await supabase.rpc("product_image_access_grant", {
+        p_org_id: viewer.orgId as string,
+        p_keys: unique.slice(i, i + 60),
+      });
+      if (grantError) return out;
+    }
+  }
   const { data, error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).createSignedUrls(unique, SIGNED_URL_SECONDS);
   if (error || !data) return out;
   for (const entry of data) {

@@ -17,24 +17,29 @@ function stub(results: { rpc?: unknown; tables?: Record<string, unknown[]> }) {
   const calls: Call[] = [];
   const rpcCalls: { name: string; args: unknown }[] = [];
   const tableQueue = { ...(results.tables ?? {}) };
+  const makeBuilder = (result: unknown) => {
+    const builder: Record<string, unknown> = {};
+    for (const m of ["select", "eq", "neq", "is", "order", "limit"]) {
+      builder[m] = (...args: unknown[]) => {
+        calls.push([m, ...args]);
+        return builder;
+      };
+    }
+    builder.maybeSingle = () => Promise.resolve(result);
+    builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
+    return builder;
+  };
   const supabase = {
     rpc: (name: string, args: unknown) => {
       rpcCalls.push({ name, args });
-      return Promise.resolve(results.rpc);
+      const queued = tableQueue[`rpc:${name}`];
+      if (!queued) return Promise.resolve(results.rpc);
+      calls.push(["rpc", name, args]);
+      return makeBuilder(queued.shift() ?? { data: null, error: null });
     },
     from: (table: string) => {
       calls.push(["from", table]);
-      const result = (tableQueue[table] ?? []).shift() ?? { data: null, error: null };
-      const builder: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "neq", "is", "order", "limit"]) {
-        builder[m] = (...args: unknown[]) => {
-          calls.push([m, ...args]);
-          return builder;
-        };
-      }
-      builder.maybeSingle = () => Promise.resolve(result);
-      builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
-      return builder;
+      return makeBuilder((tableQueue[table] ?? []).shift() ?? { data: null, error: null });
     },
   };
   return { supabase: supabase as never, calls, rpcCalls };
@@ -111,10 +116,10 @@ describe("loadShowroomKpiLayout", () => {
 describe("loadRecommendedProducts", () => {
   it("excludes the active organization's own listings and orders deterministically", async () => {
     const rows = [{ id: "p1", name: "A", brand: null, supplier_name: "S", supplier_verified: true, unit: null, category: null }];
-    const { supabase, calls } = stub({ tables: { catalog_published_products: [{ data: rows, error: null }] } });
+    const { supabase, calls } = stub({ tables: { "rpc:catalog_products": [{ data: rows, error: null }] } });
     const out = await loadRecommendedProducts(supabase, "org-1");
     expect(out).toEqual(rows);
-    expect(calls).toContainEqual(["from", "catalog_published_products"]);
+    expect(calls).toContainEqual(["rpc", "catalog_products", { p_org_id: "org-1" }]);
     expect(calls).toContainEqual(["neq", "organization_id", "org-1"]);
     expect(calls).toContainEqual(["order", "published_at", { ascending: false }]);
     expect(calls).toContainEqual(["order", "id", { ascending: true }]);
@@ -123,13 +128,13 @@ describe("loadRecommendedProducts", () => {
 
   it("drops rows without an id or name and returns an empty list for no data", async () => {
     const dirty = [{ id: null, name: "x" }, { id: "p2", name: null }, { id: "p3", name: "ok" }];
-    const out = await loadRecommendedProducts(stub({ tables: { catalog_published_products: [{ data: dirty, error: null }] } }).supabase, "o");
+    const out = await loadRecommendedProducts(stub({ tables: { "rpc:catalog_products": [{ data: dirty, error: null }] } }).supabase, "o");
     expect(out.map((p) => p.id)).toEqual(["p3"]);
-    expect(await loadRecommendedProducts(stub({ tables: { catalog_published_products: [{ data: null, error: null }] } }).supabase, "o")).toEqual([]);
+    expect(await loadRecommendedProducts(stub({ tables: { "rpc:catalog_products": [{ data: null, error: null }] } }).supabase, "o")).toEqual([]);
   });
 
   it("throws on a database error", async () => {
-    const { supabase } = stub({ tables: { catalog_published_products: [{ data: null, error: new Error("boom") }] } });
+    const { supabase } = stub({ tables: { "rpc:catalog_products": [{ data: null, error: new Error("boom") }] } });
     await expect(loadRecommendedProducts(supabase, "o")).rejects.toThrow("boom");
   });
 });

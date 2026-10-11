@@ -40,7 +40,7 @@ export default async function PersonalOfferDetailPage({ params }: { params: Prom
     );
   }
   const others = await listRelatedOffers(supabase, null, offer.id);
-  const imageUrls = await signOfferImages(supabase, [offer, ...others]);
+  const imageUrls = await signOfferImages(supabase, null, [offer, ...others]);
   return (
     <OfferDetailView
       offer={offer}

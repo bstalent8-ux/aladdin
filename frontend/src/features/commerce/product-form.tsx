@@ -11,6 +11,8 @@ import { Card } from "@/components/ui/primitives";
 import { Input, Textarea, Select, LabeledField, SubmitButton } from "@/components/ui/controls";
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from "@/features/commerce/constants";
 import type { ProductRow } from "@/server/queries/commerce";
+import { ProductAudiencePicker } from "@/features/showroom-shell/products/product-audience-picker";
+import type { ProductAudienceCode } from "@/features/showroom-shell/products/product-audiences";
 
 const initial: FormState = { ok: false };
 
@@ -23,9 +25,12 @@ const initial: FormState = { ok: false };
 export function ProductForm({
   orgId,
   product,
+  audiences = [],
 }: {
   orgId: string;
   product?: ProductRow;
+  /** The audiences already chosen for this product (edit); a new product starts with none. */
+  audiences?: readonly ProductAudienceCode[];
 }) {
   const { t } = useI18n();
   const editing = Boolean(product);
@@ -132,6 +137,10 @@ export function ProductForm({
               defaultValue={product?.short_description ?? ""}
             />
           </LabeledField>
+        </div>
+
+        <div className="tablet:col-span-2">
+          <ProductAudiencePicker initial={audiences} error={fe.audiences ? t(fe.audiences) : undefined} />
         </div>
 
         <div className="tablet:col-span-2">

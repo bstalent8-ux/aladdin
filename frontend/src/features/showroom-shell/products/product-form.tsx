@@ -15,6 +15,8 @@ import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
 import { countChars } from "@/lib/text/count-chars";
 import { ColorField } from "./color-swatches";
+import { ProductAudiencePicker } from "./product-audience-picker";
+import type { ProductAudienceCode } from "./product-audiences";
 import type { ProductColor } from "./color-items";
 import { StagedPhotos } from "./staged-photos";
 import { uploadProductImage } from "./upload-image";
@@ -35,6 +37,8 @@ export type ProductFormValues = {
   sizeLabel: string | null;
   brand: string | null;
   description: string | null;
+  /** The audiences the owner targets; a published product always has at least one. */
+  audiences: readonly ProductAudienceCode[];
 };
 
 /**
@@ -94,7 +98,7 @@ export function ProductForm({
         break;
       }
     }
-    router.push(`${SHOWROOM_ROOT}/my-products/${result.productId}/edit?created=1${failed ? "&photos=partial" : ""}`);
+    router.push(`${SHOWROOM_ROOT}/my-products/${result.productId}/edit?created=1${failed ? "&photos=partial" : ""}${result.audiencesSaved === false ? "&audiences=missing" : ""}`);
   }
   const [colors, setColors] = useState<ProductColor[]>(product?.colors ?? []);
   const [description, setDescription] = useState(product?.description ?? "");
@@ -218,7 +222,11 @@ export function ProductForm({
             </LabeledField>
           </div>
 
-          <div className="order-10 flex flex-wrap items-center gap-sm border-t pt-md tablet:col-span-2">
+          <div className="order-10 min-w-0 tablet:col-span-2">
+            <ProductAudiencePicker initial={product?.audiences ?? []} error={fe.audiences ? t(fe.audiences) : undefined} />
+          </div>
+
+          <div className="order-11 flex flex-wrap items-center gap-sm border-t pt-md tablet:col-span-2">
             {editing ? (
               <SubmitButton variant="accent" pendingLabel={t("common.saving")}>{t("common.saveChanges")}</SubmitButton>
             ) : (

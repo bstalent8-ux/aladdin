@@ -88,7 +88,7 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchHit[]> {
         : none,
       groups.has("catalog")
         ? supabase
-            .from("catalog_published_products")
+            .rpc("catalog_products", { p_org_id: orgId })
             .select("id, name, supplier_name, sku")
             .neq("organization_id", orgId)
             .or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like}`)

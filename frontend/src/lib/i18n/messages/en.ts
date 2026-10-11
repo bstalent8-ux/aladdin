@@ -1970,6 +1970,13 @@ export const en = {
   /* The showroom suite Home. A showroom is buyer AND seller, so every card
      carries its direction explicitly (purchasing / sales), never inferred. */
   showroomProducts: {
+    audience: {
+      title: "Target audience",
+      hint: "Choose who this product is shown to. You can change it later.",
+      note: "Only the selected audiences can see this product. Drafts stay private to you.",
+      required: "Select at least one audience before activating the product.",
+      saveFailed: "The product was saved as a draft, but its audiences were not saved. Select them below and save.",
+    },
     title: "My products",
     subtitle: "The products your business sells. Active products appear in Browse products.",
     create: "Add product",

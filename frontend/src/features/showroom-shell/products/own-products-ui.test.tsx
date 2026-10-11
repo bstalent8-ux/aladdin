@@ -36,6 +36,7 @@ vi.mock("@/lib/supabase/client", () => ({
 import { OwnProductsResults, type OwnProductCard } from "./own-products-results";
 import { ProductForm } from "./product-form";
 import { ImageManager } from "./image-manager";
+import type { ProductAudienceCode } from "./product-audiences";
 
 /** Hex literals are product DATA here, not styling — built at run time so the colour guard stays strict. */
 const h = (rrggbb: string) => "#" + rrggbb;
@@ -203,6 +204,47 @@ describe("OwnProductsResults", () => {
   });
 });
 
+describe("ProductForm audiences", () => {
+  const existing = {
+    id: "p1", version: 4, name: "Old tile", code: "TILE-1", categoryCode: null, unit: "box", colors: [], basePrice: null as number | null,
+    weightKg: 2.5, sizeLabel: "60x60 cm", brand: "NileCeramics", description: "Glossy",
+  };
+  const chips = () => screen.getAllByRole("checkbox").filter((el) => el.getAttribute("data-testid")?.startsWith("product-audience-"));
+  const submitted = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLInputElement>("input[name=audience]")].map((i) => i.value);
+
+  it("offers exactly the eight audiences (Sales Team is not one) and starts with none on create", () => {
+    wrap(<ProductForm orgId="org-1" />);
+    expect(chips()).toHaveLength(8);
+    expect(chips().every((c) => c.getAttribute("aria-checked") === "false")).toBe(true);
+    expect(chips().map((c) => c.textContent)).toEqual(["Showroom", "Supplier", "Manufacturer", "Importer", "Contractor", "Engineer", "Craftsman", "End customer"]);
+  });
+
+  it("submits the toggled audiences as canonical codes", () => {
+    const { container } = wrap(<ProductForm orgId="org-1" />);
+    fireEvent.click(screen.getByTestId("product-audience-showroom"));
+    fireEvent.click(screen.getByTestId("product-audience-craftsman"));
+    expect(submitted(container)).toEqual(["showroom_dealer", "installer_technician"]);
+    fireEvent.click(screen.getByTestId("product-audience-showroom"));
+    expect(submitted(container)).toEqual(["installer_technician"]);
+  });
+
+  it("preselects the stored audiences on edit", () => {
+    const { container } = wrap(<ProductForm orgId="org-1" product={{ ...existing, audiences: ["showroom_dealer", "engineer"] }} />);
+    expect(screen.getByTestId("product-audience-showroom").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("product-audience-engineer").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("product-audience-supplier").getAttribute("aria-checked")).toBe("false");
+    expect(submitted(container)).toEqual(["showroom_dealer", "engineer"]);
+  });
+
+  it("is reading-direction aware: Arabic labels, same canonical codes", () => {
+    const { container } = wrap(<ProductForm orgId="org-1" />, "ar");
+    expect(chips().map((c) => c.textContent)).toEqual(["معرض", "مورد", "مصنع", "مستورد", "مقاول", "مهندس", "صنايعي", "العميل النهائي"]);
+    fireEvent.click(screen.getByTestId("product-audience-customer"));
+    expect(submitted(container)).toEqual(["end_consumer"]);
+  });
+});
+
 describe("ProductForm", () => {
   const existing = {
     id: "p1",
@@ -217,6 +259,7 @@ describe("ProductForm", () => {
     sizeLabel: "60×60 cm",
     brand: "NileCeramics",
     description: "Glossy",
+    audiences: ["showroom_dealer"] as ProductAudienceCode[],
   };
 
   it("edit keeps the photo manager INSIDE the editor card, outside the <form> element, placed beside the colors", () => {
@@ -486,7 +529,7 @@ describe("Create product with photos in one flow", () => {
   });
 
   it("does not show staged photos when editing (that screen has the live image manager)", () => {
-    wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], basePrice: null, weightKg: null, sizeLabel: null, brand: null, description: null }} />);
+    wrap(<ProductForm orgId="org-1" product={{ id: "p1", version: 1, name: "A product", code: "A1", categoryCode: "paints", unit: "pail", colors: [], basePrice: null, weightKg: null, sizeLabel: null, brand: null, description: null, audiences: [] }} />);
     expect(screen.queryByTestId("staged-photos")).toBeNull();
   });
 

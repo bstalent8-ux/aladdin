@@ -40,7 +40,7 @@ export default async function ShowroomOfferDetailPage({ params }: { params: Prom
     );
   }
   const others = await listRelatedOffers(supabase, org.organizationId, offer.id);
-  const imageUrls = await signOfferImages(supabase, [offer, ...others]);
+  const imageUrls = await signOfferImages(supabase, org.organizationId, [offer, ...others]);
   const canRfq = org.canManageSales || org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
   return (
     <OfferDetailView

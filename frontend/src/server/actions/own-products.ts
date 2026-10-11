@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { isLifecycleAction, parseOwnProductForm } from "@/features/showroom-shell/products/product-input";
+import { parseAudienceCodes } from "@/features/showroom-shell/products/product-audiences";
 import { mapOwnProductError } from "@/features/showroom-shell/products/error-map";
 import {
   PRODUCT_IMAGE_BUCKET,
@@ -58,7 +59,7 @@ function revalidateProduct(productId?: string) {
 }
 
 type CreateResult =
-  | { ok: true; productId: string }
+  | { ok: true; productId: string; /** false when the product exists but its audiences could not be saved (it stays a private draft). */ audiencesSaved?: boolean }
   | { ok: false; code?: string; fieldErrors?: Record<string, string> };
 
 async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
@@ -67,6 +68,8 @@ async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
   const parsed = parseOwnProductForm(fd, null, { priceRequired: true });
   if (!parsed.ok) return { ok: false, fieldErrors: parsed.fieldErrors };
   const v = parsed.value;
+  const audiences = parseAudienceCodes(fd.getAll("audience"));
+  if (!audiences.ok) return { ok: false, fieldErrors: { audiences: "showroomProducts.errors.invalid" } };
 
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("own_product_create", {
@@ -86,8 +89,13 @@ async function createOwnProductCore(fd: FormData): Promise<CreateResult> {
     const mapped = mapOwnProductError(error ?? new Error("invalid create_product result"));
     return mapped.field ? { ok: false, fieldErrors: { [mapped.field]: mapped.code } } : { ok: false, code: mapped.code };
   }
+  let audiencesSaved = true;
+  if (audiences.codes.length > 0) {
+    const { error: audienceError } = await supabase.rpc("product_audiences_set", { p_product_id: data, p_audiences: audiences.codes });
+    audiencesSaved = !audienceError;
+  }
   revalidateProduct(data);
-  return { ok: true, productId: data };
+  return { ok: true, productId: data, ...(audiencesSaved ? {} : { audiencesSaved: false }) };
 }
 
 /** Create, then land on the product's edit page (the no-JavaScript / no-photos path). */
@@ -114,8 +122,17 @@ export async function updateOwnProductAction(_prev: OwnProductFormState, fd: For
   const parsed = parseOwnProductForm(fd, str(fd, "currentUnit") ?? null);
   if (!parsed.ok) return { ok: false, fieldErrors: parsed.fieldErrors };
   const v = parsed.value;
+  const audiences = parseAudienceCodes(fd.getAll("audience"));
+  if (!audiences.ok) return { ok: false, fieldErrors: { audiences: "showroomProducts.errors.invalid" } };
 
   const supabase = await getServerSupabase();
+  // Audiences first: a refusal (a published product cannot lose its last audience) stops the save
+  // before anything else changes, so the form shows one clear error and no half-applied edit.
+  const audienceResult = await supabase.rpc("product_audiences_set", { p_product_id: productId, p_audiences: audiences.codes });
+  if (audienceResult.error) {
+    const mapped = mapOwnProductError(audienceResult.error);
+    return mapped.field ? { ok: false, fieldErrors: { [mapped.field]: mapped.code } } : { ok: false, code: mapped.code };
+  }
   const { error } = await supabase.rpc("own_product_update", {
     p_product_id: productId,
     p_expected_version: version,

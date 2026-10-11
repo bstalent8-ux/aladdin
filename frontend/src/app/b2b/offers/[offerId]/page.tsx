@@ -32,7 +32,7 @@ export default async function B2BOfferDetailPage({ params }: { params: Promise<{
     );
   }
   const others = await listRelatedOffers(supabase, org.organizationId, offer.id);
-  const imageUrls = await signOfferImages(supabase, [offer, ...others]);
+  const imageUrls = await signOfferImages(supabase, org.organizationId, [offer, ...others]);
   const canRfq = org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
   return (
     <OfferDetailView

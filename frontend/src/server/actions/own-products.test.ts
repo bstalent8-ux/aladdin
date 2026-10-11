@@ -56,7 +56,7 @@ describe("price, colors and description reach the database through the one RPC p
   it("sends the price and structured colors on edit, and nothing like a discount", async () => {
     state.rpc.mockResolvedValue({ data: 4, error: null });
     await expect(updateOwnProductAction({ ok: false }, fd({ ...edit, basePrice: "175.25", colorItems: JSON.stringify([{ name: "Cream", hex: h("F2E9D8") }]) }))).rejects.toThrow("NEXT_REDIRECT");
-    const [name, args] = state.rpc.mock.calls[0]!;
+    const [name, args] = state.rpc.mock.calls.find((c) => c[0] === "own_product_update")!;
     expect(name).toBe("own_product_update");
     expect(args).toMatchObject({ p_base_price: 175.25, p_color_items: [{ name: "Cream", hex: h("F2E9D8") }] });
     expect(Object.keys(args).join(",")).not.toMatch(/discount|compare|percent/);
@@ -172,6 +172,52 @@ describe("ownProductLifecycleAction", () => {
   it("surfaces the database's refusal (e.g. publishing an archived product)", async () => {
     state.rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "an archived product must be restored before it can be published" } });
     expect(await act("activate")).toEqual({ ok: false, code: "showroomProducts.errors.archived" });
+  });
+});
+
+describe("product audiences", () => {
+  const ALL8 = ["showroom_dealer", "supplier", "manufacturer", "importer", "contractor", "engineer", "installer_technician", "end_consumer"];
+  const edit = { productId: PRODUCT, expectedVersion: "3", currentUnit: "pail", name: "Matt Emulsion 18L", code: "PNT-001", categoryCode: "paints", unit: "pail", basePrice: "159.5" };
+  const called = (fn: string) => state.rpc.mock.calls.filter((c) => c[0] === fn);
+
+  it("create forwards the chosen audiences to the owner RPC after the draft exists", async () => {
+    await expect(createOwnProductAction({ ok: false }, fd({ ...good, audience: ["showroom_dealer", "engineer", "showroom_dealer"] }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(called("product_audiences_set")).toEqual([["product_audiences_set", { p_product_id: PRODUCT, p_audiences: ["showroom_dealer", "engineer"] }]]);
+    expect(state.rpc.mock.calls.map((c) => c[0])).toEqual(["own_product_create", "product_audiences_set"]);
+  });
+
+  it("create without audiences makes a private draft and never calls the audience RPC", async () => {
+    await expect(createOwnProductAction({ ok: false }, fd(good))).rejects.toThrow("NEXT_REDIRECT");
+    expect(called("product_audiences_set")).toHaveLength(0);
+  });
+
+  it("refuses an unknown audience (including Sales Team) before any round trip", async () => {
+    for (const bad of ["sales", "wholesaler", "interior_designer", "ALL"]) {
+      const r = await createOwnProductAction({ ok: false }, fd({ ...good, audience: ["supplier", bad] }));
+      expect(r.ok).toBe(false);
+      expect(Object.keys(r.fieldErrors ?? {})).toEqual(["audiences"]);
+    }
+    expect(state.rpc).not.toHaveBeenCalled();
+  });
+
+  it("edit saves the audiences BEFORE the product, so a refusal stops the whole save", async () => {
+    state.rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "a published product needs at least one audience" } });
+    const r = await updateOwnProductAction({ ok: false }, fd(edit));
+    expect(r).toEqual({ ok: false, fieldErrors: { audiences: "showroomProducts.audience.required" } });
+    expect(called("own_product_update")).toHaveLength(0);
+  });
+
+  it("edit with all eight audiences sends them, then updates", async () => {
+    state.rpc.mockResolvedValue({ data: 4, error: null });
+    await expect(updateOwnProductAction({ ok: false }, fd({ ...edit, audience: ALL8 }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(state.rpc.mock.calls.map((c) => c[0])).toEqual(["product_audiences_set", "own_product_update"]);
+    expect(state.rpc.mock.calls[0]![1]).toEqual({ p_product_id: PRODUCT, p_audiences: ALL8 });
+  });
+
+  it("activating a product with no audience is explained, not raw", async () => {
+    state.rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "select at least one audience before publishing" } });
+    const r = await ownProductLifecycleAction({ ok: false }, fd({ productId: PRODUCT, expectedVersion: "2", action: "activate" }));
+    expect(r).toEqual({ ok: false, code: "showroomProducts.audience.required" });
   });
 });
 

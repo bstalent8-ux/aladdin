@@ -163,13 +163,14 @@ export type ProductCategory = Database["public"]["Enums"]["product_category"];
  */
 export async function organizationProductFacets(
   supabase: DB,
+  viewerOrgId: string | null,
   orgIds: string[],
 ): Promise<Map<string, OrgFacet>> {
   const out = new Map<string, OrgFacet>();
   if (orgIds.length === 0) return out;
 
   const { data, error } = await supabase
-    .from("catalog_published_products")
+    .rpc("catalog_products", { p_org_id: viewerOrgId ?? undefined })
     .select("organization_id, category")
     .in("organization_id", orgIds);
   if (error) throw error;

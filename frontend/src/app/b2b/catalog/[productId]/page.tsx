@@ -4,7 +4,7 @@ import { getMessages } from "@/lib/i18n/translate";
 import { getCatalogProduct } from "@/server/queries/commerce";
 import { BackLink } from "@/features/sales/page-parts";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
-import { listProductImages, signProductImageUrls } from "@/server/queries/product-images";
+import { listCatalogImages, signProductImageUrls } from "@/server/queries/product-images";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function CatalogProductPage({
   const m = getMessages(locale);
   const { productId } = await params;
 
-  const product = await getCatalogProduct(supabase, productId);
+  const product = await getCatalogProduct(supabase, org.organizationId, productId);
   // View columns are nullable in the generated types though logically non-null;
   // a row missing its core fields is treated as not found.
   if (!product || !product.id || !product.category || !product.unit || !product.organization_id) {
@@ -27,8 +27,8 @@ export default async function CatalogProductPage({
   }
 
   // The uploaded photos (RLS: a published product's ready images), signed with the caller's own access.
-  const gallery = (await listProductImages(supabase, [product.id])).get(product.id) ?? [];
-  const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey));
+  const gallery = (await listCatalogImages(supabase, org.organizationId, [product.id])).get(product.id) ?? [];
+  const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey), { orgId: org.organizationId });
   const imageUrls = gallery.map((g) => signed.get(g.objectKey)).filter((u): u is string => Boolean(u));
 
   const isOwnOrg = product.organization_id === org.organizationId;

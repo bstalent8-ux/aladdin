@@ -21,7 +21,7 @@ export default async function B2BOffersPage() {
   const t = createTranslator(locale);
   const store = await cookies();
   const page = await listOffersPage(supabase, org.organizationId);
-  const imageUrls = await signOfferImages(supabase, page.items);
+  const imageUrls = await signOfferImages(supabase, org.organizationId, page.items);
   return (
     <div className="flex flex-col gap-md pb-16 tablet:pb-0" data-testid="b2b-offers">
       <PageHeader locale={locale} Icon={TagIcon} title={t("showroomOffers.feed.title")} subtitle={t("showroomOffers.feed.subtitle")} />

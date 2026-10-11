@@ -62,8 +62,8 @@ export async function getOfferDetail(supabase: DB, orgId: string | null, offerId
 }
 
 /** Signed image URLs (the caller's own access) for every product photo an offer list shows. */
-export async function signOfferImages(supabase: DB, offers: readonly PublicOffer[]): Promise<Record<string, string>> {
-  const signed = await signProductImageUrls(supabase, offers.flatMap((o) => o.items.map((i) => i.imageKey)));
+export async function signOfferImages(supabase: DB, viewerOrgId: string | null, offers: readonly PublicOffer[]): Promise<Record<string, string>> {
+  const signed = await signProductImageUrls(supabase, offers.flatMap((o) => o.items.map((i) => i.imageKey)), { orgId: viewerOrgId });
   return Object.fromEntries(signed);
 }
 

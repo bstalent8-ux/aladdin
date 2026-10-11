@@ -28,13 +28,14 @@ export async function loadCatalogBatch(
 ): Promise<CatalogBatch> {
   const { rows, total } = await listCatalogPage(
     supabase,
+    orgId,
     { search: params.q, categoryCode: params.category, supplierOrgId: params.supplier, excludeOrgId: orgId },
     offset,
     limit,
   );
   const ids = rows.flatMap((p) => (p.id ? [p.id] : []));
   const [signed, saved] = await Promise.all([
-    signProductImageUrls(supabase, rows.map((p) => p.primary_image_key)),
+    signProductImageUrls(supabase, rows.map((p) => p.primary_image_key), { orgId }),
     savedAmong(supabase, orgId, ids),
   ]);
   const imageUrls: Record<string, string> = {};
