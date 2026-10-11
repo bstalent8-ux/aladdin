@@ -1,5 +1,15 @@
 # Agent Work Log
 
+## Session — 2026-10-10: mandatory first business for a business registration
+
+- Worktree `C:/Users/scorp/.codex/worktrees/business-registration-gate/aladdin`, branch `fix/business-registration-mandatory-onboarding`, base `236dd48`. Not pushed, no PR yet; independent of PR #75.
+- **Defect (seen on staging):** a newly registered Showroom verified its email, became `access_ready` with zero organizations and landed on `/home`'s "You don't have a workspace yet - Add business". Root cause: Increment 7 (`20260924090007`) removed organization setup from `my_registration_state()` on purpose, `resolveActiveLanding` derives the landing from work contexts (none -> `/home`), and `/onboarding/business` was documented as an optional in-app action. The old E2E (`registration-persona.spec.ts`, four business types) asserted that behaviour.
+- **Fix (routing/resume in the application layer; the type lock also at the database boundary):** `lib/onboarding/mandatory-business-setup.ts` (pure rule: business track + approved org type + no personal workspace + no membership + no completed business draft + not platform staff - mirroring `app.can_create_or_complete_business` path B so it cannot trap anyone), `server/queries/business-setup.ts` (derives it from `onboarding_progress`, `my_workspaces()`, `business_creation_drafts`; one cheap read for everyone else), `resolveActiveLanding` -> `/onboarding/business`, guards in the `/home` and `/b2b` layouts, the registered type locked in `/onboarding/business` and in `saveBusiness`, AND in the database by migration `20261010090001_business_registration_type_lock.sql`: `app.mandatory_registration_business_type(uid)` returns the registered type only while the caller is a first-business registrant (same semantics as the gate), and `business_draft_save` / `business_draft_submit` reject a different type with `22023` (new draft, update of an open draft, stale draft at submit; the `business_save` / `business_submit` wrappers inherit it; no signature change, not a lock on later businesses; pgTAP `86`). Creating the organization, the owner membership and the active-context cookie were already correct (`business_draft_submit` -> `app.organization_create_owned`, `submitBusiness`).
+- **Unchanged by design:** installer, sales (personal persona, no fake organization), invited employees, Engineer/persona + business coexistence, a second business via `/business/new`, Coming Soon types (not enabled).
+- Product guide updated (the "business choices" bullet now states the mandatory first business).
+
+---
+
 ## Session — 2026-10-05: isolated installer settings preview
 
 - Worktree: `C:/Users/scorp/.codex/worktrees/installer-experience-pr-clean/aladdin`; branch `feature/installer-experience-pr-clean`, base `e7e7c50`.
