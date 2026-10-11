@@ -408,3 +408,44 @@ An automated review of the first commit reported an authorization-state-bypass. 
 - `purchase_requests_discover` is plpgsql (filters apply after the visible set is built); fine at pilot scale, push filters into the function before large volumes.
 - Deleting an item removes its image rows; the bytes are orphaned in the private bucket (unreachable). A cleanup job is not built.
 - No UI yet for any of this (Milestone D); typed actions, queries, parsers, error mapping and i18n error keys are ready for the pages.
+
+---
+
+# Revision 6 - canonical taxonomy closeout, shared units, image lifetime (implemented)
+
+Supersedes the "legacy values kept for compatibility" paragraph of V1: the retired values no longer exist in the database.
+
+## Y1. The nine public accounts (single source: `frontend/src/lib/taxonomy/accounts.ts`)
+
+| # | Account | Identifier | Business subtypes (`public.activities`) | Audience |
+|---|---|---|---|---|
+| 1 | Showroom / المعرض | `organization_type = showroom_dealer` | `decor_showroom`, `paint_showroom`, `decor_and_paint_showroom`, `building_and_finishing_supplies_retailer` (موان) | showroom_dealer |
+| 2 | Supplier / المورد | `supplier` | `distributor`, `wholesaler` | supplier |
+| 3 | Manufacturer / المصنع | `manufacturer` | `paint_manufacturer`, `decor_manufacturer` | manufacturer |
+| 4 | Importer / المستورد | `importer` | `decor_supplies_importer`, `paint_importer` | importer |
+| 5 | Contractor / المقاول | `persona_type = contractor`; internal business `contractor_company` | none | contractor |
+| 6 | Engineer / المهندس | `persona_type = engineer`; internal business `design_office` | `finishing` | engineer |
+| 7 | Craftsman / الصنايعي | `persona_type = installer_technician` | none; 14 active **multi-select** specialties (`public.trades` / `user_trades`) | installer_technician |
+| 8 | Sales Team / فريق المبيعات | `persona_type = sales` | none (staff roles `sales_rep`, `sales_manager` stay internal) | none - inherits the active workspace |
+| 9 | Personal / حساب شخصي (العميل النهائي in audience context) | `persona_type = end_consumer` | none | end_consumer |
+
+## Y2. Database changes (migrations 20261021090001 - 090006)
+
+- **Found (isolated runtime):** users by persona: contractor 1, end_consumer 2, engineer 3, installer_technician 6, interior_designer 2, sales 3, none 10; organizations: contractor_company 1 (Horizon Contracting, with RFQs/orders/projects/jobs), design_office 2, importer 2, manufacturer 2, showroom_dealer 2, supplier 3; wholesaler organizations 0 (already remapped), trainer/trainee rows 0. Subtypes were already modelled: 13 `activities` rows.
+- **Migrated:** the two `interior_designer` test users -> `engineer` (explicit, one statement per column: users, individual_onboarding, onboarding_progress, verifications); `wholesaler` organization/intent rows -> `supplier` + the `wholesaler` activity; `trainer`/`trainee` -> null (none existed). `contractor_company` was NOT removed: Horizon has live dependents and it is the business behind the single Contractor account.
+- **Enums rebuilt** (Postgres cannot drop a label in place): `persona_type` = end_consumer, engineer, installer_technician, contractor, sales; `organization_type` = showroom_dealer, supplier, manufacturer, importer, contractor_company, design_office. The migration captures and re-creates the 15 dependent functions, 2 views, check constraints and defaults, patches function bodies that compared against a retired label and asserts none remain. Reproducible from a clean reset.
+- **Integrity in the database, not only in RPCs:** triggers `organization_activities_type_guard`, `user_activities_type_guard`, `organizations_type_change_guard` (an activity can only attach to an organization/person of its type; an organization cannot change type while holding the old type's subtypes). The business registration track is restricted to showroom/supplier/manufacturer/importer/design_office inside `onboarding_select_account_type`; drafts, onboarding rows, referrals and (for a signed-in caller) organizations refuse `contractor_company` (it carries the Contractor audience, so it must not be self-assignable - found by the automated security review, closed in 20261021090005/6).
+- **Offer audiences** no longer include `wholesaler`/`interior_designer` (existing targets carried to supplier/engineer).
+- **Decision taken, please confirm:** a `contractor_company` workspace acts with the Contractor audience (products, and as a requester it is discovered by Showrooms), exactly as `design_office` acts as Engineer. Previously it had no audience, which left the Contractor account's business workspace blind. Reversible in one function (`app.org_product_audience`).
+
+## Y3. Shared units (20261021090004)
+
+Twelve units for products and Purchase Requests: kilogram, gallon, pail, roll, meter, sheet (unchanged) + piece, square_meter, linear_meter, liter, box ("علبة أو كرتونة"), set. One immutable list (`app.showroom_units()`) feeds the product validator, the request item normalizer and `ck_pri_unit`; `public.measurement_units` carries the grouping. `meter` is never reinterpreted as `linear_meter`; ton/bag/pack stay refused; no conversion exists (a response must use the requested unit). The product form suggests category-appropriate units first (`UNIT_SUGGESTIONS_BY_CATEGORY`) and keeps all others selectable.
+
+## Y4. Product image signed URLs
+
+Reduced from 3600 s to 300 s. A shorter lifetime breaks lazily loaded or long-open images, so `ProductMedia` now refreshes an expired URL once through `refreshProductImageUrlAction`, which signs with the CALLER's session after the database re-grants signing for the active workspace (or the personal audience on /home). A photo the caller may no longer see comes back as the placeholder. Signed URLs and already-downloaded images cannot be revoked; the lifetime only bounds the exposure.
+
+## Y5. Suppliers page - reference specification for Milestone D (waiting for your reference images)
+
+Unchanged R12 structure, now fixed on the canonical data: the type filter offers **Supplier / Manufacturer / Importer** (+ sub-filter by that account's subtypes: distributor/wholesaler, paint/decor manufacturer, decor/paint importer); `contractor_company`, `wholesaler` and Sales staff roles never appear as a type. Needed from you before layout: (1) the grid/list card reference, (2) the detail page reference, (3) logo/placeholder specs; the page is composed from `PageHero`, `FilterBar`, `SelectMenu`, `Pager` and the existing directory queries.
