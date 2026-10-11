@@ -789,6 +789,27 @@ describe("passwordSignIn", () => {
     ).rejects.toThrow("REDIRECT:/b2b");
   });
 
+  it("an incomplete business registration resumes the mandatory business onboarding on sign-in - not /home, whatever `next` says", async () => {
+    // Registered as a Showroom, verified, closed the browser before creating the business, signs in later.
+    for (const next of ["/home", "/b2b", "/home/jobs"]) {
+      signInWithPassword.mockResolvedValueOnce({ error: null });
+      rpc.mockResolvedValueOnce({ data: "access_ready" });
+      resolveActiveLanding.mockResolvedValueOnce("/onboarding/business");
+      await expect(
+        passwordSignIn({ ok: false }, fd({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next })),
+      ).rejects.toThrow("REDIRECT:/onboarding/business");
+    }
+  });
+
+  it("after the first organization exists, sign-in lands in /b2b", async () => {
+    signInWithPassword.mockResolvedValueOnce({ error: null });
+    rpc.mockResolvedValueOnce({ data: "active_personal" });
+    resolveActiveLanding.mockResolvedValueOnce("/b2b");
+    await expect(
+      passwordSignIn({ ok: false }, fd({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next: "/home" })),
+    ).rejects.toThrow("REDIRECT:/b2b");
+  });
+
   it("invalid credentials and an unknown account return the SAME generic message (anti-enumeration)", async () => {
     signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
     const wrong = await passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: "wrong-one-here-too" }));

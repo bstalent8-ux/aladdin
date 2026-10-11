@@ -6,10 +6,18 @@ const state = vi.hoisted(() => ({
   home: null as unknown,
   entries: [] as unknown[],
   isSales: false,
+  mandatory: { required: false, orgType: null } as { required: boolean; orgType: string | null },
 }));
 
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/home",
+  useRouter: () => ({ push: vi.fn() }),
+  redirect: (to: string) => {
+    throw new Error(`REDIRECT:${to}`);
+  },
+}));
+vi.mock("@/server/queries/business-setup", () => ({ loadMandatoryBusinessSetup: async () => state.mandatory }));
 vi.mock("@/server/actions/auth", () => ({ signOut: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: async () => ({}) }));
 vi.mock("@/server/queries/job-opportunities", () => ({ listJobOpportunities: async () => [] }));
@@ -176,5 +184,36 @@ describe("/home layout — workspace switcher scope and account label", () => {
         expect(screen.getByTestId("nav-keys").textContent!.split(",")).toContain("addBusiness");
       },
     );
+  });
+});
+
+describe("/home layout — a business registration whose first business is outstanding has no /home", () => {
+  beforeEach(() => {
+    state.entries = [];
+    state.home = null;
+    state.isSales = false;
+    state.mandatory = { required: false, orgType: null };
+  });
+
+  it("redirects to the mandatory business setup for every /home page (direct navigation cannot reach it)", async () => {
+    state.mandatory = { required: true, orgType: "showroom_dealer" };
+    await expect(HomeLayout({ children: <p>page body</p> })).rejects.toThrow("REDIRECT:/onboarding/business");
+  });
+
+  it("does the same for each approved business type", async () => {
+    for (const orgType of ["showroom_dealer", "supplier", "manufacturer", "importer"]) {
+      state.mandatory = { required: true, orgType };
+      await expect(HomeLayout({ children: <p>x</p> })).rejects.toThrow("REDIRECT:/onboarding/business");
+    }
+  });
+
+  it("does not touch anyone else: an installer, a salesperson or a business owner renders /home as before", async () => {
+    state.entries = [personalEntry("installer_technician")];
+    state.home = home("installer_technician");
+    await expect(HomeLayout({ children: <p>page body</p> })).resolves.toBeTruthy();
+    state.mandatory = { required: false, orgType: null };
+    state.entries = [personalEntry("sales")];
+    state.home = home("sales");
+    await expect(HomeLayout({ children: <p>page body</p> })).resolves.toBeTruthy();
   });
 });

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { loadBusinessCreationAccess } from "@/server/queries/business-creation-access";
+import { loadMandatoryBusinessSetup } from "@/server/queries/business-setup";
 import { BUSINESS_ORG_TYPES } from "@/lib/onboarding/account-types";
 import { ORG_COOKIE, BRANCH_COOKIE } from "@/lib/workspace/model";
 import type { Database } from "@/types/database.types";
@@ -61,12 +62,18 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
   // be a way around it. (No RLS change: the database rules are untouched.)
   if (!(await loadBusinessCreationAccess()).allowed) return { ok: false, code: "onboarding.error.businessNotAllowed" };
 
+  // While the caller's FIRST business is outstanding (a business registration), the type they registered with is the type
+  // the business is created as. The wizard never offers a picker in that case; this makes a direct post unable to change it
+  // either. Everyone else (an owner adding another business) chooses freely, as before.
+  const mandatory = await loadMandatoryBusinessSetup();
+  const orgType = mandatory.required ? mandatory.orgType : v.orgType;
+
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("business_draft_save", {
     p_draft_id: v.draftId ?? undefined,
     p_legal_name: v.legalName ?? undefined,
     p_display_name: v.displayName ?? undefined,
-    p_org_type: (v.orgType as OrgType) ?? undefined,
+    p_org_type: (orgType as OrgType) ?? undefined,
     p_description: v.description ?? undefined,
     p_governorate: v.governorate ?? undefined,
     p_city: v.city ?? undefined,

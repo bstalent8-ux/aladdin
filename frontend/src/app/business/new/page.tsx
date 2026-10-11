@@ -22,8 +22,10 @@ export default async function AddBusinessPage() {
   // Someone still mid-registration finishes that first — consent and a known
   // account type are prerequisites for creating anything. organization_setup_pending
   // no longer exists as a registration state (Increment 7): access_ready and
-  // active_personal both mean "may enter the app," and creating a business is
-  // now an optional in-app action available from either, not a gated step.
+  // active_personal both mean "may enter the app". For someone who registered to
+  // CREATE a business, creating the first one is mandatory and is enforced one layer up
+  // (resolveActiveLanding + the /home and /b2b layouts route them to /onboarding/business);
+  // for everyone else, adding a business here stays an optional in-app action.
   if (!hasAppAccess(state)) redirect("/onboarding");
 
   // The server-side entitlement. Reached by URL, "add business" from the header

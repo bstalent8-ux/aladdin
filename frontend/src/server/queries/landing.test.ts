@@ -7,6 +7,10 @@ vi.mock("server-only", () => ({}));
 const { loadPlatformRole } = vi.hoisted(() => ({ loadPlatformRole: vi.fn() }));
 vi.mock("@/server/queries/platform", () => ({ loadPlatformRole }));
 
+// The mandatory-first-business rule has its own tests (business-setup.test.ts); here it is a controllable answer.
+const { computeMandatoryBusinessSetup } = vi.hoisted(() => ({ computeMandatoryBusinessSetup: vi.fn() }));
+vi.mock("@/server/queries/business-setup", () => ({ computeMandatoryBusinessSetup }));
+
 const { cookieValue } = vi.hoisted(() => ({ cookieValue: { current: undefined as string | undefined } }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => (cookieValue.current ? { value: cookieValue.current } : undefined) }),
@@ -53,6 +57,7 @@ function clientWithWorkspaces(rows: Row[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   loadPlatformRole.mockResolvedValue(null);
+  computeMandatoryBusinessSetup.mockResolvedValue({ required: false, orgType: null });
   cookieValue.current = undefined;
 });
 
@@ -105,5 +110,41 @@ describe("resolveActiveLanding", () => {
     const { client } = clientWithWorkspaces([]);
 
     await expect(resolveActiveLanding(client)).resolves.toBe("/home");
+  });
+});
+
+describe("resolveActiveLanding - a business registration whose first business is outstanding", () => {
+  it("routes to the mandatory business onboarding, never to /home (no generic Personal fallback)", async () => {
+    computeMandatoryBusinessSetup.mockResolvedValueOnce({ required: true, orgType: "showroom_dealer" });
+    const { client, rpc } = clientWithWorkspaces([]);
+
+    await expect(resolveActiveLanding(client)).resolves.toBe("/onboarding/business");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("applies to every approved business type (the type is carried by onboarding data, not the destination)", async () => {
+    for (const orgType of ["showroom_dealer", "supplier", "manufacturer", "importer"]) {
+      computeMandatoryBusinessSetup.mockResolvedValueOnce({ required: true, orgType });
+      await expect(resolveActiveLanding(clientWithWorkspaces([]).client)).resolves.toBe("/onboarding/business");
+    }
+  });
+
+  it("platform staff are still routed to /admin first", async () => {
+    loadPlatformRole.mockResolvedValueOnce("administrator");
+    computeMandatoryBusinessSetup.mockResolvedValue({ required: true, orgType: "supplier" });
+    await expect(resolveActiveLanding(clientWithWorkspaces([]).client)).resolves.toBe("/admin");
+  });
+
+  it("once the first organization exists the business workspace is canonical: /b2b, not /home", async () => {
+    computeMandatoryBusinessSetup.mockResolvedValue({ required: false, orgType: null });
+    const { client } = clientWithWorkspaces([business("org-1", "Nile Showroom")]);
+    await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
+  });
+
+  it("leaves everyone else unchanged: an installer/sales/engineer-with-business keeps /home", async () => {
+    computeMandatoryBusinessSetup.mockResolvedValue({ required: false, orgType: null });
+    await expect(resolveActiveLanding(clientWithWorkspaces([{ ...personal, persona: "installer_technician" }]).client)).resolves.toBe("/home");
+    await expect(resolveActiveLanding(clientWithWorkspaces([{ ...personal, persona: "sales" }]).client)).resolves.toBe("/home");
+    await expect(resolveActiveLanding(clientWithWorkspaces([personal, business("org-1", "AH Showroom")]).client)).resolves.toBe("/home");
   });
 });

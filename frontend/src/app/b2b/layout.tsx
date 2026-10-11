@@ -6,6 +6,8 @@ import { I18nProvider } from "@/lib/i18n/context";
 import { THEME_COOKIE } from "@/lib/theme/config";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { loadWorkspaceContext } from "@/server/queries/context";
+import { loadMandatoryBusinessSetup } from "@/server/queries/business-setup";
+import { MANDATORY_BUSINESS_SETUP_PATH } from "@/lib/onboarding/mandatory-business-setup";
 import { personalEntry } from "@/lib/workspace/model";
 import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { NoOrgNotice } from "@/components/layout/no-org-notice";
@@ -35,6 +37,9 @@ export default async function B2BLayout({ children }: { children: ReactNode }) {
   const workspace = await loadWorkspaceContext(supabase);
 
   if (!workspace.active && personalEntry(workspace.entries)) redirect("/home");
+  // No workspace and no Personal home. If this person registered to create a business that does not exist yet, creating it
+  // is mandatory - send them to it rather than parking them on the "no workspace" notice.
+  if (!workspace.active && (await loadMandatoryBusinessSetup()).required) redirect(MANDATORY_BUSINESS_SETUP_PATH);
 
   // The header's org/branch chips need the SAME Arabic/English preference the
   // rest of the workspace already applies (`resolveBilingualText`) — until
