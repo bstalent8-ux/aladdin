@@ -19,7 +19,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(83);
+select plan(90);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -212,6 +212,27 @@ select is(public.product_image_access_grant(:'orgM'::uuid, array[(select key fro
 select ok(not app.has_product_image_grant((select key from _k)), 'and cannot sign');
 set local request.jwt.claims = :'hana';
 select is(public.product_image_access_grant(:'orgC'::uuid, array[(select key from _k)]), array[(select key from _k)], 'back to the targeted workspace: granted again');
+-- A grant is only a marker: eligibility is re-derived on every use.
+set local request.jwt.claims = :'delta';
+select lives_ok(format($q$select public.product_audiences_set(%L, array['engineer'])$q$, (select id from _p where name = 'ps')), 'owner retargets the product away from showrooms');
+set local request.jwt.claims = :'hana';
+select ok(not app.has_product_image_grant((select key from _k)), 'an unexpired grant stops working the moment its workspace is no longer targeted');
+set local request.jwt.claims = :'delta';
+select lives_ok(format($q$select public.product_audiences_set(%L, array['showroom_dealer','engineer'])$q$, (select id from _p where name = 'ps')), 'owner targets showrooms again');
+set local request.jwt.claims = :'hana';
+select ok(app.has_product_image_grant((select key from _k)), 'and the same grant works again while the workspace is targeted');
+set local request.jwt.claims = :'sara';
+select is(public.product_image_access_grant(:'orgC'::uuid, array[(select key from _k)]), array[(select key from _k)], 'a Sales Team member is granted through the showroom workspace');
+select ok(app.has_product_image_grant((select key from _k)), 'and can sign');
+reset role;
+update public.memberships set status = 'suspended' where user_id = '70000002-0000-4000-8000-000000000002' and organization_id = :'orgC';
+set local role authenticated;
+set local request.jwt.claims = :'sara';
+select ok(not app.has_product_image_grant((select key from _k)), 'suspending the membership ends signing immediately, before the grant expires');
+reset role;
+update public.memberships set status = 'active' where user_id = '70000002-0000-4000-8000-000000000002' and organization_id = :'orgC';
+set local role authenticated;
+
 set local request.jwt.claims = :'delta';
 select lives_ok(format('select public.set_product_published(%L, false, %L)', (select id from _p where name = 'ps'),
   (select version from public.products where id = (select id from _p where name = 'ps'))), 'owner unpublishes');
