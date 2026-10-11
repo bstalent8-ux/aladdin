@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { LOCALE_COOKIE, resolveLocale, directionFor } from "@/lib/i18n/config";
 import { I18nProvider } from "@/lib/i18n/context";
 import { getMessages, createTranslator } from "@/lib/i18n/translate";
 import { getWorkspaces } from "@/server/queries/workspace";
+import { loadMandatoryBusinessSetup } from "@/server/queries/business-setup";
+import { MANDATORY_BUSINESS_SETUP_PATH } from "@/lib/onboarding/mandatory-business-setup";
 import { loadIsSalesPersona } from "@/server/queries/sales-persona";
 import { loadPersonalHome } from "@/server/queries/personal-home";
 import { personalNavKeys, personalMobileNavKeys } from "@/lib/nav/personal-modules";
@@ -56,6 +59,12 @@ export const dynamic = "force-dynamic";
  * product they are in.
  */
 export default async function HomeLayout({ children }: { children: ReactNode }) {
+  // Someone who registered to create a business (Showroom / Supplier / Manufacturer / Importer) and has not yet created it
+  // has no Personal home: creating that first business is the mandatory continuation of their registration. Re-derived
+  // from the database on every request, so typing /home, or coming back after signing out, resumes it. Everyone else
+  // (installer, sales, consumer, engineer, invited employee, a business owner) answers "no" from one cheap read.
+  if ((await loadMandatoryBusinessSetup()).required) redirect(MANDATORY_BUSINESS_SETUP_PATH);
+
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const dir = directionFor(locale);

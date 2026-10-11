@@ -87,10 +87,10 @@ export default async function PersonalHomePage() {
   const { entries } = await loadWorkspaces(supabase);
   if (!personalEntry(entries)) {
     if (businessEntries(entries).length > 0) redirect("/b2b");
-    // Typically a business-track account that is access_ready but has not
-    // created its organization yet — it gets NO membership or /b2b access from
-    // that, only this terminal (whose CTA is "create your business") plus the
-    // completion checklist.
+    // An account with neither a personal persona nor an organization that is NOT a business registration (a business
+    // registration whose first business is outstanding never reaches this page: `app/home/layout.tsx` routes it to the
+    // mandatory business setup). E.g. someone whose only membership was revoked. It gets NO membership or /b2b access,
+    // only this terminal (whose CTA is "create your business") plus the completion checklist.
     return (
       <div className="flex flex-col gap-lg">
         {completionCard}

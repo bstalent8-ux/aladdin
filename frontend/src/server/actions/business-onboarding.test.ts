@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   allowed: false,
+  mandatory: { required: false, orgType: null } as { required: boolean; orgType: string | null },
   rpc: vi.fn<(...args: unknown[]) => Promise<{ data: unknown; error: { code: string } | null }>>(
     async () => ({ data: "draft-1", error: null }),
   ),
@@ -14,6 +15,7 @@ vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: async () => ({ rpc:
 vi.mock("@/server/queries/business-creation-access", () => ({
   loadBusinessCreationAccess: async () => ({ allowed: state.allowed, data: null }),
 }));
+vi.mock("@/server/queries/business-setup", () => ({ loadMandatoryBusinessSetup: async () => state.mandatory }));
 
 import { saveBusiness, submitBusiness } from "./business-onboarding";
 
@@ -21,6 +23,7 @@ describe("business draft writers — the same entitlement as the page", () => {
   beforeEach(() => {
     state.rpc.mockClear();
     state.allowed = false;
+    state.mandatory = { required: false, orgType: null };
   });
 
   it("refuses to save a draft for a caller who may not create a business, and never reaches the database", async () => {
@@ -53,5 +56,38 @@ describe("business draft writers — the same entitlement as the page", () => {
     state.allowed = true;
     state.rpc.mockImplementationOnce(async () => ({ data: null, error: { code: "22023" } }));
     expect(await saveBusiness({ displayName: "X" })).toEqual({ ok: false, code: "onboarding.error.saveFailed" });
+  });
+});
+
+describe("business draft writers - the registered type is locked while the first business is outstanding", () => {
+  const savedType = () => (state.rpc.mock.calls[0]?.[1] as { p_org_type?: string }).p_org_type;
+
+  beforeEach(() => {
+    state.rpc.mockClear();
+    state.allowed = true;
+  });
+
+  it("writes the type the person registered with, whatever the client posted", async () => {
+    state.mandatory = { required: true, orgType: "showroom_dealer" };
+    await saveBusiness({ displayName: "Nile Showroom", orgType: "supplier" });
+    expect(state.rpc).toHaveBeenCalledWith("business_draft_save", expect.objectContaining({ p_org_type: "showroom_dealer" }));
+  });
+
+  it("supplies the registered type even when the client posted none (the wizard never asks twice)", async () => {
+    state.mandatory = { required: true, orgType: "importer" };
+    await saveBusiness({ displayName: "Delta Imports" });
+    expect(savedType()).toBe("importer");
+  });
+
+  it("the submit path saves through the same lock before creating the organization", async () => {
+    state.mandatory = { required: true, orgType: "manufacturer" };
+    await submitBusiness({ displayName: "Giza Factory", orgType: "showroom_dealer" }).catch(() => undefined);
+    expect(state.rpc.mock.calls[0]).toEqual(["business_draft_save", expect.objectContaining({ p_org_type: "manufacturer" })]);
+  });
+
+  it("an owner adding ANOTHER business (no outstanding first business) still chooses the type freely", async () => {
+    state.mandatory = { required: false, orgType: null };
+    await saveBusiness({ displayName: "Second Branch Co", orgType: "supplier" });
+    expect(savedType()).toBe("supplier");
   });
 });
