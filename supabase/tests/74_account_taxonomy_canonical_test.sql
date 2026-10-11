@@ -15,7 +15,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(45);
+select plan(47);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -152,6 +152,15 @@ select ok(not exists (select 1 from public.product_audiences pa where pa.audienc
   'every stored product audience is one of the eight');
 select is((select count(*)::int from public.users where primary_account_type::text not in ('contractor','end_consumer','engineer','installer_technician','sales')), 0,
   'every user holds a supported account type');
+
+-- J. contractor_company cannot be self-assigned ---------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claims = :'hana';
+select throws_ok($$ select public.business_draft_save(null, 'Probe LLC', 'Probe', 'contractor_company'::public.organization_type, null, null, null, null) $$,
+  null, null, 'a business draft cannot be opened as a contractor company');
+select throws_ok(format($f$ update public.organizations set org_type = 'contractor_company' where id = %L::uuid $f$, :'orgC'),
+  null, null, 'a signed-in caller cannot turn an organization into a contractor company');
+reset role;
 
 select * from finish();
 rollback;

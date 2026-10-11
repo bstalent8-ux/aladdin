@@ -281,6 +281,7 @@ update public.organizations set org_type = 'design_office' where id = :'orgH'::u
 set local role authenticated; set local request.jwt.claims = :'horizon';
 select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a design office workspace sees it');
 reset role;
+select set_config('request.jwt.claims', '', true);
 update public.organizations set org_type = 'contractor_company' where id = :'orgH'::uuid;
 set local role authenticated; set local request.jwt.claims = :'horizon';
 select is(jsonb_array_length(public.offers_feed(:'orgH'::uuid)), 1, 'a contractor company workspace sees it');
