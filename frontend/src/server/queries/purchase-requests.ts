@@ -122,7 +122,11 @@ export async function listResponsesForRequester(supabase: DB, requestId: string)
 // ---------------------------------------------------------------------------
 // Reference images
 // ---------------------------------------------------------------------------
-const SIGNED_URL_SECONDS = 3600;
+/**
+ * A signed URL cannot be revoked, so its lifetime bounds how long access ended by a cancellation, a retarget or a
+ * suspended membership can still be used. Pages are rendered per request, so a few minutes is ample.
+ */
+const SIGNED_URL_SECONDS = 300;
 
 /**
  * Key -> signed URL, signed with the CALLER's identity (no service role). The requester's own images sign
