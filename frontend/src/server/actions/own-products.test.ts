@@ -101,7 +101,7 @@ describe("createOwnProductAction", () => {
   });
 
   it("answers invalid input with field errors and never calls the database", async () => {
-    const result = await createOwnProductAction({ ok: false }, fd({ orgId: ORG, name: "x", code: "", categoryCode: "finishing", unit: "box" }));
+    const result = await createOwnProductAction({ ok: false }, fd({ orgId: ORG, name: "x", code: "", categoryCode: "finishing", unit: "ton" }));
     expect(result.ok).toBe(false);
     expect(Object.keys(result.fieldErrors ?? {}).sort()).toEqual(["category", "code", "name", "price", "unit"]);
     expect(state.rpc).not.toHaveBeenCalled();

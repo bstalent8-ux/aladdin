@@ -59,7 +59,7 @@ const card = (over: Partial<OwnProductCard> & { id: string }): OwnProductCard =>
 
 const products = [
   card({ id: "a" }),
-  card({ id: "b", name: "Old tile", code: null, categoryCode: null, unit: "box", status: "draft" }),
+  card({ id: "b", name: "Old tile", code: null, categoryCode: null, unit: "ton", status: "draft" }),
   card({ id: "c", name: "Retired", status: "draft", archivedAt: "2026-10-08T00:00:00Z" }),
 ];
 
@@ -108,7 +108,7 @@ describe("OwnProductsResults", () => {
     const old = screen.getAllByTestId("my-products-card")[1]!;
     expect(within(old).getByText("Unclassified")).toBeTruthy();
     expect(within(old).getByText("Draft")).toBeTruthy();
-    expect(within(old).getByText("Box")).toBeTruthy();
+    expect(within(old).getByText("Ton")).toBeTruthy();
   });
 
   it("shows the on/off switch by state, and Restore only for an archived product", () => {
@@ -206,7 +206,7 @@ describe("OwnProductsResults", () => {
 
 describe("ProductForm audiences", () => {
   const existing = {
-    id: "p1", version: 4, name: "Old tile", code: "TILE-1", categoryCode: null, unit: "box", colors: [], basePrice: null as number | null,
+    id: "p1", version: 4, name: "Old tile", code: "TILE-1", categoryCode: null, unit: "ton", colors: [], basePrice: null as number | null,
     weightKg: 2.5, sizeLabel: "60x60 cm", brand: "NileCeramics", description: "Glossy",
   };
   const chips = () => screen.getAllByRole("checkbox").filter((el) => el.getAttribute("data-testid")?.startsWith("product-audience-"));
@@ -252,7 +252,7 @@ describe("ProductForm", () => {
     name: "Old tile",
     code: "TILE-1",
     categoryCode: null,
-    unit: "box",
+    unit: "ton",
     colors: [{ name: "Sand", hex: h("C9B28A") }],
     basePrice: null as number | null,
     weightKg: 2.5,
@@ -278,14 +278,14 @@ describe("ProductForm", () => {
     expect(name.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("offers the 15 canonical categories and the six required units", () => {
+  it("offers the 15 canonical categories and the twelve shared units", () => {
     wrap(<ProductForm orgId="org-1" />);
     fireEvent.click(screen.getByTestId("category-select"));
     expect(screen.getAllByRole("option")).toHaveLength(15);
     expect(screen.queryByRole("option", { name: /Unclassified/i })).toBeNull();
     fireEvent.keyDown(screen.getByTestId("category-select"), { key: "Escape" });
     fireEvent.click(screen.getByTestId("unit-select"));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toHaveLength(6);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toHaveLength(12);
   });
 
   it("carries the organization on create and the optimistic version on edit", () => {
@@ -300,9 +300,9 @@ describe("ProductForm", () => {
 
   it("lets a historical product keep its own unit as an extra option, and starts it unclassified", () => {
     wrap(<ProductForm orgId="org-1" product={existing} />);
-    expect(screen.getByTestId("unit-select").getAttribute("data-value")).toBe("box");
+    expect(screen.getByTestId("unit-select").getAttribute("data-value")).toBe("ton");
     fireEvent.click(screen.getByTestId("unit-select"));
-    expect(screen.getAllByRole("option")).toHaveLength(7);
+    expect(screen.getAllByRole("option")).toHaveLength(13);
     expect(screen.getByTestId("category-select").getAttribute("data-value")).toBe("");
   });
 

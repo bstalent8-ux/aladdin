@@ -9,7 +9,11 @@ type DB = SupabaseClient<Database>;
 export type OwnProductImage = { id: string; objectKey: string; slot: number };
 
 /** Signed URLs are short-lived; pages are rendered per request, so an hour is ample. */
-const SIGNED_URL_SECONDS = 3600;
+/**
+ * A signed URL cannot be revoked, so its lifetime bounds access that ends with a membership, an audience
+ * change or an unpublish. Pages are rendered per request and sign again on reload, so five minutes is ample.
+ */
+const SIGNED_URL_SECONDS = 300;
 
 /**
  * The READY images of the given products, in display order (lowest slot first),

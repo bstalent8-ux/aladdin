@@ -56,7 +56,7 @@ describe("request item input", () => {
     expect(err({ code: "x".repeat(81) })).toBe("code");
     expect(err({ categoryCode: "nope" })).toBe("category");
     expect(err({ quantity: "0" })).toBe("quantity");
-    expect(err({ unit: "box" })).toBe("unit");
+    expect(err({ unit: "ton" })).toBe("unit");
     expect(err({ specs: "x".repeat(251) })).toBe("specs");
     expect(err({ colors: [{ name: "Bad", hex: "red" }] })).toBe("colors");
   });

@@ -34,17 +34,15 @@ describe("audiences", () => {
   it("maps each group to explicit canonical rows, never to a new enum", () => {
     expect(audienceCodesForGroups(["showroom"])).toEqual(["showroom_dealer"]);
     expect(audienceCodesForGroups(["contractor"])).toEqual(["contractor_company", "contractor"]);
-    expect(audienceCodesForGroups(["engineer"])).toEqual(["design_office", "engineer", "interior_designer"]);
+    expect(audienceCodesForGroups(["engineer"])).toEqual(["design_office", "engineer"]);
     expect(audienceCodesForGroups(["craftsman"])).toEqual(["installer_technician"]);
     expect(audienceCodesForGroups(["customer"])).toEqual(["end_consumer"]);
     expect(audienceCodesForGroups(["nope"])).toEqual([]);
-    expect(audienceCodesForGroups(OFFER_AUDIENCE_GROUPS.map((g) => g.id)).sort()).toEqual(
-      OFFER_AUDIENCE_CODES.filter((c) => c !== "wholesaler").sort(),
-    );
+    expect(audienceCodesForGroups(OFFER_AUDIENCE_GROUPS.map((g) => g.id)).sort()).toEqual([...OFFER_AUDIENCE_CODES].sort());
   });
   it("reads groups back from stored rows", () => {
     expect(groupsForAudienceCodes(["design_office", "supplier"])).toEqual(["supplier", "engineer"]);
-    expect(groupsForAudienceCodes(["wholesaler"])).toEqual([]);
+    expect(groupsForAudienceCodes(["wholesaler", "interior_designer"])).toEqual([]);
   });
 });
 

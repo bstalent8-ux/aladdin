@@ -131,7 +131,7 @@ describe("product image queries", () => {
     }));
     const { supabase } = stub({ data: [], error: null }, { createSignedUrls });
     const urls = await signProductImageUrls(supabase, ["a", null, "a", "b", undefined]);
-    expect(createSignedUrls).toHaveBeenCalledWith(["a", "b"], 3600);
+    expect(createSignedUrls).toHaveBeenCalledWith(["a", "b"], 300);
     expect([...urls.entries()]).toEqual([["a", "https://signed/a"], ["b", "https://signed/b"]]);
   });
 

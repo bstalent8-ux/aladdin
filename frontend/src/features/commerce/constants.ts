@@ -65,9 +65,58 @@ export function isCanonicalCategoryCode(value: unknown): value is CanonicalCateg
   return typeof value === "string" && (CANONICAL_CATEGORY_CODES as readonly string[]).includes(value);
 }
 
-/** The six units an own product can be sold by (kilogram, gallon, pail, roll, meter, sheet). */
-export const OWN_PRODUCT_UNITS = ["kilogram", "gallon", "pail", "roll", "meter", "sheet"] as const;
-export type OwnProductUnit = (typeof OWN_PRODUCT_UNITS)[number];
+/**
+ * The ONE shared unit list for showroom products and Purchase Requests (mirrors `app.showroom_units()`
+ * and `public.measurement_units`): the original six first, then the finishing additions. `meter` and
+ * `linear_meter` are different units; nothing is ever converted between units.
+ */
+export const SHARED_UNITS = [
+  "kilogram",
+  "gallon",
+  "pail",
+  "roll",
+  "meter",
+  "sheet",
+  "piece",
+  "square_meter",
+  "linear_meter",
+  "liter",
+  "box",
+  "set",
+] as const;
+export type SharedUnit = (typeof SHARED_UNITS)[number];
+
+/** Kept under its original name: the units an own product can be sold by. */
+export const OWN_PRODUCT_UNITS = SHARED_UNITS;
+export type OwnProductUnit = SharedUnit;
+
+/**
+ * Units worth suggesting first for a canonical category. A SUGGESTION only: every shared unit stays
+ * selectable for every category, and nothing is converted between units.
+ */
+export const UNIT_SUGGESTIONS_BY_CATEGORY: Readonly<Record<string, readonly SharedUnit[]>> = {
+  wallpaper: ["roll", "square_meter"],
+  wood_alternative: ["sheet", "square_meter", "piece"],
+  marble_alternative: ["sheet", "square_meter", "piece"],
+  chipboard: ["sheet", "piece"],
+  cornices: ["linear_meter", "piece", "box"],
+  corners: ["linear_meter", "piece", "box"],
+  panels: ["sheet", "square_meter", "piece"],
+  skirting: ["linear_meter", "piece", "box"],
+  interior_doors: ["piece", "set"],
+  security_doors: ["piece", "set"],
+  vinyl_flooring: ["square_meter", "box"],
+  spc_flooring: ["square_meter", "box"],
+  curtains: ["meter", "piece", "set"],
+  posters: ["piece", "set"],
+  paints: ["pail", "gallon", "liter", "kilogram"],
+};
+
+/** The shared units with the category's suggestions first (all units always present, no duplicates). */
+export function unitsForCategory(categoryCode: string | null | undefined): { suggested: SharedUnit[]; all: SharedUnit[] } {
+  const suggested = [...(UNIT_SUGGESTIONS_BY_CATEGORY[categoryCode ?? ""] ?? [])];
+  return { suggested, all: [...suggested, ...SHARED_UNITS.filter((u) => !suggested.includes(u))] };
+}
 
 export function isOwnProductUnit(value: unknown): value is OwnProductUnit {
   return typeof value === "string" && (OWN_PRODUCT_UNITS as readonly string[]).includes(value);

@@ -33,7 +33,7 @@
  */
 
 /** The `org_type` values that sell into the chain rather than buy from it. */
-export const SUPPLY_SIDE_ORG_TYPES = ["supplier", "manufacturer", "importer", "wholesaler"] as const;
+export const SUPPLY_SIDE_ORG_TYPES = ["supplier", "manufacturer", "importer"] as const;
 
 export type SupplySideOrgType = (typeof SUPPLY_SIDE_ORG_TYPES)[number];
 
@@ -77,9 +77,7 @@ export function defaultCommerceSide(stance: CommerceStance): "requester" | "supp
  * "what you distribute". That is a message-bundle choice, not a code path, so it
  * resolves to a key rather than to different components.
  *
- * `wholesaler` deliberately shares the distributor voice: it is the same
- * reseller-supply relationship, and the product has no approved separate
- * terminology for it.
+ * A wholesaler is a Supplier subtype, so it shares the supplier (distributor) voice.
  */
 export type SupplyVoice = "distributor" | "manufacturer" | "importer";
 

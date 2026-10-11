@@ -80,9 +80,9 @@ describe("own product form parsing", () => {
   });
 
   it("refuses other units for a new product but lets a historical product keep its own", () => {
-    expect(parseOwnProductForm(form({ ...valid, unit: "box" }))).toMatchObject({ ok: false, fieldErrors: { unit: "showroomProducts.errors.unitInvalid" } });
-    expect(parseOwnProductForm(form({ ...valid, unit: "box" }), "box").ok).toBe(true);
-    expect(parseOwnProductForm(form({ ...valid, unit: "ton" }), "box").ok).toBe(false);
+    expect(parseOwnProductForm(form({ ...valid, unit: "ton" }))).toMatchObject({ ok: false, fieldErrors: { unit: "showroomProducts.errors.unitInvalid" } });
+    expect(parseOwnProductForm(form({ ...valid, unit: "ton" }), "ton").ok).toBe(true);
+    expect(parseOwnProductForm(form({ ...valid, unit: "bag" }), "ton").ok).toBe(false);
   });
 
   it.each([["-1"], ["abc"], ["1000001"], ["NaN"]])("refuses the weight %j", (weightKg) => {

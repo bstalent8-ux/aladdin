@@ -32,10 +32,6 @@ describe("canCreateBusiness — an entitlement of the account type, never of a m
       "sales",
       "end_consumer",
       "contractor",
-      "interior_designer",
-      "trainer",
-      "trainee",
-      "wholesaler",
       null,
     ]) {
       expect(canCreateBusiness({ persona, entries: [personal] }), String(persona)).toBe(false);
@@ -52,7 +48,7 @@ describe("canCreateBusiness — an entitlement of the account type, never of a m
     for (const orgType of ["showroom_dealer", "supplier", "manufacturer", "importer"]) {
       expect(canCreateBusiness({ persona: null, entries: [biz(orgType, "owner")] }), orgType).toBe(true);
     }
-    expect(canCreateBusiness({ persona: null, entries: [biz("wholesaler", "owner")] })).toBe(false);
+    expect(canCreateBusiness({ persona: null, entries: [biz("contractor_company", "owner")] })).toBe(false);
   });
 
   it("never lets a salesperson or craftsman create, even as owner of an approved-type org", () => {
@@ -70,8 +66,8 @@ describe("showsGenericWorkspaceSwitcher — only the approved five categories", 
     }
   });
 
-  it("is never shown for installer, sales, personal, contractor, trainer or trainee — even with memberships", () => {
-    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor", "trainer", "trainee"]) {
+  it("is never shown for installer, sales, personal, or contractor — even with memberships", () => {
+    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor"]) {
       expect(show(persona, [personal]), persona).toBe(false);
       expect(show(persona, [personal, biz("showroom_dealer", "member")]), `${persona} + membership`).toBe(false);
       expect(show(persona, [personal, biz("showroom_dealer", "manager")]), `${persona} + manager`).toBe(false);
@@ -88,7 +84,7 @@ describe("decideBusinessCreation — the /business/new gate", () => {
   const base = { persona: null as string | null, entries: [personal] as WorkspaceEntry[], openDraftId: null, registrationBusinessIntent: false };
 
   it("denies installer, sales, personal, contractor and trainee with no draft and no registration intent", () => {
-    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor", "trainee"]) {
+    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor"]) {
       expect(decideBusinessCreation({ ...base, persona }).allowed, persona).toBe(false);
     }
   });

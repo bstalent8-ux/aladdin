@@ -430,7 +430,7 @@ describe("Offer builder", () => {
     render();
     for (const id of ["importer", "contractor", "engineer", "craftsman", "customer"]) fireEvent.click(screen.getByTestId(`offer-audience-${id}`));
     expect([...document.querySelectorAll('input[name="audience"]')].map((i) => (i as HTMLInputElement).value)).toEqual([
-      "importer", "contractor_company", "contractor", "design_office", "engineer", "interior_designer", "installer_technician", "end_consumer",
+      "importer", "contractor_company", "contractor", "design_office", "engineer", "installer_technician", "end_consumer",
     ]);
   });
   it("restores the groups of a stored offer from its canonical rows", () => {

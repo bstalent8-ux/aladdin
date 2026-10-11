@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ar } from "@/lib/i18n/messages/ar";
 import { en } from "@/lib/i18n/messages/en";
-import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_CATEGORIES, PRODUCT_UNITS } from "./constants";
+import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_CATEGORIES, PRODUCT_UNITS, unitsForCategory } from "./constants";
 
 const MIGRATION = readFileSync(resolve(__dirname, "../../../../supabase/migrations/20261008090001_own_products_taxonomy_images.sql"), "utf8");
 
@@ -46,10 +46,26 @@ describe("canonical product taxonomy", () => {
 });
 
 describe("product units", () => {
-  it("offers the six required units, each with an Arabic and an English label", () => {
-    expect([...OWN_PRODUCT_UNITS]).toEqual(["kilogram", "gallon", "pail", "roll", "meter", "sheet"]);
-    expect(OWN_PRODUCT_UNITS.map((u) => ar.commerce.units[u])).toEqual(["كيلو", "جالون", "باستلة", "رول", "متر", "لوح"]);
-    expect(OWN_PRODUCT_UNITS.map((u) => en.commerce.units[u])).toEqual(["Kilogram", "Gallon", "Pail", "Roll", "Meter", "Sheet"]);
+  it("offers the twelve shared units, the original six first, each with an Arabic and an English label", () => {
+    expect([...OWN_PRODUCT_UNITS]).toEqual(["kilogram", "gallon", "pail", "roll", "meter", "sheet", "piece", "square_meter", "linear_meter", "liter", "box", "set"]);
+    expect(OWN_PRODUCT_UNITS.slice(0, 6).map((u) => ar.commerce.units[u])).toEqual(["كيلو", "جالون", "باستلة", "رول", "متر", "لوح"]);
+    expect(OWN_PRODUCT_UNITS.slice(0, 6).map((u) => en.commerce.units[u])).toEqual(["Kilogram", "Gallon", "Pail", "Roll", "Meter", "Sheet"]);
+    expect(ar.commerce.units.box).toBe("علبة أو كرتونة");
+    expect(ar.commerce.units.square_meter).toBe("متر مربع");
+    expect(ar.commerce.units.linear_meter).toBe("متر طولي");
+    expect(new Set(OWN_PRODUCT_UNITS).size).toBe(12);
+  });
+
+  it("suggests category-appropriate units first without removing any other unit", () => {
+    expect(unitsForCategory("paints").suggested[0]).toBe("pail");
+    expect(unitsForCategory("wallpaper").all.slice(0, 2)).toEqual(["roll", "square_meter"]);
+    expect(unitsForCategory("vinyl_flooring").suggested).toContain("square_meter");
+    for (const code of [...CANONICAL_CATEGORY_CODES, "", null]) {
+      const { all } = unitsForCategory(code);
+      expect([...all].sort()).toEqual([...OWN_PRODUCT_UNITS].sort());
+    }
+    // meter and linear_meter are different units: a suggestion never rewrites one into the other
+    expect(unitsForCategory("curtains").suggested).not.toContain("linear_meter");
   });
 
   it("keeps every historical unit and adds the new ones", () => {

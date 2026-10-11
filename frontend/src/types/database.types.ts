@@ -6899,18 +6899,14 @@ export type Database = {
         | "supplier"
         | "manufacturer"
         | "importer"
-        | "wholesaler"
         | "contractor_company"
         | "design_office"
       persona_type:
         | "end_consumer"
         | "engineer"
-        | "interior_designer"
         | "installer_technician"
         | "contractor"
         | "sales"
-        | "trainer"
-        | "trainee"
       platform_role: "support" | "moderator" | "administrator"
       portfolio_visibility: "private" | "public"
       product_category:
@@ -7181,19 +7177,15 @@ export const Constants = {
         "supplier",
         "manufacturer",
         "importer",
-        "wholesaler",
         "contractor_company",
         "design_office",
       ],
       persona_type: [
         "end_consumer",
         "engineer",
-        "interior_designer",
         "installer_technician",
         "contractor",
         "sales",
-        "trainer",
-        "trainee",
       ],
       platform_role: ["support", "moderator", "administrator"],
       portfolio_visibility: ["private", "public"],

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * العروض — the shared audience Offers feed for every business workspace (showroom, supplier,
- * manufacturer, importer, wholesaler, contractor company, design office). A thin adapter: the
+ * manufacturer, importer, contractor company, design office). A thin adapter: the
  * database decides which offers this business type may see; the feed itself is features/offers.
  */
 export default async function B2BOffersPage() {

@@ -30,7 +30,7 @@ export type PersonaType = Database["public"]["Enums"]["persona_type"];
 const LIST_LIMIT = 60;
 
 /** Businesses a showroom BUYS from. */
-export const SUPPLIER_ORG_TYPES: OrgType[] = ["supplier", "manufacturer", "importer", "wholesaler"];
+export const SUPPLIER_ORG_TYPES: OrgType[] = ["supplier", "manufacturer", "importer"];
 
 /**
  * Institutional counterparties — contracting companies, design/engineering
@@ -44,7 +44,7 @@ export const INSTITUTION_ORG_TYPES: OrgType[] = ["contractor_company", "design_o
 export const TECHNICIAN_PERSONAS: PersonaType[] = ["installer_technician"];
 
 /** Professionals a showroom consults or refers work to, other than trades. */
-export const CONSULTANT_PERSONAS: PersonaType[] = ["engineer", "interior_designer", "contractor"];
+export const CONSULTANT_PERSONAS: PersonaType[] = ["engineer", "contractor"];
 
 export async function listOrganizations(
   supabase: DB,

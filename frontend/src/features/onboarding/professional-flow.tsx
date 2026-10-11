@@ -9,7 +9,6 @@ import { saveProfessional, saveProfessionalAndReview, type ProfessionalInput } f
 import type { ProfessionalAnswers } from "@/server/queries/onboarding";
 import {
   type ProfessionalPersona,
-  ENGINEER_DESIGNER_TYPES,
   FIXED_CONCRETE_TYPE,
   SPECIALIZATIONS,
   SERVICES,
@@ -80,9 +79,8 @@ function firstIncomplete(s: PState): number {
  * Professional onboarding (05.2.x) — ONE common flow for all four individual
  * professionals: Identity → Services & Skills → Service Location → Portfolio →
  * Verification Requirements, then a Review route. The persona-specific branch is
- * minimal by design: engineer/designer resolves a concrete type (engineer vs
- * interior_designer) and every persona draws its specialization/service options
- * from its own set. State is hydrated from the DB and persisted per step; nothing
+ * minimal by design: every persona has one fixed concrete type and draws its
+ * specialization/service options from its own set. State is hydrated from the DB and persisted per step; nothing
  * is activated here — submission hands off to the trusted upgrade/review workflow.
  */
 export function ProfessionalFlow({ persona, answers }: { persona: ProfessionalPersona; answers: ProfessionalAnswers }) {
@@ -141,25 +139,10 @@ export function ProfessionalFlow({ persona, answers }: { persona: ProfessionalPe
     <WizardShell progress={progress} title={t(`onboarding.professional.${current}.title`)} subtitle={t(`onboarding.professional.${current}.subtitle`)}>
       {current === "identity" ? (
         <div className="flex flex-col gap-md">
-          {persona === "engineer_designer" ? (
-            <LabeledField label={t("onboarding.professional.typeChoice.title")} htmlFor="ptype">
-              <div id="ptype" className="grid gap-2.5 tablet:grid-cols-2">
-                {ENGINEER_DESIGNER_TYPES.map((k) => (
-                  <ChoiceCard
-                    key={k}
-                    selected={state.concreteType === k}
-                    title={t(`onboarding.professional.concreteType.${k}`)}
-                    onSelect={() => set({ concreteType: k, specialization: null, services: [], additionalServices: [] })}
-                  />
-                ))}
-              </div>
-            </LabeledField>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <span className="text-label font-medium text-fg-secondary">{t("onboarding.professional.identity.professionLabel")}</span>
-              <Badge tone="accent">{concrete ? t(`onboarding.professional.concreteType.${concrete}`) : ""}</Badge>
-            </div>
-          )}
+          <div className="flex flex-col gap-1">
+            <span className="text-label font-medium text-fg-secondary">{t("onboarding.professional.identity.professionLabel")}</span>
+            <Badge tone="accent">{concrete ? t(`onboarding.professional.concreteType.${concrete}`) : ""}</Badge>
+          </div>
 
           <LabeledField label={t("onboarding.professional.identity.headlineLabel")} htmlFor="headline">
             <Input id="headline" value={state.headline} maxLength={120} placeholder={t("onboarding.professional.identity.headlinePlaceholder")} onChange={(e) => set({ headline: e.target.value })} />

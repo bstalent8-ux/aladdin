@@ -9,7 +9,7 @@ import { PriceInput } from "@/components/ui/price-input";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PackageIcon, XIcon } from "@/components/ui/icons";
 import Link from "next/link";
-import { CANONICAL_CATEGORY_CODES, OWN_PRODUCT_UNITS, PRODUCT_LIMITS, isOwnProductUnit } from "@/features/commerce/constants";
+import { CANONICAL_CATEGORY_CODES, PRODUCT_LIMITS, isOwnProductUnit, unitsForCategory } from "@/features/commerce/constants";
 import { createOwnProductDraftAction, updateOwnProductAction, type OwnProductFormState } from "@/server/actions/own-products";
 import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
@@ -67,6 +67,8 @@ export function ProductForm({
   // user staged on this screen are uploaded to it, and only then does the page move on.
   const [createState, setCreateState] = useState<OwnProductFormState>(initial);
   const [staged, setStaged] = useState<File[]>([]);
+  const [category, setCategory] = useState<string>(product?.categoryCode ?? "");
+  const unitChoices = unitsForCategory(category);
   const [phase, setPhase] = useState<"idle" | "creating" | "uploading">("idle");
   const state = editing ? editState : createState;
   const fe = state.fieldErrors ?? {};
@@ -159,7 +161,8 @@ export function ProductForm({
               <SelectMenu
                 id="categoryCode"
                 name="categoryCode"
-                defaultValue={product?.categoryCode ?? ""}
+                value={category}
+                onChange={(v) => setCategory(v)}
                 placeholder={t("showroomProducts.fields.selectCategory")}
                 invalid={Boolean(fe.category)}
                 options={CANONICAL_CATEGORY_CODES.map((c) => ({ value: c, label: t(`commerce.canonicalCategories.${c}`) }))}
@@ -185,7 +188,12 @@ export function ProductForm({
             <LabeledField label={t("showroomProducts.fields.size")} htmlFor="sizeLabel" hint={t("showroomProducts.fields.sizeHint")} optional={t("showroomProducts.fields.optional")} error={fe.size ? t(fe.size) : undefined}>
               <Input id="sizeLabel" name="sizeLabel" maxLength={PRODUCT_LIMITS.sizeMax} defaultValue={product?.sizeLabel ?? ""} dir="auto" />
             </LabeledField>
-            <LabeledField label={t("showroomProducts.fields.unit")} htmlFor="unit" error={fe.unit ? t(fe.unit) : undefined}>
+            <LabeledField
+              label={t("showroomProducts.fields.unit")}
+              htmlFor="unit"
+              hint={unitChoices.suggested.length ? `${t("showroomProducts.fields.unitSuggested")} ${unitChoices.suggested.map((u) => t(`commerce.units.${u}`)).join(" · ")}` : undefined}
+              error={fe.unit ? t(fe.unit) : undefined}
+            >
               <SelectMenu
                 id="unit"
                 name="unit"
@@ -193,7 +201,7 @@ export function ProductForm({
                 placeholder={t("showroomProducts.fields.selectUnit")}
                 invalid={Boolean(fe.unit)}
                 options={[
-                  ...OWN_PRODUCT_UNITS.map((u) => ({ value: u, label: t(`commerce.units.${u}`) })),
+                  ...unitChoices.all.map((u) => ({ value: u, label: t(`commerce.units.${u}`) })),
                   ...(keepsHistoricalUnit ? [{ value: product!.unit, label: t(`commerce.units.${product!.unit}`) }] : []),
                 ]}
                 data-testid="unit-select"

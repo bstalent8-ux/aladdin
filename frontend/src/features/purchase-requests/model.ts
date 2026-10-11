@@ -1,4 +1,5 @@
 import { countChars } from "@/lib/text/count-chars";
+import { SHARED_UNITS, type SharedUnit } from "@/features/commerce/constants";
 
 /**
  * Shared Purchase Requests - the pure model. Limits mirror the database (which stays the
@@ -6,9 +7,9 @@ import { countChars } from "@/lib/text/count-chars";
  * No React, no Supabase.
  */
 
-/** The units a request item can use: the same six the showroom product form offers. */
-export const REQUEST_UNITS = ["kilogram", "gallon", "pail", "roll", "meter", "sheet"] as const;
-export type RequestUnit = (typeof REQUEST_UNITS)[number];
+/** The units a request item can use: the same shared list the showroom product form offers. */
+export const REQUEST_UNITS = SHARED_UNITS;
+export type RequestUnit = SharedUnit;
 export const isRequestUnit = (v: unknown): v is RequestUnit => typeof v === "string" && (REQUEST_UNITS as readonly string[]).includes(v);
 
 export const REQUEST_LIMITS = {

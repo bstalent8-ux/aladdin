@@ -157,7 +157,7 @@ describe("/home layout — workspace switcher scope and account label", () => {
   });
 
   describe("contractor and other personas", () => {
-    it.each(["contractor", "trainer", "trainee", "interior_designer"])("%s: no generic switcher, no Add business", async (accountType) => {
+    it.each(["contractor"])("%s: no generic switcher, no Add business", async (accountType) => {
       state.home = home(accountType);
       state.entries = [personalEntry(accountType), memberOf()];
       await renderLayout();

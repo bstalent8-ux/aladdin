@@ -20,33 +20,24 @@
  * invitation token, so it is modelled separately (`INVITED_EMPLOYEE`) and never
  * sent to the account-type RPC.
  */
+import { REGISTERABLE_BUSINESS_ORG_TYPES, REGISTRATION_ORDER } from "@/lib/taxonomy/accounts";
+
 export type OnboardingTrack = "consumer" | "professional" | "business";
 
 /** Personal personas a person may claim at registration. */
 export type PersonalPersona =
   | "end_consumer"
   | "engineer"
-  | "interior_designer"
   | "installer_technician"
   | "contractor"
   | "sales";
-
-/**
- * `organization_type` values that are no longer offered to a new
- * registration but can still be stored on a legacy `onboarding_progress`
- * row (registration INTENT, never remapped by Increment 4 — that migration
- * only remaps `organizations.org_type`). Needed purely so a transitional
- * choice's `accountType` still type-checks against what a legacy row can
- * genuinely hold.
- */
-type LegacyBusinessOrgType = "wholesaler";
 
 export type AccountTypeChoice = {
   /** Stable key used as the form value + i18n key suffix. */
   key: string;
   track: OnboardingTrack;
   /** Concrete DB account_type — a persona (personal) or an org_type (business). */
-  accountType: PersonalPersona | BusinessOrgType | LegacyBusinessOrgType | null;
+  accountType: PersonalPersona | BusinessOrgType | null;
   /**
    * Superseded choices kept ONLY so a saved draft still resolves to a label on
    * resume. Never rendered as a new-registration option.
@@ -73,20 +64,13 @@ export const INVITED_EMPLOYEE_KEY = "invited_employee";
  * none is offered here.)
  */
 /**
- * `wholesaler` is deliberately absent — Staging-prep Increment 4
- * (20260924090004_wholesaler_supplier_remap.sql) remaps every existing
- * wholesaler organization to `supplier` + a `wholesaler` activity row and
- * stops offering it as a new choice. The enum value itself still exists in
- * the database (unused, same precedent as `contractor_company`) — only this
- * picker changed. `design_office` is the canonical business behind the Engineer label.
+ * The business `org_type` values a new registration may create: the four public
+ * businesses plus `design_office`, the business behind the Engineer account.
+ * `wholesaler` is a Supplier SUBTYPE (`public.activities`), not an organization
+ * type, and `contractor_company` is the internal business behind the Contractor
+ * account, never a registration choice. Read from the canonical taxonomy.
  */
-export const BUSINESS_ORG_TYPES = [
-  "showroom_dealer",
-  "supplier",
-  "manufacturer",
-  "importer",
-  "design_office",
-] as const;
+export const BUSINESS_ORG_TYPES = REGISTERABLE_BUSINESS_ORG_TYPES;
 export type BusinessOrgType = (typeof BUSINESS_ORG_TYPES)[number];
 
 export function isBusinessOrgType(value: string | null | undefined): value is BusinessOrgType {
@@ -131,19 +115,6 @@ export const ACCOUNT_TYPE_CHOICES: AccountTypeChoice[] = [
   { key: "manufacturer", track: "business", accountType: "manufacturer" },
   { key: "importer", track: "business", accountType: "importer" },
   // ---- Transitional: resume-only, never offered to a new registration. ----
-  { key: "interior_designer", track: "professional", accountType: "interior_designer", transitional: true },
-  { key: "engineer_designer", track: "professional", accountType: "engineer", transitional: true },
-  // accountType stays literally "wholesaler" (not remapped to "supplier")
-  // because this resolves onboarding_progress.selected_org_type — registration
-  // INTENT, a different, untouched table from organizations.org_type, which
-  // Increment 4 remaps. A legacy row genuinely still holds "wholesaler" here.
-  { key: "wholesaler", track: "business", accountType: "wholesaler", transitional: true },
-  {
-    key: "manufacturer_importer_wholesaler",
-    track: "business",
-    accountType: "manufacturer",
-    transitional: true,
-  },
   { key: "organization_owner_manager", track: "business", accountType: null, transitional: true },
 ];
 
@@ -166,17 +137,7 @@ export const CHOICES_BY_KEY: Record<string, AccountTypeChoice> = Object.fromEntr
  * approved registration-screen ordering (Showroom, Supplier, Manufacturer,
  * Importer, Contractor, Engineer, Tradespeople, Sales, Personal).
  */
-export const REGISTRATION_CHOICE_ORDER: string[] = [
-  "showroom_dealer",
-  "supplier",
-  "manufacturer",
-  "importer",
-  "contractor",
-  "engineer",
-  "installer_technician",
-  "salesperson",
-  "end_consumer",
-];
+export const REGISTRATION_CHOICE_ORDER: string[] = [...REGISTRATION_ORDER];
 
 export const CHOICE_GROUPS: { group: "personal" | "business"; keys: string[] }[] = [
   {

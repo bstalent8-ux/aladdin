@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { PackageIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
 
@@ -18,6 +21,10 @@ import { cn } from "@/lib/ui/cn";
  * With no image, the card falls back to a neutral marked panel rather than an
  * empty box or a broken-image glyph: "no photo yet" is information, a broken
  * icon is a bug report.
+ *
+ * Signed photo URLs live five minutes. If one has expired by the time the browser asks for it (a page
+ * left open, a lazily loaded image, a restored tab), the photo asks the server for a fresh URL once and
+ * falls back to the placeholder if the caller may no longer see it.
  */
 export function ProductMedia({
   src,
@@ -32,6 +39,28 @@ export function ProductMedia({
   /** Tailwind aspect class. The production grid keeps 4:3; compact surfaces pass their own. */
   aspect?: string;
 }) {
+  const [current, setCurrent] = useState<string | null>(src);
+  const [retried, setRetried] = useState(false);
+  useEffect(() => {
+    setCurrent(src);
+    setRetried(false);
+  }, [src]);
+
+  async function refresh() {
+    if (retried || !current || !current.includes("/storage/v1/object/sign/")) {
+      setCurrent(null);
+      return;
+    }
+    setRetried(true);
+    try {
+      const { refreshProductImageUrlAction } = await import("@/server/actions/product-image-refresh");
+      const scope = window.location.pathname.startsWith("/home") ? "personal" : "workspace";
+      setCurrent(await refreshProductImageUrlAction(current, scope));
+    } catch {
+      setCurrent(null);
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -40,11 +69,12 @@ export function ProductMedia({
         className,
       )}
     >
-      {src ? (
+      {current ? (
         /* next/image is not usable here — see the component note above. */
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={current}
+          onError={refresh}
           alt={alt}
           loading="lazy"
           decoding="async"
