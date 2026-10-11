@@ -67,6 +67,7 @@ select throws_ok(
 
 -- Publish the first product (supplier owner has catalog.publish).
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select public.product_audiences_set((select p_pub from _cids), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select lives_ok(
   $$ select public.set_product_published((select p_pub from _cids), true, (select p_pub_v from _cids)) $$,
   'supplier owner publishes the product');
@@ -77,13 +78,13 @@ select is((select status::text from public.products where name='Porcelain Tile 6
 -- draft is not.
 set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';
 select is(
-  (select count(*)::int from public.catalog_published_products where id = (select p_pub from _cids)),
+  (select count(*)::int from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_pub from _cids)),
   1, 'requester can see the published product in the cross-tenant catalog');
 select is(
-  (select count(*)::int from public.catalog_published_products where id = (select p_draft from _cids)),
+  (select count(*)::int from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_draft from _cids)),
   0, 'a draft product never appears in the catalog');
 select is(
-  (select supplier_name from public.catalog_published_products where id = (select p_pub from _cids)),
+  (select supplier_name from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_pub from _cids)),
   'Nile Finishing Supplies', 'the catalog surfaces the supplier identity');
 
 -- ===== RFQ: requester creates, itemizes, submits ============================

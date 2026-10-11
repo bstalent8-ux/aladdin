@@ -1216,3 +1216,11 @@ insert into public.user_trades (user_id, trade_id, is_primary)
 select '72000001-0000-4000-8000-000000000001'::uuid, t.id, true
 from public.trades t where t.key = 'hvac'
 on conflict (user_id, trade_id) do nothing;
+
+-- Product audiences (Milestone B): seeded published products are targeted at all eight
+-- audiences, exactly like the migration backfill of pre-existing published products.
+insert into public.product_audiences (product_id, audience)
+select p.id, t.code
+  from public.products p cross join public.product_audience_types t
+ where p.status = 'published'
+on conflict do nothing;

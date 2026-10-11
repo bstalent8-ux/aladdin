@@ -63,7 +63,7 @@ select is((select (j->>'active_projects')::int from m),
     where (requester_org_id = :'orgC'::uuid or executing_org_id = :'orgC'::uuid) and status = 'active'),
   'active_projects = active projects the org requested or executes');
 select is((select (j->>'saved_products')::int from m),
-  (select count(*)::int from public.saved_product_list where organization_id = :'orgC'::uuid),
+  (select count(*)::int from public.saved_products_for(:'orgC'::uuid)),
   'saved_products = the org''s own shortlist');
 
 -- B. Direction really differs: the purchasing and sales sides are not the same data.

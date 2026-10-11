@@ -75,6 +75,7 @@ insert into _o (name, id) select 'p2', public.own_product_create(:'orgC'::uuid, 
 insert into _o (name, id) select 'p3', public.own_product_create(:'orgC'::uuid, 'Cornice', 'OFF-3', 'cornices', 'meter', '[]'::jsonb, null, null, null, null, 75);
 insert into _o (name, id) select 'pd', public.own_product_create(:'orgC'::uuid, 'Draft product', 'OFF-D', 'paints', 'pail');
 insert into _o (name, id) select 'pa', public.own_product_create(:'orgC'::uuid, 'To archive', 'OFF-A', 'paints', 'pail');
+select public.product_audiences_set(id, array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']) from _o where name in ('p1','p2','p3','pa');
 select lives_ok(format('select public.set_product_published(%L, true, 1)', (select id from _o where name = 'p1')), 'p1 published');
 select lives_ok(format('select public.set_product_published(%L, true, 1)', (select id from _o where name = 'p2')), 'p2 published');
 select lives_ok(format('select public.set_product_published(%L, true, 1)', (select id from _o where name = 'p3')), 'p3 published');

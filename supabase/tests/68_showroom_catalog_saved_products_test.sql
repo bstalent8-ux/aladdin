@@ -35,9 +35,9 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"70000001-0000-4000-8000-000000000001","role":"authenticated"}';
 
 -- A. Visibility: the showroom sees another tenant's published product, never a draft.
-select is((select count(*)::int from public.catalog_published_products where id = (select pub from _p)), 1,
+select is((select count(*)::int from public.catalog_products(:'orgC'::uuid) where id = (select pub from _p)), 1,
   'a showroom sees another tenant''s published product in the catalog');
-select is((select count(*)::int from public.catalog_published_products where id = (select draft from _p)), 0,
+select is((select count(*)::int from public.catalog_products(:'orgC'::uuid) where id = (select draft from _p)), 0,
   'a draft product never appears in the catalog');
 
 -- B. Save: membership-scoped and duplicate-safe.

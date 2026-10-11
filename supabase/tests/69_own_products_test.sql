@@ -23,7 +23,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(116);
+select plan(117);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -161,14 +161,15 @@ select lives_ok(
 select is((select row(status::text, archived_at is null)::text from public.products where id = (select id from _o where name = 'b')),
   row('draft', true)::text, 'a restored product is inactive (draft), not automatically public');
 
+select public.product_audiences_set((select id from _o where name = 'a'), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select lives_ok(
   format('select public.set_product_published(%L, true, %L)', (select id from _o where name = 'a'),
     (select version from public.products where id = (select id from _o where name = 'a'))),
   'activating (publishing) works');
 set local request.jwt.claims = :'tarek';
-select is((select category_code from public.catalog_published_products where id = (select id from _o where name = 'a')), 'paints',
+select is((select category_code from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'a')), 'paints',
   'another tenant sees the activated product in the public catalog with its canonical category');
-select is((select count(*)::int from public.catalog_published_products where id = (select id from _o where name = 'b')), 0,
+select is((select count(*)::int from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'b')), 0,
   'an inactive product is not in the public catalog');
 set local request.jwt.claims = :'hana';
 select lives_ok(
@@ -176,7 +177,7 @@ select lives_ok(
     (select version from public.products where id = (select id from _o where name = 'a'))),
   'archiving an active product works');
 set local request.jwt.claims = :'tarek';
-select is((select count(*)::int from public.catalog_published_products where id = (select id from _o where name = 'a')), 0,
+select is((select count(*)::int from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'a')), 0,
   'an archived product leaves the public catalog immediately');
 set local request.jwt.claims = :'hana';
 select lives_ok(
@@ -251,13 +252,16 @@ select lives_ok(format($q$insert into storage.objects (bucket_id, name) values (
   (select key from _k where n = 2), (select key from _k where n = 3)), 'two more uploads');
 select lives_ok(format('select public.product_image_confirm_upload(%L), public.product_image_confirm_upload(%L)',
   (select key from _k where n = 2), (select key from _k where n = 3)), 'confirm both');
+select public.product_audiences_set((select id from _o where name = 'a'), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select lives_ok(format('select public.set_product_published(%L, true, %L)', (select id from _o where name = 'a'),
   (select version from public.products where id = (select id from _o where name = 'a'))), 'activate the product with images');
 set local request.jwt.claims = :'tarek';
-select is((select primary_image_key from public.catalog_published_products where id = (select id from _o where name = 'a')),
+select is((select primary_image_key from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'a')),
   (select key from _k where n = 1), 'the public catalog derives the primary image (lowest slot)');
-select is((select count(*)::int from public.product_images where product_id = (select id from _o where name = 'a')), 3,
-  'another tenant can see the ready images of a PUBLISHED product (metadata only)');
+select is((select count(*)::int from public.catalog_product_images(:'orgM'::uuid, array[(select id from _o where name = 'a')])), 3,
+  'a targeted workspace of another tenant can list the ready images of a PUBLISHED product through the reader (metadata only)');
+select is((select count(*)::int from public.product_images where product_id = (select id from _o where name = 'a')), 0,
+  'the product_images table itself is no longer readable across tenants');
 set local request.jwt.claims = :'hana';
 select lives_ok(
   format('select public.product_image_reorder(%L, %L)', (select id from _o where name = 'a'),
@@ -266,7 +270,7 @@ select lives_ok(
           (select id from public.product_images where object_key = (select key from _k where n = 2))]),
   'the owner reorders the images');
 set local request.jwt.claims = :'tarek';
-select is((select primary_image_key from public.catalog_published_products where id = (select id from _o where name = 'a')),
+select is((select primary_image_key from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'a')),
   (select key from _k where n = 3), 'the new first image became primary');
 set local request.jwt.claims = :'hana';
 select throws_ok(
@@ -275,8 +279,12 @@ select throws_ok(
   '22023', null, 'an order that omits images is refused');
 
 -- Remove frees a slot; removal is owner-only.
+reset role;
+create temp table _img2 as select id from public.product_images where object_key = (select key from _k where n = 2);
+grant select on _img2 to authenticated;
+set local role authenticated;
 set local request.jwt.claims = :'tarek';
-select throws_ok(format('select public.product_image_remove(%L)', (select id from public.product_images where object_key = (select key from _k where n = 2))),
+select throws_ok(format('select public.product_image_remove(%L)', (select id from _img2)),
   '42501', null, 'another tenant cannot remove an image');
 set local request.jwt.claims = :'hana';
 select is(public.product_image_remove((select id from public.product_images where object_key = (select key from _k where n = 2))),
@@ -315,6 +323,7 @@ select throws_ok(format('select public.own_product_create(%L, %L, %L, %L, %L, %L
 select throws_ok(format('select public.own_product_update(%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[]', null, null, null, null, null),
   '22023', null, 'a price, once set, cannot be blanked');
 select is(public.own_product_update((select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p')), 'Priced paint', 'PRC-1', 'paints', 'pail', '[{"name":"Terracotta","hex":"#B96F52"}]', null, null, null, null, 175.25), 2, 'the price can be changed');
+select public.product_audiences_set((select id from _o where name = 'p'), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select lives_ok(format('select public.set_product_published(%L, true, %L)', (select id from _o where name = 'p'), (select version from public.products where id = (select id from _o where name = 'p'))),
   'the priced product is published');
 select is((select base_price from public.product_prices where product_id = (select id from _o where name = 'p')), 175.25::numeric, 'the owning organization reads (and has updated) its own price');
@@ -323,11 +332,11 @@ select throws_ok(format('insert into public.product_prices (product_id, organiza
 set local request.jwt.claims = :'tarek';
 select is((select count(*)::int from public.product_prices where product_id = (select id from _o where name = 'p')), 0,
   'another organization cannot read the private price of a PUBLISHED product');
-select is((select count(*)::int from public.products where id = (select id from _o where name = 'p')), 1,
-  'the published product row itself is still readable cross-tenant');
-select is((select count(*)::int from public.catalog_published_products where id = (select id from _o where name = 'p')), 1,
+select is((select count(*)::int from public.products where id = (select id from _o where name = 'p')), 0,
+  'the products table is no longer readable across tenants: the audience-aware reader is the only door');
+select is((select count(*)::int from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'p')), 1,
   'the published product still appears in the public catalog');
-select is((select color_items -> 0 ->> 'name' from public.catalog_published_products where id = (select id from _o where name = 'p')), 'Terracotta',
+select is((select color_items -> 0 ->> 'name' from public.catalog_products(:'orgM'::uuid) where id = (select id from _o where name = 'p')), 'Terracotta',
   'structured colors are readable by other organizations through the catalog view');
 select throws_ok(format('insert into public.product_prices (product_id, organization_id, base_price) values (%L, %L, 1)', (select id from _o where name = 'p'), :'orgC'),
   '42501', null, 'another organization cannot write a price either');
@@ -346,10 +355,10 @@ select throws_ok(format('update public.products set color_items = %L::jsonb wher
 select is(app.word_count('  hello   world '), 2, 'words are counted on whitespace, ignoring padding');
 select is(app.word_count('مرحبا بالعالم الجميل'), 3, 'Arabic words are counted the same way');
 select is(app.word_count(null), 0, 'no text is zero words');
-select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name in ('base_price', 'price')), 0,
-  'the public catalog view does not expose the price');
-select is((select count(*)::int from information_schema.columns where table_name = 'catalog_published_products' and column_name = 'color_items'), 1,
-  'the public catalog view exposes the structured colors');
+select is((select count(*)::int from (select unnest(p.proargnames) n, unnest(p.proargmodes) m from pg_proc p where p.oid = 'public.catalog_products(uuid)'::regprocedure) x where m = 't' and n in ('base_price', 'price')), 0,
+  'the catalog reader does not expose the price');
+select is((select count(*)::int from (select unnest(p.proargnames) n, unnest(p.proargmodes) m from pg_proc p where p.oid = 'public.catalog_products(uuid)'::regprocedure) x where m = 't' and n = 'color_items'), 1,
+  'the catalog reader exposes the structured colors');
 set local role authenticated;
 
 -- G. Anonymous callers.
