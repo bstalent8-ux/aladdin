@@ -292,3 +292,62 @@ Implemented in Milestone A (`20261018090001`, `20261018090002`):
 - `network_candidates` is a **separate** table (not new columns on `network_referrals`) so the showroom approve RPC, which materialises an organization and pays the Points event, can never be reached by the new kinds. Approve/reject are status changes: no Auth user, no organization, no profile, no contact exposure, no Points.
 - `organization_contacts` + `profile_contact_visibility`: three independent flags, default false; readers `business_contact` / `craftsman_contact` need an active member workspace and a directory-eligible target; candidate contacts are never read by them.
 - Existing `network_referral_*` (craftsman refers showroom) and its Points award are untouched; the full pgTAP suite including `50_*`/`51_*` passes.
+
+
+---
+
+# Revision 4 - Milestone B: product audiences, exact-only (implemented)
+
+## W1. Final decision incorporated: Sales Team audience behaviour
+
+Sales Team stays one of the nine account types and is **not** a target audience. It inherits eligibility from the workspace it is actively and legitimately representing:
+
+| Viewer | Audience used |
+|---|---|
+| Sales Team in a showroom / supplier / manufacturer / importer workspace | that workspace's audience (showroom_dealer / supplier / manufacturer / importer) |
+| Sales Team in a design office workspace | engineer (the repo's canonical Engineer business) |
+| Sales Team in a workspace with no audience (e.g. a contractor company) | none - sees nothing |
+| Sales Team with no valid membership / no workspace | none |
+
+Enforcement is in the database (`app.viewer_product_audience`, called by every reader), not in UI filtering: the workspace is a parameter, membership is verified with `app.is_org_member`, the audience is derived from that single organization, and a workspace the caller does not belong to raises 42501. Switching workspace changes the argument and therefore the result; nothing is combined. The same principle (workspace in, audience out, never a union) is the rule for Purchase Request discovery and quotation permissions in Milestone C. `product_audiences_set` refuses `sales` as an audience code (pgTAP 72).
+
+## W2. Impact audit (done before the RLS change)
+
+Every consumer of the published-product policy / views, and what happened to it:
+
+| Consumer | Relied on | Now |
+|---|---|---|
+| `products_select_published` policy | any user reads any published row | **dropped**; owner and platform-support policies remain |
+| `catalog_published_products` view (Browse, Detail, Search, Recommended, supplier facets, RFQ supplier product picker, Offers helpers) | invoker view over the open policy | **removed**; `catalog_products(p_org_id)` reader (same 19 columns, no price) |
+| `saved_product_list` view (Saved page, Home KPI, Reports, dashboards) | catalog view join | **removed**; `saved_products_for(p_org_id)`; `showroom_home_metrics` recreated to count through it |
+| `product_images_select_public` (table) | open published images | **dropped**; `catalog_product_images(p_org_id, ids)` reader |
+| `product_images_select_public` (storage.objects, sign only) | `app.is_public_product_image_object` | now requires `app.has_product_image_grant`, which re-derives eligibility from live data on every use |
+| `save_product` | published + org live | also requires the product to be visible to the saving workspace |
+| `add_rfq_item` | product belongs to the RFQ's supplier | also requires visibility to the **requesting** workspace |
+| `order_category_spend` view (Reports spend by category) | joined `products` through the open policy | uses `app.rfq_item_category(rfq_item_id)`, a narrow definer lookup keyed by an RFQ line the caller can already read; output unchanged |
+| Offers (feed, detail, images) | definer RPCs | unchanged logic; image signing now requests a grant that also honours live offers for the viewer's offer audience |
+| Direct URL `/catalog/[id]`, RFQ-new product param | the view | reader with the active workspace; untargeted -> not found |
+| Own products / My Products / Offer builder / prices | owner policy | unchanged |
+| `product_prices` | owner-only table | unchanged, never returned by a reader |
+
+## W3. What was built
+
+- **Migration `20261019090001`**: `product_audience_types` (8 codes), `product_audiences`, backfill of every existing published product with all eight, `product.audiences_set` audit action, `app.org_product_audience` / `persona_product_audience` / `viewer_product_audience` / `product_visible_to`, `product_audiences_set` (owner, `catalog.write`, archived refused, published product keeps >= 1), `set_product_published` publish guard, the three readers, `product_image_grants` + `product_image_access_grant` + `app.has_product_image_grant`, the dropped policies/views, and the audience-aware `save_product` / `add_rfq_item`.
+- **Migration `20261019090002`** (security-review finding "stale grant"): a grant is only a workspace marker; `app.product_image_viewable` re-checks membership, audience and publication on **every** use. Retargeting, a suspended membership or a type change end signing immediately.
+- **Seed**: `seed-pilot.sql` gives seeded published products all eight audiences, exactly like the migration backfill.
+- **Front-end**: every catalog/saved/search/recommended/facet/image read passes the active workspace (`org.organizationId`, or `null` for a personal viewer); `signProductImageUrls(..., { orgId })` requests the grant first; eight-audience selector on **Create and Edit Product** (showroom form and the legacy `/b2b/products` form) reusing the Create Offer chip pattern and labels; audiences are saved **before** the product update so a refusal stops the whole save; activation without an audience shows a translated explanation.
+
+## W4. Tests
+
+- pgTAP `72_product_audiences_exact_only_test.sql` (90): structure, mapping (incl. design_office -> engineer, contractor_company -> none), owner write path, direct table reads fail (products, audiences, prices, images), targeted vs non-targeted, same person switching workspace, Sales Team inheriting / having none / not borrowing a workspace, every personal persona incl. legacy `interior_designer`, retargeting, saved + RFQ direct references, image grants (targeted / non-targeted / switching / unpublish / retarget / suspended membership), anon denial, audit without prices.
+- Nine existing pgTAP files adapted where they relied on the open policy (23, 24, 29, 32, 33, 34, 67, 68, 69, 70); 69 now asserts the opposite where the old behaviour was the exposure ("the products table is no longer readable across tenants").
+- Live check against the isolated runtime with real supabase-js calls and real Storage (25 assertions): the exact browse/count/head/facet call shapes, direct table read returns nothing, publish without audience refused, owner uploads a real PNG, targeted workspace is granted and the signed URL serves the bytes (200), non-targeted workspace cannot sign, retargeting kills an unexpired grant.
+
+## W5. Compatibility and known limits
+
+- Existing users: every published product stays visible to everyone who could see it before (backfill = all eight), so nothing disappears on deploy. Audience-less viewers (legacy `interior_designer`, `trainer`, `trainee`, `wholesaler`/`contractor_company` workspaces, a Sales person with no workspace, a business-valued legacy `primary_account_type` with no workspace) now see **no** cross-organization products - this is the approved exact-only behaviour, and the compatibility implication of not merging legacy types.
+- Platform support keeps its existing direct read policy on `products` (support tooling).
+- `catalog_products` is a plpgsql reader, so PostgREST filters/pagination apply after it returns the visible set. Fine at pilot scale; push filters/limit into the function before the catalog reaches thousands of rows (tracked, not done).
+- `app.is_public_product_image_object` is now unused by policies (kept for compatibility); remove in a later cleanup.
+- Browser-level (Playwright) pass over the rewired pages was **not** re-run in this milestone; type-check, unit tests and the live PostgREST/Storage check cover the call shapes, but the visual pages should get an e2e sweep with the next UI milestone.
+- Not built here: any UI to *see* the audience on cards, the purchase request model (Milestone C), contact settings and candidate forms (waiting on Settings / Suppliers / Craftsmen pages).
