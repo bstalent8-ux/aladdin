@@ -1,14 +1,14 @@
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { messageIdsFor, readNewOtp, signIn, IDENTITIES } from "./helpers/auth";
+import { registerWithPassword, signIn, IDENTITIES } from "./helpers/auth";
 
 /**
  * Pilot Account & Workspace Model — targeted acceptance.
  *
- * ONE PERSON = ONE USER ID. Everything here drives the REAL passwordless flow (no
- * auth bypass) against the local stack:
+ * ONE PERSON = ONE USER ID. Everything here drives the REAL flows (no auth bypass) against the local stack. Sign-up is
+ * the canonical `/auth/sign-up` (Turnstile-gated: run where challenges.cloudflare.com loads):
  *
- *   1. a fresh user registers AS a showroom and lands in their own workspace;
- *   2. an existing personal professional adds a business without signing up again;
+ *   1. a fresh user registers AS a showroom, creates that business (mandatory) and owns it in their own workspace;
+ *   2. an existing personal professional (a seeded Engineer) adds a business without signing up again;
  *   3. the same user owns two businesses of different types and switches between;
  *   4. Consumer + business coexist — Personal still reaches /home;
  *   5. tenant isolation across a switch, including stale/foreign ids;
@@ -30,32 +30,24 @@ async function noOverflow(page: Page) {
   expect(o).toBeLessThanOrEqual(1);
 }
 
-/** Register a brand-new identity and complete the shared steps. */
-async function registerToAccountType(
+const uniq = () => `${Date.now()}${Math.floor(Math.random() * 1e5)}`;
+
+/** Register a brand-new identity through the real canonical sign-up + OTP and stop at `landing`. */
+async function registerAs(
   page: Page,
   request: APIRequestContext,
+  accountType: RegExp,
   displayName: string,
+  landing: RegExp,
 ): Promise<string> {
-  const email = `awm+${Date.now()}${Math.floor(Math.random() * 10000)}@example.test`;
-  const seen = await messageIdsFor(request, email);
-  await page.goto("/auth/sign-up");
-  await page.getByLabel(/email address|البريد/i).fill(email);
-  await page.getByLabel(/terms of service|شروط الخدمة/i).check();
-  await page.getByLabel(/privacy policy|سياسة الخصوصية/i).check();
-  await page.getByLabel(/pilot release|نسخة تجريبية/i).check();
-  await page.getByRole("button", { name: /create account|إنشاء حساب/i }).click();
-  await expect(page.getByText(/we sent a code|أرسلنا رمزًا/i)).toBeVisible();
-  const code = await readNewOtp(request, email, seen);
-  await page.getByLabel(/one-time code|الرمز/i).fill(code);
-  await page.getByRole("button", { name: /verify|تأكيد/i }).click();
-  await page.waitForURL(/\/onboarding\/profile$/, { waitUntil: "commit" });
-
-  await page.locator("#displayName").fill(displayName);
-  await page.getByRole("button", { name: /^continue$|متابعة/i }).click();
-  await page.waitForURL(/\/onboarding\/contact$/, { waitUntil: "commit" });
-  await page.locator("#phone").fill("01012345678");
-  await page.getByRole("button", { name: /^continue$|متابعة/i }).click();
-  await page.waitForURL(/\/onboarding\/account-type$/, { waitUntil: "commit" });
+  const email = `awm-${uniq()}@example.test`;
+  await registerWithPassword(page, request, {
+    email,
+    username: `awm${uniq()}`.slice(0, 24),
+    displayName,
+    accountType,
+    landing,
+  });
   return email;
 }
 
@@ -106,18 +98,18 @@ async function switchTo(page: Page, name: RegExp, landing: RegExp) {
 test.describe("1 — new business registration", () => {
   test("a fresh user registers AS a showroom and owns it", async ({ page, request }) => {
     await prefs(page, "en", "light");
-    await registerToAccountType(page, request, "Hala Showroom");
 
-    // The choice is a direct Personal-or-Business question, and "Organization
-    // owner / manager" is NOT offered — owner is a relationship, not a type.
-    await expect(page.getByText(/for my business/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /organization owner \/ manager/i })).toHaveCount(0);
+    // The sign-up choice is a direct question about HOW the person will use Aladdin, and "Organization owner /
+    // manager" is NOT offered - owner is a relationship, not a type.
+    await page.goto("/auth/sign-up");
+    const options = await page.locator('select[name="accountType"] option').allTextContents();
+    expect(options.some((o) => /^showroom$/i.test(o.trim()))).toBe(true);
+    expect(options.some((o) => /owner\s*\/\s*manager/i.test(o))).toBe(false);
 
-    await page.getByRole("button", { name: /^showroom/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.waitForURL(/\/onboarding\/business$/, { waitUntil: "commit" });
+    await registerAs(page, request, /^showroom$/i, "Hala Showroom", /\/onboarding\/business(\/|$|\?)/);
 
-    // Copy speaks about a BUSINESS, not an "organization".
+    // Creating the first business is the mandatory continuation of the registration. Copy speaks about a BUSINESS,
+    // not an "organization", and the registered type is preset (no type step).
     await expect(page.getByRole("heading", { name: /set up your business/i })).toBeVisible();
     await createBusiness(page, "Hala Ceramics", "Nasr City HQ");
 
@@ -138,27 +130,13 @@ test.describe("2 + 3 + 5 — an existing professional adds businesses", () => {
     request,
   }) => {
     await prefs(page, "en", "light");
-    const email = await registerToAccountType(page, request, "Ahmed Engineer");
-
-    // A PERSONAL persona — he is an Engineer, and stays one throughout.
-    await page.getByRole("button", { name: /^Engineer Offer/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.waitForURL(/\/onboarding\/professional$/, { waitUntil: "commit" });
-
-    // The concrete type came from registration; the flow does not re-ask it.
-    await page.locator("#headline").fill("Structural engineering, Cairo");
-    await page.locator("#years").fill("9");
-    await page.getByRole("button", { name: /^structural$/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.getByRole("button", { name: /^design review$/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.locator("#gov").selectOption("cairo");
-    await page.getByRole("button", { name: /^new cairo$/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.getByRole("button", { name: /continue to review/i }).click();
-    await page.getByRole("button", { name: /submit for review/i }).click();
-    await page.waitForURL(/\/home$/, { waitUntil: "commit" });
+    // A PERSONAL persona - the seeded Engineer (Engineer is not yet a registrable type, so this identity is the
+    // existing-professional fixture). He stays an Engineer throughout.
+    const tag = uniq();
+    const first = `AH Design Studio ${tag}`;
+    const second = `AH Import ${tag}`;
+    await signIn(page, request, "yasser@example.test", /\/home(\/|$|\?)/);
+    await expect(page.getByRole("heading", { name: /welcome, yasser fouad/i })).toBeVisible();
 
     // ---- 2. Add a business from the authenticated product UI. No Sign Up. ----
     await openSwitcher(page);
@@ -166,38 +144,40 @@ test.describe("2 + 3 + 5 — an existing professional adds businesses", () => {
     await page.waitForURL(/\/business\/new$/, { waitUntil: "commit" });
     await expect(page.getByText(/sign up|create account/i)).toHaveCount(0);
 
-    await createBusiness(page, "AH Design Studio", "Zayed HQ", /^showroom \/ dealer/i);
-    await expect(page.getByText("AH Design Studio", { exact: true }).first()).toBeAttached();
+    // An existing Engineer is NOT bound to a registration type: the picker is shown (this is the unchanged
+    // "second business" behaviour, not the mandatory first-business flow).
+    await createBusiness(page, first, "Zayed HQ", /^showroom \/ dealer/i);
+    await expect(page.getByText(first, { exact: true }).first()).toBeAttached();
 
     // Switching to the business did NOT change who he is.
-    await switchTo(page, /^Ahmed Engineer|^Personal/, /\/home$/);
-    await expect(page.getByRole("heading", { name: /welcome, ahmed engineer/i })).toBeVisible();
+    await switchTo(page, /^Yasser Fouad|^Personal/, /\/home$/);
+    await expect(page.getByRole("heading", { name: /welcome, yasser fouad/i })).toBeVisible();
     await expect(page.getByText("Engineer").first()).toBeVisible();
 
     // ---- 3. A SECOND business, of a DIFFERENT type. ----
     await openSwitcher(page);
     await page.getByRole("menuitem", { name: /add business/i }).click();
     await page.waitForURL(/\/business\/new$/, { waitUntil: "commit" });
-    await createBusiness(page, "AH Import", "Port Said", /^importer/i);
-    await expect(page.getByText("AH Import", { exact: true }).first()).toBeAttached();
+    await createBusiness(page, second, "Port Said", /^importer/i);
+    await expect(page.getByText(second, { exact: true }).first()).toBeAttached();
 
-    // Both businesses AND the personal context are offered — one login, three
+    // Both new businesses AND the personal context are offered - one login, several
     // places to work, one identity.
     await openSwitcher(page);
     const menu = page.locator('[data-testid="workspace-menu"]:visible').first();
-    await expect(menu.getByRole("menuitem", { name: /AH Design Studio/ })).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: /AH Import/ })).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: /Ahmed Engineer|^Personal$/ })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: first })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: second })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: /Yasser Fouad|^Personal$/ })).toBeVisible();
     await page.keyboard.press("Escape");
 
     // ---- 5. Tenant isolation across a switch. ----
-    await switchTo(page, /AH Design Studio/, /\/b2b(\/|$)/);
-    await expect(page.getByText("AH Design Studio", { exact: true }).first()).toBeAttached();
-    await expect(page.getByText("AH Import", { exact: true })).toHaveCount(0);
-    await switchTo(page, /AH Import/, /\/b2b(\/|$)/);
-    await expect(page.getByText("AH Import", { exact: true }).first()).toBeAttached();
+    await switchTo(page, new RegExp(first), /\/b2b(\/|$)/);
+    await expect(page.getByText(first, { exact: true }).first()).toBeAttached();
+    await expect(page.getByText(second, { exact: true })).toHaveCount(0);
+    await switchTo(page, new RegExp(second), /\/b2b(\/|$)/);
+    await expect(page.getByText(second, { exact: true }).first()).toBeAttached();
 
-    // A stale/foreign organization id in the context cookie grants nothing — it
+    // A stale/foreign organization id in the context cookie grants nothing - it
     // resolves to a workspace this caller actually has.
     await page.context().addCookies([
       { name: "aladdin-org", value: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", url: "http://127.0.0.1" },
@@ -209,20 +189,15 @@ test.describe("2 + 3 + 5 — an existing professional adds businesses", () => {
     // Sign back in later: the same identity still holds both businesses.
     await signOutFromAccountMenu(page);
     await page.waitForURL(/\/auth\/sign-in/, { waitUntil: "commit" });
-    await signIn(page, request, email, /\/(b2b|home)(\/|$)/);
+    await signIn(page, request, "yasser@example.test", /\/(b2b|home)(\/|$)/);
   });
 });
 
 test.describe("4 — consumer and business creation", () => {
   test("a consumer is never offered Add business, cannot open /business/new, and keeps a working personal home", async ({ page, request }) => {
     await prefs(page, "en", "light");
-    await registerToAccountType(page, request, "Mona Consumer");
-
-    await page.getByRole("button", { name: /^Personal use /i }).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.waitForURL(/\/onboarding\/consumer$/, { waitUntil: "commit" });
-    await page.getByRole("button", { name: /skip setup for now/i }).click();
-    await page.waitForURL(/\/home$/, { waitUntil: "commit" });
+    // The seeded End Consumer (a personal persona; it is not a registrable type yet).
+    await signIn(page, request, IDENTITIES.consumer, /\/home(\/|$|\?)/);
 
     // Creating a business is not a personal-account action: no generic switcher,
     // no Add business, and the server-side entitlement turns the URL away.
@@ -230,7 +205,7 @@ test.describe("4 — consumer and business creation", () => {
     await expect(page.getByText(/add business/i)).toHaveCount(0);
     await page.goto("/business/new");
     await expect(page).toHaveURL(/\/home$/);
-    await expect(page.getByRole("heading", { name: /welcome, mona consumer/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /welcome, omar zaki/i })).toBeVisible();
   });
 });
 
@@ -350,13 +325,17 @@ test.describe("bilingual + responsive — changed surfaces", () => {
     await noOverflow(page);
   });
 
-  test("the registration choice is bilingual and business-first in Arabic", async ({ page, request }) => {
+  test("the registration choice is bilingual and business-first in Arabic", async ({ page }) => {
     await prefs(page, "ar", "light");
-    await registerToAccountType(page, request, "زينب");
+    await page.goto("/auth/sign-up");
 
-    await expect(page.getByText("لنفسي")).toBeVisible();
-    await expect(page.getByText("لنشاطي التجاري")).toBeVisible();
-    await expect(page.getByText(/^For myself$|^For my business$/)).toHaveCount(0);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    // Every selectable label is Arabic (no English leaking through).
+    const options = (await page.locator('select[name="accountType"] option:not([disabled])').allTextContents()).map((o) => o.trim());
+    expect(options.length).toBeGreaterThanOrEqual(4);
+    for (const label of options) expect(label, label).toMatch(/[\u0600-\u06FF]/);
+    const all = (await page.locator('select[name="accountType"] option').allTextContents()).map((o) => o.trim());
+    expect(all.join(" ")).not.toMatch(/\bShowroom\b|\bSupplier\b|\bImporter\b|\bManufacturer\b/);
     await noOverflow(page);
   });
 });
