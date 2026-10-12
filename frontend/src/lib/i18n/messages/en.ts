@@ -2000,6 +2000,7 @@ export const en = {
         title: "Review and create your business",
         subtitle: "You can edit any section without losing your answers.",
         name: "Business",
+        legalName: "Legal / registered name",
         type: "Business type",
         location: "Location",
         branch: "Primary branch",

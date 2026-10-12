@@ -154,6 +154,47 @@ describe("BusinessFlow — identity gates", () => {
   });
 });
 
+describe("BusinessFlow — review summary", () => {
+  const rowOf = (text: string) => screen.getByText(text).closest("div")!.parentElement!;
+
+  it("shows the saved legal / registered name right after the business name and before the type", () => {
+    renderWithI18n(<BusinessFlow answers={names({ orgType: "supplier" })} presetOrgType={null} draftId="draft-1" />, "en");
+    const r = en.onboarding.business.review;
+    const labels = [...document.querySelectorAll("dt")].map((d) => d.textContent);
+    expect(labels).toEqual([r.name, r.legalName, r.type, r.location, r.branch]);
+    expect(within(rowOf(r.legalName)).getByText("Al-Noor Supply Trading LLC")).toBeInTheDocument();
+    // the other rows still render their values
+    expect(within(rowOf(r.name)).getByText("Al-Noor Supply")).toBeInTheDocument();
+    expect(within(rowOf(r.type)).getByText(en.onboarding.business.orgTypes.supplier)).toBeInTheDocument();
+  });
+
+  it("has the specified English and Arabic labels, and the Arabic review renders the same value", () => {
+    expect(en.onboarding.business.review.legalName).toBe("Legal / registered name");
+    expect(ar.onboarding.business.review.legalName).toBe("الاسم القانوني / الرسمي");
+    renderWithI18n(<BusinessFlow answers={names({ orgType: "supplier", legalName: "شركة النور للتوريدات" })} presetOrgType={null} draftId="draft-1" />, "ar");
+    expect(within(rowOf(ar.onboarding.business.review.legalName)).getByText("شركة النور للتوريدات")).toBeInTheDocument();
+  });
+
+  it("Edit on the legal-name row returns to the identity step with the saved values", async () => {
+    renderWithI18n(<BusinessFlow answers={names({ orgType: "supplier" })} presetOrgType={null} draftId="draft-1" />, "en");
+    await act(async () => {
+      fireEvent.click(within(rowOf(en.onboarding.business.review.legalName)).getByRole("button", { name: en.onboarding.edit }));
+    });
+    expect((screen.getByLabelText(label.legalNameLabel) as HTMLInputElement).value).toBe("Al-Noor Supply Trading LLC");
+    expect((screen.getByLabelText(label.displayNameLabel) as HTMLInputElement).value).toBe("Al-Noor Supply");
+  });
+
+  it("submitting from the review sends the same payload as before (the new row changes nothing)", async () => {
+    submitBusiness.mockClear();
+    renderWithI18n(<BusinessFlow answers={names({ orgType: "supplier" })} presetOrgType={null} draftId="draft-1" />, "en");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: en.onboarding.business.review.submit }));
+    });
+    expect(submitBusiness).toHaveBeenCalledTimes(1);
+    expect(submitBusiness.mock.calls[0]![0]).toMatchObject({ draftId: "draft-1", displayName: "Al-Noor Supply", legalName: "Al-Noor Supply Trading LLC", orgType: "supplier" });
+  });
+});
+
 describe("BusinessFlow — location step", () => {
   /** Resume at the location step: a fully-answered draft opens on review, so go back to the location row. */
   async function atLocation(answers: BusinessAnswers = names(), locale: "en" | "ar" = "en") {

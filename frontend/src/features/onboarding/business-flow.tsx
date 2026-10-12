@@ -288,6 +288,8 @@ export function BusinessFlow({
           <dl className="flex flex-col divide-y divide-strong/60">
             {[
               { label: t("onboarding.business.review.name"), value: state.displayName || t("onboarding.consumer.notSet"), to: "identity" as Step },
+              // The legal name is entered on the identity step with the business name, so it is edited there too.
+              { label: t("onboarding.business.review.legalName"), value: state.legalName || t("onboarding.consumer.notSet"), to: "identity" as Step },
               {
                 label: t("onboarding.business.review.type"),
                 value: state.orgType ? t(`onboarding.business.orgTypes.${state.orgType}`) : t("onboarding.consumer.notSet"),
