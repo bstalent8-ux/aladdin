@@ -488,24 +488,38 @@ select is(
 -- The actor is a PLATFORM reviewer, never a member of the org under review, so
 -- the notice addresses the organization being verified via org.manage.
 -- ===========================================================================
+-- One OPEN organization application per organization (uq_verifications_open_per_org), so the
+-- three decisions are applied to three applications in sequence, not three at once.
 insert into public.verifications
   (id, subject_type, organization_id, verification_type, status, reviewer_id)
 values
   ('99999999-0000-4000-8000-00000000000a', 'organization',
    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
-   '55555555-5555-4555-8555-555555555555'),
-  ('99999999-0000-4000-8000-00000000000b', 'organization',
-   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
-   '55555555-5555-4555-8555-555555555555'),
-  ('99999999-0000-4000-8000-00000000000c', 'organization',
-   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
    '55555555-5555-4555-8555-555555555555');
-
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_approve('99999999-0000-4000-8000-00000000000a', false);
+reset role;
+insert into public.verifications
+  (id, subject_type, organization_id, verification_type, status, reviewer_id)
+values
+  ('99999999-0000-4000-8000-00000000000b', 'organization',
+   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
+   '55555555-5555-4555-8555-555555555555');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_reject('99999999-0000-4000-8000-00000000000b', 'Trade licence is illegible.');
+reset role;
+insert into public.verifications
+  (id, subject_type, organization_id, verification_type, status, reviewer_id)
+values
+  ('99999999-0000-4000-8000-00000000000c', 'organization',
+   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
+   '55555555-5555-4555-8555-555555555555');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_request_changes('99999999-0000-4000-8000-00000000000c', 'Please re-upload page 2.');
+reset role;
 reset role;
 set local request.jwt.claims = '';
 

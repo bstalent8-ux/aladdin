@@ -15,6 +15,11 @@
 create extension if not exists pgtap;
 
 begin;
+-- The seed keeps Egypt Marble and Nile Import PENDING on purpose (the Admin review queue). A
+-- pending organization is non-operational (20261022090001), so a suite that needs them to act
+-- as established businesses approves them here, inside its own transaction.
+update public.organizations set status = 'active', is_verified = true
+ where id in ('9d000000-dddd-4ddd-8ddd-000000000002', '9e000000-eeee-4eee-8eee-000000000003');
 select plan(17);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;

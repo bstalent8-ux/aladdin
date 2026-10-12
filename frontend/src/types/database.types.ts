@@ -5640,6 +5640,7 @@ export type Database = {
         Args: { p_verification_id: string }
         Returns: undefined
       }
+      organization_application_submit: { Args: { p_org_id: string }; Returns: string }
       apply_organization_verification: {
         Args: { p_verification_id: string }
         Returns: undefined
@@ -6077,9 +6078,22 @@ export type Database = {
           status: Database["public"]["Enums"]["referral_status"]
         }[]
       }
+      my_organization_applications: {
+        Args: never
+        Returns: {
+          application_status: string
+          decided_at: string
+          name: string
+          org_type: Database["public"]["Enums"]["organization_type"]
+          organization_id: string
+          reason: string
+          submitted_at: string
+        }[]
+      }
       my_workspaces: {
         Args: never
         Returns: {
+          is_approved: boolean
           kind: string
           name: string
           org_type: Database["public"]["Enums"]["organization_type"]

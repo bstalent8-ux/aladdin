@@ -58,10 +58,11 @@ select lives_ok(
   $$ select public.review_approve('a9100000-9999-4999-8999-000000000001', false) $$,
   'the organization review is approved');
 
--- Approval alone records the decision only — the organization is untouched.
+-- Approval is ATOMIC (20261022090001): the decision and the activation are one transaction, so an
+-- approved organization can no longer be left pending because a second step never ran.
 select is(
   (select is_verified from public.organizations where id = 'a9000000-9999-4999-8999-000000000001'),
-  false, 'approval alone does not verify the organization (apply is a separate step)');
+  true, 'approval itself verifies the organization (no separate apply step is required)');
 
 select lives_ok(
   $$ select public.apply_organization_verification('a9100000-9999-4999-8999-000000000001') $$,
