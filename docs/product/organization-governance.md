@@ -1,8 +1,8 @@
 # Organization governance (Phase 6+7, M1)
 
-Status: backend implemented in `20261022090001_organization_governance.sql`, verified by
-`supabase/tests/76_organization_governance_test.sql`. UI (M2), branches (M3) and independent
-publishers (M4) are NOT part of this document's implemented scope.
+Status: M1 (`20261022090001`), M2 (application lifecycle + UI) and M3 (`20261023090001-90003`: verified
+identity changes, verified co-owners, branch governance) are implemented and locally committed. Independent
+publishers (M4) are NOT implemented; see `m4-independent-publisher-impact-assessment.md`.
 
 ## Three separate concepts
 
@@ -105,11 +105,10 @@ isolated database and the real PostgREST interface as a signed-in user:
   `verifications`, `onboarding_progress` and `business_creation_drafts` are SELECT-only for clients; every
   SECURITY DEFINER function pins `search_path`; a forged workspace cookie naming a pending organization resolves to an
   approved one.
-- **Known limitations, stated rather than hidden:** (1) a co-owner (an invited member holding `org.manage`) of an
-  approved organization counts as owning an approved organization, so they may start their own application, which
-  still needs Admin approval; (2) an owner can rename an APPROVED organization (`name`, translations) without
-  re-review, which is pre-existing profile editing; (3) a signed URL cannot be revoked, so its 5-minute lifetime
-  bounds access after revocation, while a new grant or a re-signing after revocation is refused.
+- **Known limitations, stated rather than hidden:** a signed URL cannot be revoked, so its 5-minute lifetime bounds
+  access after revocation, while a new grant or a re-signing after revocation is refused. The two earlier
+  limitations (a co-owner counted as owning an approved organization; an owner renaming an approved organization
+  with no re-review) are RESOLVED by M3, below.
 
 ## Browser regression (small sequential batches)
 
@@ -125,12 +124,91 @@ Home / Browse / Details / My Products / Saved; B product form, audiences, image 
 D direct RFQ, cross-organization access, English LTR / Arabic RTL; E 430px and 390px, Light and Dark; F signed URL
 lifetime / expiry / refresh and denial after audience or membership revocation; G the organization application journey.
 
+## M3 - identity changes, verified co-owners, branches (20261023090001 / 90002 / 90003)
+
+All three reuse the existing `verifications` review system (subject `organization`). New `verification_type`
+values: `organization_identity`, `co_owner`, `branch_location`. They appear in the existing Admin queue and are
+decided with the existing `review_start / review_request_changes / review_reject / review_approve`; the effect of
+an approval is applied by the same atomic AFTER UPDATE trigger (`app._apply_org_approval`, now a dispatcher). The
+existing Admin approve action needs no extra apply step for a type other than `professional` / `organization`, so
+no Admin UI change is required. The Admin queue shows the raw type string for the new types until its label map
+(`admin.verificationType`) gains entries; the proposed values live in `verifications.metadata`.
+
+### A. Verified identity (name, Arabic name, English name, public address/slug)
+- Protected once `is_verified` or `status = 'active'`. A BEFORE UPDATE guard (`organizations_identity_guard`, keyed
+  on the executing role like the org_type guard) refuses a direct client update; `organization_update_i18n` refuses
+  a name change for a verified organization (timezone and other ordinary fields still work); no other writer exists.
+- `organization_identity_change_request(org, name, name_ar, name_en, slug)`: NULL = unchanged, an empty string clears
+  an Arabic/English name. It has **no `org_type` parameter**. One open request per organization (partial unique
+  index); a needs-changes request is superseded by the corrected one (the old record and reason stay). Withdraw is
+  allowed until a reviewer picks it up. The proposal and the previous values are immutable in `metadata`; nothing is
+  duplicated into a second table. The approved values stay public and the organization stays fully operational.
+- Approval applies `name / name_ar / name_en / slug` atomically and audits `organization.identity_changed`
+  (previous, proposed, reviewer). Rejection leaves everything unchanged. Slug uniqueness is re-enforced by the unique
+  index at apply time.
+- **Dependencies, not silently widened:** every public surface reads `organizations.name` (and the Arabic/English
+  overrides and `slug`) live - the catalog views' `supplier_name/supplier_slug`, the public directories, offers, RFQ /
+  quotation / order lists - so an approved rename propagates to all of them at once. No table column stores a copy of
+  the name (checked); notification text and audit metadata that quoted the old name stay as historical records.
+  Ordinary descriptive profile edits and image moderation are unchanged.
+
+### B. Verified co-owners
+- `public.org_co_owners` is the only trusted record. It is written solely by the approval of a `co_owner`
+  verification (Admin) and ended solely by `org_co_owner_revoke` (platform administrator). Clients have SELECT on
+  their own rows and no write privilege.
+- Any active member of an APPROVED organization may file a claim (`org_co_owner_request`); it proves nothing. The
+  founder (`organizations.created_by`) is the primary owner and needs no claim.
+- **Ownership for the application slot** (`app.owned_org_ids`) is now: an organization the person FOUNDED and still
+  manages, or an approved organization where they are an ACTIVE verified co-owner with an active membership. An
+  `org.manage` capability, a role label, an invitation or a generic Verified badge are not ownership.
+- `app.can_create_or_complete_business` previously let ANY `org.manage` member of an approved
+  Showroom/Supplier/Manufacturer/Importer open a business of their own. It now requires ownership (above). A
+  verified co-owner is therefore eligible; a manager or sales manager is not. The one-open-application rule, the
+  rejected-first and abandon rules and the Admin approval of the new organization are unchanged; the new
+  organization starts pending with no audience.
+- Revocation ends the eligibility basis immediately (`is_verified_co_owner` is evaluated live) and also lapses if the
+  membership is suspended or the organization stops being approved. Historical applications are never touched.
+- Scope note: the eligibility basis is limited to the four seller types that already carried it. Engineers and
+  Contractors are eligible through their persona; an Engineering Office / Contractor Organization co-owner who is
+  not an Engineer/Contractor persona is NOT made eligible by this decision (no Coming Soon bypass).
+- Admin integration requirement: the Admin UI should show the candidate (`metadata.candidate_user_id`, `note`) when
+  reviewing a `co_owner` item, and offer `org_co_owner_revoke(org, user, reason)`. The backend contract is complete;
+  no Admin UI was changed.
+
+### C. Branches
+- No second model: the existing `branches` table, `membership_branch_access`, `branch_assign`, `branch_update_i18n`
+  and the `branch.manage` capability are reused. New: `branch_create` (approved parent, active membership,
+  `branch.manage` or `org.manage`, at most 100 per organization, unique name, audited), `branch_set_locality`,
+  `branch_set_active` (an organization keeps one active branch), `my_branches`, `branch_verification_request`.
+- A branch is **internal** from creation. It carries no audience and never affects the organization's audience,
+  type or capabilities (nothing reads branches to resolve an audience). A pending organization cannot create or
+  verify branches.
+- **Public verified location** is `branches.public_identity` (an approved snapshot of name / names / addresses /
+  locality) plus `verified_at/by`, written only by approving a `branch_location` review. The single public read,
+  `showroom_branches`, now lists approved organizations' active branches only, uses the approved snapshot name for a
+  verified branch and flags every other branch `location_verified = false` (its address is never exposed).
+- Edits to an already verified branch do not freeze it and never reach the public view: the owner sees "unreviewed
+  changes", submits an amendment, and the last approved snapshot stays public until it is approved; a rejection
+  keeps it. Previous and new values are audited (`branch.verified`).
+- Existing branches (created before M3) have no snapshot and read as unverified until reviewed.
+- Out of scope, documented for a later phase: branch-specific inventory / marketplace publishing (none exists).
+
+### Security review of the M3 backend
+- Check-then-act: every governance writer takes a SHARE lock on the organization row and the actor's membership
+  before checking authority (`app._lock_org_actor`), proven by two real sessions in
+  `supabase/tests/governance_concurrency_test.sh` (a suspension waits for an in-flight writer; a writer that starts
+  after a suspension is refused and creates nothing).
+- Direct SQL/PostgREST updates, the profile RPC, server actions, the onboarding/draft writers and batch updates
+  cannot change a verified identity; member/manager privileges and simultaneous requests are covered by pgTAP 78.
+
 ## Open decisions flagged for the owner
 
 1. Registration-time Contractor / Engineer **organization** choice is implemented but stays behind the existing
-   Coming Soon gate for those two accounts; enabling it is a product decision.
-2. Whether an owner's edit of an approved organization's name should re-enter review.
-3. Whether a co-owner of an approved organization should be able to open their own application (limitation 1).
+   Coming Soon gate for those two accounts until M4 and an explicit go-ahead.
+2. Whether an Engineering Office / Contractor Organization co-owner (not an Engineer / Contractor persona) should also
+   become eligible through a verified co-ownership (see B, scope note).
+3. M4 scope split: whether Direct RFQ / quotation / order / chat for an independent publisher ships with M4 or as
+   M4b (see the impact assessment).
 
 ## DEFERRED - approved contracts, intentionally not implemented
 
