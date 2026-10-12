@@ -31,7 +31,8 @@ export function CoOwnerSection({ rows }: { rows: CoOwnerRow[] }) {
   if (rows.length === 0) return null;
 
   return (
-    <Card data-testid="co-owner-section">
+    <div data-testid="co-owner-section">
+    <Card>
       <SectionTitle icon={<ShieldIcon size={18} />}>{t("governance.coOwner.title")}</SectionTitle>
       <p className="mt-sm text-body text-fg-secondary">{t("governance.coOwner.help")}</p>
       <ul className="mt-md flex flex-col gap-sm">
@@ -84,5 +85,6 @@ export function CoOwnerSection({ rows }: { rows: CoOwnerRow[] }) {
         ))}
       </ul>
     </Card>
+    </div>
   );
 }
