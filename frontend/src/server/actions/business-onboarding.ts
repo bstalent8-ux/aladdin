@@ -9,6 +9,7 @@ import { loadBusinessCreationAccess } from "@/server/queries/business-creation-a
 import { loadMandatoryBusinessSetup } from "@/server/queries/business-setup";
 import { BUSINESS_ORG_TYPES } from "@/lib/onboarding/account-types";
 import { ORG_COOKIE, BRANCH_COOKIE } from "@/lib/workspace/model";
+import { validateBusinessLocation } from "@/lib/location/business-location";
 import type { Database } from "@/types/database.types";
 
 /**
@@ -40,12 +41,23 @@ const businessSchema = z.object({
   description: z.string().trim().max(1000).nullish(),
   governorate: z.string().trim().max(80).nullish(),
   city: z.string().trim().max(80).nullish(),
+  /** The city typed through "Other"; mutually exclusive with `city`. */
+  cityCustomName: z.string().trim().max(120).nullish(),
   primaryBranchName: z.string().trim().max(120).nullish(),
 });
 export type BusinessInput = z.input<typeof businessSchema>;
 
 function notEntitled(error: { code?: string }): boolean {
   return error.code === "42501";
+}
+
+const LEGAL_NAME_MIN = 2;
+const LEGAL_NAME_MAX = 120;
+
+/** The legal / registered name is required to COMPLETE a business (a draft may still be incomplete). */
+function legalNameMissing(legalName: string | null | undefined): boolean {
+  const n = (legalName ?? "").trim();
+  return n.length < LEGAL_NAME_MIN || n.length > LEGAL_NAME_MAX;
 }
 
 /**
@@ -68,6 +80,11 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
   const mandatory = await loadMandatoryBusinessSetup();
   const orgType = mandatory.required ? mandatory.orgType : v.orgType;
 
+  // Governorate / city / custom city must be canonical (catalogue governorate, a city of THAT governorate, or a custom city).
+  // A draft may leave the location unset or stop at a governorate; submit requires the city (see `submitBusiness`).
+  const location = validateBusinessLocation(v, { complete: false });
+  if (!location.ok) return { ok: false, code: "onboarding.error.locationInvalid" };
+
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("business_draft_save", {
     p_draft_id: v.draftId ?? undefined,
@@ -75,8 +92,9 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
     p_display_name: v.displayName ?? undefined,
     p_org_type: (orgType as OrgType) ?? undefined,
     p_description: v.description ?? undefined,
-    p_governorate: v.governorate ?? undefined,
-    p_city: v.city ?? undefined,
+    p_governorate: location.value.governorate ?? undefined,
+    p_city: location.value.city ?? undefined,
+    p_city_custom_name: location.value.cityCustomName ?? undefined,
     p_primary_branch_name: v.primaryBranchName ?? undefined,
   });
   // The database is the final authority on who may open a business (42501 = not
@@ -96,6 +114,18 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
  * the active work context and the owner lands in it.
  */
 export async function submitBusiness(input: BusinessInput): Promise<BusinessActionState> {
+  // Both names are required to COMPLETE a business (the database enforces the same; this is the early, specific message).
+  const parsed = businessSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: "onboarding.error.saveFailed" };
+  // Not entitled: say so before talking about missing fields.
+  if (!(await loadBusinessCreationAccess()).allowed) return { ok: false, code: "onboarding.error.businessNotAllowed" };
+  if (!(parsed.data.displayName ?? "").trim()) return { ok: false, code: "onboarding.error.businessNameRequired" };
+  if (legalNameMissing(parsed.data.legalName)) return { ok: false, code: "onboarding.error.legalNameRequired" };
+  const complete = validateBusinessLocation(parsed.data, { complete: true });
+  if (!complete.ok) {
+    return { ok: false, code: complete.code === "cityRequired" ? "onboarding.error.cityRequired" : "onboarding.error.locationInvalid" };
+  }
+
   const saved = await saveBusiness(input);
   if (!saved.ok) return saved;
 
@@ -106,11 +136,17 @@ export async function submitBusiness(input: BusinessInput): Promise<BusinessActi
   if (error) {
     // A required-field violation means the wizard is not actually complete; 42501 is
     // the database refusing a caller who is not entitled to create a business.
-    return {
-      ok: false,
-      code: notEntitled(error) ? "onboarding.error.businessNotAllowed" : "onboarding.error.saveFailed",
-      draftId: saved.draftId,
-    };
+    const message = error.message ?? "";
+    const code = notEntitled(error)
+      ? "onboarding.error.businessNotAllowed"
+      : /legal business name/i.test(message)
+        ? "onboarding.error.legalNameRequired"
+        : /city is required/i.test(message)
+          ? "onboarding.error.cityRequired"
+          : /governorate|city|other is not/i.test(message)
+            ? "onboarding.error.locationInvalid"
+            : "onboarding.error.saveFailed";
+    return { ok: false, code, draftId: saved.draftId };
   }
 
   // Land the owner IN the business they just created, not in whatever context they
