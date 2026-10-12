@@ -171,3 +171,46 @@ test("CLI: exit codes 0 / 1 / 2 and stdin input", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+const CLI_ERROR = JSON.stringify({
+  _tag: "Error",
+  error: {
+    code: "LegacyDbConnectError",
+    message: "failed to connect to postgres: effect/sql/SqlError: PgClient: Failed to connect",
+    suggestion: "Connect to your database by setting the env var correctly: SUPABASE_DB_PASSWORD",
+  },
+});
+
+test("a Supabase CLI error object is reported as the CLI failing, not as a malformed migration list", () => {
+  for (const parse of [parseCliJson, parseMigrationList, parseDryRun]) {
+    assert.throws(
+      () => parse(`${CLI_ERROR}\n`),
+      (error) =>
+        error instanceof MalformedInputError &&
+        /the Supabase CLI reported an error instead of a result/.test(error.message) &&
+        /code=LegacyDbConnectError/.test(error.message) &&
+        /failed to connect to postgres/.test(error.message) &&
+        !/missing "migrations" array/.test(error.message),
+    );
+  }
+});
+
+test("a CLI error object with no fields, or a credential-bearing URI, is still deterministic and safe", () => {
+  assert.throws(() => parseCliJson('{"_tag":"Error"}'), /code=unknown/);
+  const withUri = JSON.stringify({ _tag: "Error", error: { code: "X", message: "cannot reach postgresql://u:pw@db.example.co:5432/postgres" } });
+  assert.throws(() => parseCliJson(withUri), (error) => /<redacted-uri>/.test(error.message) && !/pw@|postgresql:\/\//.test(error.message));
+});
+
+test("end to end: the guard process fails closed (exit 2) with a readable line when handed a CLI error file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "guard-error-"));
+  try {
+    const file = join(dir, "migration-list.json");
+    writeFileSync(file, CLI_ERROR);
+    const result = spawnSync(process.execPath, [SCRIPT, file, "--expect", "plan"], { encoding: "utf8" });
+    assert.equal(result.status, 2);
+    assert.match(result.stdout, /Unusable Supabase CLI output; refusing to continue \(fail closed\)/);
+    assert.match(result.stdout, /code=LegacyDbConnectError/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
