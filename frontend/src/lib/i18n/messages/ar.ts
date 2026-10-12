@@ -565,7 +565,6 @@ export const ar: Messages = {
     choose: "اختر",
     verified: "موثّق",
     unverified: "غير موثّق بعد",
-    branchUnverified: "موقع غير موثَّق",
     branchLabel: "في أي فرع تعمل؟",
     branchHint: "اترك الحقل فارغًا إن لم تكن متأكدًا — يمكن للمدير تحديده عند الموافقة.",
     branchAny: "غير متأكد",
@@ -3395,7 +3394,6 @@ export const ar: Messages = {
         rejected: "لم يُعتمد التوثيق",
         verified: "موقع موثَّق",
       },
-      publicUnverified: "موقع غير موثَّق",
     },
     coOwner: {
       title: "توثيق الملكية",
@@ -3428,7 +3426,6 @@ export const ar: Messages = {
       notVerified: "هذا النشاط لم يُعتمد بعد، لذلك يُعدَّل اسمه من خلال طلب التسجيل.",
       orgNotApproved: "يجب اعتماد هذا النشاط أولًا.",
       duplicateBranch: "يوجد فرع بهذا الاسم بالفعل.",
-      branchLimit: "وصل هذا النشاط إلى الحد الأقصى للفروع.",
       addressRequired: "أضف عنوانًا قبل طلب التوثيق.",
       lastBranch: "يحتفظ النشاط بفرع واحد نشط على الأقل.",
       branchInactive: "لا يمكن توثيق فرع متوقف.",

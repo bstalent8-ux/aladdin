@@ -148,7 +148,6 @@ const GOVERNANCE_HINTS: Record<string, string> = {
   not_active: "governance.errors.notVerified",
   org_not_approved: "governance.errors.orgNotApproved",
   duplicate_branch_name: "governance.errors.duplicateBranch",
-  branch_limit: "governance.errors.branchLimit",
   address_required: "governance.errors.addressRequired",
   last_active_branch: "governance.errors.lastBranch",
   branch_inactive: "governance.errors.branchInactive",

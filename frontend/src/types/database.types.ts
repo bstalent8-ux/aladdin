@@ -6459,9 +6459,16 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: {
           id: string
-          location_verified: boolean
           name: string
         }[]
+      }
+      branch_verification_revoke: {
+        Args: { p_branch_id: string; p_reason: string }
+        Returns: undefined
+      }
+      review_context: {
+        Args: { p_verification_id: string }
+        Returns: Json
       }
       branch_create: {
         Args: {

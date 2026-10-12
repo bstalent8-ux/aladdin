@@ -589,7 +589,6 @@ export const en = {
     choose: "Select",
     verified: "Verified",
     unverified: "Not yet verified",
-    branchUnverified: "unverified location",
     branchLabel: "Which branch do you work at?",
     branchHint: "Leave this blank if you're not sure — a manager can set it when they approve.",
     branchAny: "I'm not sure",
@@ -3507,7 +3506,6 @@ export const en = {
         rejected: "Verification not approved",
         verified: "Verified location",
       },
-      publicUnverified: "Unverified location",
     },
     coOwner: {
       title: "Ownership verification",
@@ -3540,7 +3538,6 @@ export const en = {
       notVerified: "This business is not approved yet, so its name is edited through its application.",
       orgNotApproved: "This business must be approved first.",
       duplicateBranch: "A branch with this name already exists.",
-      branchLimit: "This business has reached its branch limit.",
       addressRequired: "Add an address before requesting verification.",
       lastBranch: "A business keeps at least one active branch.",
       branchInactive: "An inactive branch cannot be verified.",

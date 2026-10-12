@@ -17,6 +17,7 @@ const run = Date.now().toString(36);
 const OWNER = `reg-gov-owner-${run}@example.test`;
 const COOWNER = `reg-gov-co-${run}@example.test`;
 const SALES = `reg-gov-sales-${run}@example.test`;
+const OUTSIDER = `reg-gov-out-${run}@example.test`;
 const ORG = `Gov Office ${run}`;
 const RENAMED = `Gov Office Group ${run}`;
 const BRANCH = `Alexandria ${run}`;
@@ -43,6 +44,7 @@ test.beforeAll(async () => {
   createSyntheticUser(OWNER, "engineer");
   createSyntheticUser(COOWNER, "end_consumer");
   createSyntheticUser(SALES, "end_consumer");
+  createSyntheticUser(OUTSIDER, "end_consumer");
   const owner = await signedInClient(OWNER);
   expect((await owner.rpc("business_draft_save", { p_display_name: ORG, p_org_type: "showroom_dealer" })).error).toBeNull();
   const created = await owner.rpc("business_draft_submit", { p_draft_id: null });
@@ -216,4 +218,20 @@ test("H7 governance screens: Arabic RTL, dark, 390px - no overflow", async ({ pa
   await expect(page.getByTestId("co-owner-section")).toBeVisible();
   await expectNoHorizontalOverflow(page, "applications @390 ar dark");
   expect(errors).toEqual([]);
+});
+
+test("H8 the public branch listing shows only the approved verified branch - never an internal one - and a revocation removes it", async () => {
+  const outsider = await signedInClient(OUTSIDER);
+  const listed = async () => {
+    const r = await outsider.rpc("showroom_branches", { p_org_id: orgId });
+    expect(r.error, r.error?.message).toBeNull();
+    return (r.data as Array<{ id: string; name: string }>).map((b) => b.name);
+  };
+  // the founding branch and the add-branch row are internal; only the Admin-approved branch is public
+  expect(await listed()).toEqual([BRANCH]);
+  const branchId = q(`select id from public.branches where organization_id = '${orgId}' and name = '${BRANCH}'`);
+  const admin = await signedInClient("admin@example.test");
+  const revoked = await admin.rpc("branch_verification_revoke", { p_branch_id: branchId, p_reason: "Closed" });
+  expect(revoked.error, revoked.error?.message).toBeNull();
+  expect(await listed()).toEqual([]);
 });

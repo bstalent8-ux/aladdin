@@ -10,7 +10,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(108);
+select plan(131);
 
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data,
                         raw_user_meta_data, email_confirmed_at, created_at, updated_at)
@@ -317,8 +317,8 @@ select is((select count(*)::int from public.audit_log where action = 'branch.cre
 
 set local role authenticated;
 set local request.jwt.claims = :'u1';
-select is((select location_verified from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
-  false, 'B12: a new branch is not shown as a verified location');
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
+  0, 'B12: a new (internal) branch is not in the public listing at all');
 select is((select review_status from public.my_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
   'none', 'B13: it is internal until verification is requested');
 set local request.jwt.claims = :'u3';
@@ -337,8 +337,8 @@ select throws_ok(format($q$select public.branch_assign((select id from public.me
 insert into _ids select 'brv1', public.branch_verification_request((select id from _ids where k = 'br1'));
 select is((select review_status from public.my_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
   'pending_review', 'B18: the owner tracks the request as pending');
-select is((select location_verified from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
-  false, 'B19: a pending request is still not a verified location');
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
+  0, 'B19: a pending request is still not in the public listing');
 select throws_ok(format($q$select public.branch_verification_request(%L)$q$, (select id from _ids where k = 'br1')),
   '22023', 'a verification for this branch is already awaiting a decision', 'B20: a second simultaneous request is refused');
 
@@ -346,8 +346,8 @@ set local request.jwt.claims = :'adm';
 select public.review_start((select id from _ids where k = 'brv1'));
 select lives_ok(format($q$select public.review_approve(%L, false)$q$, (select id from _ids where k = 'brv1')), 'B21: Admin approves through the existing RPC');
 set local request.jwt.claims = :'u1';
-select is((select location_verified from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
-  true, 'B22: the branch is now publicly verified');
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
+  1, 'B22: once approved the branch is in the public listing');
 reset role;
 select is((select count(*)::int from public.audit_log where action = 'branch.verified' and subject_id = (select id from _ids where k = 'br1')), 1,
   'B23: with its reviewer in the audit trail');
@@ -369,8 +369,8 @@ select is((select review_status || ':' || review_reason from public.my_branches(
   'rejected:Address could not be confirmed.', 'B26: a rejected amendment is reported with its reason');
 select is((select (public_identity ->> 'address_en') from public.branches where id = (select id from _ids where k = 'br1')), '12 Corniche',
   'B27: and the approved public record is preserved');
-select is((select location_verified from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
-  true, 'B28: the branch remains verified on its approved values');
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha')) where id = (select id from _ids where k = 'br1')),
+  1, 'B28: the branch stays listed on its approved values');
 
 insert into _ids select 'brv3', public.branch_verification_request((select id from _ids where k = 'br1'));
 set local request.jwt.claims = :'adm';
@@ -397,6 +397,108 @@ select is((select count(*)::int from public.showroom_branches((select id from _i
   'B34: a pending organization''s branches are not publicly listed');
 select throws_ok(format($q$select public.branch_verification_request((select id from public.branches where organization_id = %L limit 1))$q$, (select id from _ids where k = 'pend')),
   '22023', 'an organization must be approved before its branches can be verified', 'B35: nor can they be put forward for verification');
+
+-- ===========================================================================
+-- D. M3 corrections: private until verified, no arbitrary limit, co-ownership across types
+-- ===========================================================================
+-- the public listing as someone OUTSIDE the organization sees it
+set local role authenticated;
+set local request.jwt.claims = :'u4';
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha'))), 0,
+  'D1: an outsider sees no branch of this Showroom (the verified one was deactivated; the rest are internal)');
+set local request.jwt.claims = :'u1';
+select lives_ok(format($q$select public.branch_set_active(%L, true)$q$, (select id from _ids where k = 'br1')), 'D2: the verified branch is reactivated');
+set local request.jwt.claims = :'u4';
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha'))), 1,
+  'D3: an outsider sees ONLY the approved branch, not the founding branch or any internal one');
+select is((select name from public.showroom_branches((select id from _ids where k = 'alpha')) limit 1), 'Alexandria'::text,
+  'D4: with the approved snapshot name');
+-- an internal branch edit never reaches the listing
+set local request.jwt.claims = :'u1';
+select public.branch_update_i18n((select id from _ids where k = 'br1'), null, 'Totally New', null, '1 Secret St', null);
+set local request.jwt.claims = :'u4';
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha'))), 1,
+  'D5: pending/unreviewed edits add nothing and the listing is unchanged');
+
+-- revocation
+set local request.jwt.claims = :'u1';
+select throws_ok(format($q$select public.branch_verification_revoke(%L, 'x')$q$, (select id from _ids where k = 'br1')),
+  '42501', null, 'D6: an organization cannot revoke its own verification state');
+set local request.jwt.claims = :'adm';
+select lives_ok(format($q$select public.branch_verification_revoke(%L, 'Closed down')$q$, (select id from _ids where k = 'br1')),
+  'D7: a platform administrator revokes a public verification');
+set local request.jwt.claims = :'u4';
+select is((select count(*)::int from public.showroom_branches((select id from _ids where k = 'alpha'))), 0,
+  'D8: a revoked branch leaves every public listing');
+reset role;
+select is((select count(*)::int from public.verifications where verification_type = 'branch_location'
+            and metadata ->> 'branch_id' = (select id::text from _ids where k = 'br1') and status = 'approved'), 2,
+  'D9: the historical approvals are preserved');
+select is((select count(*)::int from public.audit_log where action = 'branch.verification_revoked'), 1, 'D10: the revocation is audited');
+
+-- no arbitrary branch limit
+set local role authenticated;
+set local request.jwt.claims = :'u1';
+select is((select count(*)::int from (select public.branch_create((select id from _ids where k = 'alpha'), 'Bulk ' || g) from generate_series(1, 105) g) x),
+  105, 'D11: no hard-coded branch limit is imposed (105 branches created)');
+
+-- co-ownership of an Engineering Office makes the person eligible to APPLY - and nothing else
+reset role;
+select set_config('request.jwt.claims', '{"sub":"78000008-0000-4000-8000-000000000078","role":"authenticated"}', true);
+insert into _ids select 'beta', app.organization_create_owned('Beta Engineering Office', 'design_office', 'en', 'HQ');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"78000008-0000-4000-8000-000000000078","role":"authenticated"}';
+insert into _ids select 'beta_appl', public.organization_application_submit((select id from _ids where k = 'beta'));
+set local request.jwt.claims = :'adm';
+select public.review_start((select id from _ids where k = 'beta_appl'));
+select public.review_approve((select id from _ids where k = 'beta_appl'), false);
+reset role;
+insert into public.memberships (user_id, organization_id, status, accepted_at)
+values ('78000004-0000-4000-8000-000000000078', (select id from _ids where k = 'beta'), 'active', now()),
+       ('78000005-0000-4000-8000-000000000078', (select id from _ids where k = 'beta'), 'active', now());
+insert into public.membership_capabilities (membership_id, capability_key)
+select m.id, 'org.manage' from public.memberships m where m.organization_id = (select id from _ids where k = 'beta')
+  and m.user_id in ('78000004-0000-4000-8000-000000000078', '78000005-0000-4000-8000-000000000078');
+select is(app.can_create_or_complete_business('78000004-0000-4000-8000-000000000078'), false,
+  'D12: an unverified org.manage member of an Engineering Office is not eligible');
+set local role authenticated;
+set local request.jwt.claims = :'u4';
+insert into _ids select 'co_beta', public.org_co_owner_request((select id from _ids where k = 'beta'), 'Partner');
+set local request.jwt.claims = :'adm';
+select public.review_start((select id from _ids where k = 'co_beta'));
+select public.review_approve((select id from _ids where k = 'co_beta'), false);
+reset role;
+select is(app.can_create_or_complete_business('78000004-0000-4000-8000-000000000078'), true,
+  'D13: a VERIFIED co-owner of an Engineering Office is eligible to apply');
+select is(app.can_create_or_complete_business('78000005-0000-4000-8000-000000000078'), false,
+  'D14: their unverified colleague with the same capability is not');
+set local role authenticated;
+set local request.jwt.claims = :'u4';
+select throws_ok($$ select public.business_draft_save(p_display_name => 'Sneaky Contracting', p_org_type => 'contractor_company') $$,
+  '42501', 'this organization type cannot be self-assigned', 'D15: eligibility does not unlock a Contractor Organization');
+select isnt(public.business_draft_save(p_display_name => 'Gamma Showroom', p_org_type => 'showroom_dealer'), null,
+  'D16: it does let them apply for an organization type they may request');
+insert into _ids select 'gamma', public.business_draft_submit(
+  (select id from public.business_creation_drafts where user_id = '78000004-0000-4000-8000-000000000078' and completed_at is null));
+select is(app.org_product_audience((select id from _ids where k = 'gamma')), null, 'D17: the new organization is pending with no audience');
+select is((select primary_account_type::text from public.users where id = '78000004-0000-4000-8000-000000000078') is distinct from 'engineer', true,
+  'D18: co-ownership did not grant the Engineer persona');
+reset role;
+update public.memberships set status = 'suspended' where user_id = '78000004-0000-4000-8000-000000000078' and organization_id = (select id from _ids where k = 'beta');
+select is(app.can_create_or_complete_business('78000004-0000-4000-8000-000000000078'), false,
+  'D19: with the membership inactive the co-owner is not eligible');
+select is(app.application_slot('78000004-0000-4000-8000-000000000078'), 'first_pending',
+  'D20: and the co-ownership is no longer an approved base for the slot');
+update public.memberships set status = 'active' where user_id = '78000004-0000-4000-8000-000000000078' and organization_id = (select id from _ids where k = 'beta');
+select is(app.application_slot('78000004-0000-4000-8000-000000000078'), 'additional_pending', 'D21: a restored membership restores it');
+set local role authenticated;
+set local request.jwt.claims = :'adm';
+select public.org_co_owner_revoke((select id from _ids where k = 'beta'), '78000004-0000-4000-8000-000000000078', 'ended');
+reset role;
+select is(app.application_slot('78000004-0000-4000-8000-000000000078'), 'first_pending',
+  'D22: a revoked co-ownership is no longer an eligibility basis');
+select is(app.can_create_or_complete_business('78000004-0000-4000-8000-000000000078'), false,
+  'D23: and cannot start a future application');
 
 -- ===========================================================================
 -- R. Registration
