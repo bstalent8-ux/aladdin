@@ -78,6 +78,21 @@ export function isBusinessOrgType(value: string | null | undefined): value is Bu
 }
 
 /**
+ * The org_types an ORGANIZATION APPLICATION may name: the registerable businesses plus
+ * `contractor_company`, which is reached ONLY through an application by a Contractor (it is
+ * the Contractor's organization operating model, never a registration choice or a tenth
+ * account). The database is the authority; this list is the shape check and the UI source.
+ */
+export const APPLICATION_ORG_TYPES = [...BUSINESS_ORG_TYPES, "contractor_company"] as const;
+export type ApplicationOrgType = (typeof APPLICATION_ORG_TYPES)[number];
+
+export function applicationOrgTypeFrom(value: string | null | undefined): ApplicationOrgType | null {
+  return !!value && (APPLICATION_ORG_TYPES as readonly string[]).includes(value)
+    ? (value as ApplicationOrgType)
+    : null;
+}
+
+/**
  * Carry the business type chosen at registration into the business draft, so the
  * concrete type is never asked twice.
  */

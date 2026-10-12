@@ -7,7 +7,7 @@ import { InlineError } from "@/components/ui/primitives";
 import { WizardShell, WizardProgress, ChoiceCard, FlowActions, SavedHint } from "@/features/onboarding/wizard";
 import { saveBusiness, submitBusiness, type BusinessInput } from "@/server/actions/business-onboarding";
 import type { BusinessAnswers } from "@/server/queries/onboarding";
-import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, type BusinessOrgType } from "@/lib/onboarding/account-types";
+import { APPLICATION_ORG_TYPES, applicationOrgTypeFrom, type ApplicationOrgType } from "@/lib/onboarding/account-types";
 import { GOVERNORATES, CITIES_BY_GOVERNORATE, isGovernorate } from "@/lib/onboarding/persona-fields";
 
 /**
@@ -34,7 +34,7 @@ type Step = "identity" | "type" | "location" | "branch" | "review";
 type BState = {
   legalName: string;
   displayName: string;
-  orgType: BusinessOrgType | null;
+  orgType: ApplicationOrgType | null;
   description: string;
   governorate: string | null;
   city: string | null;
@@ -45,10 +45,13 @@ export function BusinessFlow({
   answers,
   presetOrgType,
   draftId: initialDraftId,
+  typeChoices = APPLICATION_ORG_TYPES.filter((k) => k !== "contractor_company"),
 }: {
   answers: BusinessAnswers;
-  presetOrgType: BusinessOrgType | null;
+  presetOrgType: ApplicationOrgType | null;
   draftId: string | null;
+  /** The org types this applicant may apply for (a Contractor: only a contractor organization). */
+  typeChoices?: readonly ApplicationOrgType[];
 }) {
   const { t } = useI18n();
   const [pending, start] = useTransition();
@@ -57,7 +60,7 @@ export function BusinessFlow({
   const [state, setState] = useState<BState>({
     legalName: answers.legalName ?? "",
     displayName: answers.displayName ?? "",
-    orgType: businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType,
+    orgType: applicationOrgTypeFrom(answers.orgType) ?? presetOrgType,
     description: answers.description ?? "",
     governorate: answers.governorate,
     city: answers.city,
@@ -66,7 +69,7 @@ export function BusinessFlow({
 
   // The type step exists only when the type is still unknown. A person who chose
   // "Showroom" to sign up is never asked what kind of business they are building.
-  const typePreselected = Boolean(businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType);
+  const typePreselected = Boolean(applicationOrgTypeFrom(answers.orgType) ?? presetOrgType);
   const steps: Step[] = typePreselected
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
@@ -168,7 +171,7 @@ export function BusinessFlow({
       {current === "type" ? (
         <LabeledField label={t("onboarding.business.type.label")} htmlFor="btype">
           <div id="btype" className="grid gap-2.5 tablet:grid-cols-2">
-            {BUSINESS_ORG_TYPES.map((k) => (
+            {typeChoices.map((k) => (
               <ChoiceCard
                 key={k}
                 selected={state.orgType === k}

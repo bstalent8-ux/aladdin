@@ -17,9 +17,9 @@ const biz = (orgType: string, relationship: "owner" | "manager" | "member"): Wor
 });
 
 describe("canCreateBusiness — an entitlement of the account type, never of a membership", () => {
-  it("is true for exactly the five approved personas", () => {
+  it("is true for exactly the six approved personas (a Contractor applies for a contractor organization)", () => {
     expect([...BUSINESS_CREATOR_PERSONAS].sort()).toEqual(
-      ["engineer", "importer", "manufacturer", "showroom_dealer", "supplier"].sort(),
+      ["contractor", "engineer", "importer", "manufacturer", "showroom_dealer", "supplier"].sort(),
     );
     for (const persona of BUSINESS_CREATOR_PERSONAS) {
       expect(canCreateBusiness({ persona, entries: [personal] }), persona).toBe(true);
@@ -31,7 +31,6 @@ describe("canCreateBusiness — an entitlement of the account type, never of a m
       "installer_technician",
       "sales",
       "end_consumer",
-      "contractor",
       null,
     ]) {
       expect(canCreateBusiness({ persona, entries: [personal] }), String(persona)).toBe(false);
@@ -61,13 +60,13 @@ describe("showsGenericWorkspaceSwitcher — only the approved five categories", 
   const show = (persona: string | null, entries: WorkspaceEntry[]) => showsGenericWorkspaceSwitcher({ persona, entries });
 
   it("is shown for each approved category", () => {
-    for (const persona of ["showroom_dealer", "supplier", "manufacturer", "importer", "engineer"]) {
+    for (const persona of ["showroom_dealer", "supplier", "manufacturer", "importer", "engineer", "contractor"]) {
       expect(show(persona, [personal]), persona).toBe(true);
     }
   });
 
-  it("is never shown for installer, sales, personal, or contractor — even with memberships", () => {
-    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor"]) {
+  it("is never shown for installer, sales or personal — even with memberships", () => {
+    for (const persona of ["installer_technician", "sales", "end_consumer"]) {
       expect(show(persona, [personal]), persona).toBe(false);
       expect(show(persona, [personal, biz("showroom_dealer", "member")]), `${persona} + membership`).toBe(false);
       expect(show(persona, [personal, biz("showroom_dealer", "manager")]), `${persona} + manager`).toBe(false);
@@ -83,14 +82,18 @@ describe("showsGenericWorkspaceSwitcher — only the approved five categories", 
 describe("decideBusinessCreation — the /business/new gate", () => {
   const base = { persona: null as string | null, entries: [personal] as WorkspaceEntry[], openDraftId: null, registrationBusinessIntent: false };
 
-  it("denies installer, sales, personal, contractor and trainee with no draft and no registration intent", () => {
-    for (const persona of ["installer_technician", "sales", "end_consumer", "contractor"]) {
+  it("denies installer, sales and personal with no draft and no registration intent", () => {
+    for (const persona of ["installer_technician", "sales", "end_consumer"]) {
       expect(decideBusinessCreation({ ...base, persona }).allowed, persona).toBe(false);
     }
   });
 
   it("denies membership alone", () => {
     expect(decideBusinessCreation({ ...base, entries: [personal, biz("showroom_dealer", "member")] }).allowed).toBe(false);
+  });
+
+  it("allows a contractor to apply for a contractor organization (persona authority)", () => {
+    expect(decideBusinessCreation({ ...base, persona: "contractor" })).toEqual({ allowed: true, via: "entitlement" });
   });
 
   it("allows an engineer (persona authority)", () => {

@@ -54,7 +54,13 @@ export const loadWorkspaces = cache(async function loadWorkspaces(
   // A Personal row reports a `persona` and a Business row an `org_type`; since
   // Sprint 13 those are two different columns of two different types, and each row
   // populates only its own. Reading one for the other is no longer possible.
-  const entries: WorkspaceEntry[] = (data ?? []).map((row) =>
+  // An organization still under review is an APPLICATION, not a workspace: it resolves no
+  // audience and holds no authority in the database, so it is never offered here either. It is
+  // reached through `loadOrganizationApplications` instead. Filtering at this single choke point
+  // keeps the switcher, the shell, the landing rule and every B2B resolver consistent.
+  const entries: WorkspaceEntry[] = (data ?? [])
+    .filter((row) => row.kind === "personal" || row.is_approved === true)
+    .map((row) =>
     row.kind === "personal"
       ? { kind: "personal" as const, name: row.name ?? "", persona: row.persona ?? null }
       : {

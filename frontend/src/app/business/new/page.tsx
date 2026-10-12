@@ -1,43 +1,68 @@
 import { redirect } from "next/navigation";
 import { getRegistrationState, hasAppAccess } from "@/server/queries/registration";
 import { loadBusinessCreationAccess } from "@/server/queries/business-creation-access";
-import { businessOrgTypeFromAccountType } from "@/lib/onboarding/account-types";
+import {
+  BUSINESS_ORG_TYPES,
+  applicationOrgTypeFrom,
+  businessOrgTypeFromAccountType,
+} from "@/lib/onboarding/account-types";
+import { applicationTypesFor, hasOperatingModels, organizationTypeFor } from "@/lib/onboarding/operating-model";
 import { BusinessFlow } from "@/features/onboarding/business-flow";
+import { OperatingModelStep } from "@/features/onboarding/operating-model-step";
 
 export const dynamic = "force-dynamic";
 
 /**
- * ADD A BUSINESS — the authenticated entry point for someone who already has an
+ * ADD A BUSINESS - the authenticated entry point for someone who already has an
  * account. This is the whole point of "one person = one user id": an Engineer who
  * wants a showroom does not sign up again. There is no Sign Up, no new OTP, no
- * second auth identity, no second personal profile — just a new organization,
+ * second auth identity, no second personal profile - just a new organization APPLICATION,
  * owned by the SAME user, reached from the workspace menu.
  *
- * A person may do this repeatedly: each visit resumes their open business draft or
- * starts a fresh one, and each completed draft yields its own organization.
+ * Every organization is an application until an Admin approves it. The first one is the
+ * only one that may be opened with nothing approved; after that, one additional application
+ * may be open at a time (the database enforces both; this page only explains and routes).
+ * A Contractor or Engineer first chooses how they operate (independently or as an
+ * organization) - a choice of operating model, never a new account.
  */
-export default async function AddBusinessPage() {
+export default async function AddBusinessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ model?: string }>;
+}) {
   const state = await getRegistrationState();
   if (state === "unverified") redirect("/auth/sign-in");
-  // Someone still mid-registration finishes that first — consent and a known
-  // account type are prerequisites for creating anything. organization_setup_pending
-  // no longer exists as a registration state (Increment 7): access_ready and
-  // active_personal both mean "may enter the app," and creating a business is
-  // now an optional in-app action available from either, not a gated step.
   if (!hasAppAccess(state)) redirect("/onboarding");
 
-  // The server-side entitlement. Reached by URL, "add business" from the header
-  // is not the only door: a caller who is neither mid-registration, nor holding an
-  // open draft, nor in one of the approved categories is sent home. An in-progress
-  // registration is never blocked merely because they have no organization yet.
-  const { allowed, data } = await loadBusinessCreationAccess();
+  const { allowed, data, persona, slotOpen } = await loadBusinessCreationAccess();
   if (!data) redirect("/auth/sign-in");
+  // A taken slot is explained on the applications page rather than bounced to /home.
+  if (!slotOpen) redirect("/business/applications");
   if (!allowed) redirect("/home");
 
-  // A type chosen at registration carries through, so it is never asked twice.
-  const presetOrgType = businessOrgTypeFromAccountType(data.selectedAccountType);
+  const { model } = await searchParams;
+  const hasDraft = data.draftId !== null;
+
+  // Contractor / Engineer: choose the operating model first (unless a draft already exists).
+  if (hasOperatingModels(persona) && !hasDraft && model !== "organization") {
+    return <OperatingModelStep persona={persona} />;
+  }
+
+  // A type chosen at registration carries through, so it is never asked twice. A Contractor
+  // organization applicant is preset to the contractor organization type.
+  const presetOrgType =
+    businessOrgTypeFromAccountType(data.selectedAccountType) ??
+    (persona === "contractor" ? organizationTypeFor("contractor") : null);
+  const typeChoices = applicationTypesFor(persona, BUSINESS_ORG_TYPES)
+    .map((k) => applicationOrgTypeFrom(k))
+    .filter((k): k is NonNullable<typeof k> => k !== null);
 
   return (
-    <BusinessFlow answers={data.business} presetOrgType={presetOrgType} draftId={data.draftId} />
+    <BusinessFlow
+      answers={data.business}
+      presetOrgType={presetOrgType}
+      draftId={data.draftId}
+      typeChoices={typeChoices}
+    />
   );
 }

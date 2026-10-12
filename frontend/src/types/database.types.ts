@@ -5640,6 +5640,7 @@ export type Database = {
         Args: { p_verification_id: string }
         Returns: undefined
       }
+      organization_application_abandon: { Args: { p_org_id: string }; Returns: undefined }
       organization_application_submit: { Args: { p_org_id: string }; Returns: string }
       apply_organization_verification: {
         Args: { p_verification_id: string }
@@ -6078,10 +6079,13 @@ export type Database = {
           status: Database["public"]["Enums"]["referral_status"]
         }[]
       }
+      my_organization_application_slot: { Args: never; Returns: string }
       my_organization_applications: {
         Args: never
         Returns: {
           application_status: string
+          can_abandon: boolean
+          can_submit: boolean
           decided_at: string
           name: string
           org_type: Database["public"]["Enums"]["organization_type"]
@@ -6983,6 +6987,7 @@ export type Database = {
         | "rejected"
         | "needs_more_info"
         | "expired"
+        | "cancelled"
       verification_subject: "user" | "organization"
       verification_type: "identity" | "professional" | "organization"
       purchase_request_status: "draft" | "published" | "closed" | "cancelled"
@@ -7268,6 +7273,7 @@ export const Constants = {
         "rejected",
         "needs_more_info",
         "expired",
+        "cancelled",
       ],
       verification_subject: ["user", "organization"],
       verification_type: ["identity", "professional", "organization"],
