@@ -2,6 +2,9 @@ import "server-only";
 
 import { getServerSupabase } from "@/lib/supabase/server";
 import { userFacingEmail } from "@/lib/auth/craftsman-login-alias";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
+import { readStoredLocation } from "@/lib/location/business-location";
 import type { Database } from "@/types/database.types";
 
 export type OnboardingTrack = Database["public"]["Enums"]["onboarding_track"];
@@ -125,6 +128,8 @@ export type BusinessAnswers = {
   description: string | null;
   governorate: string | null;
   city: string | null;
+  /** The city typed through "Other" (null when a catalogue city — or nothing — is chosen). */
+  cityCustomName: string | null;
   primaryBranchName: string | null;
   organizationId: string | null;
   completedAt: string | null;
@@ -165,6 +170,9 @@ export async function getBusinessOnboardingData(): Promise<BusinessOnboardingDat
       .maybeSingle(),
   ]);
 
+  // A legacy value the catalogue does not list (e.g. Smouha) resumes as the person's own typed city, in their language.
+  const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  const stored = readStoredLocation(draft?.governorate, draft?.city, draft?.city_custom_name, locale === "ar" ? "ar" : "en");
   return {
     selectedTrack: progress?.selected_track ?? null,
     selectedAccountType: progress?.selected_persona ?? progress?.selected_org_type ?? null,
@@ -174,8 +182,11 @@ export async function getBusinessOnboardingData(): Promise<BusinessOnboardingDat
       displayName: draft?.display_name ?? null,
       orgType: draft?.org_type ?? null,
       description: draft?.description ?? null,
-      governorate: draft?.governorate ?? null,
-      city: draft?.city ?? null,
+      // Canonical form, whatever the draft holds: historical underscore keys resolve, a stored city the catalogue does not
+      // know comes back empty (the person re-chooses it), and a custom city keeps the "Other" state across resume.
+      governorate: stored.governorate,
+      city: stored.city,
+      cityCustomName: stored.cityCustomName,
       primaryBranchName: draft?.primary_branch_name ?? null,
       organizationId: draft?.organization_id ?? null,
       completedAt: draft?.completed_at ?? null,

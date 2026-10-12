@@ -3,6 +3,7 @@ import { createElement, type ImgHTMLAttributes } from "react";
 import Link from "next/link";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test/render";
+import { CITIES_BY_GOVERNORATE } from "@/lib/installer/location-data";
 import type { MatchBreakdown } from "@/lib/installer/overall-match";
 import type { JobCardVM } from "@/features/installer-job-opportunities-preview/view-model";
 import { DEFAULT_BOARD_FILTERS } from "@/features/installer-job-opportunities-preview/view-model";
@@ -345,7 +346,13 @@ describe("production Jobs board — one approved presentation, only real capabil
       expect(city).not.toBeDisabled();
       expect(city.textContent).toBe("All cities");
       fireEvent.click(city);
-      expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["All cities", "Alexandria City", "Borg El Arab", "Amreya", "Other city"]);
+      // The catalogue list of the governorate (every city + the historical "Other city"), "All cities" first.
+      const catalogue = CITIES_BY_GOVERNORATE.alexandria!.map((c) => c.en);
+      const shown = screen.getAllByRole("option").map((o) => o.textContent);
+      expect(shown).toEqual(["All cities", ...catalogue]);
+      expect(shown.slice(1, 4)).toEqual(["Alexandria City", "Borg El Arab", "Amreya"]);
+      expect(shown.at(-1)).toBe("Other city");
+      expect(shown.length).toBeGreaterThan(10); // the expanded, markaz-level catalogue
       fireEvent.click(screen.getByRole("option", { name: "Borg El Arab" }));
       expect(nav.replace).toHaveBeenCalledWith("/home/jobs?gov=alexandria&city=borg-el-arab", { scroll: false });
     });

@@ -60,6 +60,9 @@ test.describe("business onboarding", () => {
     // Step 1 - identity: an organization name is required to continue.
     await expect(page.getByRole("heading", { name: /set up your business/i })).toBeVisible();
     await page.locator("#bname").fill("Nile Supply Co");
+    // The business name alone is not enough: the legal / registered name is required too.
+    await expect(page.getByRole("button", { name: /^continue$/i })).toBeDisabled();
+    await page.locator("#blegal").fill("Nile Supply Trading Co LLC");
     await page.getByRole("button", { name: /^continue$/i }).click();
 
     // The registered type is preset: there is no "what kind of business" step to confirm or change.

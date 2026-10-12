@@ -62,6 +62,7 @@ async function register(
 async function fillIdentity(page: Page, name: string): Promise<void> {
   await expect(page.getByRole("heading", { name: /set up your business/i })).toBeVisible();
   await page.locator("#bname").fill(name);
+  await page.locator("#blegal").fill(`${name} Legal LLC`);
   await page.getByRole("button", { name: /^continue$/i }).click();
   await expect(page.getByRole("heading", { name: /where are you based/i })).toBeVisible();
 }
@@ -103,6 +104,8 @@ test.describe("Business registration: the first business is mandatory", () => {
       // The organization carries that exact org_type; the creator is its active owner (full capabilities).
       const uid = userId(email);
       expect(sql(`select org_type::text || '|' || status::text from public.organizations where created_by = '${uid}'`)).toBe(`${orgType}|pending_verification`);
+      // Business (display) name and legal name are stored separately; the organization carries no physical location.
+      expect(sql(`select name || '|' || legal_name from public.organizations where created_by = '${uid}'`)).toBe(`Nile ${tag} Co|Nile ${tag} Co Legal LLC`);
       expect(sql(`select count(*) from public.memberships m join public.membership_capabilities c on c.membership_id = m.id and c.capability_key = 'org.manage' where m.user_id = '${uid}' and m.status = 'active'`)).toBe("1");
 
       // Identity is not conflated: choosing a business NEVER writes a persona onto the user.
@@ -164,6 +167,127 @@ test.describe("Business registration: the first business is mandatory", () => {
     }
     // Still not an organization: nothing was created by merely visiting.
     expect(sql("select count(*) from public.organizations where name like 'E2E manu%'")).toBe("0");
+  });
+
+  test("the legal / registered name is required: Continue stays disabled until BOTH names are filled", async ({ page, request, context }) => {
+    await english(context);
+    await register(page, request, /^showroom$/i, "legal", BUSINESS_SETUP);
+    const next = page.getByRole("button", { name: /^continue$/i });
+    await expect(next).toBeDisabled();
+    await page.locator("#bname").fill("Legal Gate Showroom");
+    await expect(next).toBeDisabled();
+    await page.locator("#blegal").fill("A");
+    await expect(next).toBeDisabled();
+    await page.locator("#blegal").fill("Legal Gate Showroom for Ceramics LLC");
+    await expect(next).toBeEnabled();
+  });
+
+  test("location: governorate -> city list -> Other + typed city; the PRIMARY BRANCH stores the actual city", async ({ page, request, context }) => {
+    await english(context);
+    const { email } = await register(page, request, /^supplier$/i, "other", BUSINESS_SETUP);
+    await fillIdentity(page, "Delta Other Supply");
+
+    const gov = page.getByLabel(/^governorate/i);
+    const city = page.getByLabel(/^city/i);
+    await expect(gov.locator("option:not([value=\"\"])")).toHaveCount(27);
+    await expect(city).toHaveCount(0);
+
+    await gov.selectOption("dakahlia");
+    await expect(city.locator("option[value=\"mansoura\"]")).toHaveCount(1);
+    await expect(city.locator("option[value=\"new-cairo\"]")).toHaveCount(0);
+    const next = page.getByRole("button", { name: /^continue$/i });
+    await expect(next).toBeDisabled(); // a chosen governorate needs a city
+
+    await city.selectOption({ label: "Other" });
+    await expect(page.getByLabel(/^enter city name/i)).toBeVisible();
+    await expect(next).toBeDisabled(); // a blank custom city cannot continue
+    await page.getByLabel(/^enter city name/i).fill("Kafr Test Village");
+    await expect(next).toBeEnabled();
+
+    // Changing the governorate clears the typed city: no Cairo + custom text from stale state.
+    await gov.selectOption("cairo");
+    await expect(page.getByLabel(/^enter city name/i)).toHaveCount(0);
+    await expect(city).toHaveValue("");
+    await gov.selectOption("dakahlia");
+    await city.selectOption({ label: "Other" });
+    await page.getByLabel(/^enter city name/i).fill("Kafr Test Village");
+
+    await finishWizardFromLocation(page);
+    const uid = userId(email);
+    expect(sql(`select b.governorate_key || '|' || coalesce(b.city_key, 'NULL') || '|' || b.city_custom_name from public.branches b join public.organizations o on o.id = b.organization_id where o.created_by = '${uid}'`))
+      .toBe("dakahlia|NULL|Kafr Test Village");
+  });
+
+  test("location: a catalogue city is stored as the canonical city key on the primary branch", async ({ page, request, context }) => {
+    await english(context);
+    const { email } = await register(page, request, /^importer/i, "city", BUSINESS_SETUP);
+    await fillIdentity(page, "Cairo Canonical Imports");
+    await page.getByLabel(/^governorate/i).selectOption("cairo");
+    await page.getByLabel(/^city/i).selectOption("maadi");
+    await finishWizardFromLocation(page);
+    const uid = userId(email);
+    expect(sql(`select b.governorate_key || '|' || b.city_key || '|' || coalesce(b.city_custom_name, 'NULL') from public.branches b join public.organizations o on o.id = b.organization_id where o.created_by = '${uid}'`))
+      .toBe("cairo|maadi|NULL");
+  });
+
+  /** A draft saved by the OLD Business wizard (persona-vocabulary underscore keys), written straight into the database. */
+  function seedLegacyDraft(email: string, name: string, governorate: string, city: string): void {
+    sql(`insert into public.business_creation_drafts (user_id, legal_name, display_name, org_type, governorate, city)
+         values ('${userId(email)}', '${name} LLC', '${name}', 'supplier', '${governorate}', '${city}')`);
+  }
+  const reviewRow = (page: Page, label: RegExp) => page.locator("dt").filter({ hasText: label }).locator("xpath=../..");
+
+  test("a historical draft (alexandria / smouha) resumes WITHOUT re-entry, survives sign-out, saves, and the branch keeps the city", async ({ page, request, context }) => {
+    await english(context);
+    const { email } = await register(page, request, /^supplier$/i, "legsm", BUSINESS_SETUP);
+    seedLegacyDraft(email, "Legacy Smouha", "alexandria", "smouha");
+
+    // Refresh: the saved answers are all there, the location included (a typed city, as the person saw it).
+    await page.goto("/onboarding/business");
+    await expect(page.getByRole("heading", { name: /review and create your business/i })).toBeVisible();
+    await expect(page.getByText(/Alexandria - Smouha/)).toBeVisible();
+
+    // Sign out and back in: still the same draft and the same location.
+    await context.clearCookies();
+    await english(context);
+    await signIn(page, request, email, BUSINESS_SETUP, E2E_PASSWORD);
+    await expect(page.getByRole("heading", { name: /review and create your business/i })).toBeVisible();
+    await reviewRow(page, /^location$/i).getByRole("button", { name: /edit/i }).click();
+    await expect(page.getByLabel(/^governorate/i)).toHaveValue("alexandria");
+    await expect(page.getByLabel(/^city/i)).toHaveValue("__other__");
+    await expect(page.getByLabel(/^enter city name/i)).toHaveValue("Smouha");
+
+    // Saving the resumed draft needs no re-entry, and the final branch location is the preserved value.
+    await finishWizardFromLocation(page);
+    const uid = userId(email);
+    expect(sql(`select b.governorate_key || '|' || coalesce(b.city_key, 'NULL') || '|' || coalesce(b.city_custom_name, 'NULL') from public.branches b join public.organizations o on o.id = b.organization_id where o.created_by = '${uid}'`))
+      .toBe("alexandria|NULL|Smouha");
+  });
+
+  test("a historical draft (alexandria / sidi_gaber) resumes as the canonical Sidi Jabir and the branch stores the key", async ({ page, request, context }) => {
+    await english(context);
+    const { email } = await register(page, request, /^supplier$/i, "leggb", BUSINESS_SETUP);
+    seedLegacyDraft(email, "Legacy Gaber", "alexandria", "sidi_gaber");
+    await page.goto("/onboarding/business");
+    await expect(page.getByRole("heading", { name: /review and create your business/i })).toBeVisible();
+    await reviewRow(page, /^location$/i).getByRole("button", { name: /edit/i }).click();
+    await expect(page.getByLabel(/^city/i)).toHaveValue("sidi-jabir");
+    await finishWizardFromLocation(page);
+    expect(sql(`select b.governorate_key || '|' || b.city_key || '|' || coalesce(b.city_custom_name, 'NULL') from public.branches b join public.organizations o on o.id = b.organization_id where o.created_by = '${userId(email)}'`))
+      .toBe("alexandria|sidi-jabir|NULL");
+  });
+
+  test("a historical draft (qalyubia / shibin = 'Shibin El Kom') is preserved as typed text, never mapped to another city", async ({ page, request, context }) => {
+    await english(context);
+    const { email } = await register(page, request, /^supplier$/i, "legsh", BUSINESS_SETUP);
+    seedLegacyDraft(email, "Legacy Shibin", "qalyubia", "shibin");
+    await page.goto("/onboarding/business");
+    await reviewRow(page, /^location$/i).getByRole("button", { name: /edit/i }).click();
+    await expect(page.getByLabel(/^city/i)).toHaveValue("__other__");
+    await expect(page.getByLabel(/^enter city name/i)).toHaveValue("Shibin El Kom");
+    await finishWizardFromLocation(page);
+    expect(sql(`select b.governorate_key || '|' || coalesce(b.city_key, 'NULL') || '|' || coalesce(b.city_custom_name, 'NULL') from public.branches b join public.organizations o on o.id = b.organization_id where o.created_by = '${userId(email)}'`))
+      .toBe("qalyubia|NULL|Shibin El Kom");
   });
 
   test("a salesperson is a personal persona: no organization is created, /home is the landing", async ({ page, request, context }) => {
