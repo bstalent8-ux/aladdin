@@ -108,7 +108,7 @@ select is((select count(*)::int from public.audit_log
 set local role authenticated;
 set local request.jwt.claims = :'eng';
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Second', p_org_type => 'importer') $$,
-  '42501', 'your first organization must be approved before you can add another',
+  '42501', 'an organization application is not available right now',
   'C1: a second application is refused while the first is pending review');
 
 -- ===========================================================================
@@ -126,7 +126,7 @@ select is((select application_status from public.my_organization_applications()
 select is((select reason from public.my_organization_applications() where organization_id = (select id from _o1)),
   'Please add the licence number.', 'D4: with the reviewer''s reason');
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Second', p_org_type => 'importer') $$,
-  '42501', 'your first organization must be approved before you can add another',
+  '42501', 'an organization application is not available right now',
   'D5: a second application is still refused while changes are requested');
 select is(public.organization_application_submit((select id from _o1)), (select id from _a1),
   'D6: resubmitting after changes reuses the same application (no duplicate)');
