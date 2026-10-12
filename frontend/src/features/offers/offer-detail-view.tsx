@@ -54,6 +54,9 @@ export function OfferDetailView({
   const main = images[0] ?? null;
   const thumbs = images.slice(1, 4);
   const left = daysLeft(offer.endsAt);
+  // An independent professional seller cannot be requested yet (M4b): no request action, an honest note instead.
+  const independentSeller = (offer.seller.orgType ?? "").startsWith("independent_");
+  const rfqAllowed = showRfq && !independentSeller;
 
   return (
     <div className="flex flex-col gap-md" data-testid="offer-detail">
@@ -201,7 +204,7 @@ export function OfferDetailView({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <SaveOfferButton offerId={offer.id} orgId={orgId} saved={offer.saved} className="h-11 w-11" />
-              {showRfq && canRfq ? (
+              {rfqAllowed && canRfq ? (
                 <Link
                   href={rfqHref}
                   className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-sm bg-accent-solid px-md text-label font-semibold text-on-accent hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
@@ -211,8 +214,9 @@ export function OfferDetailView({
                 </Link>
               ) : null}
             </div>
-            {showRfq && !canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.rfqDenied")}</p> : null}
-            {showRfq && canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.requestQuoteHint")}</p> : null}
+            {showRfq && independentSeller ? <p className="text-label text-fg-muted" data-testid="independent-no-request">{t("independentPublishing.noRequestYet")}</p> : null}
+            {rfqAllowed && !canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.rfqDenied")}</p> : null}
+            {rfqAllowed && canRfq ? <p className="text-label text-fg-muted">{t("showroomOffers.detail.requestQuoteHint")}</p> : null}
           </div>
 
           <Card className="flex flex-col gap-sm">

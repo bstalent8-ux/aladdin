@@ -117,7 +117,7 @@ export function SavedGrid({
                   </span>
                 ) : null}
               </span>
-              {canRequestQuote ? (
+              {canRequestQuote && p.supplier_org_id ? (
                 <Link
                   href={`/b2b/rfqs/new?product=${p.product_id}`}
                   className="shrink-0 font-medium text-accent hover:underline"

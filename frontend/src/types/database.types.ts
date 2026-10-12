@@ -2744,6 +2744,7 @@ export type Database = {
           name: string
           organization_id: string
           published_at: string | null
+          publisher_id: string
           short_description: string | null
           size_label: string | null
           sku: string | null
@@ -2769,6 +2770,7 @@ export type Database = {
           name: string
           organization_id: string
           published_at?: string | null
+          publisher_id?: string
           short_description?: string | null
           size_label?: string | null
           sku?: string | null
@@ -2794,6 +2796,7 @@ export type Database = {
           name?: string
           organization_id?: string
           published_at?: string | null
+          publisher_id?: string
           short_description?: string | null
           size_label?: string | null
           sku?: string | null
@@ -6462,6 +6465,66 @@ export type Database = {
           name: string
         }[]
       }
+      independent_publisher_request: {
+        Args: { p_note?: string }
+        Returns: string
+      }
+      my_independent_publisher: {
+        Args: never
+        Returns: {
+          can_request: boolean
+          display_name: string | null
+          eligible_kind: string | null
+          publisher_id: string | null
+          reason: string | null
+          request_status: string | null
+          status: string | null
+        }[]
+      }
+      publisher_product_create: {
+        Args: {
+          p_base_price?: number
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_color_items?: Json
+          p_description?: string
+          p_name: string
+          p_publisher_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: string
+      }
+      publisher_offer_save: {
+        Args: {
+          p_audiences: string[]
+          p_description: string
+          p_ends_at: string
+          p_expected_version: number
+          p_items: Json
+          p_offer_id: string
+          p_publisher_id: string
+          p_reference_price: number
+          p_starts_at: string
+          p_title: string
+          p_total_price: number
+        }
+        Returns: Json
+      }
+      publisher_suspend: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
+      publisher_revoke: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
+      publisher_reinstate: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
       branch_verification_revoke: {
         Args: { p_branch_id: string; p_reason: string }
         Returns: undefined
@@ -7098,6 +7161,7 @@ export type Database = {
         | "organization_identity"
         | "co_owner"
         | "branch_location"
+        | "independent_publisher"
       purchase_request_status: "draft" | "published" | "closed" | "cancelled"
       purchase_response_status: "submitted" | "withdrawn"
     }
@@ -7391,6 +7455,7 @@ export const Constants = {
         "organization_identity",
         "co_owner",
         "branch_location",
+        "independent_publisher",
       ],
     },
   },

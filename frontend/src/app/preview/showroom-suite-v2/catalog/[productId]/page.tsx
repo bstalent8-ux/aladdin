@@ -30,7 +30,7 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
   const t = createTranslator(locale);
 
   const [product, saved] = await Promise.all([getCatalogProduct(supabase, org.organizationId, productId), savedProductIds(supabase, org.organizationId)]);
-  if (!product || !product.id || !product.category || !product.unit || !product.organization_id) notFound();
+  if (!product || !product.id || !product.category || !product.unit) notFound();
 
   // The uploaded photos (RLS: a published product's ready images), signed with the caller's own access.
   const gallery = (await listCatalogImages(supabase, org.organizationId, [product.id])).get(product.id) ?? [];

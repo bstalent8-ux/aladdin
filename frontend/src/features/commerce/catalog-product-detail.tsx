@@ -34,7 +34,7 @@ export function CatalogProductDetail({
     id: string;
     category: NonNullable<CatalogRow["category"]>;
     unit: NonNullable<CatalogRow["unit"]>;
-    organization_id: string;
+    organization_id: string | null;
   };
   m: Messages;
   isOwnOrg: boolean;
@@ -122,6 +122,9 @@ export function CatalogProductDetail({
         <div className="mt-lg flex flex-wrap items-center gap-sm border-t pt-md">
           {isOwnOrg ? (
             <p className="text-body text-fg-secondary">{m.commerce.catalog.ownProductNote}</p>
+          ) : !product.organization_id ? (
+            // An independent professional seller cannot be requested yet (M4b).
+            <p className="text-body text-fg-muted" data-testid="independent-no-request">{m.independentPublishing.noRequestYet}</p>
           ) : canRfq ? (
             <Link href={rfqHref}>
               <Button variant="accent">{m.commerce.catalog.requestQuote}</Button>

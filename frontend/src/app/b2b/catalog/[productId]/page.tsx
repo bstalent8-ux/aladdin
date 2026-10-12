@@ -22,7 +22,7 @@ export default async function CatalogProductPage({
   const product = await getCatalogProduct(supabase, org.organizationId, productId);
   // View columns are nullable in the generated types though logically non-null;
   // a row missing its core fields is treated as not found.
-  if (!product || !product.id || !product.category || !product.unit || !product.organization_id) {
+  if (!product || !product.id || !product.category || !product.unit) {
     notFound();
   }
 
