@@ -8,7 +8,8 @@ import { WizardShell, WizardProgress, ChoiceCard, FlowActions, SavedHint } from 
 import { saveBusiness, submitBusiness, type BusinessInput } from "@/server/actions/business-onboarding";
 import type { BusinessAnswers } from "@/server/queries/onboarding";
 import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, type BusinessOrgType } from "@/lib/onboarding/account-types";
-import { GOVERNORATES, CITIES_BY_GOVERNORATE, isGovernorate } from "@/lib/onboarding/persona-fields";
+import { GOVERNORATE_OPTIONS, type LocationOption } from "@/lib/installer/location-data";
+import { businessCitiesOf, CUSTOM_CITY_MAX, CUSTOM_CITY_MIN } from "@/lib/location/business-location";
 
 /**
  * Business creation — "create my showroom", not "create an organization".
@@ -31,13 +32,20 @@ import { GOVERNORATES, CITIES_BY_GOVERNORATE, isGovernorate } from "@/lib/onboar
  */
 type Step = "identity" | "type" | "location" | "branch" | "review";
 
+/** The "Other" choice in the city list. A UI control only: it is never sent or stored as a city. */
+const OTHER_VALUE = "__other__";
+
 type BState = {
   legalName: string;
   displayName: string;
   orgType: BusinessOrgType | null;
   description: string;
   governorate: string | null;
+  /** A catalogue city key of `governorate`, or null. */
   city: string | null;
+  /** UI state: the person chose "Other" and types their city. "Other" itself is never stored. */
+  otherCity: boolean;
+  cityCustomName: string;
   primaryBranchName: string;
 };
 
@@ -50,7 +58,7 @@ export function BusinessFlow({
   presetOrgType: BusinessOrgType | null;
   draftId: string | null;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [pending, start] = useTransition();
   const [draftId, setDraftId] = useState<string | null>(initialDraftId);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +69,9 @@ export function BusinessFlow({
     description: answers.description ?? "",
     governorate: answers.governorate,
     city: answers.city,
+    // A saved custom city resumes in the "Other" state with its text.
+    otherCity: Boolean(answers.cityCustomName),
+    cityCustomName: answers.cityCustomName ?? "",
     primaryBranchName: answers.primaryBranchName ?? "",
   });
 
@@ -71,7 +82,12 @@ export function BusinessFlow({
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
 
-  const identityDone = (s: BState) => s.displayName.trim().length > 0;
+  // BOTH names are required to leave the identity step: the business (trading) name and the legal / registered name.
+  const identityDone = (s: BState) => s.displayName.trim().length > 0 && s.legalName.trim().length >= 2;
+  // The location is optional as a whole, but once a governorate is chosen it needs a city (or Other + a typed city).
+  const locationDone = (s: BState) =>
+    !s.governorate ||
+    (s.otherCity ? s.cityCustomName.trim().length >= CUSTOM_CITY_MIN : Boolean(s.city));
   const typeDone = (s: BState) => !!s.orgType;
 
   const [step, setStep] = useState<number>(() => {
@@ -81,8 +97,19 @@ export function BusinessFlow({
   });
 
   const current: Step = steps[step] ?? "review";
-  const areaCities =
-    state.governorate && isGovernorate(state.governorate) ? CITIES_BY_GOVERNORATE[state.governorate] : [];
+  const label = (o: LocationOption) => (locale === "ar" ? o.ar : o.en);
+  const collator = new Intl.Collator(locale === "ar" ? "ar" : "en");
+  const byLabel = (a: LocationOption, b: LocationOption) => collator.compare(label(a), label(b));
+  const governorates = [...GOVERNORATE_OPTIONS].sort(byLabel);
+  // The catalogue cities of the chosen governorate; "Other" is appended by the UI, never stored.
+  const areaCities = businessCitiesOf(state.governorate).sort(byLabel);
+
+  const locationSummary = (): string => {
+    const gov = GOVERNORATE_OPTIONS.find((g) => g.value === state.governorate);
+    if (!gov) return t("onboarding.consumer.notSet");
+    const city = state.otherCity ? state.cityCustomName.trim() : label(areaCities.find((c) => c.value === state.city) ?? gov);
+    return city && city !== label(gov) ? `${label(gov)} - ${city}` : label(gov);
+  };
 
   const set = (patch: Partial<BState>) => setState((s) => ({ ...s, ...patch }));
   const goto = (s: Step) => setStep(Math.max(steps.indexOf(s), 0));
@@ -94,7 +121,8 @@ export function BusinessFlow({
     orgType: s.orgType,
     description: s.description.trim() || null,
     governorate: s.governorate,
-    city: s.city,
+    city: s.otherCity ? null : s.city,
+    cityCustomName: s.otherCity ? s.cityCustomName.trim() || null : null,
     primaryBranchName: s.primaryBranchName.trim() || null,
   });
 
@@ -121,7 +149,13 @@ export function BusinessFlow({
     });
 
   const canContinue =
-    current === "identity" ? identityDone(state) : current === "type" ? typeDone(state) : true;
+    current === "identity"
+      ? identityDone(state)
+      : current === "type"
+        ? typeDone(state)
+        : current === "location"
+          ? locationDone(state)
+          : true;
 
   const progress = (
     <WizardProgress current={step} total={steps.length} label={t(`onboarding.business.step.${current}`)} />
@@ -144,7 +178,11 @@ export function BusinessFlow({
               onChange={(e) => set({ displayName: e.target.value })}
             />
           </LabeledField>
-          <LabeledField label={t("onboarding.business.identity.legalNameLabel")} htmlFor="blegal" optional={t("common.optional")}>
+          <LabeledField
+            label={t("onboarding.business.identity.legalNameLabel")}
+            htmlFor="blegal"
+            hint={t("onboarding.business.identity.legalNameHint")}
+          >
             <Input
               id="blegal"
               value={state.legalName}
@@ -187,22 +225,43 @@ export function BusinessFlow({
             <Select
               id="bgov"
               value={state.governorate ?? ""}
-              onChange={(e) => set({ governorate: e.target.value || null, city: null })}
+              // A different governorate invalidates whatever city (catalogue or typed) was chosen under the previous one.
+              onChange={(e) => set({ governorate: e.target.value || null, city: null, otherCity: false, cityCustomName: "" })}
             >
               <option value="">{t("onboarding.business.location.choose")}</option>
-              {GOVERNORATES.map((g) => (
-                <option key={g} value={g}>{t(`onboarding.consumer.governorates.${g}`)}</option>
+              {governorates.map((g) => (
+                <option key={g.value} value={g.value}>{label(g)}</option>
               ))}
             </Select>
           </LabeledField>
-          {areaCities.length ? (
-            <LabeledField label={t("onboarding.business.location.cityLabel")} htmlFor="bcity" optional={t("common.optional")}>
-              <Select id="bcity" value={state.city ?? ""} onChange={(e) => set({ city: e.target.value || null })}>
+          {state.governorate ? (
+            <LabeledField label={t("onboarding.business.location.cityLabel")} htmlFor="bcity">
+              <Select
+                id="bcity"
+                value={state.otherCity ? OTHER_VALUE : (state.city ?? "")}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === OTHER_VALUE) set({ city: null, otherCity: true });
+                  else set({ city: v || null, otherCity: false, cityCustomName: "" });
+                }}
+              >
                 <option value="">{t("onboarding.business.location.choose")}</option>
                 {areaCities.map((c) => (
-                  <option key={c} value={c}>{t(`onboarding.consumer.cities.${c}`)}</option>
+                  <option key={c.value} value={c.value}>{label(c)}</option>
                 ))}
+                <option value={OTHER_VALUE}>{t("onboarding.business.location.otherOption")}</option>
               </Select>
+            </LabeledField>
+          ) : null}
+          {state.governorate && state.otherCity ? (
+            <LabeledField label={t("onboarding.business.location.customCityLabel")} htmlFor="bcitycustom">
+              <Input
+                id="bcitycustom"
+                value={state.cityCustomName}
+                maxLength={CUSTOM_CITY_MAX}
+                placeholder={t("onboarding.business.location.customCityPlaceholder")}
+                onChange={(e) => set({ cityCustomName: e.target.value })}
+              />
             </LabeledField>
           ) : null}
           <p className="text-label text-fg-muted">{t("onboarding.business.location.note")}</p>
@@ -229,6 +288,8 @@ export function BusinessFlow({
           <dl className="flex flex-col divide-y divide-strong/60">
             {[
               { label: t("onboarding.business.review.name"), value: state.displayName || t("onboarding.consumer.notSet"), to: "identity" as Step },
+              // The legal name is entered on the identity step with the business name, so it is edited there too.
+              { label: t("onboarding.business.review.legalName"), value: state.legalName || t("onboarding.consumer.notSet"), to: "identity" as Step },
               {
                 label: t("onboarding.business.review.type"),
                 value: state.orgType ? t(`onboarding.business.orgTypes.${state.orgType}`) : t("onboarding.consumer.notSet"),
@@ -236,7 +297,7 @@ export function BusinessFlow({
               },
               {
                 label: t("onboarding.business.review.location"),
-                value: state.governorate ? t(`onboarding.consumer.governorates.${state.governorate}`) : t("onboarding.consumer.notSet"),
+                value: locationSummary(),
                 to: "location" as Step,
               },
               {
@@ -275,7 +336,7 @@ export function BusinessFlow({
         onBack={step > 0 ? back : undefined}
         onPrimary={current === "review" ? submit : persistAdvance}
         primaryLabel={current === "review" ? t("onboarding.business.review.submit") : t("onboarding.continue")}
-        primaryDisabled={current === "review" ? !typeDone(state) || !identityDone(state) : !canContinue}
+        primaryDisabled={current === "review" ? !typeDone(state) || !identityDone(state) || !locationDone(state) : !canContinue}
         pending={pending}
       />
       <SavedHint />

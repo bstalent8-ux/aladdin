@@ -180,12 +180,36 @@ export async function approveReferral(formData: FormData): Promise<void> {
   const linkRaw = formData.get("linkOrganizationId");
   const linkId = typeof linkRaw === "string" && uuid.safeParse(linkRaw).success ? linkRaw : undefined;
 
+  // The legal / registered name the Admin verified. Required by the database to CREATE an organization from the referral;
+  // ignored when the referral is linked to an organization that already exists.
+  const legalRaw = formData.get("legalName");
+  const legalName = typeof legalRaw === "string" && legalRaw.trim() !== "" ? legalRaw.trim().slice(0, 120) : undefined;
+
+  // An OPTIONAL correction of the branch location. Without it the database uses the referral's own governorate / city and
+  // never drops the city. With it the database validates the pair strictly (a typed city that names a catalogue city is stored
+  // as that city, any other valid text as the custom city).
+  const govRaw = formData.get("governorate");
+  const cityRaw = formData.get("city");
+  const governorate = typeof govRaw === "string" && govRaw.trim() !== "" ? govRaw.trim() : undefined;
+  const city = typeof cityRaw === "string" && cityRaw.trim() !== "" ? cityRaw.trim().slice(0, 80) : undefined;
+
   const supabase = await getServerSupabase();
   const { error } = await supabase.rpc("showroom_referral_approve", {
     p_referral_id: id.data,
     p_link_organization_id: linkId,
+    p_legal_name: legalName,
+    ...(governorate ? { p_governorate: governorate, p_city_custom_name: city } : {}),
   });
-  if (error) redirect("/admin/verifications?error=approve");
+  if (error) {
+    const message = error.message ?? "";
+    redirect(
+      /legal business name/i.test(message)
+        ? "/admin/verifications?error=legalName"
+        : /branch location|city|governorate/i.test(message)
+          ? "/admin/verifications?error=location"
+          : "/admin/verifications?error=approve",
+    );
+  }
 
   revalidatePath("/admin/verifications");
   redirect("/admin/verifications?referral=approved");

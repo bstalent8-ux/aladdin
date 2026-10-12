@@ -437,7 +437,7 @@ select is(
 select isnt(
   public.showroom_referral_approve(
     (select id from public.organization_referrals
-     where referred_by = '70000002-0000-4000-8000-000000000002' and status = 'submitted')),
+     where referred_by = '70000002-0000-4000-8000-000000000002' and status = 'submitted'), null, 'Zayed Tiles Trading LLC'),
   null, '12: a genuinely new referred showroom is approved');
 reset role;
 select is(

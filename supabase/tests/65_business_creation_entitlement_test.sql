@@ -67,8 +67,8 @@ values
   ('65000011-0000-4000-8000-000000000065', 'business', 'supplier', now(), now()),
   ('65000012-0000-4000-8000-000000000065', 'business', null,       now(), now());
 update public.users set primary_account_type = 'contractor' where id = '65000013-0000-4000-8000-000000000065';
-insert into public.business_creation_drafts (id, user_id, display_name, org_type)
-values ('65d00013-0000-4000-8000-000000000065', '65000013-0000-4000-8000-000000000065', 'P65 Open Draft', 'supplier');
+insert into public.business_creation_drafts (id, user_id, legal_name, display_name, org_type)
+values ('65d00013-0000-4000-8000-000000000065', '65000013-0000-4000-8000-000000000065', 'P65 Open Draft LLC', 'P65 Open Draft', 'supplier');
 update public.users set primary_account_type = 'installer_technician' where id = '65000014-0000-4000-8000-000000000065';
 update public.users set primary_account_type = 'engineer'             where id = '65000016-0000-4000-8000-000000000065';
 
@@ -79,7 +79,7 @@ select ok(
   not has_function_privilege('authenticated', 'app.can_create_or_complete_business(uuid)', 'execute'),
   'the entitlement helper is not callable by clients');
 select ok(
-  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text)', 'execute')
+  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text)', 'execute')
   and has_function_privilege('authenticated', 'public.business_draft_submit(uuid)', 'execute'),
   'the RPCs stay callable by authenticated — the authority is inside them');
 
@@ -169,7 +169,7 @@ select lives_ok($$ select public.business_draft_save(p_display_name => 'P65 Seco
 
 -- 8. First-business registration: business track + approved type + no org yet.
 set local request.jwt.claims = '{"sub":"65000011-0000-4000-8000-000000000065","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P65 First Business', p_org_type => 'supplier', p_primary_branch_name => 'HQ') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P65 First Business LLC', p_display_name => 'P65 First Business', p_org_type => 'supplier', p_primary_branch_name => 'HQ') $$,
   '8. first-business registration may open its draft');
 select lives_ok($$ select public.business_draft_submit(null) $$,
   '8b. ...and create its first organization');
@@ -179,7 +179,7 @@ select is(
 
 -- 9. An existing OPEN draft can be finished, whatever the persona.
 set local request.jwt.claims = '{"sub":"65000013-0000-4000-8000-000000000065","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_draft_id => '65d00013-0000-4000-8000-000000000065', p_display_name => 'P65 Open Draft', p_org_type => 'supplier') $$,
+select lives_ok($$ select public.business_draft_save(p_draft_id => '65d00013-0000-4000-8000-000000000065', p_legal_name => 'P65 Open Draft LLC', p_display_name => 'P65 Open Draft', p_org_type => 'supplier') $$,
   '9. an existing OPEN draft may still be updated');
 select lives_ok($$ select public.business_draft_submit('65d00013-0000-4000-8000-000000000065') $$,
   '9b. ...and finished');
@@ -187,7 +187,7 @@ select lives_ok($$ select public.business_draft_submit('65d00013-0000-4000-8000-
 -- 10. A completed draft retried is idempotent and creates no second organization —
 -- even after the caller has since lost their entitlement.
 set local request.jwt.claims = '{"sub":"65000016-0000-4000-8000-000000000065","role":"authenticated"}';
-select set_config('test.d16', public.business_draft_save(p_display_name => 'P65 Retry Co', p_org_type => 'manufacturer')::text, true);
+select set_config('test.d16', public.business_draft_save(p_legal_name => 'P65 Retry Co LLC', p_display_name => 'P65 Retry Co', p_org_type => 'manufacturer')::text, true);
 select set_config('test.o16', public.business_draft_submit(current_setting('test.d16')::uuid)::text, true);
 reset role;
 update public.users set primary_account_type = 'end_consumer' where id = '65000016-0000-4000-8000-000000000065';

@@ -1,11 +1,12 @@
 import { Badge, Card, StatePanel } from "@/components/ui/primitives";
-import { Button, Input, LabeledField } from "@/components/ui/controls";
+import { Button, Input, LabeledField, Select } from "@/components/ui/controls";
 import { BuildingIcon } from "@/components/ui/icons";
 import { approveReferral, rejectReferral } from "@/server/actions/affiliation";
 import type { AdminReferralRow } from "@/server/queries/affiliation";
 import type { Messages } from "@/lib/i18n/messages/en";
 import type { Locale } from "@/lib/i18n/locales";
 import { formatCount } from "@/lib/ui/format";
+import { GOVERNORATE_OPTIONS } from "@/lib/installer/location-data";
 
 /**
  * Referred showrooms, on the EXISTING Admin verification surface.
@@ -118,6 +119,41 @@ export function ReferralReview({
                       <div className="grid gap-md tablet:grid-cols-2">
                         <form action={approveReferral} className="flex flex-col gap-sm">
                           <input type="hidden" name="referralId" value={r.id} />
+                          {/* Creating a NEW business needs its official registered name. The referrer is never asked for it: the
+                              Admin verifies it with the showroom, then approves. Linking to an existing business needs nothing. */}
+                          <LabeledField
+                            label={copy.approveLegalNameLabel}
+                            htmlFor={`ref-legal-${r.id}`}
+                            hint={copy.approveLegalNameHint}
+                          >
+                            <Input
+                              id={`ref-legal-${r.id}`}
+                              name="legalName"
+                              required
+                              minLength={2}
+                              maxLength={120}
+                              defaultValue={r.legalName ?? ""}
+                            />
+                          </LabeledField>
+                          {/* The branch location comes from the referral. Leave this alone unless the approval was refused because
+                              the referral's location is wrong (for example a city of another governorate): then correct it here. */}
+                          <LabeledField
+                            label={copy.approveLocationLabel}
+                            htmlFor={`ref-gov-${r.id}`}
+                            hint={copy.approveLocationHint}
+                          >
+                            <Select id={`ref-gov-${r.id}`} name="governorate" defaultValue="">
+                              <option value="">{copy.approveLocationKeep}</option>
+                              {GOVERNORATE_OPTIONS.map((g) => (
+                                <option key={g.value} value={g.value}>
+                                  {locale === "ar" ? g.ar : g.en}
+                                </option>
+                              ))}
+                            </Select>
+                          </LabeledField>
+                          <LabeledField label={copy.approveCityLabel} htmlFor={`ref-city-${r.id}`}>
+                            <Input id={`ref-city-${r.id}`} name="city" maxLength={80} />
+                          </LabeledField>
                           <div>
                             <Button type="submit" variant={r.matchId ? "outline" : "primary"}>
                               {copy.approveNew}

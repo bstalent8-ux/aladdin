@@ -16,13 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminVerificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ all?: string }>;
+  searchParams: Promise<{ all?: string; error?: string }>;
 }) {
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const m = getMessages(locale);
-  const { all } = await searchParams;
+  const { all, error } = await searchParams;
   const pendingOnly = all !== "1";
   const [rows, referrals] = await Promise.all([
     listVerifications(supabase, pendingOnly),
@@ -50,6 +50,12 @@ export default async function AdminVerificationsPage({
           {pendingOnly ? m.admin.review.showAll : m.admin.review.showPending}
         </Link>
       </div>
+
+      {error === "legalName" || error === "location" ? (
+        <p role="alert" className="rounded-sm border border-warning/40 bg-warning/10 px-3 py-2.5 text-body text-fg">
+          {error === "legalName" ? m.admin.referrals.legalNameRequired : m.admin.referrals.locationInvalid}
+        </p>
+      ) : null}
 
       {rows.length === 0 ? (
         <StatePanel title={pendingOnly ? m.admin.review.emptyPending : m.admin.review.empty} />

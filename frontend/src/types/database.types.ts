@@ -738,8 +738,11 @@ export type Database = {
         Row: {
           address_ar: string | null
           address_en: string | null
+          city_custom_name: string | null
+          city_key: string | null
           created_at: string
           deleted_at: string | null
+          governorate_key: string | null
           id: string
           is_active: boolean
           locality_id: string | null
@@ -753,8 +756,11 @@ export type Database = {
         Insert: {
           address_ar?: string | null
           address_en?: string | null
+          city_custom_name?: string | null
+          city_key?: string | null
           created_at?: string
           deleted_at?: string | null
+          governorate_key?: string | null
           id?: string
           is_active?: boolean
           locality_id?: string | null
@@ -768,8 +774,11 @@ export type Database = {
         Update: {
           address_ar?: string | null
           address_en?: string | null
+          city_custom_name?: string | null
+          city_key?: string | null
           created_at?: string
           deleted_at?: string | null
+          governorate_key?: string | null
           id?: string
           is_active?: boolean
           locality_id?: string | null
@@ -793,6 +802,7 @@ export type Database = {
       business_creation_drafts: {
         Row: {
           city: string | null
+          city_custom_name: string | null
           completed_at: string | null
           created_at: string
           description: string | null
@@ -808,6 +818,7 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          city_custom_name?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -823,6 +834,7 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          city_custom_name?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -2924,6 +2936,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           is_verified: boolean
+          legal_name: string | null
           locality_id: string | null
           logo_media_id: string | null
           name: string
@@ -2944,6 +2957,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_verified?: boolean
+          legal_name?: string | null
           locality_id?: string | null
           logo_media_id?: string | null
           name: string
@@ -2964,6 +2978,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_verified?: boolean
+          legal_name?: string | null
           locality_id?: string | null
           logo_media_id?: string | null
           name?: string
@@ -5910,6 +5925,7 @@ export type Database = {
       business_draft_save: {
         Args: {
           p_city?: string
+          p_city_custom_name?: string
           p_description?: string
           p_display_name?: string
           p_draft_id?: string
@@ -6480,7 +6496,14 @@ export type Database = {
         }[]
       }
       network_referral_approve: {
-        Args: { p_link_organization_id?: string; p_referral_id: string }
+        Args: {
+          p_city?: string
+          p_city_custom_name?: string
+          p_governorate?: string
+          p_legal_name?: string
+          p_link_organization_id?: string
+          p_referral_id: string
+        }
         Returns: string
       }
       network_referral_cancel: {
@@ -6770,7 +6793,14 @@ export type Database = {
         Returns: string
       }
       showroom_referral_approve: {
-        Args: { p_link_organization_id?: string; p_referral_id: string }
+        Args: {
+          p_city?: string
+          p_city_custom_name?: string
+          p_governorate?: string
+          p_legal_name?: string
+          p_link_organization_id?: string
+          p_referral_id: string
+        }
         Returns: string
       }
       showroom_referral_reject: {

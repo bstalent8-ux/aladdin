@@ -91,7 +91,9 @@ test.describe("Registration account type → authoritative persona", () => {
       page.getByRole("button", { name: "Painter / decorator", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await page.goto("/home");
+    // The installer dashboard on /home deliberately does not carry the completion card; it lives on the
+    // workspace-independent profile settings page.
+    await page.goto("/settings/profile");
     const items = await everyChecklistLinkIsReachable(page);
     expect(items).not.toContain("activities"); // satisfied by the saved trade
     expect(items).not.toContain("organization_setup"); // a person, not a business
@@ -123,43 +125,8 @@ test.describe("Registration account type → authoritative persona", () => {
     await everyChecklistLinkIsReachable(page);
   });
 
-  for (const [label, tag] of [
-    [/^showroom \/ dealer/i, "show"],
-    [/^distributor/i, "supp"],
-    [/^manufacturer/i, "manu"],
-    [/^importer/i, "impo"],
-  ] as const) {
-    test(`${tag}: zero organizations — enters the app, edits personal identity, no org access`, async ({ page, request, context }) => {
-      await english(context);
-      const { visited } = await registerAs(page, request, label, tag);
-      noLegacyWizard(visited);
-
-      // access_ready with zero organizations: the account-safe terminal, the
-      // checklist, and a way to the workspace-independent profile route.
-      await page.goto("/home");
-      await expect(page.getByTestId("no-personal-workspace")).toBeVisible();
-      const items = await everyChecklistLinkIsReachable(page);
-      expect(items).toEqual(expect.arrayContaining(["avatar", "phone", "organization_setup"]));
-      // The Full Name entered at sign-up is already the confirmed display name.
-      expect(items).not.toContain("display_name");
-      expect(items).not.toContain("organization_activities"); // no organization to describe yet
-
-      // The user identity is editable with no workspace at all.
-      await page.goto("/home");
-      await page.getByTestId("no-workspace-edit-profile").click();
-      await expect(page).toHaveURL(/\/settings\/profile$/);
-      await expect(page.getByTestId("identity-card")).toBeVisible();
-      await expect(page.getByLabel(/^display name$/i)).toHaveValue(`E2E ${tag}`);
-      await expect(page.getByTestId("display-name-status")).toHaveText(/^confirmed$/i);
-      await page.getByLabel(/^display name$/i).fill(`E2E ${tag} Owner`);
-      await page.locator("#display-name").getByRole("button", { name: /^save$/i }).click();
-      await expect(page.getByTestId("display-name-status")).toHaveText(/^confirmed$/i);
-      await page.reload();
-      await expect(page.getByLabel(/^display name$/i)).toHaveValue(`E2E ${tag} Owner`);
-
-      // Organization-scoped editing is NOT available without an organization.
-      await page.goto("/b2b/settings");
-      await expect(page.getByTestId("activity-selector")).toHaveCount(0);
-    });
-  }
+  // The four BUSINESS registrations (Showroom / Distributor / Manufacturer / Importer) are no longer an optional
+  // "access_ready with zero organizations" account: creating the first business is the mandatory continuation of the
+  // registration. That flow, its resume behaviour and its direct-navigation guard are covered by
+  // `business-registration-mandatory.spec.ts`.
 });

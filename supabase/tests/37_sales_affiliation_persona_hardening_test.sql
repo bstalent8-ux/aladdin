@@ -200,7 +200,7 @@ select is((select count(*)::int from public.points_ledger), 0,
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select throws_ok(
-  $$ select public.showroom_referral_approve('cafe0002-0000-4000-8000-000000000002') $$,
+  $$ select public.showroom_referral_approve('cafe0002-0000-4000-8000-000000000002', null, 'Installer Showroom LLC') $$,
   '42501', null,
   '7: an Admin cannot approve an INSTALLER''s referral into Sales authority');
 reset role;

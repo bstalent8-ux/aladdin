@@ -96,7 +96,7 @@ select public.onboarding_select_account_type('professional', 'engineer');
 
 -- Draft 1 → AH Design Studio (showroom_dealer).
 select isnt(public.business_draft_save(
-  p_display_name => 'AH Design Studio', p_org_type => 'showroom_dealer',
+  p_legal_name => 'AH Design Studio LLC', p_display_name => 'AH Design Studio', p_org_type => 'showroom_dealer',
   p_primary_branch_name => 'Zayed HQ'), null, 'a business creation draft is created');
 
 -- ===========================================================================
@@ -175,7 +175,7 @@ select throws_ok(
 -- E. A SECOND, different draft makes a SECOND organization
 -- ===========================================================================
 select isnt(public.business_draft_save(
-  p_display_name => 'AH Import', p_org_type => 'importer',
+  p_legal_name => 'AH Import LLC', p_display_name => 'AH Import', p_org_type => 'importer',
   p_primary_branch_name => 'Port Said'), null, 'E: the same user can open a NEW business draft');
 select lives_ok(
   $$ select public.business_draft_submit(
