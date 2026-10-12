@@ -205,7 +205,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
 
 select set_config('test.new_org',
-  (select public.network_referral_approve(current_setting('test.ref_b2')::uuid, null))::text, true);
+  (select public.network_referral_approve(current_setting('test.ref_b2')::uuid, null, 'Referred Showroom Trading LLC'))::text, true);
 
 select is(
   (select source from public.organizations where id = current_setting('test.new_org')::uuid),

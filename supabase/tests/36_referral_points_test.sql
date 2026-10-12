@@ -84,7 +84,7 @@ set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","r
 select isnt(
   public.showroom_referral_approve(
     (select id from public.organization_referrals
-     where referred_by = '70000002-0000-4000-8000-000000000002' and status = 'submitted')),
+     where referred_by = '70000002-0000-4000-8000-000000000002' and status = 'submitted'), null, 'Zayed Tiles Trading LLC'),
   null, 'the referred showroom is approved');
 
 reset role;
@@ -268,7 +268,7 @@ set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","r
 select throws_ok(
   $$ select public.showroom_referral_approve(
        (select id from public.organization_referrals
-        where referred_by = '70000007-0000-4000-8000-000000000007' and status = 'submitted')) $$,
+        where referred_by = '70000007-0000-4000-8000-000000000007' and status = 'submitted'), null, 'Referred Showroom Trading LLC') $$,
   '23514', null, 'an award that cannot be written aborts the whole approval');
 
 reset role;
