@@ -54,6 +54,7 @@ async function registerAs(
 /** Drive the business wizard from its first step through creation. */
 async function createBusiness(page: Page, name: string, branch: string, orgType?: RegExp) {
   await page.locator("#bname").fill(name);
+  await page.locator("#blegal").fill(`${name} Trading LLC`);
   await page.getByRole("button", { name: /^continue$/i }).click();
   if (orgType) {
     await expect(page.getByRole("heading", { name: /what kind of business/i })).toBeVisible();

@@ -149,6 +149,7 @@ test.describe("Pilot UAT round 1 — business owners", () => {
     await noOverflow(page);
 
     await page.locator("#bname").fill("Giza Showroom");
+    await page.locator("#blegal").fill("Giza Showroom Trading LLC");
     await page.getByRole("button", { name: /^continue$/i }).click();
 
     // The type was already chosen at registration, so it is NEVER asked again —

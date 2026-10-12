@@ -1,5 +1,5 @@
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { messageIdsFor, readNewOtp, signIn } from "./helpers/auth";
+import { messageIdsFor, readNewOtp, registerWithPassword, signIn } from "./helpers/auth";
 import { en } from "../src/lib/i18n/messages/en";
 import { ar } from "../src/lib/i18n/messages/ar";
 
@@ -137,11 +137,24 @@ async function registerProfessional(
   return email;
 }
 
-const registerSalesperson = (page: Page, request: APIRequestContext, name: string, headline: string) =>
-  registerProfessional(page, request, name, labelIn((m) => m.onboarding.accountType.types.salesperson), headline, {
-    specialization: label((m) => m.onboarding.professional.specializations.showroom_sales),
-    service: label((m) => m.onboarding.professional.serviceItems.showroom_advice),
+/**
+ * A Salesperson registers through the CANONICAL `/auth/sign-up` ("Sales Team" is a registrable type; the retired
+ * passwordless wizard this spec used to drive no longer exists) and lands on a usable /home with no organization.
+ */
+// `_headline` is kept so the existing call sites read the same; the canonical sign-up has no professional-profile step.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function registerSalesperson(page: Page, request: APIRequestContext, name: string, _headline: string): Promise<string> {
+  const stamp = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+  const email = `s13-${stamp}@example.test`;
+  await registerWithPassword(page, request, {
+    email,
+    username: `s13${stamp}`.slice(0, 24),
+    displayName: name,
+    accountType: /sales team/i,
+    landing: /\/home(\/|$|\?)/,
   });
+  return email;
+}
 
 /**
  * The GENERIC workspace switcher exists only for the approved five categories
@@ -421,6 +434,11 @@ test.describe("Sprint 13 — personal experience + sales affiliation", () => {
     await expect(card.getByText(referrer)).toBeVisible();
     await expect(card.getByText(/sheikh zayed/i)).toBeVisible();
 
+    // Creating a NEW business needs its legal / registered name: the referrer was never asked for it, so the Admin supplies it.
+    const legal = card.getByLabel(/legal \/ registered name/i);
+    await expect(legal).toBeVisible();
+    await expect(legal).toHaveAttribute("required", "");
+    await legal.fill(`${showroom} Trading LLC`);
     await card.getByRole("button", { name: /approve as a new business/i }).click();
     await page.waitForURL(/referral=approved/, { waitUntil: "commit" });
 
