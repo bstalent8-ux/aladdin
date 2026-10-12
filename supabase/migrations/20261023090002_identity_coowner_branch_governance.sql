@@ -392,6 +392,24 @@ $$;
 revoke all on function public.my_organization_applications() from public, anon;
 grant execute on function public.my_organization_applications() to authenticated;
 
+-- Check-then-act safety: every governance writer takes a SHARE lock on the organization row and on
+-- the caller's own active membership BEFORE it checks authority. A concurrent suspension of the
+-- organization, or revocation of the caller's membership, must wait for the writer to finish (or
+-- is seen by it), so a write can never be committed on authority that was withdrawn mid-flight.
+create or replace function app._lock_org_actor(p_org_id uuid, p_uid uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform 1 from public.organizations o where o.id = p_org_id for share;
+  perform 1 from public.memberships m
+   where m.organization_id = p_org_id and m.user_id = p_uid and m.status = 'active' for share;
+end;
+$$;
+revoke all on function app._lock_org_actor(uuid, uuid) from public, anon, authenticated, service_role;
+
 -- 3. A. organization identity --------------------------------------------------------------------
 create or replace function app.org_identity_locked(p_org_id uuid)
 returns boolean
@@ -505,6 +523,7 @@ begin
   end if;
   perform pg_advisory_xact_lock(hashtextextended('org-identity:' || p_org_id::text, 0));
 
+  perform app._lock_org_actor(p_org_id, v_uid);
   select * into v_org from public.organizations where id = p_org_id and deleted_at is null for update;
   if not found or not app.has_capability(p_org_id, 'org.manage') then
     raise exception 'organization not found' using errcode = '42501';
@@ -725,6 +744,7 @@ begin
     raise exception 'note must be at most 500 characters' using errcode = '22023';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('org-co-owner:' || p_org_id::text || ':' || v_uid::text, 0));
+  perform app._lock_org_actor(p_org_id, v_uid);
 
   select * into v_org from public.organizations where id = p_org_id and deleted_at is null;
   if not found or not app.is_org_member(p_org_id) then
@@ -776,6 +796,7 @@ begin
   if v_candidate is null then
     raise exception 'co-owner verification has no candidate' using errcode = '23514';
   end if;
+  perform app._lock_org_actor(p_v.organization_id, v_candidate);
   if not exists (select 1 from public.organizations o where o.id = p_v.organization_id and o.status = 'active' and o.deleted_at is null) then
     raise exception 'only an approved organization can verify a co-owner' using errcode = '22023';
   end if;
@@ -933,6 +954,7 @@ begin
     raise exception 'organization id is required' using errcode = '22023';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('org-branches:' || p_org_id::text, 0));
+  perform app._lock_org_actor(p_org_id, v_uid);
 
   if not app.is_org_member(p_org_id) then
     raise exception 'organization not found' using errcode = '42501';
@@ -975,9 +997,12 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
-declare v_org uuid;
+declare
+  v_uid uuid := app.require_verified_caller();
+  v_org uuid;
 begin
   select organization_id into v_org from public.branches where id = p_branch_id and deleted_at is null;
+  if v_org is not null then perform app._lock_org_actor(v_org, v_uid); end if;
   if v_org is null or not app.is_org_member(v_org) then
     raise exception 'branch not found' using errcode = '22023';
   end if;
@@ -1000,7 +1025,12 @@ declare
   v_uid uuid := app.require_verified_caller();
   v_org uuid;
 begin
-  select organization_id into v_org from public.branches where id = p_branch_id and deleted_at is null for update;
+  select organization_id into v_org from public.branches where id = p_branch_id and deleted_at is null;
+  if v_org is not null then
+    perform pg_advisory_xact_lock(hashtextextended('org-branches:' || v_org::text, 0));
+    perform app._lock_org_actor(v_org, v_uid);
+    perform 1 from public.branches where id = p_branch_id for update;
+  end if;
   if v_org is null or not app.is_org_member(v_org) then
     raise exception 'branch not found' using errcode = '22023';
   end if;
@@ -1033,7 +1063,11 @@ declare
   v_proposed jsonb;
   v_id       uuid;
 begin
-  select * into v_b from public.branches where id = p_branch_id and deleted_at is null for update;
+  select * into v_b from public.branches where id = p_branch_id and deleted_at is null;
+  if found then
+    perform app._lock_org_actor(v_b.organization_id, v_uid);
+    select * into v_b from public.branches where id = p_branch_id and deleted_at is null for update;
+  end if;
   if not found or not app.is_org_member(v_b.organization_id) then
     raise exception 'branch not found' using errcode = '22023';
   end if;
@@ -1093,6 +1127,7 @@ declare
   v_branch uuid := nullif(p_v.metadata ->> 'branch_id', '')::uuid;
   v_b      public.branches;
 begin
+  perform 1 from public.organizations o where o.id = p_v.organization_id for share;
   select * into v_b from public.branches where id = v_branch for update;
   if not found or v_b.organization_id <> p_v.organization_id or v_b.deleted_at is not null then
     raise exception 'branch does not belong to the reviewed organization' using errcode = '23514';
