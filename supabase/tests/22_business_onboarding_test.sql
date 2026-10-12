@@ -20,7 +20,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(21);
+select plan(24);
 
 -- Omar (44…) is our fresh business registrant; Layla (11…) is an unrelated caller.
 update auth.users set email_confirmed_at = now()
@@ -65,15 +65,27 @@ select is((select display_name from public.business_creation_drafts
 select throws_ok(
   $$ select public.business_submit() $$,
   '22023', null, 'submit requires a business type');
+select lives_ok(
+  $$ select public.business_save(p_display_name => 'Al-Noor Supply', p_org_type => 'supplier') $$,
+  'business_save records the type before the legal name is known');
+select throws_ok(
+  $$ select public.business_submit() $$,
+  '22023', 'a legal business name is required', 'submit requires a legal business name');
 
 -- ===== successful creation (no owner confirmation is asked for) =====
 select lives_ok(
-  $$ select public.business_save(p_display_name => 'Al-Noor Supply', p_org_type => 'supplier',
-       p_primary_branch_name => 'Cairo HQ') $$,
+  $$ select public.business_save(p_legal_name => 'Al-Noor Supply Trading LLC', p_display_name => 'Al-Noor Supply',
+       p_org_type => 'supplier', p_primary_branch_name => 'Cairo HQ') $$,
   'business_save records the org type and primary branch');
 select lives_ok(
   $$ select public.business_submit() $$,
   'business_submit creates the organization');
+
+-- The legal name is persisted on the organization (private); the display name stays the organization name.
+select is(
+  (select o.legal_name || '|' || o.name from public.organizations o
+    where o.created_by = '44444444-4444-4444-8444-444444444444'),
+  'Al-Noor Supply Trading LLC|Al-Noor Supply', 'organizations.legal_name receives the legal name; name stays the display name');
 
 -- The organization starts pending_verification and is NOT self-verified.
 select is(
@@ -146,7 +158,7 @@ select is(
   0, 'a user cannot read another user''s business creation draft');
 -- The internal org-creation helper is not callable by clients.
 select throws_ok(
-  $$ select app.organization_create_owned('Sneaky Org', 'supplier', 'en', null) $$,
+  $$ select app.organization_create_owned('Sneaky Org', 'supplier', 'en', null, 'Sneaky Org LLC') $$,
   '42501', null, 'app.organization_create_owned is internal (not client-callable)');
 
 select * from finish();

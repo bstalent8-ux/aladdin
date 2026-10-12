@@ -181,6 +181,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated"}';
 
 select public.business_draft_save(
+  p_legal_name => 'Activity Fresh Org LLC',
   p_display_name => 'Activity Fresh Org',
   p_org_type => 'showroom_dealer',
   p_primary_branch_name => 'Main Branch'

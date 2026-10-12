@@ -53,8 +53,8 @@ insert into public.platform_role_grants (user_id, role)
 values ('86000011-0000-4000-8000-000000000086', 'support');
 
 -- A stale OPEN draft (saved before the rule existed) of a type that is not the registered one.
-insert into public.business_creation_drafts (id, user_id, display_name, org_type)
-values ('86d00012-0000-4000-8000-000000000086', '86000012-0000-4000-8000-000000000086', 'P86 Stale Draft', 'supplier');
+insert into public.business_creation_drafts (id, user_id, legal_name, display_name, org_type)
+values ('86d00012-0000-4000-8000-000000000086', '86000012-0000-4000-8000-000000000086', 'P86 Stale Draft LLC', 'P86 Stale Draft', 'supplier');
 
 -- An organization with 7 = active OWNER and 13 = active plain MEMBER.
 insert into public.organizations (id, name, org_type, status, created_by)
@@ -74,7 +74,7 @@ select ok(
   not has_function_privilege('authenticated', 'app.mandatory_registration_business_type(uuid)', 'execute'),
   'the lock helper is not callable by clients');
 select ok(
-  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text)', 'execute')
+  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text)', 'execute')
   and has_function_privilege('authenticated', 'public.business_draft_submit(uuid)', 'execute'),
   'the RPC signatures are unchanged and stay callable by authenticated');
 select is(app.mandatory_registration_business_type('86000001-0000-4000-8000-000000000086')::text, 'showroom_dealer',
@@ -106,7 +106,7 @@ select is((select count(*)::int from public.business_creation_drafts where user_
   0, '2b. ...and nothing was written');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000001-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Showroom Co', p_org_type => 'showroom_dealer') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Showroom Co LLC', p_display_name => 'P86 Showroom Co', p_org_type => 'showroom_dealer') $$,
   '1. showroom registrant + showroom draft: allowed');
 select lives_ok($$ select public.business_draft_submit(null) $$,
   '1b. ...and the organization is created');
@@ -125,11 +125,11 @@ select throws_ok($$ select public.business_draft_save(p_display_name => 'P86 Byp
   '22023', null, '4. supplier registrant + importer draft: rejected');
 select throws_ok($$ select public.business_save(p_display_name => 'P86 Bypass', p_org_type => 'importer') $$,
   '22023', null, '12. the business_save wrapper cannot bypass the lock');
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Supplier Co', p_org_type => 'supplier') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Supplier Co LLC', p_display_name => 'P86 Supplier Co', p_org_type => 'supplier') $$,
   '3. supplier registrant + supplier draft: allowed');
-select throws_ok($$ select public.business_draft_save(p_display_name => 'P86 Supplier Co', p_org_type => 'importer') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'P86 Supplier Co LLC', p_display_name => 'P86 Supplier Co', p_org_type => 'importer') $$,
   '22023', null, '7. updating the OPEN first-business draft with a different type: rejected');
-select throws_ok($$ select public.business_save(p_display_name => 'P86 Supplier Co', p_org_type => 'manufacturer') $$,
+select throws_ok($$ select public.business_save(p_legal_name => 'P86 Supplier Co LLC', p_display_name => 'P86 Supplier Co', p_org_type => 'manufacturer') $$,
   '22023', null, '7b. ...also through the wrapper');
 reset role;
 select is((select org_type::text from public.business_creation_drafts where user_id = '86000002-0000-4000-8000-000000000086'),
@@ -146,11 +146,11 @@ set local role authenticated;
 -- 5/6. Manufacturer and importer: exact type allowed.
 -- ===========================================================================
 set local request.jwt.claims = '{"sub":"86000003-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Maker', p_org_type => 'manufacturer') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Maker LLC', p_display_name => 'P86 Maker', p_org_type => 'manufacturer') $$,
   '5. manufacturer registrant + manufacturer draft: allowed');
 select lives_ok($$ select public.business_draft_submit(null) $$, '5b. ...and created');
 set local request.jwt.claims = '{"sub":"86000004-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Importer', p_org_type => 'importer') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Importer LLC', p_display_name => 'P86 Importer', p_org_type => 'importer') $$,
   '6. importer registrant + importer draft: allowed');
 select lives_ok($$ select public.business_draft_submit(null) $$, '6b. ...and created');
 reset role;
@@ -161,7 +161,7 @@ set local role authenticated;
 
 -- A typeless draft stays typeless and can never become an organization.
 set local request.jwt.claims = '{"sub":"86000005-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Null Type') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Null Type LLC', p_display_name => 'P86 Null Type') $$,
   '5d. a NULL p_org_type is stored as NULL while locked (unchanged behaviour)');
 select throws_ok($$ select public.business_draft_submit(null) $$,
   '22023', null, '5e. ...and submit refuses it: a business type is required');
@@ -178,14 +178,14 @@ select throws_ok($$ select public.business_draft_submit('86d00012-0000-4000-8000
   '22023', null, '12b. a stale draft of another type cannot be submitted as the first business');
 select throws_ok($$ select public.business_submit() $$,
   '22023', null, '12c. ...nor through the business_submit wrapper');
-select throws_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_display_name => 'P86 Stale', p_org_type => 'supplier') $$,
+select throws_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_legal_name => 'P86 Stale LLC', p_display_name => 'P86 Stale', p_org_type => 'supplier') $$,
   '22023', null, '12d. re-saving the stale value is rejected: it cannot override the registration');
 reset role;
 select is((select count(*)::int from public.organizations where created_by = '86000012-0000-4000-8000-000000000086'),
   0, '12e. no organization was created');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000012-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_display_name => 'P86 Stale', p_org_type => 'importer') $$,
+select lives_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_legal_name => 'P86 Stale LLC', p_display_name => 'P86 Stale', p_org_type => 'importer') $$,
   '12f. correcting the draft to the registered type works');
 select lives_ok($$ select public.business_draft_submit('86d00012-0000-4000-8000-000000000086') $$,
   '12g. ...and the same draft is then submitted');
@@ -198,9 +198,9 @@ set local role authenticated;
 -- 8. After the first organization the lock is not global: a second business is free.
 -- ===========================================================================
 set local request.jwt.claims = '{"sub":"86000010-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 First', p_org_type => 'supplier') $$, '8a. first business saved');
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 First LLC', p_display_name => 'P86 First', p_org_type => 'supplier') $$, '8a. first business saved');
 select lives_ok($$ select public.business_draft_submit(null) $$, '8b. first business created');
-select lives_ok($$ select public.business_draft_save(p_display_name => 'P86 Second', p_org_type => 'importer') $$,
+select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Second LLC', p_display_name => 'P86 Second', p_org_type => 'importer') $$,
   '8c. the same user may now save a DIFFERENT approved type (a second business)');
 select lives_ok($$ select public.business_draft_submit(null) $$, '8d. ...and create it');
 reset role;
