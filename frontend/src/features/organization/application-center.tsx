@@ -172,8 +172,9 @@ function ApplicationCard({ row }: { row: ApplicationRow }) {
   const editable = row.status === "draft" || row.status === "needs_changes";
 
   return (
-    <Card pad="sm" className="flex flex-col gap-sm" >
-      <div className="flex items-start justify-between gap-md" data-testid={`application-${row.status}`}>
+    <div data-testid={`application-${row.status}`}>
+    <Card pad="sm" className="flex flex-col gap-sm">
+      <div className="flex items-start justify-between gap-md">
         <div className="flex min-w-0 flex-col gap-0.5">
           <p className="truncate text-body-lg font-medium text-fg">{row.name}</p>
           <p className="text-label text-fg-muted">{typeLabel(t, row.orgType, "")}</p>
@@ -233,6 +234,7 @@ function ApplicationCard({ row }: { row: ApplicationRow }) {
         </div>
       ) : null}
     </Card>
+    </div>
   );
 }
 

@@ -5,7 +5,9 @@ import { BusinessFlow } from "@/features/onboarding/business-flow";
 
 export default async function AddShowroomBusiness() {
   await requireShowroomContext();
-  const { allowed, data } = await loadBusinessCreationAccess();
+  const { allowed, data, slotOpen } = await loadBusinessCreationAccess();
+  // A taken application slot is explained on the applications page rather than bounced home.
+  if (data && !slotOpen) redirect("/business/applications");
   if (!allowed || !data) redirect("/preview/showroom-suite-v2/home");
   // An additional activity chooses its own type, never the original registration intent.
   // Open drafts still resume normally. Writes retain canonical entitlement and RPC checks.
