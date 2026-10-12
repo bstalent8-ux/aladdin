@@ -100,7 +100,10 @@ export async function loadRecommendedProducts(
 ): Promise<RecommendedProduct[]> {
   const { data, error } = await supabase
     .rpc("catalog_products", { p_org_id: orgId })
-    .select("id, name, brand, supplier_name, supplier_verified, unit, category")
+    // Every column named in order() must also be selected: PostgREST orders a function result by
+    // the PROJECTED columns, so ordering by an unselected one fails the whole query
+    // ("column record.published_at does not exist") and takes the Home body down with it.
+    .select("id, name, brand, supplier_name, supplier_verified, unit, category, published_at")
     .neq("organization_id", orgId)
     .order("published_at", { ascending: false })
     .order("id", { ascending: true })

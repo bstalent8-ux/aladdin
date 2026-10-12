@@ -126,6 +126,17 @@ describe("loadRecommendedProducts", () => {
     expect(calls).toContainEqual(["limit", RECOMMENDED_PRODUCT_LIMIT]);
   });
 
+  it("selects every column it orders by (PostgREST rejects ordering by an unselected column)", async () => {
+    const { supabase, calls } = stub({ tables: { "rpc:catalog_products": [{ data: [], error: null }] } });
+    await loadRecommendedProducts(supabase, "org-1");
+    const selected = String((calls.find((c) => c[0] === "select") ?? [])[1] ?? "")
+      .split(",")
+      .map((c) => c.trim());
+    const ordered = calls.filter((c) => c[0] === "order").map((c) => String(c[1]));
+    expect(ordered.length).toBeGreaterThan(0);
+    for (const column of ordered) expect(selected, `order("${column}") must be selected`).toContain(column);
+  });
+
   it("drops rows without an id or name and returns an empty list for no data", async () => {
     const dirty = [{ id: null, name: "x" }, { id: "p2", name: null }, { id: "p3", name: "ok" }];
     const out = await loadRecommendedProducts(stub({ tables: { "rpc:catalog_products": [{ data: dirty, error: null }] } }).supabase, "o");
