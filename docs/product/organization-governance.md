@@ -235,3 +235,21 @@ Central Tags Library (add/rename/archive, propagate to linked accounts, compatib
 fourteen Craftsman specialties) and configurable subscription/page management (packages, prices,
 duration, entitlements, validated draft/preview/publish with audit history; a displayed feature
 must match its enforced backend entitlement). A future standalone phase; not a general CMS.
+
+## M3 corrections and M4a (20261023090004 - 90009)
+
+- **Branches are private until verified.** `showroom_branches` returns only Admin-approved snapshots; an internal or
+  pending branch appears in no public listing. `branch_verification_revoke` (administrator) removes a public
+  verification (history kept). The 100-branch limit was an unapproved arbitrary guard and is removed; branch limits
+  are a deferred commercial decision.
+- **Co-owner eligibility** now follows verified ownership of ANY approved organization type. The `contractor_company`
+  persona guard, Coming Soon registration and the one-open-application rule are unchanged.
+- **Reviewer evidence:** `review_context(verification_id)` (platform reviewers) returns the people, organization,
+  previous/proposed values, branch snapshot and history. The Admin UI does not render it yet (integration requirement).
+- **M4a:** `publishers` (organization / independent_contractor / independent_engineer), `products` and
+  `product_offers` (+ prices, images, items) carry an immutable `publisher_id`; independent approval is the review
+  type `independent_publisher`; suspend / revoke / reinstate are administrator RPCs; the gate
+  `platform_flags.independent_commerce` (default off, no API writer) hides independent content from everyone else.
+  See `m4-independent-publisher-impact-assessment.md` and `m4b-implementation-plan.md`.
+- Independent image keys use `{publisher_id}/{product_id}/{uuid}.ext` (not `p/...`) so the existing key format check
+  still holds; the prefix is never an authorization input.
