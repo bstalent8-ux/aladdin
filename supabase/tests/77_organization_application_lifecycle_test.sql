@@ -10,7 +10,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(77);
+select plan(78);
 
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data,
                         raw_user_meta_data, email_confirmed_at, created_at, updated_at)
@@ -202,6 +202,8 @@ select throws_ok(format($q$update public.organizations set org_type = 'showroom_
   '42501', null, 'C2: nor a pending one');
 select throws_ok($$ insert into public.organizations (name, org_type) values ('Evil', 'contractor_company') $$,
   '42501', null, 'C3: a client cannot insert a contractor_company');
+select throws_ok(format($q$update public.organizations set deleted_at = now() where id = %L$q$, (select id from _ids where k = 'o4')),
+  '42501', null, 'C3b: an owner cannot soft-delete an application to free the one-open slot');
 select lives_ok($$ select set_config('app.org_application', 'on', false) $$, 'C4: a client can set an arbitrary session setting...');
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Evil', p_org_type => 'contractor_company') $$,
   '42501', 'this organization type cannot be self-assigned', 'C5: ...and it grants nothing (the guard does not trust it)');
