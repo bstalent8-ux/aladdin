@@ -134,6 +134,39 @@ export function mapOrgI18nError(error: unknown): string {
   return "states.genericRetry";
 }
 
+/**
+ * Organization identity / branch / co-owner governance writers. The database decides everything;
+ * this only turns the stable `hint` it raises (or the SQLSTATE) into a translation key.
+ */
+const GOVERNANCE_HINTS: Record<string, string> = {
+  change_pending: "governance.errors.changePending",
+  no_changes: "governance.errors.nothingToChange",
+  invalid_name: "governance.errors.invalidName",
+  invalid_slug: "governance.errors.invalidSlug",
+  slug_taken: "governance.errors.slugTaken",
+  not_verified: "governance.errors.notVerified",
+  not_active: "governance.errors.notVerified",
+  org_not_approved: "governance.errors.orgNotApproved",
+  duplicate_branch_name: "governance.errors.duplicateBranch",
+  branch_limit: "governance.errors.branchLimit",
+  address_required: "governance.errors.addressRequired",
+  last_active_branch: "governance.errors.lastBranch",
+  branch_inactive: "governance.errors.branchInactive",
+  already_primary_owner: "governance.errors.alreadyOwner",
+  already_verified: "governance.errors.alreadyOwner",
+  awaiting_decision: "governance.errors.awaiting",
+};
+
+export function mapGovernanceError(error: unknown): string {
+  const e = (error ?? {}) as PgLikeError & { hint?: string | null };
+  const byHint = e.hint ? GOVERNANCE_HINTS[e.hint] : undefined;
+  if (byHint) return byHint;
+  if (e.code === "23505") return "governance.errors.duplicateBranch";
+  if (e.code === "42501") return "governance.errors.denied";
+  if ((e.message ?? "").toLowerCase().includes("not found")) return "settings.errors.notFound";
+  return "states.genericRetry";
+}
+
 /** True when the error means "the record moved under me" (caller should refresh). */
 export function isStaleVersion(error: unknown): boolean {
   const e = (error ?? {}) as PgLikeError;

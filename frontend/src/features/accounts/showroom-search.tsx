@@ -101,7 +101,7 @@ export function ShowroomSearch({
                   <option value="">{t("showroom.branchAny")}</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name}
+                      {b.locationVerified ? b.name : `${b.name} (${t("showroom.branchUnverified")})`}
                     </option>
                   ))}
                 </Select>

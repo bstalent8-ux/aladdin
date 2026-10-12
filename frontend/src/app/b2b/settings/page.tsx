@@ -15,6 +15,9 @@ import { isCraftsmanLoginAlias, userFacingEmail } from "@/lib/auth/craftsman-log
 import { resolveBilingualText } from "@/lib/i18n/bilingual";
 import { OrganizationIdentityDialog } from "@/features/organization/organization-identity-dialog";
 import { BranchIdentityDialog } from "@/features/organization/branch-identity-dialog";
+import { BranchGovernance } from "@/features/organization/branch-governance";
+import { IdentityChangePanel } from "@/features/organization/identity-change-panel";
+import { loadIdentityState, loadManagedBranches } from "@/server/queries/organization-governance";
 import { ActivitySelector } from "@/features/profile/activity-selector";
 import { IdentityCard } from "@/features/settings/identity-card";
 import { loadOrganizationActivities, loadOrganizationActivityCatalog } from "@/server/queries/activities";
@@ -94,11 +97,15 @@ export default async function SettingsPage() {
   // Organization subtypes (Showroom/Supplier/Manufacturer/Importer activities).
   // Editable only with org.manage — organization_activities_set enforces the
   // same capability itself; the selector is simply not offered without it.
-  const [activityCatalog, orgActivities, identity] = await Promise.all([
+  const [activityCatalog, orgActivities, identity, identityState, managedBranches] = await Promise.all([
     canManageOrg && record?.org_type ? loadOrganizationActivityCatalog(record.org_type) : Promise.resolve([] as string[]),
     canManageOrg ? loadOrganizationActivities(org.organizationId) : Promise.resolve([] as string[]),
     loadMyIdentity(),
+    // A verified organization's name changes only through a review request (never a direct edit).
+    canManageOrg ? loadIdentityState(org.organizationId) : Promise.resolve(null),
+    canManageBranches ? loadManagedBranches(org.organizationId) : Promise.resolve([]),
   ]);
+  const identityLocked = identityState?.locked ?? false;
 
   return (
     <div className="flex flex-col gap-lg pb-16 tablet:pb-0">
@@ -119,6 +126,7 @@ export default async function SettingsPage() {
                   nameAr={record?.name_ar ?? null}
                   nameEn={record?.name_en ?? null}
                   timezone={record?.timezone ?? null}
+                  locked={identityLocked}
                 />
               ) : undefined
             }
@@ -147,6 +155,7 @@ export default async function SettingsPage() {
               {record?.timezone ?? t("settings.timezoneDefault", { tz: DASHBOARD_TIMEZONE_FALLBACK })}
             </Field>
           </dl>
+          {canManageOrg && identityState ? <IdentityChangePanel orgId={org.organizationId} view={identityState} /> : null}
           <p className="mt-md border-t pt-sm text-label text-fg-muted">{m.settings.businessNote}</p>
         </Card>
 
@@ -195,7 +204,14 @@ export default async function SettingsPage() {
             </span>
           </SectionTitle>
           <div className="mt-md">
-            {org.branches.length === 0 ? (
+            {canManageBranches ? (
+              <BranchGovernance
+                m={m}
+                orgId={org.organizationId}
+                rows={managedBranches}
+                orgIsApproved={record?.status === "active"}
+              />
+            ) : org.branches.length === 0 ? (
               <p className="text-body text-fg-muted">{m.settings.noBranches}</p>
             ) : (
               <ul className="grid gap-1.5 tablet:grid-cols-2 desktop:grid-cols-3">

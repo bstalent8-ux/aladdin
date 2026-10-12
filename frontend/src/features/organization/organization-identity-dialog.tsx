@@ -20,12 +20,15 @@ export function OrganizationIdentityDialog({
   nameAr,
   nameEn,
   timezone,
+  locked = false,
 }: {
   m: Messages;
   orgId: string;
   nameAr: string | null;
   nameEn: string | null;
   timezone: string | null;
+  /** A verified name is read-only here: it changes through a review request instead. */
+  locked?: boolean;
 }) {
   return (
     <ConfirmDialog
@@ -38,13 +41,14 @@ export function OrganizationIdentityDialog({
     >
       <input type="hidden" name="orgId" value={orgId} />
       <p className="text-body text-fg-secondary">{m.settings.editOrgHelp}</p>
+      {locked ? <p className="text-label text-fg-muted">{m.governance.identity.lockedHint}</p> : null}
 
       <LabeledField label={m.settings.field.nameAr} htmlFor="org-name-ar" optional={m.common.optional}>
-        <Input id="org-name-ar" name="nameAr" defaultValue={nameAr ?? ""} dir="rtl" maxLength={120} />
+        <Input id="org-name-ar" name="nameAr" defaultValue={nameAr ?? ""} dir="rtl" maxLength={120} readOnly={locked} />
       </LabeledField>
 
       <LabeledField label={m.settings.field.nameEn} htmlFor="org-name-en" optional={m.common.optional}>
-        <Input id="org-name-en" name="nameEn" defaultValue={nameEn ?? ""} dir="ltr" maxLength={120} />
+        <Input id="org-name-en" name="nameEn" defaultValue={nameEn ?? ""} dir="ltr" maxLength={120} readOnly={locked} />
       </LabeledField>
 
       <LabeledField

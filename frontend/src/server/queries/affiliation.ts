@@ -22,7 +22,7 @@ export type ShowroomResult = {
   isVerified: boolean;
 };
 
-export type ShowroomBranch = { id: string; name: string };
+export type ShowroomBranch = { id: string; name: string; locationVerified: boolean };
 
 /** Search showrooms by name. A query under 2 characters returns nothing. */
 export async function searchShowrooms(query: string): Promise<ShowroomResult[]> {
@@ -42,7 +42,7 @@ export async function showroomBranches(organizationId: string): Promise<Showroom
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("showroom_branches", { p_org_id: organizationId });
   if (error) return [];
-  return (data ?? []).map((b) => ({ id: b.id, name: b.name }));
+  return (data ?? []).map((b) => ({ id: b.id, name: b.name, locationVerified: b.location_verified }));
 }
 
 export type ReferralDraft = {

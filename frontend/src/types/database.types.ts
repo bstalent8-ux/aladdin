@@ -6459,7 +6459,102 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: {
           id: string
+          location_verified: boolean
           name: string
+        }[]
+      }
+      branch_create: {
+        Args: {
+          p_address_ar?: string
+          p_address_en?: string
+          p_locality_id?: string
+          p_name: string
+          p_name_ar?: string
+          p_name_en?: string
+          p_org_id: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
+      branch_set_active: {
+        Args: { p_active: boolean; p_branch_id: string }
+        Returns: undefined
+      }
+      branch_set_locality: {
+        Args: { p_branch_id: string; p_locality_id: string }
+        Returns: undefined
+      }
+      branch_verification_request: {
+        Args: { p_branch_id: string }
+        Returns: string
+      }
+      my_branches: {
+        Args: { p_org_id: string }
+        Returns: {
+          address_ar: string | null
+          address_en: string | null
+          has_unreviewed_changes: boolean
+          id: string
+          is_active: boolean
+          locality_id: string | null
+          location_verified: boolean
+          name: string
+          name_ar: string | null
+          name_en: string | null
+          review_reason: string | null
+          review_status: string
+          timezone: string | null
+          verified_at: string | null
+        }[]
+      }
+      my_co_owner_state: {
+        Args: never
+        Returns: {
+          can_request: boolean
+          name: string
+          organization_id: string
+          reason: string | null
+          relationship: string
+          request_id: string | null
+          request_status: string | null
+        }[]
+      }
+      org_co_owner_request: {
+        Args: { p_note?: string; p_org_id: string }
+        Returns: string
+      }
+      org_co_owner_revoke: {
+        Args: { p_org_id: string; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
+      organization_identity_change_request: {
+        Args: {
+          p_name?: string
+          p_name_ar?: string
+          p_name_en?: string
+          p_org_id: string
+          p_slug?: string
+        }
+        Returns: string
+      }
+      organization_identity_change_withdraw: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
+      organization_identity_state: {
+        Args: { p_org_id: string }
+        Returns: {
+          decided_at: string | null
+          locked: boolean
+          name: string
+          name_ar: string | null
+          name_en: string | null
+          proposed: Json | null
+          reason: string | null
+          request_id: string | null
+          request_status: string | null
+          requested_at: string | null
+          slug: string | null
         }[]
       }
       showroom_directory_search: {
@@ -6989,7 +7084,13 @@ export type Database = {
         | "expired"
         | "cancelled"
       verification_subject: "user" | "organization"
-      verification_type: "identity" | "professional" | "organization"
+      verification_type:
+        | "identity"
+        | "professional"
+        | "organization"
+        | "organization_identity"
+        | "co_owner"
+        | "branch_location"
       purchase_request_status: "draft" | "published" | "closed" | "cancelled"
       purchase_response_status: "submitted" | "withdrawn"
     }
@@ -7276,7 +7377,14 @@ export const Constants = {
         "cancelled",
       ],
       verification_subject: ["user", "organization"],
-      verification_type: ["identity", "professional", "organization"],
+      verification_type: [
+        "identity",
+        "professional",
+        "organization",
+        "organization_identity",
+        "co_owner",
+        "branch_location",
+      ],
     },
   },
 } as const
