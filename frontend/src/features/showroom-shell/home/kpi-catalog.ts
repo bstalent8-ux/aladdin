@@ -1,12 +1,15 @@
 import type { ComponentType } from "react";
 import {
   BookmarkIcon,
+  CheckIcon,
   ClipboardIcon,
-  InboxIcon,
+  FileTextIcon,
+  ClockIcon,
   LayersIcon,
   MoneyIcon,
   ScrollIcon,
   SendIcon,
+  ShoppingBagIcon,
   TrendingUpIcon,
 } from "@/components/ui/icons";
 import type { DashboardPeriodKey } from "@/lib/workspace/dashboard-period";
@@ -34,7 +37,9 @@ export type ShowroomKpiKey =
   | "customer_quotes_sent"
   | "total_sales"
   | "projects"
-  | "saved_products";
+  | "saved_products"
+  | "completed_orders"
+  | "orders_awaiting_execution";
 
 export type ShowroomKpiDirection = "purchasing" | "sales" | "operations";
 /** `now` cards describe what is true right now; `period` cards follow the period selector. */
@@ -45,6 +50,8 @@ export type ShowroomKpiEntry = {
   Icon: ComponentType<{ size?: number }>;
   /** Dotted path into the message catalog for the card's visible label. */
   labelKey: string;
+  /** The "View ..." link at the foot of the card on the Home. */
+  linkLabelKey: string;
   /** Same label with its direction spelled out — the customization dialog lists cards without their tile hint. */
   dialogLabelKey: string;
   direction: ShowroomKpiDirection;
@@ -76,35 +83,34 @@ const SELLER_CAPABILITIES = ["rfq.respond", "quote.submit", "order.manage"] as c
 
 /** Everything the dialog may offer, in the product's canonical order. */
 export const SHOWROOM_KPI_CATALOG: readonly ShowroomKpiEntry[] = [
-  { key: "rfqs_sent", Icon: SendIcon, labelKey: "showroomHome.kpi.rfqsSent", dialogLabelKey: "showroomHome.kpiDialog.rfqsSent", direction: "purchasing", basis: "period", page: "pricing-requests-sent" },
-  { key: "quotes_received", Icon: InboxIcon, labelKey: "showroomHome.kpi.quotesReceived", dialogLabelKey: "showroomHome.kpiDialog.quotesReceived", direction: "purchasing", basis: "period", page: "quotes-received" },
-  { key: "orders_in_progress", Icon: ClipboardIcon, labelKey: "showroomHome.kpi.ordersInProgress", dialogLabelKey: "showroomHome.kpiDialog.ordersInProgress", direction: "purchasing", basis: "now", page: "purchase-orders", query: { status: "active" } },
-  { key: "total_purchases", Icon: MoneyIcon, labelKey: "showroomHome.kpi.totalPurchases", dialogLabelKey: "showroomHome.kpiDialog.totalPurchases", direction: "purchasing", basis: "period", page: "purchase-orders" },
-  { key: "customer_rfqs_received", Icon: ScrollIcon, labelKey: "showroomHome.kpi.customerRfqsReceived", dialogLabelKey: "showroomHome.kpiDialog.customerRfqsReceived", direction: "sales", basis: "period", page: "customer-rfqs" },
-  { key: "customer_quotes_sent", Icon: SendIcon, labelKey: "showroomHome.kpi.customerQuotesSent", dialogLabelKey: "showroomHome.kpiDialog.customerQuotesSent", direction: "sales", basis: "period", page: "customer-quotes" },
-  { key: "total_sales", Icon: TrendingUpIcon, labelKey: "showroomHome.kpi.totalSales", dialogLabelKey: "showroomHome.kpiDialog.totalSales", direction: "sales", basis: "period", page: "reports", query: { view: "sales" }, requires: SELLER_CAPABILITIES },
-  { key: "projects", Icon: LayersIcon, labelKey: "showroomHome.kpi.projects", dialogLabelKey: "showroomHome.kpiDialog.projects", direction: "operations", basis: "now", page: "projects", query: { status: "active" } },
-  { key: "saved_products", Icon: BookmarkIcon, labelKey: "showroomHome.kpi.savedProducts", dialogLabelKey: "showroomHome.kpiDialog.savedProducts", direction: "operations", basis: "now", page: "saved" },
+  { key: "rfqs_sent", Icon: ShoppingBagIcon, labelKey: "showroomHome.kpi.rfqsSent", linkLabelKey: "showroomHome.link.viewRequests", dialogLabelKey: "showroomHome.kpiDialog.rfqsSent", direction: "purchasing", basis: "period", page: "pricing-requests-sent" },
+  { key: "quotes_received", Icon: FileTextIcon, labelKey: "showroomHome.kpi.quotesReceived", linkLabelKey: "showroomHome.link.viewQuotations", dialogLabelKey: "showroomHome.kpiDialog.quotesReceived", direction: "purchasing", basis: "period", page: "quotes-received" },
+  { key: "orders_in_progress", Icon: ClipboardIcon, labelKey: "showroomHome.kpi.ordersInProgress", linkLabelKey: "showroomHome.link.viewOrders", dialogLabelKey: "showroomHome.kpiDialog.ordersInProgress", direction: "purchasing", basis: "now", page: "purchase-orders", query: { status: "active" } },
+  { key: "total_purchases", Icon: MoneyIcon, labelKey: "showroomHome.kpi.totalPurchases", linkLabelKey: "showroomHome.link.viewDetails", dialogLabelKey: "showroomHome.kpiDialog.totalPurchases", direction: "purchasing", basis: "period", page: "purchase-orders" },
+  { key: "customer_rfqs_received", Icon: ScrollIcon, labelKey: "showroomHome.kpi.customerRfqsReceived", linkLabelKey: "showroomHome.link.viewRequests", dialogLabelKey: "showroomHome.kpiDialog.customerRfqsReceived", direction: "sales", basis: "period", page: "customer-rfqs" },
+  { key: "customer_quotes_sent", Icon: SendIcon, labelKey: "showroomHome.kpi.customerQuotesSent", linkLabelKey: "showroomHome.link.viewQuotations", dialogLabelKey: "showroomHome.kpiDialog.customerQuotesSent", direction: "sales", basis: "period", page: "customer-quotes" },
+  { key: "total_sales", Icon: TrendingUpIcon, labelKey: "showroomHome.kpi.totalSales", linkLabelKey: "showroomHome.link.viewDetails", dialogLabelKey: "showroomHome.kpiDialog.totalSales", direction: "sales", basis: "period", page: "reports", query: { view: "sales" }, requires: SELLER_CAPABILITIES },
+  { key: "projects", Icon: LayersIcon, labelKey: "showroomHome.kpi.projects", linkLabelKey: "showroomHome.link.viewProjects", dialogLabelKey: "showroomHome.kpiDialog.projects", direction: "operations", basis: "now", page: "projects", query: { status: "active" } },
+  { key: "completed_orders", Icon: CheckIcon, labelKey: "showroomHome.kpi.completedOrders", linkLabelKey: "showroomHome.link.viewOrders", dialogLabelKey: "showroomHome.kpiDialog.completedOrders", direction: "purchasing", basis: "period", page: "purchase-orders", query: { status: "completed" } },
+  { key: "orders_awaiting_execution", Icon: ClockIcon, labelKey: "showroomHome.kpi.ordersAwaitingExecution", linkLabelKey: "showroomHome.link.viewOrders", dialogLabelKey: "showroomHome.kpiDialog.ordersAwaitingExecution", direction: "purchasing", basis: "now", page: "purchase-orders", query: { status: "confirmed" } },
+  { key: "saved_products", Icon: BookmarkIcon, labelKey: "showroomHome.kpi.savedProducts", linkLabelKey: "showroomHome.link.viewSaved", dialogLabelKey: "showroomHome.kpiDialog.savedProducts", direction: "operations", basis: "now", page: "saved" },
 ];
 
 /** The first screen: six cards. The rest sit behind "show more" (the production customization behavior). */
-export const SHOWROOM_KPI_PRIMARY_COUNT = 6;
+export const SHOWROOM_KPI_PRIMARY_COUNT = 5;
 export const SHOWROOM_KPI_MAX = SHOWROOM_KPI_CATALOG.length;
 
 /**
- * What a showroom sees before anyone customizes: the balanced six — three per
- * direction pair — first, then the supporting four. Never duplicated elsewhere.
+ * What a showroom sees before anyone customizes: the five cards of the approved Home reference, in its
+ * reading order. Every other card is one tap away in "تخصيص بطاقات المؤشرات". A card the caller may not see is
+ * simply absent - never replaced by a different figure.
  */
 export const SHOWROOM_KPI_DEFAULT_ORDER: readonly ShowroomKpiKey[] = [
-  "rfqs_sent",
-  "quotes_received",
-  "orders_in_progress",
-  "customer_rfqs_received",
   "total_purchases",
-  "total_sales",
-  "customer_quotes_sent",
-  "projects",
-  "saved_products",
+  "orders_awaiting_execution",
+  "completed_orders",
+  "quotes_received",
+  "rfqs_sent",
 ];
 
 const PAGE_ITEMS = new Map(SHOWROOM_GROUPS.flatMap((group) => group.items).map((item) => [item.id, item]));

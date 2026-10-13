@@ -19,10 +19,10 @@ const labelOf = (key: ShowroomKpiKey) =>
 const keys = (caps: string[]) => availableShowroomKpis(caps).map((e) => e.key);
 
 describe("showroom KPI catalog", () => {
-  it("offers exactly the nine approved cards, once each", () => {
-    expect(SHOWROOM_KPI_CATALOG).toHaveLength(9);
-    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.key)).size).toBe(9);
-    expect(SHOWROOM_KPI_MAX).toBe(9);
+  it("offers exactly the eleven approved cards, once each", () => {
+    expect(SHOWROOM_KPI_CATALOG).toHaveLength(11);
+    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.key)).size).toBe(11);
+    expect(SHOWROOM_KPI_MAX).toBe(11);
   });
 
   it("never presents RFQs as Purchase Requests (no such entity exists yet)", () => {
@@ -35,51 +35,47 @@ describe("showroom KPI catalog", () => {
     }
   });
 
-  it("defaults to the approved order: six first-screen cards, then the rest", () => {
+  it("defaults to the five cards of the approved Home reference, in its reading order", () => {
     expect([...SHOWROOM_KPI_DEFAULT_ORDER]).toEqual([
-      "rfqs_sent",
-      "quotes_received",
-      "orders_in_progress",
-      "customer_rfqs_received",
       "total_purchases",
-      "total_sales",
-      "customer_quotes_sent",
-      "projects",
-      "saved_products",
+      "orders_awaiting_execution",
+      "completed_orders",
+      "quotes_received",
+      "rfqs_sent",
     ]);
-    expect(SHOWROOM_KPI_DEFAULT_ORDER.slice(0, SHOWROOM_KPI_PRIMARY_COUNT).map((k) => ar.showroomHome.kpi[labelOf(k)])).toEqual([
-      "طلبات عروض أسعار صادرة",
-      "عروض أسعار واردة",
-      "أوامر شراء قيد التنفيذ",
-      "طلبات عروض أسعار واردة",
+    expect(SHOWROOM_KPI_DEFAULT_ORDER.map((k) => ar.showroomHome.kpi[labelOf(k)])).toEqual([
       "إجمالي المشتريات",
-      "إجمالي المبيعات",
+      "أوامر بانتظار التنفيذ",
+      "أوامر الشراء المكتملة",
+      "عروض أسعار واردة",
+      "طلبات عروض الأسعار المباشرة",
     ]);
   });
 
-  it("puts six cards on the first screen and the rest behind show more", () => {
-    expect(SHOWROOM_KPI_PRIMARY_COUNT).toBe(6);
-    expect([...SHOWROOM_KPI_DEFAULT_ORDER].sort()).toEqual(SHOWROOM_KPI_CATALOG.map((e) => e.key).sort());
+  it("puts five cards on the first screen; every other card is reachable through customization", () => {
+    expect(SHOWROOM_KPI_PRIMARY_COUNT).toBe(5);
+    expect(SHOWROOM_KPI_DEFAULT_ORDER).toHaveLength(5);
+    for (const key of SHOWROOM_KPI_DEFAULT_ORDER) expect(SHOWROOM_KPI_CATALOG.map((e) => e.key)).toContain(key);
   });
 
   it("keeps purchasing and sales as separate directions", () => {
     const dir = (d: string) => SHOWROOM_KPI_CATALOG.filter((e) => e.direction === d).map((e) => e.key).sort();
     expect(dir("purchasing")).toEqual(
-      ["orders_in_progress", "quotes_received", "rfqs_sent", "total_purchases"].sort(),
+      ["completed_orders", "orders_awaiting_execution", "orders_in_progress", "quotes_received", "rfqs_sent", "total_purchases"].sort(),
     );
     expect(dir("sales")).toEqual(["customer_quotes_sent", "customer_rfqs_received", "total_sales"].sort());
     expect(dir("operations")).toEqual(["projects", "saved_products"].sort());
   });
 
   it("uses the exact approved Arabic-facing label keys, one per card", () => {
-    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.labelKey)).size).toBe(9);
-    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.dialogLabelKey)).size).toBe(9);
+    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.labelKey)).size).toBe(11);
+    expect(new Set(SHOWROOM_KPI_CATALOG.map((e) => e.dialogLabelKey)).size).toBe(11);
   });
 
   it("marks only the totals and flow cards as period-scoped", () => {
     const period = SHOWROOM_KPI_CATALOG.filter((e) => e.basis === "period").map((e) => e.key).sort();
     expect(period).toEqual(
-      ["customer_quotes_sent", "customer_rfqs_received", "quotes_received", "rfqs_sent", "total_purchases", "total_sales"].sort(),
+      ["completed_orders", "customer_quotes_sent", "customer_rfqs_received", "quotes_received", "rfqs_sent", "total_purchases", "total_sales"].sort(),
     );
   });
 });
@@ -118,7 +114,7 @@ describe("KPI destinations", () => {
 
 describe("capability behavior", () => {
   it("offers every card to an owner (org.manage)", () => {
-    expect(keys(["org.manage"])).toHaveLength(9);
+    expect(keys(["org.manage"])).toHaveLength(11);
   });
 
   it("offers nothing to a member with no commerce capability", () => {
@@ -142,6 +138,11 @@ describe("capability behavior", () => {
 
 describe("persisted layout resolution", () => {
   const all = availableShowroomKpis(["org.manage"]);
+
+  it("a caller who may not see one of the five reference cards gets four - never a substitute figure", () => {
+    const buyerNoOrders = availableShowroomKpis(["rfq.create"]);
+    expect(resolveShowroomKpiOrder(null, buyerNoOrders)).toEqual(["quotes_received", "rfqs_sent"]);
+  });
 
   it("falls back to the system default when nothing is saved", () => {
     expect(resolveShowroomKpiOrder(null, all)).toEqual([...SHOWROOM_KPI_DEFAULT_ORDER]);

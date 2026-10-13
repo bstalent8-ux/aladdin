@@ -185,7 +185,7 @@ export function KpiCustomizeDialog({
                 <h2 id={titleId} className="text-title text-fg">
                   {t("home.customize.title")}
                 </h2>
-                <p className="mt-1 text-body text-fg-secondary">{t("home.customize.body")}</p>
+                <p className="mt-1 text-body text-fg-secondary">{t(surface === "showroom_suite" ? "showroomHome.customizeBody" : "home.customize.body")}</p>
               </div>
               {/* No action here auto-closes the dialog (a notice inside a
                   dialog that immediately unmounts is unreadable), so an

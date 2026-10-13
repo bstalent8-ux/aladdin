@@ -28,7 +28,8 @@ describe("showroom_home_metrics parsing", () => {
 
 describe("card -> figure mapping keeps directions apart", () => {
   const metrics = parseShowroomHomeMetrics(full);
-  const value = (key: (typeof SHOWROOM_KPI_CATALOG)[number]["key"]) => showroomKpiValue(key, metrics);
+  const orders = { completedOrders: 777, awaitingExecution: 888 };
+  const value = (key: (typeof SHOWROOM_KPI_CATALOG)[number]["key"]) => showroomKpiValue(key, metrics, orders);
 
   it("reads purchasing cards from the purchasing figures", () => {
     expect(value("rfqs_sent").value).toBe(metrics.rfqs_sent);
@@ -41,6 +42,11 @@ describe("card -> figure mapping keeps directions apart", () => {
     expect(value("customer_rfqs_received").value).toBe(metrics.customer_rfqs_received);
     expect(value("customer_quotes_sent").value).toBe(metrics.customer_quotes_sent);
     expect(value("total_sales")).toEqual({ value: metrics.total_sales, money: true });
+  });
+
+  it("reads the two reference order cards from the order counts, not from the RPC", () => {
+    expect(value("completed_orders")).toEqual({ value: 777, money: false });
+    expect(value("orders_awaiting_execution")).toEqual({ value: 888, money: false });
   });
 
   it("carries no purchase-request figure: RFQs are a different procurement stage", () => {

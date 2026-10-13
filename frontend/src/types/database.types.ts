@@ -6607,6 +6607,22 @@ export type Database = {
         }
         Returns: string
       }
+      organization_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      organization_image_current: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
+      organization_image_remove: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
+      organization_image_request_upload: {
+        Args: { p_content_type: string; p_org_id: string }
+        Returns: string
+      }
       organization_identity_change_withdraw: {
         Args: { p_org_id: string }
         Returns: undefined
@@ -7034,6 +7050,8 @@ export type Database = {
         | "total_purchases"
         | "projects"
         | "saved_products"
+        | "completed_orders"
+        | "orders_awaiting_execution"
         | "rfqs_sent"
         | "quotes_received"
         | "customer_rfqs_received"
@@ -7314,6 +7332,8 @@ export const Constants = {
         "total_purchases",
         "projects",
         "saved_products",
+        "completed_orders",
+        "orders_awaiting_execution",
         "rfqs_sent",
         "quotes_received",
         "customer_rfqs_received",

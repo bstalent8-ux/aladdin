@@ -119,21 +119,19 @@ export async function loadRecommendedProducts(
 // explicitly, no service role, nothing fabricated - an empty result is an empty result.
 // ---------------------------------------------------------------------------------------------------------------
 
-export type ShowroomHeadlineExtras = { activeRfqs: number; completedOrders: number };
+export type { ShowroomOrderCounts } from "@/features/showroom-shell/home/metrics";
 
 /**
- * Two figures `showroom_home_metrics` does not carry, counted from the same RLS-scoped list views.
- *  - activeRfqs: Direct RFQs this organization SENT that are still open (submitted, or answered but not closed).
- *    Direct RFQs only - Shared Purchase Requests are a different system with no Home figure yet.
- *  - completedOrders: orders this organization PLACED that reached `completed` inside the period.
+ * Two order figures `showroom_home_metrics` does not carry, counted from the same RLS-scoped `order_list` view.
+ *  - completedOrders: orders this organization PLACED that reached `completed` inside the window.
+ *  - awaitingExecution: orders it placed that are `confirmed` and not yet started (right now - no window).
  */
-export async function loadShowroomHeadlineExtras(
+export async function loadShowroomOrderCounts(
   supabase: DB,
   orgId: string,
   window: { start: string; end: string },
-): Promise<ShowroomHeadlineExtras> {
-  const [rfqs, orders] = await Promise.all([
-    supabase.from("rfq_list").select("id", { count: "exact", head: true }).eq("requester_org_id", orgId).in("status", ["submitted", "quoted"]),
+): Promise<{ completedOrders: number; awaitingExecution: number }> {
+  const [done, waiting] = await Promise.all([
     supabase
       .from("order_list")
       .select("id", { count: "exact", head: true })
@@ -141,10 +139,11 @@ export async function loadShowroomHeadlineExtras(
       .eq("status", "completed")
       .gte("completed_at", window.start)
       .lt("completed_at", window.end),
+    supabase.from("order_list").select("id", { count: "exact", head: true }).eq("requester_org_id", orgId).eq("status", "confirmed"),
   ]);
-  if (rfqs.error) throw rfqs.error;
-  if (orders.error) throw orders.error;
-  return { activeRfqs: rfqs.count ?? 0, completedOrders: orders.count ?? 0 };
+  if (done.error) throw done.error;
+  if (waiting.error) throw waiting.error;
+  return { completedOrders: done.count ?? 0, awaitingExecution: waiting.count ?? 0 };
 }
 
 export type IncomingQuotation = {
@@ -156,6 +155,8 @@ export type IncomingQuotation = {
   itemCount: number;
   submittedAt: string | null;
   validityDate: string | null;
+  /** The product of the quotation's first line, when it came from a catalog product - used only for the thumbnail. */
+  productId: string | null;
 };
 
 /** Quotations answering THIS organization's Direct RFQs, newest first. Drafts are the supplier's private work and never listed. */
@@ -169,39 +170,35 @@ export async function loadLatestIncomingQuotations(supabase: DB, orgId: string, 
     .order("id", { ascending: true })
     .limit(limit);
   if (error) throw error;
+  const ids = (data ?? []).flatMap((q) => (q.id ? [q.id] : []));
+  const productByQuotation = await firstProductPerQuotation(supabase, ids);
   return (data ?? []).flatMap((q) =>
     q.id && q.status
-      ? [{ id: q.id, supplierName: q.supplier_name ?? "", rfqTitle: q.rfq_title ?? "", status: q.status, total: q.total === null ? null : Number(q.total), itemCount: Number(q.item_count ?? 0), submittedAt: q.submitted_at, validityDate: q.validity_date }]
+      ? [{ id: q.id, supplierName: q.supplier_name ?? "", rfqTitle: q.rfq_title ?? "", status: q.status, total: q.total === null ? null : Number(q.total), itemCount: Number(q.item_count ?? 0), submittedAt: q.submitted_at, validityDate: q.validity_date, productId: productByQuotation.get(q.id) ?? null }]
       : [],
   );
 }
 
-export type ActiveDirectRfq = {
-  id: string;
-  title: string;
-  supplierName: string;
-  status: "submitted" | "quoted";
-  itemCount: number;
-  requiredDate: string | null;
-  submittedAt: string | null;
-};
-
-/** Open Direct RFQs this organization sent, newest first. */
-export async function loadActiveDirectRfqs(supabase: DB, orgId: string, limit = 5): Promise<ActiveDirectRfq[]> {
-  const { data, error } = await supabase
-    .from("rfq_list")
-    .select("id, title, supplier_name, status, item_count, required_date, submitted_at, created_at")
-    .eq("requester_org_id", orgId)
-    .in("status", ["submitted", "quoted"])
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: true })
-    .limit(limit);
+/** quotation id -> product of its first line (quotation line -> RFQ line -> product). Both reads are RLS-scoped. */
+async function firstProductPerQuotation(supabase: DB, quotationIds: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (quotationIds.length === 0) return out;
+  const { data: lines, error } = await supabase
+    .from("quotation_items")
+    .select("quotation_id, rfq_item_id, created_at")
+    .in("quotation_id", [...quotationIds])
+    .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []).flatMap((r) =>
-    r.id && (r.status === "submitted" || r.status === "quoted")
-      ? [{ id: r.id, title: r.title ?? "", supplierName: r.supplier_name ?? "", status: r.status, itemCount: Number(r.item_count ?? 0), requiredDate: r.required_date, submittedAt: r.submitted_at }]
-      : [],
-  );
+  const rfqItemIds = [...new Set((lines ?? []).flatMap((l) => (l.rfq_item_id ? [l.rfq_item_id] : [])))];
+  if (rfqItemIds.length === 0) return out;
+  const { data: items, error: itemsError } = await supabase.from("rfq_items").select("id, product_id").in("id", rfqItemIds);
+  if (itemsError) throw itemsError;
+  const productOf = new Map((items ?? []).flatMap((i) => (i.product_id ? [[i.id, i.product_id] as const] : [])));
+  for (const line of lines ?? []) {
+    const product = line.rfq_item_id ? productOf.get(line.rfq_item_id) : undefined;
+    if (product && !out.has(line.quotation_id)) out.set(line.quotation_id, product);
+  }
+  return out;
 }
 
 export type CategorySpend = { category: string; amount: number };

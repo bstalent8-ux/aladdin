@@ -36,8 +36,15 @@ export function parseShowroomHomeMetrics(raw: unknown): ShowroomHomeMetrics {
   return out;
 }
 
+/**
+ * Two order counts that `showroom_home_metrics` does not carry, read by the application from the same RLS-scoped
+ * `order_list` view: orders this organization PLACED that completed inside the period, and orders it placed that
+ * are confirmed but not yet started (a "now" figure - it has no period).
+ */
+export type ShowroomOrderCounts = { completedOrders: number; awaitingExecution: number };
+
 /** Which metric backs each card — the one place a card maps to its live figure. */
-export function showroomKpiValue(key: ShowroomKpiKey, metrics: ShowroomHomeMetrics): { value: number; money: boolean } {
+export function showroomKpiValue(key: ShowroomKpiKey, metrics: ShowroomHomeMetrics, orders: ShowroomOrderCounts): { value: number; money: boolean } {
   switch (key) {
     case "rfqs_sent": return { value: metrics.rfqs_sent, money: false };
     case "quotes_received": return { value: metrics.quotes_received, money: false };
@@ -48,5 +55,7 @@ export function showroomKpiValue(key: ShowroomKpiKey, metrics: ShowroomHomeMetri
     case "total_sales": return { value: metrics.total_sales, money: true };
     case "projects": return { value: metrics.active_projects, money: false };
     case "saved_products": return { value: metrics.saved_products, money: false };
+    case "completed_orders": return { value: orders.completedOrders, money: false };
+    case "orders_awaiting_execution": return { value: orders.awaitingExecution, money: false };
   }
 }
