@@ -200,3 +200,30 @@ Risks:
 5. Separate explicit approval before any launch action.
 
 Nothing in this document starts automatically.
+
+---
+
+## Appendix - F0 decision checkpoint (2026-10-13)
+
+Recorded after the user reviewed the audit and this roadmap. The audit remains the historical record of what was found; it is intentionally not edited (B-1 stays described as found).
+
+### Approved decisions
+
+1. **Shell strategy.** Independent Contractors and Engineers use the existing personal `/home` shell. No new standalone commerce shell. Existing Showroom components are reused and safely adapted. The UI must clearly distinguish **personal identity**, **independent professional publisher identity** and an **approved organization workspace**; the backend verifies the acting identity on every request. No union of permissions or audiences.
+2. **Placeholder navigation.** The 15 non-functional Showroom-suite sidebar items are to be hidden from primary navigation until their real screens exist. Routes and code are kept; the 15 pages are not built automatically. **Not changed in this checkpoint** - the correction belongs to the F2 implementation plan.
+3. **Terminology (separate features, separate data models and permissions).** Direct RFQs = «طلبات عروض الأسعار المباشرة». Shared Purchase Requests = «طلبات الشراء». Labels are corrected during the relevant frontend work (the `/b2b` label "Purchase requests" for the Direct RFQ list is part of that). No Shared Purchase Request UI is built at this stage.
+4. **Personal-contact privacy (requirements for M4b personal-buyer to independent-seller Direct RFQs).** Personal phone, email and WhatsApp hidden by default; each channel needs its own authorization/consent; requesting a quotation does not grant disclosure; in-platform communication is the default; home address and sensitive personal information are not shared automatically; a delivery address requires explicit, transaction-specific collection and an authorized disclosure process; only authorized transaction participants access the relevant information. This closes open decision 2 in section 13 of this roadmap (the rules, not their implementation).
+5. **Launch.** Contractor/Engineer registration stays Coming Soon; the `independent_commerce` gate stays disabled; no deployment or public activation.
+6. **Personal Account "Coming soon".** Reported by the audit; **unresolved observation** that needs separate confirmation. Availability not changed.
+
+### B-1 correction result
+
+Fixed with migration `20261023090010_identity_state_latest_outcome.sql`: `organization_identity_state` now ranks the latest identity request across all outcomes. A newer **approved** request is the current outcome (no open or rejected request reported, no stale note); a newer rejection, needs-changes or pending request still wins over older ones; older rejections stay in `verifications` and the audit log. Only the lookup changed - no approval, permission or write rule. Evidence: pgTAP `80_identity_state_latest_outcome_test.sql` (24 assertions), full pgTAP suite 81 files / 3632 tests, and a real-browser run of the same scenario that showed the bug (screenshots `b1-01`/`b1-02` in the audit archive; "before" is audit capture `06-rename-approved`). Known behaviour kept: ordering relies on request submission time; a withdrawn request is not an outcome, so an older rejection can show again after a withdrawal (unchanged from before).
+
+### Still pending
+
+* **F1 design approvals** (nothing built before they are approved): independent hub; My Products list/editor/image manager; independent Offers list/builder/detail; RFQ inbox and quotation editor; independent orders and projects; personal-buyer request flow and my requests/quotations/orders; standalone Messages; professional profile with commercial status; acting-as switcher; navigation entry and Coming Soon treatment; Shared Purchase Request screens; Admin evidence/governance screens (Admin workstream).
+* **M4a frontend implementation: pending** (F2).
+* **M4b: not implemented.** The privacy requirements above are inputs to it.
+* Remaining open decisions from section 13: 1 (revoked-publisher order handling steps), 3 (eligible personal buyers), 4 (payments and settlement), 5 (public display name), 6 (individual Purchase Request responders), 7 (duplicated screens).
+* Review pack for the user's visual review: `docs/frontend/screenshots/m4-review-pack/` (+ `.zip`).
