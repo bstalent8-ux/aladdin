@@ -8,7 +8,11 @@ const state = vi.hoisted(() => ({ environment: "staging" as string | undefined }
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => ({ value: "ar" }) }) }));
 // If the page ever reads the public env again, this mock hands it the value under
 // test — which is exactly what these tests prove it no longer cares about.
-vi.mock("@/lib/env", () => ({ readPublicEnv: () => ({ NEXT_PUBLIC_APP_ENV: state.environment }) }));
+vi.mock("@/lib/env", () => ({
+  readPublicEnv: () => ({ NEXT_PUBLIC_APP_ENV: state.environment }),
+  // the navbar Marketplace link flag: independent of NEXT_PUBLIC_APP_ENV
+  isMarketplacePreviewEnabled: () => false,
+}));
 
 const ENVIRONMENTS = ["staging", "production", "local", "preview", undefined] as const;
 

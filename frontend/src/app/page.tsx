@@ -3,6 +3,7 @@ import { LOCALE_COOKIE, resolveLocale, directionFor } from "@/lib/i18n/config";
 import { I18nProvider } from "@/lib/i18n/context";
 import { LandingHero } from "@/features/landing-preview/landing-hero";
 import { LandingEcosystem } from "@/features/landing-preview/landing-ecosystem";
+import { LandingMarketplaceGate } from "@/features/landing-marketplace/landing-marketplace-gate";
 import { LandingMotion } from "@/features/landing-preview/landing-motion";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function RootPage() {
     <I18nProvider locale={locale} dir={directionFor(locale)}>
       <LandingMotion>
         <LandingHero />
-        <LandingEcosystem />
+        <LandingEcosystem marketplaceSlot={<LandingMarketplaceGate />} />
       </LandingMotion>
     </I18nProvider>
   );

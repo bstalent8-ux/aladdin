@@ -60,8 +60,8 @@ beforeEach(() => {
 });
 
 describe("canonical /auth/* routes render the tested password flow", () => {
-  it("/auth/sign-up → PasswordSignUpForm", () => {
-    expect(element(SignUpPage()).type).toBe(PasswordSignUpForm);
+  it("/auth/sign-up → PasswordSignUpForm", async () => {
+    expect(element(await SignUpPage(params({}))).type).toBe(PasswordSignUpForm);
   });
 
   it("/auth/sign-in → PasswordSignInForm with a sanitized next", async () => {

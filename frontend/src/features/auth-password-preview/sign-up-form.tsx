@@ -45,7 +45,7 @@ const RESEND_COOLDOWN_SECONDS = 30;
  * and never receives a code has an immediate, non-suspicious way out instead
  * of waiting indefinitely on a code that GoTrue never actually sent.
  */
-export function PasswordSignUpForm() {
+export function PasswordSignUpForm({ initialAccountType = "" }: { initialAccountType?: string } = {}) {
   const { t } = useI18n();
   const [sendState, dispatchSend] = useActionState(requestPasswordSignUp, initial);
   const [resendState, dispatchResend] = useActionState(resendPasswordSignUpCode, initial);
@@ -55,7 +55,7 @@ export function PasswordSignUpForm() {
   const [cooldown, setCooldown] = useState(0);
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
-  const [accountTypeKey, setAccountTypeKey] = useState("");
+  const [accountTypeKey, setAccountTypeKey] = useState(initialAccountType);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [consents, setConsents] = useState({ terms: false, privacy: false, pilot: false });
@@ -186,37 +186,48 @@ export function PasswordSignUpForm() {
             />
           </LabeledField>
 
-          <LabeledField
-            label={t("authPasswordPreview.accountTypeLabel")}
-            htmlFor="accountType"
-            hint={accountTypeKey ? t(`onboarding.accountType.types.${accountTypeKey}Desc`) : undefined}
-            error={sendState.code === "authPasswordPreview.error.accountTypeRequired" ? t(sendState.code) : undefined}
-          >
-            {/* One dropdown over the same ordered registration taxonomy. Coming
-                Soon types stay visible but are disabled options; the server
-                action re-checks every submitted key regardless. */}
-            <Select
-              id="accountType"
-              name="accountType"
-              required
-              value={accountTypeKey}
-              onChange={(e) => setAccountTypeKey(e.target.value)}
-              aria-invalid={sendState.code === "authPasswordPreview.error.accountTypeRequired" ? true : undefined}
+          {initialAccountType ? (
+            /* Type chosen on the landing page: no selector, the key is submitted as-is
+               (the server action still validates it). */
+            <>
+              <input type="hidden" name="accountType" value={initialAccountType} />
+              <p className="text-body text-fg-secondary">
+                {t("authPasswordPreview.accountTypeLocked")}: <strong className="text-fg">{t(`onboarding.accountType.types.${initialAccountType}`)}</strong>
+              </p>
+            </>
+          ) : (
+            <LabeledField
+              label={t("authPasswordPreview.accountTypeLabel")}
+              htmlFor="accountType"
+              hint={accountTypeKey ? t(`onboarding.accountType.types.${accountTypeKey}Desc`) : undefined}
+              error={sendState.code === "authPasswordPreview.error.accountTypeRequired" ? t(sendState.code) : undefined}
             >
-              <option value="" disabled>
-                {t("authPasswordPreview.accountTypePlaceholder")}
-              </option>
-              {REGISTRATION_CHOICE_ORDER.map((key) => {
-                const comingSoon = CHOICES_BY_KEY[key]?.comingSoon === true;
-                const label = t(`onboarding.accountType.types.${key}`);
-                return (
-                  <option key={key} value={key} disabled={comingSoon}>
-                    {comingSoon ? t("authPasswordPreview.accountTypeComingSoonOption", { label }) : label}
-                  </option>
-                );
-              })}
-            </Select>
-          </LabeledField>
+              {/* One dropdown over the same ordered registration taxonomy. Coming
+                  Soon types stay visible but are disabled options; the server
+                  action re-checks every submitted key regardless. */}
+              <Select
+                id="accountType"
+                name="accountType"
+                required
+                value={accountTypeKey}
+                onChange={(e) => setAccountTypeKey(e.target.value)}
+                aria-invalid={sendState.code === "authPasswordPreview.error.accountTypeRequired" ? true : undefined}
+              >
+                <option value="" disabled>
+                  {t("authPasswordPreview.accountTypePlaceholder")}
+                </option>
+                {REGISTRATION_CHOICE_ORDER.map((key) => {
+                  const comingSoon = CHOICES_BY_KEY[key]?.comingSoon === true;
+                  const label = t(`onboarding.accountType.types.${key}`);
+                  return (
+                    <option key={key} value={key} disabled={comingSoon}>
+                      {comingSoon ? t("authPasswordPreview.accountTypeComingSoonOption", { label }) : label}
+                    </option>
+                  );
+                })}
+              </Select>
+            </LabeledField>
+          )}
 
           <LabeledField
             label={t("authPasswordPreview.passwordLabel")}

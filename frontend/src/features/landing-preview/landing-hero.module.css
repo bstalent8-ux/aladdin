@@ -197,7 +197,7 @@
      `--lumen-soft`), paired with `--basalt` for contrast — see `--on-accent`
      in tokens.css. Unchanged this pass. */
   background: var(--lumen);
-  color: var(--basalt);
+  color: var(--on-accent);
 }
 
 .accountCta {

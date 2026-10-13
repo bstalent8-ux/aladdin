@@ -4110,6 +4110,7 @@ export const ar: Messages = {
     emailLabel: "البريد الإلكتروني",
     emailPlaceholder: "you@company.com",
     accountTypeLabel: "كيف ستستخدم علاء الدين؟",
+    accountTypeLocked: "التسجيل كـ",
     accountTypePlaceholder: "اختر نوع الحساب",
     accountTypeComingSoonOption: "{label} — قريبًا",
     passwordLabel: "كلمة المرور",
