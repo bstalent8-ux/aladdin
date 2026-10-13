@@ -3,6 +3,8 @@
 Status: plan only. M4a (publisher identity, ownership, approval/revocation, rollout gate) is implemented and
 committed locally; M4b needs explicit approval. Organization commerce must stay exactly as it is today.
 
+> **ERRATUM (frontend reality audit checkpoint).** Section 4 says the buyer side "stays organization-or-personal as it is". That is wrong for Direct RFQs: `rfqs`, `quotations`, `orders`, `projects` and `conversations` all have `requester_org_id NOT NULL` (see the table in section 2), so the buyer side is organization-only today. The approved rule (eligible personal buyers may send Direct RFQs to independent sellers) requires a buyer party identity as well as the seller one. The corrected scope and the frontend plan are in `docs/frontend/m4-frontend-completion-roadmap.md`. Business decisions A-D recorded there are final; items under section 8 that they do not cover remain open.
+
 ## 1. Where M4a leaves independent sellers
 
 An approved independent Contractor/Engineer can create, edit, publish products and offers, upload images and
