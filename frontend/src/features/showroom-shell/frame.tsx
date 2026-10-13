@@ -9,7 +9,9 @@ import { loadAccountIdentity } from "@/server/queries/identity";
 import { loadBusinessCreationAccess } from "@/server/queries/business-creation-access";
 import { listNotifications, countUnread } from "@/server/queries/notifications";
 import { toNotificationViews } from "@/features/notifications/view-model";
-import { NotificationsMenu } from "@/components/layout/header-panels";
+import { ChatMenu, NotificationsMenu } from "@/components/layout/header-panels";
+import { countUnreadConversations, listConversations, resolveConversationDisplayContext } from "@/server/queries/chat";
+import { toConversationViews } from "@/features/chat/view-model";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { ShowroomShell } from "@/features/showroom-shell/shell";
 import { ShowroomWorkspaceMenu } from "@/features/showroom-shell/workspace-menu";
@@ -21,14 +23,18 @@ import { ShowroomWorkspaceMenu } from "@/features/showroom-shell/workspace-menu"
  */
 export async function ShowroomFrame({ children }: { children: ReactNode }) {
   const { supabase, workspace, org } = await requireShowroomContext();
-  const [store, identity, access, rows, unread, branch] = await Promise.all([
+  const [store, identity, access, rows, unread, branch, conversationRows, chatUnread] = await Promise.all([
     cookies(), loadAccountIdentity(), loadBusinessCreationAccess(),
     listNotifications(supabase, { orgId: org.organizationId }),
     countUnread(supabase, { orgId: org.organizationId }),
     org.activeBranchId
       ? supabase.from("branches").select("address_ar, address_en").eq("organization_id", org.organizationId).eq("id", org.activeBranchId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // Transaction-linked chat: RFQ, quotation and order pages ask THIS panel to show their conversation.
+    listConversations(supabase),
+    countUnreadConversations(supabase),
   ]);
+  const chatContexts = conversationRows.length ? await resolveConversationDisplayContext(supabase, conversationRows) : new Map();
   if (branch.error) throw branch.error;
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const displayName = (locale === "ar" ? identity?.displayNameAr : identity?.displayNameEn) || identity?.displayName || (locale === "ar" ? "حسابي" : "My account");
@@ -36,6 +42,13 @@ export async function ShowroomFrame({ children }: { children: ReactNode }) {
   return <I18nProvider locale={locale} dir={directionFor(locale)}>
     <ShowroomShell key={org.organizationId} theme={resolveTheme(resolveThemePreference(store.get(THEME_COOKIE)?.value))} sidebarMode={resolveSidebarMode(store.get(SIDEBAR_MODE_COOKIE)?.value)} displayName={displayName} location={location} capabilities={org.capabilities}
       workspaceSwitch={<ShowroomWorkspaceMenu entries={workspace.entries} activeKey={org.organizationId} canCreate={access.allowed} />}
+      chat={<ChatMenu
+        items={toConversationViews(conversationRows, chatContexts, createTranslator(locale), locale, org.organizationId)}
+        unreadCount={chatUnread}
+        activeOrgId={org.organizationId}
+        activeOrgName={org.organizationName}
+        currentUserId={identity?.userId ?? null}
+      />}
       notifications={<NotificationsMenu items={toNotificationViews(rows, createTranslator(locale), locale)} unreadCount={unread} orgId={org.organizationId} />}>
       {children}
     </ShowroomShell>

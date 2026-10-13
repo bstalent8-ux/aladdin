@@ -86,3 +86,22 @@ test("V2-7 an approved Showroom with no data: truthful empty states, two branche
   await expect(page.getByTestId("branch-governance")).toBeVisible();
   await capture(page, `${SUITE}/settings?section=branches`, { area: "v2-release", name: "e02-settings-branches", persona: "Approved Showroom, two branches", state: "Branches section (internal vs verified)", data: "real" }, [DESK_EN_L, MOB_AR_D]);
 });
+
+test("V2-8 transaction-linked chat opens from a Direct RFQ inside the V2 shell", async ({ page, request }) => {
+  test.setTimeout(300_000);
+  await prefs(page, { locale: "en", theme: "light" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // The seeded owner predates the capability preset that every NEW organization owner receives (conversation.participate);
+  // grant it explicitly in the isolated test database so the test states its own precondition.
+  psql(`insert into public.membership_capabilities (membership_id, capability_key)
+    select m.id, 'conversation.participate' from public.memberships m join auth.users u on u.id = m.user_id join public.organizations o on o.id = m.organization_id
+    where u.email = 'hana@example.test' and o.name = 'Cairo Ceramics Showroom' on conflict do nothing`);
+  await signIn(page, request, IDENTITIES.showroom);
+  const rfq = q(`select r.id from public.rfqs r join public.organizations o on o.id = r.requester_org_id where o.name = 'Cairo Ceramics Showroom' and r.status <> 'draft' order by r.created_at limit 1`);
+  await page.goto(`/b2b/rfqs/${rfq}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByTestId("chat-open-rfq").click();
+  // the header Chat panel (mounted by the V2 frame) shows the conversation thread
+  await expect(page.getByTestId("header-chat-panel")).toBeVisible({ timeout: 30_000 });
+  await page.screenshot({ path: "../docs/frontend/screenshots/v2-release/v2-release/c01-chat-open.en.light.1440x900.png" });
+});

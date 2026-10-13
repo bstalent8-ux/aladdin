@@ -51,7 +51,7 @@ export function ShowroomTopbar({
   onMenuClick,
   displayName,
   location,
-  capabilities, workspaceSwitch, notifications,
+  capabilities, workspaceSwitch, notifications, chat,
 }: {
   theme: "light" | "dark";
   onMenuClick: () => void;
@@ -59,7 +59,7 @@ export function ShowroomTopbar({
   location?: string | null;
   /** Real, bounded opportunities for the shared search overlay — required in
    *  production; the preview falls back to its own mock list. */
-  capabilities: readonly string[]; workspaceSwitch: ReactNode; notifications: ReactNode;
+  capabilities: readonly string[]; workspaceSwitch: ReactNode; notifications: ReactNode; chat: ReactNode;
 }) {
   const { locale } = useI18n();
   const resolvedName = displayName || (locale === "ar" ? "حسابي" : "My account");
@@ -115,6 +115,7 @@ export function ShowroomTopbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5">
+        {chat}
         {notifications}
         <div className="flex shrink-0 items-center gap-0.5">
           <ThemeSwitch current={theme} compact />
