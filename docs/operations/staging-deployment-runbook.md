@@ -535,7 +535,8 @@ Nothing in `deploy-staging.yml` writes anything until **all** of this is done. U
    | secret | `SMOKE_INSTALLER_PHONE`, `SMOKE_INSTALLER_PASSWORD` | the installer smoke account |
    | secret | `SMOKE_BUSINESS_EMAIL`, `SMOKE_BUSINESS_PASSWORD` | the business smoke account |
    | variable | `SUPABASE_PROJECT_REF` | the explicit Supabase target |
-   | variable | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | the explicit Vercel target |
+   | variable | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | the explicit Vercel target. `VERCEL_ORG_ID` is the team **id** (`team_...`): used by the REST helper and, with `VERCEL_PROJECT_ID`, to identify the project to the CLI |
+   | variable | `VERCEL_TEAM_SLUG` | the Vercel team URL **slug** (for example `aladdin8`): the only value the Vercel CLI `--scope` accepts (promote and the printed rollback command). Required for deploy mode; validated as lowercase letters, digits and hyphens and rejected if it looks like a `team_...` id |
    | variable | `STAGING_BASE_URL` | the live staging `https://` URL the smoke visits (never inferred) |
    | variable | `STAGING_PROMOTION_ENABLED` | the master switch; anything but exactly `true` keeps the workflow plan-only |
 

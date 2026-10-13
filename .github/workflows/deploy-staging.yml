@@ -144,6 +144,7 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
           SMOKE_INSTALLER_PHONE: ${{ secrets.SMOKE_INSTALLER_PHONE }}
@@ -156,7 +157,7 @@ jobs:
           need() { [ -n "${!1:-}" ] || missing="$missing $1"; }
           need SUPABASE_ACCESS_TOKEN; need SUPABASE_PROJECT_REF
           if [ "$DEPLOY" = "true" ]; then
-            need VERCEL_TOKEN; need VERCEL_ORG_ID; need VERCEL_PROJECT_ID; need STAGING_BASE_URL
+            need VERCEL_TOKEN; need VERCEL_ORG_ID; need VERCEL_TEAM_SLUG; need VERCEL_PROJECT_ID; need STAGING_BASE_URL
             need SMOKE_INSTALLER_PHONE; need SMOKE_INSTALLER_PASSWORD; need SMOKE_BUSINESS_EMAIL; need SMOKE_BUSINESS_PASSWORD
           fi
           if [ -n "$missing" ]; then
@@ -170,6 +171,10 @@ jobs:
             fi
             echo "::error::Missing staging environment configuration:$missing"
             exit 1
+          fi
+          # The Vercel CLI --scope takes the team URL SLUG. VERCEL_ORG_ID (team_...) stays for the REST helper only.
+          if [ "$DEPLOY" = "true" ]; then
+            case "$VERCEL_TEAM_SLUG" in team_*|-*|*[!a-z0-9-]*) echo "::error::VERCEL_TEAM_SLUG must be the Vercel team URL slug (lowercase letters, digits and hyphens), not the team_... id"; exit 1 ;; esac
           fi
           case "$STAGING_BASE_URL" in ""|https://*) ;; *) echo "::error::STAGING_BASE_URL must be an https:// URL"; exit 1 ;; esac
           echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -320,10 +325,12 @@ jobs:
         if: steps.gate.outputs.deploy == 'true' && steps.fresh_promote.outputs.current == 'true' && steps.vercel.outputs.already_promoted != 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # VERCEL_ORG_ID + VERCEL_PROJECT_ID identify the project to the CLI; --scope takes the team SLUG, never the team_... id.
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           DEPLOYMENT_URL: ${{ steps.vercel.outputs.deployment_url }}
-        run: npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$DEPLOYMENT_URL" --yes --timeout 5m --scope "$VERCEL_ORG_ID"
+        run: npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$DEPLOYMENT_URL" --yes --timeout 5m --scope "$VERCEL_TEAM_SLUG"
 
       # --- 6. authenticated smoke (read-only) -----------------------------------------------------------------------
       - name: Install the smoke browser
@@ -348,7 +355,7 @@ jobs:
           PREVIOUS_URL: ${{ steps.previous.outputs.previous_url }}
           PREVIOUS_ID: ${{ steps.previous.outputs.previous_id }}
           NEW_URL: ${{ steps.vercel.outputs.deployment_url }}
-          ORG: ${{ vars.VERCEL_ORG_ID }}
+          TEAM: ${{ vars.VERCEL_TEAM_SLUG }}
         run: |
           {
             echo "### SMOKE FAILED AFTER PROMOTION - this run is red and NOTHING was rolled back"
@@ -359,7 +366,7 @@ jobs:
             echo ""
             echo "If the previous deployment is known to be compatible, a human can roll back with:"
             echo ""
-            echo "    npx vercel@$VERCEL_CLI_VERSION rollback ${PREVIOUS_URL:-<previous-deployment-url>} --scope $ORG"
+            echo "    npx vercel@$VERCEL_CLI_VERSION rollback ${PREVIOUS_URL:-<previous-deployment-url>} --scope $TEAM"
             echo ""
             echo "Otherwise fix forward."
           } | tee -a "$GITHUB_STEP_SUMMARY"
