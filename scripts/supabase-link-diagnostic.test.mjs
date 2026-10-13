@@ -184,8 +184,8 @@ test("10: the workflow runs the diagnostic IMMEDIATELY after the link-and-verify
 
 test("11: the connection commands themselves are unchanged by the diagnostic", () => {
   const plan = stepBlock("Plan - migration history and database dry run");
-  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- migration list --linked --output-format json/);
-  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- db push --linked --dry-run/);
+  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- --output-format json migration list --linked/);
+  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- --output-format json db push --linked --dry-run/);
   assert.match(stepBlock("Link the Supabase project and verify the target"), /supabase link --project-ref "\$SUPABASE_PROJECT_REF" --yes/);
 });
 

@@ -217,8 +217,8 @@ test("the real write is exactly `supabase db push --linked --yes`, once, in depl
 test("plan mode has no write path: the plan step only lists and dry-runs, through the capture helper", () => {
   const plan = STEPS.find((s) => /Plan - migration history/.test(s.name));
   assert.ok(plan);
-  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- migration list --linked --output-format json/);
-  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- db push --linked --dry-run/);
+  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- --output-format json migration list --linked/);
+  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- --output-format json db push --linked --dry-run/);
   assert.ok(!/--yes/.test(plan.run) && !/db push --linked\s*$/m.test(plan.run), "no real push in the plan step");
   assert.equal(plan.if, "steps.preflight.outputs.configured == 'true'");
 });
@@ -236,6 +236,44 @@ test("CLI output is never silently redirected: every list/dry-run goes through t
 
 test("the post-write verification uses the same visible, token-only commands", () => {
   const verify = byId("verify");
-  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list-after\.json" -- migration list --linked --output-format json/);
-  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run-after\.json" -- db push --linked --dry-run/);
+  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list-after\.json" -- --output-format json migration list --linked/);
+  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run-after\.json" -- --output-format json db push --linked --dry-run/);
+});
+
+/* ---- machine-readable output contract: EVERY captured command asks for JSON, with the GLOBAL flag first -------------- */
+test("every supabase-capture command that feeds the guard requests JSON, with the global --output-format flag BEFORE the subcommand", () => {
+  const captured = [];
+  for (const step of STEPS) {
+    for (const line of step.run.split("\n")) {
+      const m = /node scripts\/supabase-capture\.mjs --out "([^"]+)" -- (.+)$/.exec(line.trim());
+      if (m) captured.push({ step: step.name, out: m[1], args: m[2] });
+    }
+  }
+  assert.equal(captured.length, 4, "list + dry run, before and after the write");
+  for (const c of captured) {
+    assert.match(c.args, /^--output-format json (migration list --linked|db push --linked --dry-run)$/, `${c.step}: ${c.args}`);
+  }
+  assert.deepEqual(captured.map((c) => c.args), [
+    "--output-format json migration list --linked",
+    "--output-format json db push --linked --dry-run",
+    "--output-format json migration list --linked",
+    "--output-format json db push --linked --dry-run",
+  ]);
+});
+
+test("the dry run in particular can never omit the JSON request again (the CI failure: text output, no JSON object)", () => {
+  const code = WORKFLOW.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+  const dryRuns = code.split("\n").filter((l) => /db push --linked --dry-run/.test(l));
+  assert.equal(dryRuns.length, 2);
+  for (const l of dryRuns) assert.match(l, /-- --output-format json db push --linked --dry-run/);
+});
+
+test("the guard still consumes both files, still fail-closed, and the plan is unchanged apart from the output flag", () => {
+  const plan = byId("preflight") && STEPS.find((s) => /Plan - migration history/.test(s.name));
+  assert.ok(plan);
+  assert.match(plan.run, /node scripts\/migration-history-guard\.mjs "\$RUNNER_TEMP\/migration-list\.json" --expect plan --dry-run "\$RUNNER_TEMP\/dry-run\.json"/);
+  const verify = byId("verify");
+  assert.match(verify.run, /node scripts\/migration-history-guard\.mjs "\$RUNNER_TEMP\/migration-list-after\.json" --expect up-to-date --dry-run "\$RUNNER_TEMP\/dry-run-after\.json"/);
+  const code = WORKFLOW.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+  for (const forbidden of ["--include-all", "migration repair", "db reset", "--db-url", "SUPABASE_DB_PASSWORD"]) assert.ok(!code.includes(forbidden), forbidden);
 });

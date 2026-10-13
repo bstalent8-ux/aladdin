@@ -189,8 +189,8 @@ test("15: the API diagnostic runs AFTER the file diagnostic and BEFORE the plan,
 
 test("16: no existing Supabase connection command changed", () => {
   const plan = stepBlock("Plan - migration history and database dry run");
-  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- migration list --linked --output-format json/);
-  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- db push --linked --dry-run/);
+  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- --output-format json migration list --linked/);
+  assert.match(plan, /node scripts\/supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- --output-format json db push --linked --dry-run/);
   assert.match(stepBlock("Link the Supabase project and verify the target"), /supabase link --project-ref "\$SUPABASE_PROJECT_REF" --yes/);
   assert.match(stepBlock("Migrate the database (supabase db push)"), /run: pnpm exec supabase db push --linked --yes\s*$/m);
 });
