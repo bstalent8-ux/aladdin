@@ -1,5 +1,14 @@
 # Agent Work Log
 
+## Session - 2026-10-13: Showroom V2 Home, Settings, converged shell and release plan
+
+- Purpose: user declared `/preview/showroom-suite-v2` the design authority and widened the target to the COMPLETE Showroom account (not only Home and Settings). Inventory, convergence, Home V2, Settings V2, evidence and release plan; no push/PR/merge/deploy.
+- Built: V2 Home (six KPI cards, discover rail, incoming quotations, purchasing by category, active Direct RFQs, quick actions), sectioned V2 Settings reusing the governance/account backend, one Showroom frame shared by `/preview/showroom-suite-v2/*` and `/b2b/*` for `showroom_dealer`, placeholder-free navigation (only Shared Purchase Requests hidden), Chat panel and branch switcher mounted in the V2 frame, Direct RFQ label correction. No migrations.
+- Records: [inventory](../frontend/showroom-v2-release-inventory.md), [Home data map](../frontend/showroom-v2-home-data-map.md), [release plan](showroom-v2-release-plan.md). Screenshots: `docs/frontend/screenshots/v2-release/`.
+- Validation: tsc clean; Vitest 215 files / 2649 tests; real-browser `e2e/regression/a..i` all pass (h now through V2 Settings); `e2e/audit/v2-*.spec.ts` pass (Home, sidebar destinations, Settings sections, staff scope, pending org, empty/multi-branch org, chat, Direct RFQ -> quotation -> order).
+- Findings: local PostgREST hangs 60 s on SQLSTATE 40001 (stale quotation version) - verify on hosted; seeded owner lacks `conversation.participate`; older default Playwright harness targets another DB container and was not run.
+- Pending: user visual approval; hosted staging validation; Admin review path for identity/branch requests; canonical route decision; untested transitions (order execution, invitations, personal profile saves).
+
 ## Session — 2026-10-06: showroom full-stack Phase 0 isolation and audit
 
 - Purpose: user changed showroom from frontend-only preview to phased backend-backed implementation without production-route changes.
