@@ -1,6 +1,6 @@
 # Marketplace product database
 
-**Status:** in progress — Migration 01 of 04 authored and validated on a scratch PostgreSQL; **not yet validated on the full local Supabase stack** (see "Validation record").
+**Status:** in progress — Migration 01 of 04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
 **Branch / worktree:** `feat/public-marketplace-20261011` · `D:\projects\aladdin-wt-public-marketplace-20261011` (from `origin/main` @ `6c088d9`). Nothing is merged, pushed or deployed.
 
 ## Purpose
@@ -11,7 +11,7 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-001
 
 | # | Migration | Domain | State |
 |---|---|---|---|
-| 01 | `20261012090001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | authored · scratch-validated |
+| 01 | `20261012090001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
 | 02 | product core (products, variants, attribute values, images) | Products & sellers · Images | not started |
 | 03 | inventory | Inventory | not started |
 | 04 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
@@ -55,10 +55,13 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 
 | Check | Result |
 |---|---|
-| Migration applies in one transaction (PostgreSQL 17.5, scratch, UTF-8) | ✅ |
-| `supabase/tests/90_marketplace_taxonomy_attributes_test.sql` (63 assertions, pgTAP shim) | ✅ 63/63 |
-| Full local Supabase stack (`supabase start`, `db reset`, `test db`) incl. existing B2B regression suite | ⛔ **not run** — Docker Desktop's backend does not start on this machine (stale unix-socket reparse points in `%LOCALAPPDATA%\Docker\run`) |
+| `supabase start` — isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
+| All 105 migrations applied from scratch, including this one, then seeds | ✅ |
+| Seed present in the live local DB: 3 categories · 6 types · 28 attributes · 52 mappings · 84 options | ✅ |
+| `supabase test db` — whole suite, **88 files / 3741 tests** | ✅ **PASS** |
+| `90_marketplace_taxonomy_attributes_test.sql` (63 assertions) inside that run | ✅ ok |
+| Existing B2B / RLS suites (01–89) inside that run | ✅ no regression |
 
-The scratch run used a **stubbed baseline** (`auth.users`, `auth.uid()`, `app.set_updated_at`, `app.is_admin_staff`, `platform_role_grants`, roles) and a small pgTAP shim, so it proves the SQL and the invariants, not the interaction with the real 80+ migration baseline. It caught one real defect (a `CHECK` that a NULL `unit_kind` silently satisfied) that was fixed before this record.
+An earlier scratch run (PostgreSQL 17.5, stubbed baseline) caught one real defect — a `CHECK` that a NULL `unit_kind` silently satisfied — which was fixed before the local-stack run.
 
-Open before this migration can be called applied: run `supabase db reset` and `supabase test db` against an isolated local stack.
+Not covered here: hosted Staging/Production (never touched), Storage policies (no bucket in this migration), and a concurrency test (no write path exists yet).

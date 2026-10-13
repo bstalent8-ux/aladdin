@@ -6510,7 +6510,7 @@ Branch `feat/public-marketplace-20261011` (new worktree `D:\projects\aladdin-wt-
 
 **Added:** `supabase/migrations/20261012090001_marketplace_taxonomy_and_attributes.sql` (five `marketplace_*` tables, RLS + explicit SELECT-only grants, three invoker integrity triggers, seed of 3 categories / 6 types / 28 attributes / 84 options / 52 type mappings), `supabase/tests/90_marketplace_taxonomy_attributes_test.sql` (63 assertions), `docs/database/marketplace-product-database.md`.
 
-**Validation, honestly:** applied and 63/63 passed on a throwaway PostgreSQL 17.5 with a stubbed baseline and a pgTAP shim. The full local Supabase stack could not be started (Docker Desktop backend crashes on stale socket files in `%LOCALAPPDATA%\Docker\run`), so `supabase db reset` / `supabase test db` and the B2B regression suite were **not** run. The migration is therefore authored and scratch-validated, not reported as applied on the real baseline.
+**Validation:** applied from scratch on an isolated local Supabase stack (`project_id aladdin-marketplace`, ports 544xx via a machine-local, uncommitted `config.toml` override): all 105 migrations + seeds OK; `supabase test db` = **PASS, 88 files / 3741 tests**, including the new 63-assertion marketplace test and the whole existing B2B/RLS suite. Docker Desktop needed a clean restart (`wsl --shutdown` + relaunch), not a file deletion. An earlier scratch-PostgreSQL run came first.
 
 **Caught by the run:** a `CHECK (… unit_kind in (…))` that a NULL `unit_kind` satisfied silently; fixed with an explicit `is not null`. `ON DELETE RESTRICT` raises `23503` on PostgreSQL 17, not `23001`.
 
