@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -276,4 +277,83 @@ test("the guard still consumes both files, still fail-closed, and the plan is un
   assert.match(verify.run, /node scripts\/migration-history-guard\.mjs "\$RUNNER_TEMP\/migration-list-after\.json" --expect up-to-date --dry-run "\$RUNNER_TEMP\/dry-run-after\.json"/);
   const code = WORKFLOW.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
   for (const forbidden of ["--include-all", "migration repair", "db reset", "--db-url", "SUPABASE_DB_PASSWORD"]) assert.ok(!code.includes(forbidden), forbidden);
+});
+
+/* ---- Vercel CLI scope: the team SLUG, never the team_... id ---------------------------------------------------------- */
+const workflowLines = () => WORKFLOW.split("\n");
+const stepById = (id) => byId(id);
+
+test("the promote step passes the team SLUG to `--scope`, and still sets the project identity for the CLI", () => {
+  const promote = stepById("promote");
+  assert.match(promote.run, /^npx --yes "vercel@\$VERCEL_CLI_VERSION" promote "\$DEPLOYMENT_URL" --yes --timeout 5m --scope "\$VERCEL_TEAM_SLUG"$/m);
+  assert.match(promote.block, /VERCEL_TEAM_SLUG: \$\{\{ vars\.VERCEL_TEAM_SLUG \}\}/);
+  assert.match(promote.block, /VERCEL_ORG_ID: \$\{\{ vars\.VERCEL_ORG_ID \}\}/, "the CLI still needs the org + project ids to identify the project");
+  assert.match(promote.block, /VERCEL_PROJECT_ID: \$\{\{ vars\.VERCEL_PROJECT_ID \}\}/);
+  assert.match(promote.block, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/, "the token is unchanged");
+});
+
+test("no `--scope` anywhere is given the team id (the `User not found (404)` bug)", () => {
+  const scopeLines = workflowLines().filter((l) => /--scope\b/.test(l) && !l.trim().startsWith("#"));
+  assert.ok(scopeLines.length >= 2, "the promote command and the printed rollback command both use --scope");
+  for (const line of scopeLines) {
+    assert.ok(!/VERCEL_ORG_ID|\$ORG\b|\$\{ORG\}|team_/.test(line), `--scope must not take the team id: ${line.trim()}`);
+    assert.match(line, /--scope "?\$(VERCEL_TEAM_SLUG|TEAM)"?/, line.trim());
+  }
+});
+
+test("the rollback instruction prints the slug-scoped command", () => {
+  const step = STEPS.find((x) => /human rollback instructions/.test(x.name));
+  assert.ok(step);
+  assert.match(step.block, /TEAM: \$\{\{ vars\.VERCEL_TEAM_SLUG \}\}/);
+  assert.ok(!/ORG: /.test(step.block), "no leftover team-id variable");
+  assert.match(step.run, /rollback \$\{PREVIOUS_URL:-<previous-deployment-url>\} --scope \$TEAM/);
+});
+
+test("REST helper steps keep the team ID and do not take the slug", () => {
+  const rest = STEPS.filter((x) => /scripts\/vercel-deploy\.mjs/.test(x.run));
+  assert.ok(rest.length >= 3, "check-project (x2), find-deployment, previous-production");
+  for (const step of rest) {
+    assert.match(step.block, /VERCEL_ORG_ID: \$\{\{ vars\.VERCEL_ORG_ID \}\}/, `${step.name} keeps VERCEL_ORG_ID`);
+    assert.ok(!/VERCEL_TEAM_SLUG/.test(step.block), `${step.name} does not need the slug`);
+  }
+  assert.match(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vercel-deploy.mjs"), "utf8"), /process\.env\.VERCEL_ORG_ID/, "the REST helper still reads the team id");
+});
+
+test("preflight: the slug is required in DEPLOY mode only, and is validated", () => {
+  const preflight = stepById("preflight");
+  assert.match(preflight.block, /VERCEL_TEAM_SLUG: \$\{\{ vars\.VERCEL_TEAM_SLUG \}\}/);
+  const lines = preflight.run.split("\n");
+  const needLine = lines.findIndex((l) => /need VERCEL_TEAM_SLUG/.test(l));
+  const deployOpen = lines.findIndex((l) => /if \[ "\$DEPLOY" = "true" \]; then/.test(l));
+  const fi = lines.findIndex((l, i) => i > deployOpen && /^\s*fi\s*$/.test(l));
+  assert.ok(needLine > deployOpen && needLine < fi, "`need VERCEL_TEAM_SLUG` sits inside the deploy-only block");
+  assert.ok(!lines.slice(0, deployOpen).some((l) => /VERCEL_TEAM_SLUG/.test(l)), "plan mode never requires it");
+});
+
+test("the slug validation accepts a team URL slug and rejects the team_... id and malformed values (executes the real shell snippet)", (t) => {
+  const match = /case "\$VERCEL_TEAM_SLUG" in .*? esac/.exec(stepById("preflight").run);
+  assert.ok(match, "the validation snippet exists");
+  const probe = spawnSync("bash", ["-c", "echo ok"], { encoding: "utf8" });
+  if (probe.error || probe.status !== 0) return t.skip("bash is not available");
+  const run = (slug) => spawnSync("bash", ["-c", `${match[0]}; echo ACCEPTED`], { encoding: "utf8", env: { ...process.env, VERCEL_TEAM_SLUG: slug } });
+  for (const good of ["aladdin8", "my-team", "a1", "team"]) {
+    const r = run(good);
+    assert.equal(r.status, 0, good);
+    assert.match(r.stdout, /ACCEPTED/);
+  }
+  for (const bad of ["team_AbC123xyz", "team_x", "Aladdin8", "-leading", "has space", "under_score", "dots.dots", "slash/x", "ünï"]) {
+    const r = run(bad);
+    assert.equal(r.status, 1, `rejected: ${bad}`);
+    assert.ok(!/ACCEPTED/.test(r.stdout), bad);
+    assert.match(r.stdout, /VERCEL_TEAM_SLUG must be the Vercel team URL slug/);
+  }
+});
+
+test("this change touched nothing else that matters: token, STAGING_PROMOTION_ENABLED handling, Supabase auth and the single DB write", () => {
+  const code = WORKFLOW.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+  assert.equal((code.match(/VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/g) ?? []).length >= 5, true, "the token is still a secret, passed as before");
+  assert.match(code, /PROMOTION_ENABLED: \$\{\{ vars\.STAGING_PROMOTION_ENABLED \}\}/);
+  assert.ok(!code.includes("SUPABASE_DB_PASSWORD") && !/--db-url/.test(code));
+  assert.equal([...code.matchAll(/^\s*run: pnpm exec supabase db push --linked --yes\s*$/gm)].length, 1);
+  assert.equal(STEPS.filter((x) => /\bpromote "\$DEPLOYMENT_URL"/.test(x.run)).length, 1, "exactly one promote");
 });
