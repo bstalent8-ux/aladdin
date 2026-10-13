@@ -1,6 +1,6 @@
 # Marketplace product database
 
-**Status:** in progress — Migration 01 of 04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
+**Status:** in progress — Migrations 01–03 of 04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
 **Branch / worktree:** `feat/public-marketplace-20261011` · `D:\projects\aladdin-wt-public-marketplace-20261011` (from `origin/main` @ `6c088d9`). Nothing is merged, pushed or deployed.
 
 ## Purpose
@@ -13,7 +13,7 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-001
 |---|---|---|---|
 | 01 | `20261012090001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
 | 02 | `20261013090001_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
-| 03 | inventory | Inventory | not started |
+| 03 | `20261013090002_marketplace_inventory.sql` | Inventory | applied + tested locally (isolated Supabase) |
 | 04 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
 
 Product types are **rows, not an enum**. Adding paints, doors, flooring, curtains or posters is an `INSERT` plus field mappings — no structural change.
@@ -63,6 +63,27 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 
 **Deferred (documented in the migration header):** seller enablement table + audited RPC; inventory (Migration 03); media verification flow; public catalogue projection.
 
+## Migration 03 — inventory
+
+| Table / object | Role |
+|---|---|
+| `marketplace_stock_locations` | where stock is held (showroom / warehouse); owned by an organization, optionally mirrors one of its branches (pickup) |
+| `marketplace_inventory_levels` | `on_hand`, `reserved`, and **`available = on_hand - reserved`** (stored generated column) per (variant, location) |
+| `marketplace_stock_movements` | append-only ledger: type, deltas, resulting balances, reason, source, business reference, actor, idempotency key |
+| `public.marketplace_stock_apply(...)` | the ONLY write path; SECURITY DEFINER, empty search_path, `service_role` only |
+
+**Operations:** `initial` and `replenish` (+on-hand), `correction` (signed on-hand), `reserve` (+reserved, needs available), `release` (−reserved), `deduct` (−on-hand and −reserved: consumes a reservation). No checkout or order logic exists yet; the order flow will call these.
+
+**Guarantees:** `0 <= reserved <= on_hand` is a CHECK (no oversell, no negative stock); every change takes `FOR UPDATE` on the (variant, location) row and re-checks the rules under that lock; one idempotency key per seller — a replay returns the original result and changes nothing, a key reused for a different operation is an error; a lost race on a first use rolls back and replays; the ledger is append-only and its foreign keys are RESTRICT; levels can change only inside the function (a trigger refuses any other write), so a level always equals the sum of its ledger.
+
+**Existing entities:** inventory references only `organizations` and `branches`, both `ON DELETE RESTRICT` (they can only block a hard delete, never cascade into B2B). Nothing existing references marketplace tables.
+
+**Access:** RLS; members of the owning organization and platform staff read; nobody else; no write grant or policy for any role; no anon grant.
+
+**Publication:** still closed. The constant `inventory_not_available` became a real rule (`no_available_stock`); `seller_enablement_not_available` remains a constant until Migration 04.
+
+**Hardening:** EXECUTE on every `app.marketplace_*` function (trigger functions and helpers) is revoked from public, anon, authenticated and service_role (trigger functions are authorised at CREATE TRIGGER, so this cannot break them).
+
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
@@ -74,12 +95,11 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 | Check | Result |
 |---|---|
 | Isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
-| `supabase db reset` — all **106** migrations (incl. 01 and 02) + seeds | ✅ |
-| `supabase test db` — whole suite, **89 files / 3840 tests** | ✅ **PASS** |
-| `90_marketplace_taxonomy_attributes_test.sql` (63) | ✅ |
-| `91_marketplace_product_core_test.sql` (99) | ✅ |
+| `supabase db reset` — all **107** migrations (01, 02, 03 included) + seeds | ✅ |
+| `supabase test db` — whole suite, **90 files / 3941 tests** | ✅ **PASS** |
+| `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) | ✅ |
 | Existing B2B / RLS suites (01–89) | ✅ no regression |
-| Two real concurrent sessions racing the same option combination | ✅ one committed, the other failed with `23505` (`ux_marketplace_variants_product_signature`) |
+| `marketplace_stock_concurrency_test.sh` — real parallel sessions (oversell, same-key, 10-way stampede) | ✅ PASS |
 
 An earlier scratch run (PostgreSQL 17.5, stubbed baseline) caught one real defect — a `CHECK` that a NULL `unit_kind` silently satisfied — which was fixed before the local-stack run.
 

@@ -6527,3 +6527,15 @@ Branch `feat/public-marketplace-20261011` (merged with `origin/main` @ `10014e3`
 **Found by running it (fixed before the record):** plpgsql evaluates both sides of an `OR`, so a record field missing on one table's NEW record errored (split into statements); `v_blockers || 'literal'` is parsed as an array literal (use `array_append`); `organizations.org_type` is not `public.account_type` (compared as text); a UTF-8 BOM written by PowerShell `Set-Content` into the local `config.toml` broke the Supabase CLI.
 
 **Deferred and documented:** seller enablement, inventory (Migration 03), media verification, public projection — publication stays unreachable.
+
+## Marketplace database — Migration 03 (inventory), 2026-10-13
+
+Branch `feat/public-marketplace-20261011`, after the B2B non-regression audit of Migrations 01–02 passed.
+
+**Added:** `supabase/migrations/20261013090002_marketplace_inventory.sql` (stock locations, inventory levels, append-only ledger, `public.marketplace_stock_apply`, availability helper, real stock rule in the publication blockers, EXECUTE hardening on `app.marketplace_*`), `supabase/tests/92_marketplace_inventory_test.sql` (101 assertions), `supabase/tests/marketplace_stock_concurrency_test.sh` (real multi-session race proof). Test 91 was adjusted (G2: the stock blocker is now real; J2: scoped to the product-core tables, since inventory legitimately references branches).
+
+**Validation:** `supabase db reset` (107 migrations) then `supabase test db`: **PASS, 90 files / 3941 tests**; the concurrency script: oversell race, same-key race and a 10-way stampede all PASS (floor(110/15)=7 winners, reserved 105, never above on-hand). Isolated stack `aladdin-marketplace` only.
+
+**Found by running it:** the first test run flagged "SECURITY DEFINER view in public" — it was pgTAP's own views, left in `public` because a manual `psql -f` of a test file ran its `create extension if not exists pgtap` outside the CLI's lifecycle. Dropped the stray extension from the disposable local DB; never run test files by hand with `psql -f`. Also: a JS `$$` replacement string collapses to `$` in `String.replace`.
+
+**Still deferred (Migration 04):** seller enablement and the public product projection. Publication stays unreachable.

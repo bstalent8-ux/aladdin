@@ -360,8 +360,8 @@ select ok(
   'G1. an empty product reports its missing required product-level field (read from the live mapping)');
 select ok(
   (select 'seller_enablement_not_available' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))
-      and 'inventory_not_available' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))),
-  'G2. even a populated product reports the deferred dependencies as blockers');
+      and 'no_available_stock' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))),
+  'G2. a populated product with no stock reports seller enablement (deferred) and no_available_stock');
 select throws_ok($$ update public.marketplace_products set status = 'published' where id = 'a1000000-0000-4000-8000-000000000001' $$,
   '23514', null, 'G3. publishing a product is refused');
 select throws_ok($$ update public.marketplace_products set status = 'published', published_at = now()
@@ -461,10 +461,12 @@ select is(
   0, 'J1. public.products (B2B catalogue) gained no marketplace column');
 select is(
   (select count(*)::int from pg_constraint c
-   join pg_class src on src.oid = c.conrelid and src.relname like 'marketplace\_%'
+   join pg_class src on src.oid = c.conrelid and src.relname in
+     ('marketplace_products', 'marketplace_product_variants', 'marketplace_product_attribute_values',
+      'marketplace_variant_attribute_values', 'marketplace_product_images')
    join pg_class dst on dst.oid = c.confrelid
    where c.contype = 'f' and dst.relname not like 'marketplace\_%' and dst.relname <> 'organizations'),
-  0, 'J2. marketplace tables reference no existing table except organizations');
+  0, 'J2. the product-core tables reference no existing table except organizations');
 
 select * from finish();
 rollback;
