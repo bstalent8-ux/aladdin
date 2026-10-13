@@ -106,7 +106,7 @@ export const en = {
       selling: "Selling",
       business: "Business",
     },
-    purchaseRequests: "Purchase requests",
+    purchaseRequests: "Direct RFQs",
     offers: "Incoming offers",
     // Seller-seat names for the same three routes.
     demand: "Incoming demand",
@@ -3469,7 +3469,7 @@ export const en = {
       pipeline: "Customers & pipeline",
     },
     stat: {
-      requests: "Purchase requests",
+      requests: "Direct RFQs",
       offers: "Offers received",
       orders: "Orders placed",
       spend: "Committed spend",
@@ -3490,7 +3490,7 @@ export const en = {
       orders: "Orders placed",
       ofFirst: "{pct} of requests sent",
     },
-    requestsByStatus: "Purchase requests by status",
+    requestsByStatus: "Direct RFQs by status",
     offersByStatus: "Offers received by status",
     ordersByStatus: "Orders by status",
     projectsByStatus: "Projects you deliver, by status",
@@ -3867,8 +3867,8 @@ export const en = {
       draftHint: "This product is a draft and not visible in the catalog yet.",
     },
     rfq: {
-      title: "Purchase requests",
-      subtitle: "Prices you've asked distributors for, and where each request stands.",
+      title: "Direct RFQs",
+      subtitle: "Quotation requests you sent directly to suppliers, and where each one stands.",
       column: {
         request: "Request",
         supplier: "Distributor",

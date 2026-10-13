@@ -64,11 +64,17 @@ test.beforeAll(async () => {
   `);
 });
 
+/** A Showroom's Settings is the sectioned V2 page. Wait for hydration so an early click is not lost in dev builds. */
+async function openSettings(page: import("@playwright/test").Page, section: string) {
+  await open(page, `/preview/showroom-suite-v2/settings?section=${section}`);
+  await page.waitForLoadState("networkidle");
+}
+
 test("H1 a verified name cannot be edited directly - the owner files a request and the approved name stays public", async ({ page, request }) => {
   await prefs(page, { locale: "en" });
   await signIn(page, request, OWNER, /\/(home|b2b)(\/|$)/);
   const errors = guardConsole(page);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "business");
   const panel = page.getByTestId("identity-panel");
   await expect(panel).toBeVisible();
   await panel.getByRole("button", { name: "Request a name change" }).click();
@@ -88,7 +94,7 @@ test("H2 a rejection keeps the approved name and shows the reason; a corrected r
   await decide(vid("organization_identity"), "reject", "Name does not match the licence.");
   await prefs(page, { locale: "en" });
   await signIn(page, request, OWNER, /\/(home|b2b)(\/|$)/);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "business");
   const panel = page.getByTestId("identity-panel");
   await expect(panel.getByText("Not approved")).toBeVisible();
   await expect(page.getByTestId("identity-reason")).toContainText("Name does not match the licence.");
@@ -100,7 +106,7 @@ test("H2 a rejection keeps the approved name and shows the reason; a corrected r
   await expect(panel.getByText("Awaiting review")).toBeVisible({ timeout: 20_000 });
 
   await decide(vid("organization_identity"), "approve");
-  await open(page, "/b2b/settings");
+  await openSettings(page, "business");
   await expect(page.getByText(RENAMED).first()).toBeVisible();
   expect(q(`select name || '|' || org_type || '|' || status from public.organizations where id = '${orgId}'`)).toBe(`${RENAMED}|showroom_dealer|active`);
   expect(q(`select count(*) from public.audit_log where organization_id = '${orgId}' and action = 'organization.identity_changed'`)).toBe("1");
@@ -109,7 +115,7 @@ test("H2 a rejection keeps the approved name and shows the reason; a corrected r
 test("H3 a new branch is internal - it is not a new organization and it is not shown as verified", async ({ page, request }) => {
   await prefs(page, { locale: "en" });
   await signIn(page, request, OWNER, /\/(home|b2b)(\/|$)/);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "branches");
   const orgsBefore = q(`select count(*) from public.organizations where created_by = (select id from auth.users where email = '${OWNER}')`);
   await page.getByRole("button", { name: "Add branch" }).click();
   await page.getByLabel("Branch name").fill(BRANCH);
@@ -126,7 +132,7 @@ test("H3 a new branch is internal - it is not a new organization and it is not s
 test("H4 verification, an unreviewed edit and a rejected amendment never replace the approved public location", async ({ page, request }) => {
   await prefs(page, { locale: "en" });
   await signIn(page, request, OWNER, /\/(home|b2b)(\/|$)/);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "branches");
   let row = page.getByTestId("branch-internal").filter({ hasText: BRANCH });
   await row.getByRole("button", { name: "Request verification" }).click();
   await page.getByRole("button", { name: "Send for verification" }).click();
@@ -135,7 +141,7 @@ test("H4 verification, an unreviewed edit and a rejected amendment never replace
   await expect(row.getByText("Verified location")).toHaveCount(0);
 
   await decide(vid("branch_location"), "approve");
-  await open(page, "/b2b/settings");
+  await openSettings(page, "branches");
   row = page.getByTestId("branch-verified").filter({ hasText: BRANCH });
   await expect(row.getByText("Verified location")).toBeVisible();
   const approved = q(`select public_identity ->> 'address_en' from public.branches where organization_id = '${orgId}' and name = '${BRANCH}'`);
@@ -154,7 +160,7 @@ test("H4 verification, an unreviewed edit and a rejected amendment never replace
   await page.getByRole("button", { name: "Send for verification" }).click();
   await expect(page.getByTestId("branch-pending_review").filter({ hasText: BRANCH })).toBeVisible({ timeout: 20_000 });
   await decide(vid("branch_location"), "reject", "Address could not be confirmed.");
-  await open(page, "/b2b/settings");
+  await openSettings(page, "branches");
   await expect(page.getByTestId("branch-review-reason")).toContainText("Address could not be confirmed.");
   expect(q(`select public_identity ->> 'address_en' from public.branches where organization_id = '${orgId}' and name = '${BRANCH}'`)).toBe(approved);
   expect(q(`select count(*) from public.audit_log where organization_id = '${orgId}' and action = 'branch.verified'`)).toBe("1");
@@ -191,8 +197,9 @@ test("H5 membership is not ownership: a member claims co-ownership, is not eligi
 test("H6 a sales member sees no governance controls, and cannot reach them through the API", async ({ page, request }) => {
   await prefs(page, { locale: "en" });
   await signIn(page, request, SALES, /\/(home|b2b)(\/|$)/);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "business");
   await expect(page.getByTestId("identity-panel")).toHaveCount(0);
+  await openSettings(page, "branches");
   await expect(page.getByRole("button", { name: "Add branch" })).toHaveCount(0);
   const sales = await signedInClient(SALES);
   const rename = await sales.rpc("organization_identity_change_request", { p_org_id: orgId, p_name: "Sales Rename" });
@@ -209,11 +216,13 @@ test("H7 governance screens: Arabic RTL, dark, 390px - no overflow", async ({ pa
   await prefs(page, { locale: "ar", theme: "dark" });
   await signIn(page, request, OWNER, /\/(home|b2b)(\/|$)/);
   const errors = guardConsole(page);
-  await open(page, "/b2b/settings");
+  await openSettings(page, "business");
   await expect(page.getByTestId("identity-panel")).toBeVisible();
+  await expectNoHorizontalOverflow(page, "settings business @390 ar dark");
+  await openSettings(page, "branches");
   await expect(page.getByTestId("branch-governance")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe("rtl");
-  await expectNoHorizontalOverflow(page, "settings @390 ar dark");
+  await expectNoHorizontalOverflow(page, "settings branches @390 ar dark");
   await open(page, "/business/applications");
   await expect(page.getByTestId("co-owner-section")).toBeVisible();
   await expectNoHorizontalOverflow(page, "applications @390 ar dark");

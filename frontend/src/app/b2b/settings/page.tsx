@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { cookies } from "next/headers";
 import { getPageContext } from "@/server/queries/page-context";
 import { getMessages, createTranslator } from "@/lib/i18n/translate";
@@ -55,9 +57,14 @@ export const dynamic = "force-dynamic";
  * section. None of those systems exist, and a settings page of disabled
  * placeholders tells a client the product is further along than it is.
  */
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const ctx = await getPageContext();
   if (!ctx) return null;
+  // A Showroom's Settings is the sectioned V2 page (same governance backend); this route keeps old links working.
+  if (ctx.org.orgType === "showroom_dealer") {
+    const section = (await searchParams).section;
+    redirect(`${SHOWROOM_ROOT}/settings${section ? `?section=${encodeURIComponent(section)}` : ""}`);
+  }
   const { supabase, org, locale } = ctx;
   const m = getMessages(locale);
   const t = createTranslator(locale);
