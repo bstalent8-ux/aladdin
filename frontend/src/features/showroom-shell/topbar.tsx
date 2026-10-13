@@ -51,7 +51,7 @@ export function ShowroomTopbar({
   onMenuClick,
   displayName,
   location,
-  capabilities, workspaceSwitch, notifications, chat,
+  capabilities, workspaceSwitch, notifications, chat, branchSwitch,
 }: {
   theme: "light" | "dark";
   onMenuClick: () => void;
@@ -60,6 +60,8 @@ export function ShowroomTopbar({
   /** Real, bounded opportunities for the shared search overlay — required in
    *  production; the preview falls back to its own mock list. */
   capabilities: readonly string[]; workspaceSwitch: ReactNode; notifications: ReactNode; chat: ReactNode;
+  /** Only for an organization with several branches: choosing the active branch scope (single-branch shows the location). */
+  branchSwitch?: ReactNode;
 }) {
   const { locale } = useI18n();
   const resolvedName = displayName || (locale === "ar" ? "حسابي" : "My account");
@@ -102,10 +104,14 @@ export function ShowroomTopbar({
       </button>
 
       {/* Location selector — the craftsman's own service area, not a filter. */}
-      <div className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-1.5 py-1 text-label font-medium text-fg-secondary tablet:flex">
-        <MapPinIcon size={15} className="text-fg-muted" />
-        {location || (locale === "ar" ? "الموقع غير محدد" : "Location not set")}
-      </div>
+      {branchSwitch ? (
+        <div className="hidden shrink-0 tablet:block">{branchSwitch}</div>
+      ) : (
+        <div className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-1.5 py-1 text-label font-medium text-fg-secondary tablet:flex">
+          <MapPinIcon size={15} className="text-fg-muted" />
+          {location || (locale === "ar" ? "الموقع غير محدد" : "Location not set")}
+        </div>
+      )}
 
       <div className={dividerClass} aria-hidden="true" />
 

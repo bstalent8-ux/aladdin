@@ -8,7 +8,7 @@ import { ProductMedia } from "@/features/commerce/product-media";
 import { catalogCategoryLabel } from "@/features/showroom-shell/products/labels";
 import { cn } from "@/lib/ui/cn";
 import { formatPlural } from "@/lib/i18n/plural";
-import { formatCompactMoney, formatCount, formatDate, formatMoney, formatPercent } from "@/lib/ui/format";
+import { formatCompactMoney, formatDate, formatMoney, formatPercent } from "@/lib/ui/format";
 import type { ActiveDirectRfq, CategorySpend, IncomingQuotation } from "@/server/queries/showroom-home";
 import type { CatalogRow } from "@/server/queries/commerce";
 

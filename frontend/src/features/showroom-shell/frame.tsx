@@ -14,6 +14,7 @@ import { countUnreadConversations, listConversations, resolveConversationDisplay
 import { toConversationViews } from "@/features/chat/view-model";
 import { requireShowroomContext } from "@/features/showroom-shell/context";
 import { ShowroomShell } from "@/features/showroom-shell/shell";
+import { BranchSwitcher } from "@/components/layout/context-switchers";
 import { ShowroomWorkspaceMenu } from "@/features/showroom-shell/workspace-menu";
 
 /**
@@ -42,6 +43,9 @@ export async function ShowroomFrame({ children }: { children: ReactNode }) {
   return <I18nProvider locale={locale} dir={directionFor(locale)}>
     <ShowroomShell key={org.organizationId} theme={resolveTheme(resolveThemePreference(store.get(THEME_COOKIE)?.value))} sidebarMode={resolveSidebarMode(store.get(SIDEBAR_MODE_COOKIE)?.value)} displayName={displayName} location={location} capabilities={org.capabilities}
       workspaceSwitch={<ShowroomWorkspaceMenu entries={workspace.entries} activeKey={org.organizationId} canCreate={access.allowed} />}
+      branchSwitch={org.branches.length > 1 ? (
+        <BranchSwitcher branches={org.branches} activeId={org.activeBranchId} orgWide={org.canManageSales || org.capabilities.includes("branch.manage")} />
+      ) : undefined}
       chat={<ChatMenu
         items={toConversationViews(conversationRows, chatContexts, createTranslator(locale), locale, org.organizationId)}
         unreadCount={chatUnread}
