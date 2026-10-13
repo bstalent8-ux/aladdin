@@ -6503,3 +6503,15 @@ compose, that a filtered queue really is filtered, and that every chip's `href` 
 being driven — rather than the latency of a synthetic click. 5/5, no retries, twice consecutively.
 
 Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
+
+## Marketplace database — Migration 01 (taxonomy + dynamic attributes), 2026-10-13
+
+Branch `feat/public-marketplace-20261011` (new worktree `D:\projects\aladdin-wt-public-marketplace-20261011`, from `origin/main` @ `6c088d9`; the earlier landing-page worktree was left untouched and still holds the uncommitted marketplace UI preview).
+
+**Added:** `supabase/migrations/20261012090001_marketplace_taxonomy_and_attributes.sql` (five `marketplace_*` tables, RLS + explicit SELECT-only grants, three invoker integrity triggers, seed of 3 categories / 6 types / 28 attributes / 84 options / 52 type mappings), `supabase/tests/90_marketplace_taxonomy_attributes_test.sql` (63 assertions), `docs/database/marketplace-product-database.md`.
+
+**Validation, honestly:** applied and 63/63 passed on a throwaway PostgreSQL 17.5 with a stubbed baseline and a pgTAP shim. The full local Supabase stack could not be started (Docker Desktop backend crashes on stale socket files in `%LOCALAPPDATA%\Docker\run`), so `supabase db reset` / `supabase test db` and the B2B regression suite were **not** run. The migration is therefore authored and scratch-validated, not reported as applied on the real baseline.
+
+**Caught by the run:** a `CHECK (… unit_kind in (…))` that a NULL `unit_kind` satisfied silently; fixed with an explicit `is not null`. `ON DELETE RESTRICT` raises `23503` on PostgreSQL 17, not `23001`.
+
+**Next:** Migration 02 (products, variants, attribute values, images) after review. No push, PR, merge or deploy.
