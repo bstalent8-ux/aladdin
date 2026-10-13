@@ -174,3 +174,68 @@ test("the parser really sees the workflow (guards against silently testing nothi
   for (const id of ["gate", "fresh", "preflight", "fresh_migrate", "migrate", "verify", "vercel", "previous", "fresh_promote", "promote", "smoke"]) byId(id);
   assert.ok(WRITE_NAMES.every((n) => STEPS.some((s) => s.name === n)));
 });
+
+/* ---- Supabase authentication: token only, never a database password; failures are visible -------------------------- */
+const codeLines = () => WORKFLOW.split("\n").filter((line) => !line.trim().startsWith("#"));
+
+test("no step passes a database password (`-p`) to a Supabase command, and no step injects SUPABASE_DB_PASSWORD", () => {
+  const code = codeLines().join("\n");
+  assert.ok(!code.includes("SUPABASE_DB_PASSWORD"), "SUPABASE_DB_PASSWORD appears nowhere in the workflow's code");
+  for (const step of STEPS.filter((s) => /\bsupabase\b/.test(s.run))) {
+    // Per command line (`node -p` in the version check is node's flag, not a Supabase password).
+    for (const line of step.run.split("\n").filter((l) => /pnpm exec supabase|supabase-capture\.mjs/.test(l))) {
+      assert.ok(!/\s(-p|--password)(\s|=|$)/.test(line), `${step.name}: no password flag on: ${line.trim()}`);
+    }
+    assert.ok(!/DB_PASSWORD/.test(step.block.replace(/^\s*#.*$/gm, "")), `${step.name}: no DB password in the step`);
+  }
+});
+
+test("the Supabase steps authenticate with exactly SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF", () => {
+  const link = STEPS.find((s) => /supabase link/.test(s.run));
+  assert.ok(link);
+  assert.match(link.run, /supabase link --project-ref "\$SUPABASE_PROJECT_REF" --yes/);
+  assert.match(link.block, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
+  assert.match(link.block, /SUPABASE_PROJECT_REF: \$\{\{ vars\.SUPABASE_PROJECT_REF \}\}/);
+  for (const id of ["migrate", "verify"]) assert.match(byId(id).block, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/, id);
+});
+
+test("preflight requires the Supabase token and project ref, and NOT a database password", () => {
+  const preflight = byId("preflight");
+  assert.match(preflight.run, /need SUPABASE_ACCESS_TOKEN; need SUPABASE_PROJECT_REF/);
+  assert.ok(!/PASSWORD/.test(preflight.run.split("\n").filter((l) => /SUPABASE/.test(l)).join("\n")), "no Supabase password in the preflight needs");
+});
+
+test("the real write is exactly `supabase db push --linked --yes`, once, in deploy mode behind the freshness check", () => {
+  const writes = STEPS.filter((s) => /db push\b(?!.*--dry-run)/.test(s.run));
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].id, "migrate");
+  assert.match(writes[0].run, /^\s*pnpm exec supabase db push --linked --yes\s*$/m);
+  assert.ok(writes[0].if.includes("steps.gate.outputs.deploy == 'true'"));
+  assert.ok(writes[0].if.includes("steps.fresh_migrate.outputs.current == 'true'"));
+});
+
+test("plan mode has no write path: the plan step only lists and dry-runs, through the capture helper", () => {
+  const plan = STEPS.find((s) => /Plan - migration history/.test(s.name));
+  assert.ok(plan);
+  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list\.json" -- migration list --linked --output-format json/);
+  assert.match(plan.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run\.json" -- db push --linked --dry-run/);
+  assert.ok(!/--yes/.test(plan.run) && !/db push --linked\s*$/m.test(plan.run), "no real push in the plan step");
+  assert.equal(plan.if, "steps.preflight.outputs.configured == 'true'");
+});
+
+test("CLI output is never silently redirected: every list/dry-run goes through the capture helper", () => {
+  for (const step of STEPS) {
+    for (const line of step.run.split("\n")) {
+      if (/\bsupabase\b.*\b(migration list|db push)\b.*--dry-run|\bsupabase\b.*migration list/.test(line) && !/^\s*pnpm exec supabase db push --linked --yes\s*$/.test(line)) {
+        assert.match(line, /node scripts\/supabase-capture\.mjs --out /, `${step.name}: ${line.trim()}`);
+        assert.ok(!/>\s*"?\$RUNNER_TEMP/.test(line), `${step.name}: no bare redirect to a file`);
+      }
+    }
+  }
+});
+
+test("the post-write verification uses the same visible, token-only commands", () => {
+  const verify = byId("verify");
+  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/migration-list-after\.json" -- migration list --linked --output-format json/);
+  assert.match(verify.run, /supabase-capture\.mjs --out "\$RUNNER_TEMP\/dry-run-after\.json" -- db push --linked --dry-run/);
+});

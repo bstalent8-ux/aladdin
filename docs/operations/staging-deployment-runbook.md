@@ -529,8 +529,8 @@ Nothing in `deploy-staging.yml` writes anything until **all** of this is done. U
 
    | Kind | Name | Used for |
    |---|---|---|
-   | secret | `SUPABASE_ACCESS_TOKEN` | the Supabase CLI |
-   | secret | `SUPABASE_DB_PASSWORD` | `supabase link` / `db push` |
+   | secret | `SUPABASE_ACCESS_TOKEN` | the Supabase CLI: `link`, `migration list`, `db push` (token auth through a temporary login role; no database password) |
+   | secret | `SUPABASE_DB_PASSWORD` | **not used by the workflow.** It may stay in the Environment unused and be removed later. Do **not** pass it to the CLI in CI: a database password makes the CLI open a direct database connection (which failed from GitHub's runners with `LegacyDbConnectError`); the workflow authenticates with `SUPABASE_ACCESS_TOKEN` and the CLI's temporary login role instead. |
    | secret | `VERCEL_TOKEN` | listing and promoting deployments (project-scoped token) |
    | secret | `SMOKE_INSTALLER_PHONE`, `SMOKE_INSTALLER_PASSWORD` | the installer smoke account |
    | secret | `SMOKE_BUSINESS_EMAIL`, `SMOKE_BUSINESS_PASSWORD` | the business smoke account |
@@ -589,3 +589,25 @@ The first cloud STAGING environment: which services exist, which variables they 
 ## Related files
 
 [`deployment-overview.md`](deployment-overview.md) · [`RUNTIME_STATE.md`](RUNTIME_STATE.md) · [`staging-demo-accounts.md`](staging-demo-accounts.md) · [`../security/secrets-and-environments.md`](../security/secrets-and-environments.md) · [`../decisions/ADR-0004-deployment-platforms.md`](../decisions/ADR-0004-deployment-platforms.md) · `scripts/build_staging_seed.py` · `scripts/verify_staging_seed.py` · `scripts/rehearse_staging_seed.py` · `frontend/src/lib/env/index.ts`
+
+## Supabase authentication in CI: token only, and failures are visible
+
+* The workflow runs `supabase link --project-ref "$SUPABASE_PROJECT_REF" --yes`, `migration list --linked --output-format json`, `db push --linked --dry-run` and (deploy mode only) `db push --linked --yes`. None of them takes a database password; `SUPABASE_DB_PASSWORD` is not read, required or injected.
+* Both the dry run and the real push acquire access the same way: `POST /v1/projects/<ref>/cli/login-role` with the access token ("Initialising login role..."), then connect with that temporary role. A successful PLAN-only run therefore validates that the token can mint the role the later write needs.
+* With `--output-format json` the CLI reports a failed command as `{"_tag":"Error","error":{"code","message","suggestion"}}` on **stdout**. A bare `> file` redirect hides it, so the read-only commands run through `scripts/supabase-capture.mjs`, which keeps stdout for the guard and, on failure, prints only `error.code`, `error.message` and `error.suggestion` (or a redacted tail of stderr) and exits non-zero. Secrets, credential-bearing URIs and token shapes are redacted, and `scripts/migration-history-guard.mjs` fails closed with a readable line when handed such an error file.
+
+### `LegacyDbConfigIpv6Error` and the link diagnostic
+
+GitHub's runners have no IPv6 and a project's direct database host (`db.<ref>.supabase.co`) is IPv6-only. Supabase CLI 2.110.0 resolves a `--linked` connection by probing that host over TCP; if it is unreachable it uses the pooler URL that `supabase link` saved in `supabase/.temp/pooler-url` (read only if present and non-empty; on the linked path there is no Management API fallback), validates it (parseable, user or `reference` option bound to this project ref, domain is the profile's pooler domain) and mints a temporary login role through it. With no usable pooler URL it fails with `LegacyDbConfigIpv6Error` ("IPv6 is not supported on your current network").
+
+The step "Diagnose the Supabase link" runs `scripts/supabase-link-diagnostic.mjs` right after `supabase link`. It is **observation only**: it reads `project-ref` and `pooler-url` and prints just `project_ref_*`, `pooler_url_present|nonempty|parseable`, `pooler_host_is_supabase_pooler`, `pooler_project_binding_matches`, a port number and one `pooler_verdict` (`missing`, `empty`, `unparseable`, `not_supabase_pooler`, `project_binding_mismatch`, `looks_valid`). It never prints the URL, host, user or any secret, never writes, fetches or deletes anything, and fails only when the linked project-ref does not match `SUPABASE_PROJECT_REF`. Read the verdict together with the plan step's result:
+
+* `missing` / `empty` -> `supabase link` did not leave a pooler URL on the runner.
+* `unparseable` / `not_supabase_pooler` / `project_binding_mismatch` -> a file exists but the CLI will reject it.
+* `looks_valid` and the plan still fails with the IPv6 error -> the CLI is not using a valid saved pooler URL for some other reason.
+
+### Why `supabase link` can succeed with no `pooler-url`
+
+In CLI 2.110.0, `link` learns the pooler URL as a **best-effort** step (`legacy-link-services-core.ts`): `GET /v1/projects/<ref>/config/database/pooler` (expected `200`, a JSON array), take the entry whose `database_type` is `PRIMARY`, strip the password placeholder, force session port 5432, and write `supabase/.temp/pooler-url`. The whole step is wrapped in `Effect.ignore`: a network error, `401`/`403`/`404`, an unexpected status, a response that does not decode, or no `PRIMARY` entry all leave **no** file while `link` still prints "Finished supabase link." and writes `project-ref`.
+
+The step "Diagnose Supabase pooler Management API" (`scripts/supabase-pooler-api-diagnostic.mjs`) repeats that single read-only call with the same token and prints only `pooler_api_request_completed`, `pooler_api_http_status`, `pooler_api_success_status`, `pooler_api_json_parseable`, `pooler_api_entry_count`, `pooler_api_primary_found`, `pooler_api_primary_connection_string_present`, `pooler_api_primary_pool_mode` and one `pooler_api_verdict` (`request_failed`, `unauthorized`, `forbidden`, `not_found`, `unexpected_status`, `malformed_response`, `no_primary`, `primary_missing_connection_string`, `looks_valid`). It never prints the token, a header, the response body or any connection detail, reads the body only on `200`, and changes nothing. Read it with the "Diagnose the Supabase link" step: `pooler_url_present=false` together with `forbidden` means the token cannot read the pooler config; with `looks_valid` the call works from the runner and the missing file has another cause.

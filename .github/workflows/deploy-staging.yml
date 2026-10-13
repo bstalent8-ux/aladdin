@@ -141,7 +141,6 @@ jobs:
         env:
           DEPLOY: ${{ steps.gate.outputs.deploy }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -155,7 +154,7 @@ jobs:
           # Names only, never values.
           missing=""
           need() { [ -n "${!1:-}" ] || missing="$missing $1"; }
-          need SUPABASE_ACCESS_TOKEN; need SUPABASE_DB_PASSWORD; need SUPABASE_PROJECT_REF
+          need SUPABASE_ACCESS_TOKEN; need SUPABASE_PROJECT_REF
           if [ "$DEPLOY" = "true" ]; then
             need VERCEL_TOKEN; need VERCEL_ORG_ID; need VERCEL_PROJECT_ID; need STAGING_BASE_URL
             need SMOKE_INSTALLER_PHONE; need SMOKE_INSTALLER_PASSWORD; need SMOKE_BUSINESS_EMAIL; need SMOKE_BUSINESS_PASSWORD
@@ -163,7 +162,7 @@ jobs:
           if [ -n "$missing" ]; then
             # A plan-only run on an environment that has not been set up AT ALL yet is skipped with a notice (nothing
             # is at stake: it writes nothing). Anything partly configured, and every deploy run, fails.
-            if [ "$DEPLOY" != "true" ] && [ -z "${SUPABASE_ACCESS_TOKEN}${SUPABASE_DB_PASSWORD}${SUPABASE_PROJECT_REF}" ]; then
+            if [ "$DEPLOY" != "true" ] && [ -z "${SUPABASE_ACCESS_TOKEN}${SUPABASE_PROJECT_REF}" ]; then
               echo "configured=false" >> "$GITHUB_OUTPUT"
               echo "::notice::The staging environment is not configured yet; the plan was skipped. Nothing was migrated or promoted."
               echo "Staging environment not configured yet: plan skipped (see docs/operations/staging-deployment-runbook.md)." >> "$GITHUB_STEP_SUMMARY"
@@ -192,10 +191,10 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
         run: |
-          pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes
+          # Token auth only: no database password (a password switches the CLI to a direct database connection).
+          pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_REF" --yes
           linked="$(tr -d '[:space:]' < supabase/.temp/project-ref)"
           if [ "$linked" != "$SUPABASE_PROJECT_REF" ]; then
             echo "::error::Linked project does not match SUPABASE_PROJECT_REF. Refusing before any write."
@@ -203,15 +202,38 @@ jobs:
           fi
           echo "Linked project matches the environment's SUPABASE_PROJECT_REF."
 
+      # OBSERVATION ONLY. On a runner without IPv6 the CLI reaches a --linked database through the pooler URL that
+      # `supabase link` saves in supabase/.temp/pooler-url; without a usable one it fails with LegacyDbConfigIpv6Error.
+      # This prints SAFE FACTS about that file (present / non-empty / parseable / looks like a Supabase pooler / bound to this
+      # project / port number) and never its contents. It changes nothing: the plan below runs exactly as before.
+      - name: Diagnose the Supabase link (safe facts only - never prints the pooler URL)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: node scripts/supabase-link-diagnostic.mjs --expected-ref "$SUPABASE_PROJECT_REF"
+
+      # OBSERVATION ONLY. In CLI 2.110.0 `supabase link` learns the pooler URL from GET /v1/projects/<ref>/config/database/pooler
+      # as a BEST-EFFORT step: any failure there is swallowed, `link` still reports success, and no pooler-url file is written.
+      # This repeats that one read-only call with the same token and prints only a closed vocabulary (HTTP status number,
+      # whether the response parsed, entry count, whether a PRIMARY exists, whether it carries a connection string, its pool
+      # mode, and one verdict). It never prints the token, a header, the response body or any connection detail.
+      - name: Diagnose Supabase pooler Management API (safe facts only - never prints the response)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: node scripts/supabase-pooler-api-diagnostic.mjs
+
       # --- 4. plan (read-only) --------------------------------------------------------------------------------------
       - name: Plan - migration history and database dry run
         if: steps.preflight.outputs.configured == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          pnpm exec supabase migration list --linked -p "$SUPABASE_DB_PASSWORD" --output-format json > "$RUNNER_TEMP/migration-list.json"
-          pnpm exec supabase db push --linked --dry-run -p "$SUPABASE_DB_PASSWORD" > "$RUNNER_TEMP/dry-run.json"
+          # scripts/supabase-capture.mjs keeps stdout for the guard AND prints a safe diagnostic if the CLI fails
+          # (with --output-format json the CLI reports errors on stdout, which a plain redirect would hide).
+          node scripts/supabase-capture.mjs --out "$RUNNER_TEMP/migration-list.json" -- migration list --linked --output-format json
+          node scripts/supabase-capture.mjs --out "$RUNNER_TEMP/dry-run.json" -- db push --linked --dry-run
           node scripts/migration-history-guard.mjs "$RUNNER_TEMP/migration-list.json" --expect plan --dry-run "$RUNNER_TEMP/dry-run.json"
 
       # Reported in plan mode too (it never fails there) so the owner can see the live value before enabling.
@@ -250,18 +272,16 @@ jobs:
         if: steps.gate.outputs.deploy == 'true' && steps.fresh_migrate.outputs.current == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: pnpm exec supabase db push --linked --yes -p "$SUPABASE_DB_PASSWORD"
+        run: pnpm exec supabase db push --linked --yes
 
       - name: Verify - history matches and nothing is pending
         id: verify
         if: steps.gate.outputs.deploy == 'true' && steps.fresh_migrate.outputs.current == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          pnpm exec supabase migration list --linked -p "$SUPABASE_DB_PASSWORD" --output-format json > "$RUNNER_TEMP/migration-list-after.json"
-          pnpm exec supabase db push --linked --dry-run -p "$SUPABASE_DB_PASSWORD" > "$RUNNER_TEMP/dry-run-after.json"
+          node scripts/supabase-capture.mjs --out "$RUNNER_TEMP/migration-list-after.json" -- migration list --linked --output-format json
+          node scripts/supabase-capture.mjs --out "$RUNNER_TEMP/dry-run-after.json" -- db push --linked --dry-run
           node scripts/migration-history-guard.mjs "$RUNNER_TEMP/migration-list-after.json" --expect up-to-date --dry-run "$RUNNER_TEMP/dry-run-after.json"
 
       - name: Find the READY Vercel deployment built from this exact commit
