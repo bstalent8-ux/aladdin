@@ -6515,3 +6515,15 @@ Branch `feat/public-marketplace-20261011` (new worktree `D:\projects\aladdin-wt-
 **Caught by the run:** a `CHECK (… unit_kind in (…))` that a NULL `unit_kind` satisfied silently; fixed with an explicit `is not null`. `ON DELETE RESTRICT` raises `23503` on PostgreSQL 17, not `23001`.
 
 **Next:** Migration 02 (products, variants, attribute values, images) after review. No push, PR, merge or deploy.
+
+## Marketplace database — Migration 02 (product core), 2026-10-13
+
+Branch `feat/public-marketplace-20261011` (merged with `origin/main` @ `10014e3` first; no incoming migrations).
+
+**Added:** `supabase/migrations/20261013090001_marketplace_product_core.sql` (five `marketplace_*` tables, triggers, RLS SELECT-only, no anon), `supabase/tests/91_marketplace_product_core_test.sql` (99 assertions). The Migration 01 test (`90_`) was scoped: its "exactly five tables" and "no FK outside marketplace" assertions were global and Migration 02 legitimately adds tables and a FK to `organizations`.
+
+**Validation:** `supabase db reset` (106 migrations) then `supabase test db`: **PASS, 89 files / 3840 tests**. A real two-session race on a duplicate option combination: one committed, one `23505`. Isolated stack `aladdin-marketplace` only; no remote database touched.
+
+**Found by running it (fixed before the record):** plpgsql evaluates both sides of an `OR`, so a record field missing on one table's NEW record errored (split into statements); `v_blockers || 'literal'` is parsed as an array literal (use `array_append`); `organizations.org_type` is not `public.account_type` (compared as text); a UTF-8 BOM written by PowerShell `Set-Content` into the local `config.toml` broke the Supabase CLI.
+
+**Deferred and documented:** seller enablement, inventory (Migration 03), media verification, public projection — publication stays unreachable.

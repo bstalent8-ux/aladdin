@@ -12,7 +12,7 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-001
 | # | Migration | Domain | State |
 |---|---|---|---|
 | 01 | `20261012090001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
-| 02 | product core (products, variants, attribute values, images) | Products & sellers · Images | not started |
+| 02 | `20261013090001_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
 | 03 | inventory | Inventory | not started |
 | 04 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
 
@@ -45,6 +45,24 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 - **No** insert / update / delete grant or policy for `anon`, `authenticated` or `service_role`. Rows change by migration today; the future Schema Builder writes through audited, permission-checked RPCs.
 - No `SECURITY DEFINER` function is introduced.
 
+## Migration 02 — product core
+
+| Table | Role |
+|---|---|
+| `marketplace_products` | a listing owned by a seller org (V1: showroom), slug, bilingual name/description, brand, status draft / published / unpublished / archived |
+| `marketplace_product_variants` | sellable SKU: seller-scoped SKU, selling unit, `numeric(12,2)` price EXCL. VAT, active/inactive, trigger-owned `option_signature` |
+| `marketplace_product_attribute_values` | typed relational product-level values (text / number / boolean / option / multi_option / measurement) |
+| `marketplace_variant_attribute_values` | same, at variant level (colour, thickness, roll width, weight) |
+| `marketplace_product_images` | image metadata: provider, bucket, stable object key, order, primary flag, alt text, status — no bytes, no URLs |
+
+**Integrity (database-level):** seller + product type immutable; seller must be a live showroom; slug globally unique; SKU unique per seller; a variant cannot name a seller different from its product (composite FK); a field must be mapped to the product type at the right level and be active; an option must belong to its field (guard + composite FK); typed-shape CHECK; no duplicate single-valued value; a duplicate variant combination is rejected by a partial UNIQUE index on `(product_id, option_signature)` (verified with two real concurrent sessions); one active primary product image; an image's variant must belong to the same product; object keys reject URLs, query strings, traversal and absolute paths; a mapping in use cannot be deleted or re-levelled (disable it instead).
+
+**Fail closed:** `status = published` is unreachable. `app.marketplace_publication_blockers()` always reports `seller_enablement_not_available` and `inventory_not_available`; a BEFORE trigger refuses the transition for every role. It also reports missing required fields (read from the live mapping), missing variants, ambiguous variant combinations and a missing verified primary image.
+
+**Access:** RLS on all five tables; SELECT only, to `authenticated` (members of the seller organization, platform staff) and `service_role`; **no anon grant**, no write grant or policy for anyone.
+
+**Deferred (documented in the migration header):** seller enablement table + audited RPC; inventory (Migration 03); media verification flow; public catalogue projection.
+
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
@@ -55,12 +73,13 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 
 | Check | Result |
 |---|---|
-| `supabase start` — isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
-| All 105 migrations applied from scratch, including this one, then seeds | ✅ |
-| Seed present in the live local DB: 3 categories · 6 types · 28 attributes · 52 mappings · 84 options | ✅ |
-| `supabase test db` — whole suite, **88 files / 3741 tests** | ✅ **PASS** |
-| `90_marketplace_taxonomy_attributes_test.sql` (63 assertions) inside that run | ✅ ok |
-| Existing B2B / RLS suites (01–89) inside that run | ✅ no regression |
+| Isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
+| `supabase db reset` — all **106** migrations (incl. 01 and 02) + seeds | ✅ |
+| `supabase test db` — whole suite, **89 files / 3840 tests** | ✅ **PASS** |
+| `90_marketplace_taxonomy_attributes_test.sql` (63) | ✅ |
+| `91_marketplace_product_core_test.sql` (99) | ✅ |
+| Existing B2B / RLS suites (01–89) | ✅ no regression |
+| Two real concurrent sessions racing the same option combination | ✅ one committed, the other failed with `23505` (`ux_marketplace_variants_product_signature`) |
 
 An earlier scratch run (PostgreSQL 17.5, stubbed baseline) caught one real defect — a `CHECK` that a NULL `unit_kind` silently satisfied — which was fixed before the local-stack run.
 

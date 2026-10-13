@@ -32,12 +32,16 @@ select has_table('public'::name, 'marketplace_attribute_options'::name,       'A
 
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relname like 'marketplace\_%' and c.relkind = 'r' and c.relrowsecurity),
-  5, 'A6. every marketplace_* table has row level security ENABLED');
+   where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+     and c.relname in ('marketplace_categories', 'marketplace_product_types', 'marketplace_attribute_definitions',
+                       'marketplace_product_type_attributes', 'marketplace_attribute_options')),
+  5, 'A6. all five taxonomy / attribute tables have row level security ENABLED');
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relname like 'marketplace\_%' and c.relkind = 'r'),
-  5, 'A7. this migration created exactly five marketplace_* tables (no products, variants or images yet)');
+   where n.nspname = 'public' and c.relkind = 'r'
+     and c.relname in ('marketplace_categories', 'marketplace_product_types', 'marketplace_attribute_definitions',
+                       'marketplace_product_type_attributes', 'marketplace_attribute_options')),
+  5, 'A7. the five taxonomy / attribute tables exist (product tables arrive in later migrations)');
 
 select col_is_pk('public'::name, 'marketplace_product_type_attributes'::name,
   array['product_type_id', 'attribute_id']::name[],
@@ -264,10 +268,11 @@ select is(
   0, 'G1. public.products (the B2B catalogue) gained no marketplace column');
 select is(
   (select count(*)::int from pg_constraint c
-   join pg_class src on src.oid = c.conrelid and src.relname like 'marketplace_%'
+   join pg_class src on src.oid = c.conrelid and src.relname in ('marketplace_categories', 'marketplace_product_types', 'marketplace_attribute_definitions',
+                       'marketplace_product_type_attributes', 'marketplace_attribute_options')
    join pg_class dst on dst.oid = c.confrelid
    where c.contype = 'f' and dst.relname not like 'marketplace_%'),
-  0, 'G2. no marketplace table references an existing (non-marketplace) table');
+  0, 'G2. no taxonomy / attribute table references an existing (non-marketplace) table');
 
 select * from finish();
 rollback;
