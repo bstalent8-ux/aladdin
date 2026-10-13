@@ -5,7 +5,7 @@ Status: planning only. Nothing has been pushed, merged or deployed. The user mus
 ## 1. Baseline and size of the change
 
 - Production baseline: `origin/main` @ `10014e3` (merge of PR #81), as of the last local fetch; **re-confirm against the hosted project before any step** (a later production merge changes the numbers below).
-- Merge base with this branch: `a33aa018`. This branch is **80 commits ahead**: 392 files, +45.7k/-0.7k lines, **41 new migrations** (`20261007090001` ... `20261023090010`).
+- Merge base with this branch: `a33aa018`. This branch is **80 commits ahead**: 392 files, +45.7k/-0.7k lines, **43 new migrations** (`20261007090001` ... `20261024090002`).
 - `frontend/src/app/preview/showroom-suite-v2` and `features/showroom-shell` are **entirely new to production** (0 files on `origin/main`). The "Showroom V2" release therefore is not a Home/Settings patch: Home and Settings sit on top of the whole suite, offers, audiences, governance and publisher chain.
 
 ## 2. Why this must ship as one dependency-complete unit
@@ -27,6 +27,7 @@ Status: planning only. Nothing has been pushed, merged or deployed. The user mus
 | Account taxonomy | `20261021090001`, `20261021090005-06` | canonical nine accounts; drops old enum types |
 | Governance (M2/M3) | `20261022090001-04`, `20261023090001-04`, `20261023090010` | applications, identity/branch/co-owner governance, B-1 fix |
 | Publisher (M4a, gated) | `20261023090005-09` | independent publishers; flag `independent_commerce` inserted **disabled** |
+| Showroom V2 reference alignment | `20261024090001-02` | two Home KPI cards allowed in the saved layout; Showroom business profile image (private bucket `organization-images`, table, four storage policies, four RPCs, FK on `organizations.logo_media_id`, revoked client UPDATE of that column) |
 
 Because of the destructive steps: take a verified backup / enable PITR immediately before applying, apply on a **copy of production first** (section 6), and record the pgTAP result there (local result: 81 files / 3632 tests pass on a fresh reset).
 
@@ -49,7 +50,7 @@ Because of the destructive steps: take a verified backup / enable PITR immediate
 2. Verify the three gates above and run the data checks: every `products.base_price` value exists in `product_prices`; no organization lost a membership; `select count(*) from organizations where org_type is null`.
 3. Deploy the frontend build to a preview pointing at the scratch project. Run the real-browser journeys against it: `frontend/e2e/regression/a..i` and `frontend/e2e/audit/v2-*.spec.ts`.
 4. **Check the 40001 behaviour on the hosted PostgREST**: submit a quotation with a stale version; expect a conflict message in under 2 s (locally PostgREST hangs 60 s; see inventory finding 3).
-5. Confirm storage: the product image buckets and signed-URL policies from `20261008090001`, `20261019090002` exist; upload and view one image.
+5. Confirm storage: the product image buckets and signed-URL policies from `20261008090001`, `20261019090002` exist and the new private `organization-images` bucket with its four policies (`20261024090002`); upload, view, replace and remove one product image and one Showroom image.
 6. Admin: see section 7.
 7. Smoke on mobile 390/430 in Arabic dark and English light.
 
@@ -72,7 +73,7 @@ The separate Admin workstream must be able to action these review types, which S
 |---|---|
 | Vitest (unit/component) | 215 files, 2649 tests pass |
 | `tsc --noEmit`, eslint on touched areas | clean |
-| pgTAP (migrations unchanged this task) | 81 files / 3632 tests pass (previous checkpoint) |
+| pgTAP on a freshly reset database (all 43 migrations applied from scratch) | 84 files / 3696 tests pass (new: 81 KPI cards, 82 profile image, 83 personal-data privacy; 47 storage-policy inventory updated for the four new policies) |
 | Real-browser regression `e2e/regression/a..i` | a 5/5, b 7/7, c 7/7, d 7/7, e 8/8, f 5/5, g 5/5, h 8/8 (now through V2 Settings), i 7/7 |
 | V2 specs `e2e/audit/v2-*.spec.ts` | Home with real data; every sidebar destination opens a finished page; Settings sections; staff scope; pending-org exclusion; empty org + multi-branch; chat from RFQ; Direct RFQ -> quotation -> order journey |
 

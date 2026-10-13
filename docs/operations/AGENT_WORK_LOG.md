@@ -1,5 +1,14 @@
 # Agent Work Log
 
+## Session - 2026-10-13 (later): Showroom V2 reference alignment and Settings corrections
+
+- Purpose: the exact Home reference image became available; align Home to it, keep KPI customization, apply the approved Settings corrections (remove business language/timezone, add a Showroom profile image, explain/hide the technical slug), audit personal-data privacy, rename the workspace-switcher actions. No deployment.
+- Built: Home per reference (five cards with real period-over-period trend, six-product grid, quotations with thumbnails, category donut); quick actions/benefits/active-RFQ/needs-attention removed from Home only; migrations `20261024090001` (two KPI keys) and `20261024090002` (business profile image); Settings changes; switcher labels; privacy pgTAP.
+- Records: [reference alignment](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md).
+- Validation: fresh `supabase db reset --local` then pgTAP 84 files / 3696 tests pass; Vitest and browser specs reported in the final report.
+- Findings: `cairo-ceramics` is the public handle `organizations.slug` (protected identity field); no personal data reaches public business identity; four privacy decisions left open (listed professional profiles, colleague roster, manager view, platform-support access). Pre-existing unused column `logo_media_id` is now the image pointer.
+- Pending: user visual approval of Home vs reference, hosted validation, Admin review UI, route decision.
+
 ## Session - 2026-10-13: Showroom V2 Home, Settings, converged shell and release plan
 
 - Purpose: user declared `/preview/showroom-suite-v2` the design authority and widened the target to the COMPLETE Showroom account (not only Home and Settings). Inventory, convergence, Home V2, Settings V2, evidence and release plan; no push/PR/merge/deploy.

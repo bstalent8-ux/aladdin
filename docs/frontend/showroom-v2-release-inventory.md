@@ -56,6 +56,17 @@ Status legend: READY, INTEGRATED (fixed in this task), INTEGRATION NEEDED, INCOM
 | T | Support and help | `/auth/support` (Settings > Support) | existing | Settings section | V2-4 | READY |
 | - | Branch scope switching (multi-branch) | V2 top bar | active-branch cookie | **Fixed**: the V2 frame had no branch switcher; it now shows one for organizations with more than one branch | V2-7 screenshot `e02` | INTEGRATED |
 
+### Update 2026-10-13 (reference alignment)
+
+| Feature | Backend | V2 frontend | Evidence | Status |
+|---|---|---|---|---|
+| Home aligned to the approved reference image | `showroom_home_metrics`, `order_list`, `quotation_list`, `order_category_spend`, `catalog_products` | five KPI cards + discover grid + quotations + category donut | R-1..R-4 (side-by-side image, overflow, customization, SQL parity) | READY (see `showroom-v2-reference-alignment.md` for the differences) |
+| KPI customization | `dashboard_kpi_layouts` (+ `20261024090001`) | trigger beside the period selector | R-3, pgTAP 66/81 | READY (team-default scope not browser-tested) |
+| Showroom business profile image | `organization_images`, `organization_image_*` RPCs, private bucket (`20261024090002`) | Settings > Business profile | S-2..S-4, pgTAP 82 | READY (members-only; public exposure not enabled) |
+| Business profile without language/timezone/handle | unchanged columns | Settings, names dialog | S-1, unit tests | READY |
+| Personal data privacy | RLS + RPCs as audited | privacy notes in Settings | pgTAP 83 | READY, four product decisions open |
+| Workspace switcher terminology | none | V2 menu + legacy switcher read the catalog | `workspace-menu.test.tsx`, regression B4/D7/G3, R-5 | READY |
+
 ## 4. Home V2 - data sources and honest gaps
 
 Details: `showroom-v2-home-data-map.md`. Summary:

@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { I18nProvider } from "@/lib/i18n/context";
 import { KpiCustomizeDialog } from "./kpi-customize-dialog";
-import { SHOWROOM_KPI_DEFAULT_ORDER } from "@/features/showroom-shell/home/kpi-catalog";
+import { SHOWROOM_KPI_CATALOG, SHOWROOM_KPI_DEFAULT_ORDER } from "@/features/showroom-shell/home/kpi-catalog";
 import { SYSTEM_DEFAULT_KPI_ORDER } from "@/lib/workspace/dashboard-kpi-catalog";
+
+/** Every card the suite offers (eleven); the default layout shows only the reference five of them. */
+const ALL_KEYS = SHOWROOM_KPI_CATALOG.map((entry) => entry.key);
 
 const actions = vi.hoisted(() => ({
   setPersonal: vi.fn(async () => ({ ok: true as const })),
@@ -24,8 +27,8 @@ function renderDialog(props: Partial<React.ComponentProps<typeof KpiCustomizeDia
     <I18nProvider locale="en" dir="ltr">
       <KpiCustomizeDialog
         orgId="org-1"
-        availableKeys={[...SHOWROOM_KPI_DEFAULT_ORDER]}
-        initialOrder={[...SHOWROOM_KPI_DEFAULT_ORDER]}
+        availableKeys={ALL_KEYS}
+        initialOrder={[...ALL_KEYS]}
         hasPersonal={false}
         hasTeamDefault={false}
         canManageTeamDefault
@@ -40,27 +43,35 @@ function renderDialog(props: Partial<React.ComponentProps<typeof KpiCustomizeDia
 beforeEach(() => vi.clearAllMocks());
 
 describe("KpiCustomizeDialog on the showroom suite surface", () => {
-  it("lists the nine suite cards with their direction spelled out", () => {
+  it("lists the eleven suite cards with their direction spelled out", () => {
     renderDialog();
-    expect(screen.getByText("RFQs sent to suppliers (purchasing)")).toBeTruthy();
+    expect(screen.getByText("Direct RFQs (purchasing)")).toBeTruthy();
+    expect(screen.getByText("Orders awaiting execution (purchasing)")).toBeTruthy();
+    expect(screen.getByText("Completed purchase orders (purchasing)")).toBeTruthy();
     expect(screen.queryByText(/purchase requests/i)).toBeNull();
     expect(screen.getByText("Customer RFQs received (sales)")).toBeTruthy();
     expect(screen.getByText("Total sales (sales)")).toBeTruthy();
-    expect(screen.getAllByRole("listitem")).toHaveLength(9);
+    expect(screen.getAllByRole("listitem")).toHaveLength(11);
   });
 
-  it("allows a hidden card to be re-enabled up to nine, never past it", () => {
-    renderDialog({ initialOrder: SHOWROOM_KPI_DEFAULT_ORDER.slice(0, 8) });
+  it("opens on the reference five with the other six available to add", () => {
+    renderDialog({ initialOrder: [...SHOWROOM_KPI_DEFAULT_ORDER] });
+    expect(screen.getAllByRole("button", { name: "Show" })).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: "Hide" })).toHaveLength(5);
+  });
+
+  it("allows a hidden card to be re-enabled up to eleven, never past it", () => {
+    renderDialog({ initialOrder: ALL_KEYS.slice(0, 10) });
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
     expect(screen.queryByRole("button", { name: "Show" })).toBeNull();
-    expect(screen.getAllByRole("listitem")).toHaveLength(9);
+    expect(screen.getAllByRole("listitem")).toHaveLength(11);
   });
 
   it("saves the member's layout for the showroom_suite surface, in the displayed order", async () => {
     renderDialog();
     fireEvent.click(screen.getByTestId("kpi-customize-save-personal"));
     await waitFor(() => expect(actions.setPersonal).toHaveBeenCalledTimes(1));
-    expect(actions.setPersonal).toHaveBeenCalledWith("org-1", [...SHOWROOM_KPI_DEFAULT_ORDER], "showroom_suite");
+    expect(actions.setPersonal).toHaveBeenCalledWith("org-1", [...ALL_KEYS], "showroom_suite");
   });
 
   it("persists a hide + reorder exactly as the member left it", async () => {
@@ -72,13 +83,13 @@ describe("KpiCustomizeDialog on the showroom suite surface", () => {
     await waitFor(() => expect(actions.setPersonal).toHaveBeenCalled());
     const saved = (actions.setPersonal.mock.calls[0] as unknown as [string, string[], string])[1];
     expect(saved).not.toContain("saved_products");
-    expect(saved.indexOf("total_sales")).toBe(SHOWROOM_KPI_DEFAULT_ORDER.indexOf("total_sales") - 1);
+    expect(saved.indexOf("total_sales")).toBe(ALL_KEYS.indexOf("total_sales") - 1);
   });
 
   it("publishes the team default for the same surface, owners only", async () => {
     renderDialog();
     fireEvent.click(screen.getByTestId("kpi-customize-save-team-default"));
-    await waitFor(() => expect(actions.setTeam).toHaveBeenCalledWith("org-1", [...SHOWROOM_KPI_DEFAULT_ORDER], "showroom_suite"));
+    await waitFor(() => expect(actions.setTeam).toHaveBeenCalledWith("org-1", [...ALL_KEYS], "showroom_suite"));
   });
 
   it("hides the team-default controls from an ordinary member", () => {

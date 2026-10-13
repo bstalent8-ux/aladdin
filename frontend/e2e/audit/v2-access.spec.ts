@@ -74,12 +74,11 @@ test("V2-7 an approved Showroom with no data: truthful empty states, two branche
   await signIn(page, request, owner, /\/(home|b2b)(\/|$)/);
   await page.goto(`${SUITE}/home`);
   await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("showroom-kpis").locator("li")).toHaveCount(6);
+  await expect(page.getByTestId("showroom-kpis").locator("article")).toHaveCount(5);
   await expect(page.getByTestId("showroom-quotes-empty")).toBeVisible();
-  await expect(page.getByTestId("showroom-requests-empty")).toBeVisible();
-  await expect(page.getByTestId("showroom-category-chart")).toContainText("No confirmed purchases");
+  await expect(page.getByTestId("showroom-category-empty")).toContainText("No confirmed purchases");
   // zero is shown as zero, never as a fabricated figure
-  await expect(page.getByTestId("kpi-active_rfqs")).toContainText("0");
+  await expect(page.getByTestId("kpi-rfqs_sent").getByTestId("kpi-value")).toHaveText("0");
   await capture(page, `${SUITE}/home`, { area: "v2-release", name: "e01-home-empty", persona: "Approved Showroom, no transactions, two branches", state: "Home with no data: truthful empty states", data: "real" }, [{ ...DESK_EN_L, fullPage: true }, { ...MOB_AR_D, fullPage: true }]);
   await page.goto(`${SUITE}/settings?section=branches`);
   await page.waitForLoadState("networkidle");

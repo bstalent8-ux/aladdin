@@ -2496,7 +2496,7 @@ export const ar: Messages = {
       ordersAwaitingExecution: "أوامر بانتظار التنفيذ",
     },
     kpiDialog: {
-      rfqsSent: "طلبات عروض أسعار صادرة (مشتريات)",
+      rfqsSent: "طلبات عروض الأسعار المباشرة (مشتريات)",
       quotesReceived: "عروض أسعار واردة (مشتريات)",
       ordersInProgress: "أوامر شراء قيد التنفيذ (مشتريات)",
       totalPurchases: "إجمالي المشتريات (مشتريات)",
@@ -2505,8 +2505,8 @@ export const ar: Messages = {
       totalSales: "إجمالي المبيعات (مبيعات)",
       projects: "مشاريع جارية",
       savedProducts: "منتجات محفوظة",
-      completedOrders: "أوامر الشراء المكتملة",
-      ordersAwaitingExecution: "أوامر بانتظار التنفيذ",
+      completedOrders: "أوامر الشراء المكتملة (مشتريات)",
+      ordersAwaitingExecution: "أوامر بانتظار التنفيذ (مشتريات)",
     },
     v3: {
       title: "معرضك اليوم",

@@ -2569,8 +2569,8 @@ export const en = {
       ordersAwaitingExecution: "Orders awaiting execution",
     },
     kpiDialog: {
-      rfqsSent: "RFQs sent to suppliers (purchasing)",
-      quotesReceived: "Supplier quotations received (purchasing)",
+      rfqsSent: "Direct RFQs (purchasing)",
+      quotesReceived: "Incoming quotations (purchasing)",
       ordersInProgress: "Purchase orders in progress (purchasing)",
       totalPurchases: "Total purchases (purchasing)",
       customerRfqsReceived: "Customer RFQs received (sales)",
@@ -2578,8 +2578,8 @@ export const en = {
       totalSales: "Total sales (sales)",
       projects: "Active projects",
       savedProducts: "Saved products",
-      completedOrders: "Completed purchase orders",
-      ordersAwaitingExecution: "Orders awaiting execution",
+      completedOrders: "Completed purchase orders (purchasing)",
+      ordersAwaitingExecution: "Orders awaiting execution (purchasing)",
     },
     v3: {
       title: "Your showroom today",

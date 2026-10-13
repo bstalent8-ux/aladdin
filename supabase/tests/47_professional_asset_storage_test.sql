@@ -211,14 +211,15 @@ select ok(
 -- plus its own public door: 4 more policies (insert/select-own/delete-own/
 -- select-published), for 11 total; Own Products (20261008090001) then added the
 -- four named product_images_* policies of the private product-images bucket, for 15; Milestone C (20261020090001) added
--- the four request_images_* policies of the private purchase-request-images bucket, for 19. Updated here rather than left stale,
+-- the four request_images_* policies of the private purchase-request-images bucket, for 19; the Showroom profile image (20261024090002)
+-- added the four organization_images_* policies of the private organization-images bucket, for 23. Updated here rather than left stale,
 -- since this file's own point is to name every policy explicitly so a NEW
 -- one cannot pass quietly — the avatars bucket is a reviewed addition, named.
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  19,
-  'Nineteen policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261008090001), plus the four request-images policies (Purchase Requests, 20261020090001)'
+  23,
+  'Twenty-three policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261008090001), plus the four request-images policies (Purchase Requests, 20261020090001), plus the four organization-images policies (Showroom profile image, 20261024090002)'
 );
 
 select is(
@@ -229,6 +230,10 @@ select is(
     'avatars_insert_authorized',
     'avatars_select_own',
     'avatars_select_published',
+    'organization_images_delete_manager',
+    'organization_images_insert_authorized',
+    'organization_images_select_manager',
+    'organization_images_select_member',
     'product_images_delete_writer',
     'product_images_insert_authorized',
     'product_images_select_org',
