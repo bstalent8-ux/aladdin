@@ -4,7 +4,6 @@ import { getMessages, createTranslator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/locales";
 import { resolveBilingualText } from "@/lib/i18n/bilingual";
 import { resolveTimezone } from "@/lib/workspace/timezone";
-import { DASHBOARD_TIMEZONE_FALLBACK } from "@/lib/workspace/dashboard-period";
 import { THEME_COOKIE } from "@/lib/theme/config";
 import { allowedNavKeys } from "@/lib/nav/modules";
 import { Card, SectionTitle, Field, Badge } from "@/components/ui/primitives";
@@ -20,6 +19,8 @@ import { IdentityCard } from "@/features/settings/identity-card";
 import { loadIdentityState, loadManagedBranches } from "@/server/queries/organization-governance";
 import { loadOrganizationActivities, loadOrganizationActivityCatalog } from "@/server/queries/activities";
 import { loadMyIdentity } from "@/server/queries/profile-identity";
+import { loadOrganizationImageUrl } from "@/server/queries/organization-image";
+import { OrganizationImageField } from "@/features/organization/organization-image-field";
 import { setOrganizationActivitiesAction } from "@/server/actions/activities";
 import { BadgeCheckIcon, BuildingIcon, LayersIcon, MapPinIcon, SettingsIcon, ShieldIcon, TagIcon, UsersIcon, UserIcon, HelpIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
@@ -123,14 +124,15 @@ async function BusinessSection({ ctx, locale, canManageOrg }: { ctx: Ctx; locale
   const { supabase, org } = ctx;
   const m = getMessages(locale);
   const t = createTranslator(locale);
-  const [{ data: record }, identityState] = await Promise.all([
+  const [{ data: record }, identityState, imageUrl] = await Promise.all([
     supabase
       .from("organizations")
-      .select("name, slug, org_type, status, is_verified, primary_locale, name_ar, name_en, timezone")
+      .select("name, org_type, status, is_verified, name_ar, name_en, timezone")
       .eq("id", org.organizationId)
       .maybeSingle(),
     // A verified organization's name changes only through a review request (never a direct edit).
     canManageOrg ? loadIdentityState(org.organizationId) : Promise.resolve(null),
+    loadOrganizationImageUrl(supabase, org.organizationId),
   ]);
   const verified = record?.is_verified ?? false;
   const pending = record?.status === "pending_verification";
@@ -139,19 +141,17 @@ async function BusinessSection({ ctx, locale, canManageOrg }: { ctx: Ctx; locale
       <Card>
         <SectionTitle
           icon={<BuildingIcon size={18} />}
-          action={canManageOrg ? (
+          action={canManageOrg && !(identityState?.locked ?? false) ? (
             <OrganizationIdentityDialog m={m} orgId={org.organizationId} nameAr={record?.name_ar ?? null} nameEn={record?.name_en ?? null} timezone={record?.timezone ?? null} locked={identityState?.locked ?? false} />
           ) : undefined}
         >
           {m.settings.business}
         </SectionTitle>
+        <div className="mt-md"><OrganizationImageField orgId={org.organizationId} imageUrl={imageUrl} canManage={canManageOrg} /></div>
         <dl className="mt-md grid gap-md tablet:grid-cols-2">
           <Field label={m.settings.field.name}>{resolveBilingualText(locale, record?.name ?? org.organizationName, record?.name_ar ?? null, record?.name_en ?? null)}</Field>
           <Field label={m.settings.field.type}>{record?.org_type ? m.directory.orgType[record.org_type] : "—"}</Field>
           <Field label={m.settings.field.status}>{record?.status ? m.settings.orgStatus[record.status] : "—"}</Field>
-          <Field label={m.settings.field.handle}>{record?.slug ?? "—"}</Field>
-          <Field label={m.settings.field.language}>{record?.primary_locale === "ar" ? m.common.languageName.ar : m.common.languageName.en}</Field>
-          <Field label={m.settings.field.timezone}>{record?.timezone ?? t("settings.timezoneDefault", { tz: DASHBOARD_TIMEZONE_FALLBACK })}</Field>
         </dl>
         {canManageOrg && identityState ? <IdentityChangePanel orgId={org.organizationId} view={identityState} /> : null}
         <p className="mt-md border-t pt-sm text-label text-fg-muted">{canManageOrg ? m.settings.businessNote : t("showroomSettings.readOnlyNote")}</p>
@@ -254,6 +254,7 @@ function AccessSection({ ctx, locale, canManagePeople }: { ctx: Ctx; locale: Loc
         </div>
         {canManagePeople ? <Link href="/b2b/organization" className={buttonLink}><UsersIcon size={16} />{t("showroomSettings.manageTeam")}</Link> : null}
         <p className="border-t pt-sm text-label text-fg-muted">{m.settings.accessNote}</p>
+        <p className="text-label text-fg-muted" data-testid="members-privacy-note">{t("showroomSettings.privacy.membersBody")}</p>
       </div>
     </Card>
   );
@@ -266,8 +267,13 @@ async function AccountSection({ ctx, locale }: { ctx: Ctx; locale: Locale }) {
   const visible = userFacingEmail(auth.user?.email);
   const signInEmail = visible ? maskEmail(visible) : null;
   const phonePassword = isCraftsmanLoginAlias(auth.user?.email);
+  const t = createTranslator(locale);
   return (
     <>
+      <div className="rounded-md border bg-surface-2/40 p-md" data-testid="account-privacy-note">
+        <p className="text-body font-medium text-fg">{t("showroomSettings.privacy.accountTitle")}</p>
+        <p className="mt-1 text-label text-fg-muted">{t("showroomSettings.privacy.accountBody")}</p>
+      </div>
       {identity ? <IdentityCard identity={identity} /> : null}
       <Card>
         <SectionTitle icon={<ShieldIcon size={18} />}>{m.settings.signIn}</SectionTitle>

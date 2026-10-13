@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
-import { selectValue } from "@/test/select-menu";
 import { OrganizationIdentityDialog } from "./organization-identity-dialog";
 import { ar } from "@/lib/i18n/messages/ar";
 
@@ -11,7 +10,7 @@ vi.mock("@/server/actions/organization-i18n", () => ({
 }));
 
 describe("OrganizationIdentityDialog", () => {
-  it("opens on the Edit trigger and shows labelled AR/EN name fields + timezone, pre-filled", () => {
+  it("opens on the Edit trigger and shows labelled AR/EN name fields, pre-filled, and no timezone or language control", () => {
     renderWithI18n(
       <OrganizationIdentityDialog
         m={ar}
@@ -29,10 +28,13 @@ describe("OrganizationIdentityDialog", () => {
 
     const nameAr = screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement;
     const nameEn = screen.getByLabelText(ar.settings.field.nameEn, { exact: false }) as HTMLInputElement;
-    const timezone = screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLElement;
     expect(nameAr.value).toBe("معرض سيراميك القاهرة");
     expect(nameEn.value).toBe("Cairo Ceramics Showroom");
-    expect(selectValue(timezone)).toBe("Africa/Cairo");
+    // The timezone is not a visible control any more, but the existing value travels with the form so saving the
+    // names can never clear it (and calendar calculations keep using it).
+    expect(screen.queryByLabelText(ar.settings.field.timezone, { exact: false })).toBeNull();
+    expect(screen.queryByLabelText(ar.settings.field.language, { exact: false })).toBeNull();
+    expect((dialog.querySelector('input[name="timezone"]') as HTMLInputElement).value).toBe("Africa/Cairo");
 
     // The hidden field the server action keys its update on.
     expect((dialog.querySelector('input[name="orgId"]') as HTMLInputElement).value).toBe("org-1");
@@ -42,7 +44,6 @@ describe("OrganizationIdentityDialog", () => {
     renderWithI18n(<OrganizationIdentityDialog m={ar} orgId="org-1" nameAr={null} nameEn={null} timezone={null} />);
     fireEvent.click(screen.getByRole("button", { name: ar.common.edit }));
     expect((screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement).value).toBe("");
-    expect(selectValue(screen.getByLabelText(ar.settings.field.timezone, { exact: false }))).toBe("");
-    expect(screen.getByText(ar.settings.timezoneUnset)).toBeInTheDocument();
+    expect((screen.getByRole("dialog").querySelector('input[name="timezone"]') as HTMLInputElement).value).toBe("");
   });
 });

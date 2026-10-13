@@ -87,6 +87,10 @@ create policy organization_images_insert_authorized on storage.objects
 create policy organization_images_select_member on storage.objects
   for select to authenticated
   using (bucket_id = 'organization-images' and app.can_read_organization_image_object(name));
+-- A manager must be able to SEE a superseded or removed object to delete it (storage deletes need a visible row).
+create policy organization_images_select_manager on storage.objects
+  for select to authenticated
+  using (bucket_id = 'organization-images' and app.can_delete_organization_image_object(name));
 create policy organization_images_delete_manager on storage.objects
   for delete to authenticated
   using (bucket_id = 'organization-images' and app.can_delete_organization_image_object(name));

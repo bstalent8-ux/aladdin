@@ -68,7 +68,7 @@ test.describe("workspace switching (two approved organizations, one pending appl
     await expect(menu).toContainText("REG Engineering Office");
     await expect(menu).toContainText("REG Import House");
     await expect(menu).not.toContainText("REG Pending Supply");
-    await expect(menu.getByRole("menuitem", { name: /organization applications/i })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: /my organizations & applications/i })).toBeVisible();
     expect(errors).toEqual([]);
   });
 

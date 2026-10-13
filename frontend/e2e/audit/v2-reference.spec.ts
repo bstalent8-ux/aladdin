@@ -133,3 +133,20 @@ test("R-4 Home figures equal the backend records (independent SQL, same 30-day w
   // a different organization never sees this organization's figures
   expect(expected.total).toBeGreaterThan(0);
 });
+
+test("R-5 workspace switcher uses the approved terminology (AR and EN)", async ({ page, request }) => {
+  test.setTimeout(300_000);
+  await signIn(page, request, IDENTITIES.showroom);
+  for (const [locale, add, mine] of [["ar", "طلب إضافة مؤسسة جديدة", "مؤسساتي وطلباتي"], ["en", "Request New Organization", "My Organizations & Applications"]] as const) {
+    await prefs(page, { locale, theme: "light" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${SUITE}/home`);
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: locale === "ar" ? "تبديل مساحة العمل" : "Switch workspace" }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: add })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: mine })).toBeVisible();
+    await expect(menu).not.toContainText("REG Pending Supply");
+    await page.screenshot({ path: `../docs/frontend/screenshots/v2-reference-alignment/v2-release/w01-switcher.${locale}.light.1440x900.png` });
+  }
+});

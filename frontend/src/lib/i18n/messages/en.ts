@@ -80,7 +80,7 @@ export const en = {
     /* The narrow control for people who WORK in a business (an employee, a
        salesperson's affiliated showroom) — not the generic workspace switcher. */
     workplaces: "Your workplaces",
-    addBusiness: "Add business",
+    addBusiness: "Request New Organization",
     editProfile: "Edit your profile",
     connectShowroom: "Connect a showroom",
     relationship: {
@@ -1955,7 +1955,7 @@ export const en = {
   },
   /* Organization applications: an application is NEVER a workspace. */
   orgApplications: {
-    title: "Organization applications",
+    title: "My Organizations & Applications",
     subtitle: "Track your organizations. An application becomes a workspace only after an Admin approves it.",
     notWorkspace: "Applications are not workspaces. An organization gets no audience and no commercial access until it is approved.",
     approved: { title: "Approved organizations", empty: "You have no approved organization yet.", open: "Open workspace" },
@@ -3664,6 +3664,31 @@ export const en = {
       account: "Personal account",
       appearance: "Appearance & language",
       support: "Support",
+    },
+    image: {
+      label: "Showroom image",
+      add: "Add image",
+      change: "Change image",
+      remove: "Remove",
+      removeConfirm: "Remove the Showroom image?",
+      removeYes: "Yes, remove",
+      cancel: "Cancel",
+      cropTitle: "Crop the Showroom image",
+      zoom: "Zoom",
+      save: "Save image",
+      saving: "Saving...",
+      saved: "The Showroom image was updated.",
+      removed: "The Showroom image was removed.",
+      hint: "A square picture of your business, such as a logo or storefront. Your team can see it. It is not your personal photo.",
+      errorType: "Choose a JPEG, PNG or WebP image.",
+      errorSize: "That file is empty or larger than 10 MB.",
+      errorUpload: "The image could not be saved. Try again.",
+      errorRemove: "The image could not be removed. Try again.",
+    },
+    privacy: {
+      accountTitle: "Your personal account",
+      accountBody: "Your name, photo, username and phone belong to you. They are not part of your business identity and are not shown on your Showroom's profile or to customers and suppliers.",
+      membersBody: "Only team managers can see the member list, and sign-in addresses are always partly hidden. Private phone numbers and e-mail addresses are never shared with colleagues or customers.",
     },
     activitiesNote: "Activities describe what your business offers. They never change your verified business name or business type.",
     readOnlyNote: "Only an organization manager can change these details.",

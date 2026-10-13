@@ -5,7 +5,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(30);
+select plan(32);
 
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data,
                         raw_user_meta_data, email_confirmed_at, created_at, updated_at)
@@ -98,7 +98,9 @@ select is(public.organization_image_confirm_upload((select v from _ids where k =
   'IMG-20: a replacement returns the previous key so its bytes can be deleted');
 select is(public.organization_image_current((select v::uuid from _ids where k = 'orgA')), (select v from _ids where k = 'key2'), 'IMG-21: the new image is current');
 select ok(not app.can_read_organization_image_object((select v from _ids where k = 'key1')), 'IMG-22: the superseded object is no longer readable');
+select ok(app.can_delete_organization_image_object((select v from _ids where k = 'key1')), 'IMG-22b: the manager can still reach the superseded object to delete its bytes');
 set local request.jwt.claims = :'u2';
+select ok(not app.can_delete_organization_image_object((select v from _ids where k = 'key1')), 'IMG-22c: a plain member cannot');
 select throws_ok(format($q$select public.organization_image_remove(%L)$q$, (select v from _ids where k = 'orgA')),
   '42501', null, 'IMG-23: a plain member cannot remove the image');
 set local request.jwt.claims = :'u1';

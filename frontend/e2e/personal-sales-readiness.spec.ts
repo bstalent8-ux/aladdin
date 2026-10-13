@@ -200,7 +200,7 @@ test.describe("Sprint 13 — personal experience + sales affiliation", () => {
     // never offered "Add business" — creating a business is not a personal-account
     // action.
     await expect(genericSwitcher(page)).toHaveCount(0);
-    await expect(page.getByText(/add business|إضافة نشاط تجاري/i)).toHaveCount(0);
+    await expect(page.getByText(/add business|request new organization|إضافة نشاط تجاري|طلب إضافة مؤسسة جديدة/i)).toHaveCount(0);
     await noOverflow(page);
   });
 
@@ -350,7 +350,7 @@ test.describe("Sprint 13 — personal experience + sales affiliation", () => {
     // A Salesperson has NO generic switcher on /home and is never offered Add
     // business; the affiliation card is the way in.
     await expect(genericSwitcher(page)).toHaveCount(0);
-    await expect(page.getByText(/add business|إضافة نشاط تجاري/i)).toHaveCount(0);
+    await expect(page.getByText(/add business|request new organization|إضافة نشاط تجاري|طلب إضافة مؤسسة جديدة/i)).toHaveCount(0);
     await page.getByRole("link", { name: /cairo ceramics showroom/i }).first().click();
     // ...and the B2B Sales workspace is reachable.
     await page.waitForURL(/\/b2b(\/|$)/, { waitUntil: "commit" });
@@ -436,7 +436,7 @@ test.describe("Sprint 13 — personal experience + sales affiliation", () => {
     await expect(page.getByRole("heading", { name: /your showrooms/i })).toBeVisible();
     // No generic switcher and no business creation for a Salesperson.
     await expect(genericSwitcher(page)).toHaveCount(0);
-    await expect(page.getByText(/add business|إضافة نشاط تجاري/i)).toHaveCount(0);
+    await expect(page.getByText(/add business|request new organization|إضافة نشاط تجاري|طلب إضافة مؤسسة جديدة/i)).toHaveCount(0);
     const showroomLink = page.getByRole("link", { name: new RegExp(esc(showroom), "i") }).first();
     await expect(showroomLink).toBeVisible();
     await showroomLink.click();
@@ -463,7 +463,7 @@ test.describe("Sprint 13 — personal experience + sales affiliation", () => {
     // A Contractor (not one of the approved five) has NO generic switcher on /home.
     await page.goto("/home");
     await expect(genericSwitcher(page)).toHaveCount(0);
-    await expect(page.getByText(/add business|إضافة نشاط تجاري/i)).toHaveCount(0);
+    await expect(page.getByText(/add business|request new organization|إضافة نشاط تجاري|طلب إضافة مؤسسة جديدة/i)).toHaveCount(0);
 
     // Phones show the organization as a plain label; the workplace control is a
     // tablet-and-up header control, so the context-restoration journey runs wide.

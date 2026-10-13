@@ -150,17 +150,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <Field label={m.settings.field.status}>
               {record?.status ? m.settings.orgStatus[record.status] : "—"}
             </Field>
-            <Field label={m.settings.field.handle}>{record?.slug ?? "—"}</Field>
-            <Field label={m.settings.field.language}>
-              {record?.primary_locale === "ar" ? m.common.languageName.ar : m.common.languageName.en}
-            </Field>
-            <Field label={m.settings.field.timezone}>
-              {/* An organization with no override is NOT running on "nothing" —
-                  every dashboard period boundary for this business is being
-                  computed against the platform default right now, so that is
-                  what gets said, truthfully, instead of a bare "Not set". */}
-              {record?.timezone ?? t("settings.timezoneDefault", { tz: DASHBOARD_TIMEZONE_FALLBACK })}
-            </Field>
           </dl>
           {canManageOrg && identityState ? <IdentityChangePanel orgId={org.organizationId} view={identityState} /> : null}
           <p className="mt-md border-t pt-sm text-label text-fg-muted">{m.settings.businessNote}</p>

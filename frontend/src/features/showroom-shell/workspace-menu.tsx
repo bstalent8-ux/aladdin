@@ -45,8 +45,8 @@ export function ShowroomWorkspaceMenu({ entries, activeKey, canCreate }: { entri
       })}>
         <BuildingIcon size={16} className="shrink-0" /><span className="flex min-w-0 flex-col"><span className="truncate">{entry.name}</span><span className="text-label text-fg-muted">{isShowroomBusinessType(entry.orgType) ? SHOWROOM_BUSINESS_LABELS[entry.orgType][locale] : ""}</span></span>{entry.organizationId === activeKey ? <CheckIcon size={16} className="ms-auto shrink-0" /> : null}
       </button>)}
-      {canCreate ? <Link role="menuitem" href="/preview/showroom-suite-v2/add-business" onClick={() => setOpen(false)} className={`${menuItemClass(false)} border-t`}><PlusIcon size={16} />{locale === "ar" ? "إضافة نشاط تجاري" : "Add business activity"}</Link> : null}
-      {canCreate ? <Link role="menuitem" href="/business/applications" onClick={() => setOpen(false)} className={menuItemClass(false)}><BuildingIcon size={16} />{locale === "ar" ? "طلبات المؤسسات" : "Organization applications"}</Link> : null}
+      {canCreate ? <Link role="menuitem" href="/preview/showroom-suite-v2/add-business" onClick={() => setOpen(false)} className={`${menuItemClass(false)} border-t`}><PlusIcon size={16} />{t("workspace.addBusiness")}</Link> : null}
+      {canCreate ? <Link role="menuitem" href="/business/applications" onClick={() => setOpen(false)} className={menuItemClass(false)}><BuildingIcon size={16} />{t("orgApplications.title")}</Link> : null}
       {error ? <p role="alert" className="px-3 py-2 text-label text-danger">{locale === "ar" ? "تعذر التبديل. حدّث الصفحة للتحقق من صلاحياتك." : "Could not switch. Refresh to check your access."}</p> : null}
     </div> : null}
   </div>;

@@ -94,7 +94,7 @@ test.describe("browser", () => {
     await signIn(page, request, REG.multiEmail, /\/(b2b|home)(\/|$)/);
     await open(page, "/business/applications");
     expect(await dirOf(page)).toBe("rtl");
-    await expect(page.getByRole("heading", { name: "طلبات المؤسسات" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "مؤسساتي وطلباتي" })).toBeVisible();
     await expect(page.getByText("قيد المراجعة").first()).toBeVisible();
   });
 });
