@@ -1,46 +1,97 @@
-import { HomeIcon, ClipboardIcon, StorefrontIcon, UserIcon, BriefcaseIcon, GiftIcon, SettingsIcon, StarIcon, ScrollIcon, TagIcon } from "@/components/ui/icons";
+import { HomeIcon, ClipboardIcon, StorefrontIcon, UserIcon, UsersIcon, BriefcaseIcon, GiftIcon, SettingsIcon, StarIcon, ScrollIcon, TagIcon, BarChartIcon, ActivityIcon, LayersIcon } from "@/components/ui/icons";
 import type { InstallerNavItem } from "@/features/installer-dashboard-preview/installer-nav";
 import { NAV_CAPS } from "@/lib/nav/modules";
 
 export const SHOWROOM_ROOT = "/preview/showroom-suite-v2";
-export type ShowroomNavItem = InstallerNavItem & { href: string; capabilities: readonly string[] };
-const item = (id: string, ar: string, en: string, Icon: InstallerNavItem["Icon"], capabilities: string[] = []): ShowroomNavItem => ({ id, label: { ar, en }, Icon, href: `${SHOWROOM_ROOT}/${id}`, capabilities });
+/** The completed commerce modules that still live under /b2b; the Showroom shell now frames them (see b2b/layout). */
+const LEGACY = "/b2b";
+
+export type ShowroomNavItem = InstallerNavItem & {
+  href: string;
+  capabilities: readonly string[];
+  /**
+   * A destination that does not exist yet. Hidden items stay in the model so their URLs keep resolving
+   * (the placeholder route still answers) but they never appear in the sidebar or the search, so no
+   * primary navigation leads to "This page is not available yet".
+   */
+  hidden?: boolean;
+};
+
+const v2 = (id: string, ar: string, en: string, Icon: InstallerNavItem["Icon"], capabilities: string[] = []): ShowroomNavItem =>
+  ({ id, label: { ar, en }, Icon, href: `${SHOWROOM_ROOT}/${id}`, capabilities });
+/** A finished module reached through its existing route; same capability gate as the legacy workspace. */
+const legacy = (id: string, href: string, ar: string, en: string, Icon: InstallerNavItem["Icon"], capabilities: string[] = []): ShowroomNavItem =>
+  ({ id, label: { ar, en }, Icon, href, capabilities });
+const pending = (id: string, ar: string, en: string, Icon: InstallerNavItem["Icon"], capabilities: string[] = []): ShowroomNavItem =>
+  ({ ...v2(id, ar, en, Icon, capabilities), hidden: true });
+
 export const SHOWROOM_GROUPS = [
-  { label: { ar: "", en: "" }, items: [item("home", "الرئيسية", "Home", HomeIcon)] },
+  { label: { ar: "", en: "" }, items: [v2("home", "الرئيسية", "Home", HomeIcon)] },
   { label: { ar: "المشتريات", en: "Purchasing" }, items: [
-    item("purchase-requests", "طلبات الشراء", "Purchase requests", ClipboardIcon, ["rfq.create"]),
-    item("pricing-requests-sent", "طلبات عروض أسعار صادرة", "RFQs sent to suppliers", ScrollIcon, ["rfq.create"]),
-    item("quotes-received", "عروض أسعار واردة", "Supplier quotations received", ScrollIcon, ["quote.decide", "rfq.create"]),
-    item("purchase-orders", "أوامر الشراء", "Purchase orders", ClipboardIcon, NAV_CAPS.orders ?? []),
+    // طلبات الشراء (Shared Purchase Requests) is Milestone D: no frontend yet, kept apart from Direct RFQs.
+    pending("purchase-requests", "طلبات الشراء", "Purchase requests", ClipboardIcon, ["rfq.create"]),
+    legacy("pricing-requests-sent", `${LEGACY}/rfqs`, "طلبات عروض الأسعار المباشرة", "Direct RFQs", ScrollIcon, ["rfq.create"]),
+    legacy("quotes-received", `${LEGACY}/quotations`, "عروض أسعار واردة", "Supplier quotations received", ScrollIcon, ["quote.decide", "rfq.create"]),
+    legacy("purchase-orders", `${LEGACY}/orders`, "أوامر الشراء", "Purchase orders", ClipboardIcon, NAV_CAPS.orders ?? []),
   ] },
   { label: { ar: "المبيعات", en: "Sales" }, items: [
-    item("customer-rfqs", "طلبات عروض أسعار واردة", "Customer RFQs received", ScrollIcon, ["rfq.respond"]),
-    item("customer-quotes", "عروض أسعار صادرة", "Quotations sent to customers", ScrollIcon, ["rfq.respond"]),
-    item("customers", "العملاء", "Customers", UserIcon, NAV_CAPS.customers ?? []),
+    legacy("customer-rfqs", `${LEGACY}/rfqs?view=received`, "طلبات عروض أسعار مباشرة واردة", "Direct RFQs received", ScrollIcon, ["rfq.respond"]),
+    legacy("customer-quotes", `${LEGACY}/quotations?view=sent`, "عروض أسعار صادرة", "Quotations sent to customers", ScrollIcon, ["rfq.respond"]),
+    legacy("customers", `${LEGACY}/customers`, "العملاء", "Customers", UserIcon, NAV_CAPS.customers ?? []),
+    legacy("leads", `${LEGACY}/leads`, "العملاء المحتملون", "Leads", UsersIcon, NAV_CAPS.leads ?? []),
+    legacy("follow-ups", `${LEGACY}/follow-ups`, "المتابعات", "Follow-ups", ActivityIcon, NAV_CAPS.followUps ?? []),
   ] },
   { label: { ar: "المنتجات", en: "Products" }, items: [
-    item("catalog", "تصفح المنتجات", "Browse products", StorefrontIcon, NAV_CAPS.catalog ?? []),
-    item("offers", "العروض", "Offers", TagIcon, NAV_CAPS.catalog ?? []),
-    item("saved", "المنتجات المحفوظة", "Saved products", StarIcon, NAV_CAPS.saved ?? []),
-    item("my-products", "منتجاتي", "My products", StorefrontIcon, NAV_CAPS.products ?? []),
-    item("my-offers", "إدارة العروض", "My offers", TagIcon, NAV_CAPS.products ?? []),
+    v2("catalog", "تصفح المنتجات", "Browse products", StorefrontIcon, NAV_CAPS.catalog ?? []),
+    v2("offers", "العروض", "Offers", TagIcon, NAV_CAPS.catalog ?? []),
+    v2("saved", "المنتجات المحفوظة", "Saved products", StarIcon, NAV_CAPS.saved ?? []),
+    v2("my-products", "منتجاتي", "My products", StorefrontIcon, NAV_CAPS.products ?? []),
+    v2("my-offers", "إدارة العروض", "My offers", TagIcon, NAV_CAPS.products ?? []),
   ] },
   { label: { ar: "الشبكة", en: "Network" }, items: [
-    item("suppliers", "الموردون", "Suppliers", StorefrontIcon),
-    item("craftsmen", "الصنايعية", "Craftsmen", UserIcon),
-    item("jobs", "فرص العمل", "Job opportunities", BriefcaseIcon, NAV_CAPS.jobs ?? []),
+    legacy("suppliers", `${LEGACY}/suppliers`, "الموردون", "Suppliers", StorefrontIcon),
+    legacy("craftsmen", `${LEGACY}/technicians`, "الصنايعية", "Craftsmen", UserIcon),
+    legacy("jobs", `${LEGACY}/jobs`, "فرص العمل", "Job opportunities", BriefcaseIcon, NAV_CAPS.jobs ?? []),
   ] },
-  { label: { ar: "الفريق", en: "Team" }, items: [item("sales-team", "فريقي - البائعين", "My sales team", UserIcon, NAV_CAPS.team ?? [])] },
+  { label: { ar: "الفريق", en: "Team" }, items: [legacy("sales-team", `${LEGACY}/organization`, "الفريق والأعضاء", "Team & members", UsersIcon, NAV_CAPS.team ?? [])] },
   { label: { ar: "إدارة النشاط", en: "Business management" }, items: [
-    item("projects", "المشاريع", "Projects", BriefcaseIcon, NAV_CAPS.projects ?? []),
-    item("reports", "التقارير والتحليلات", "Reports & analytics", ScrollIcon, NAV_CAPS.reports ?? []),
-    item("points", "النقاط", "Points", GiftIcon),
-    item("settings", "الإعدادات", "Settings", SettingsIcon),
+    legacy("projects", `${LEGACY}/projects`, "المشاريع", "Projects", LayersIcon, NAV_CAPS.projects ?? []),
+    legacy("reports", `${LEGACY}/reports`, "التقارير والتحليلات", "Reports & analytics", BarChartIcon, NAV_CAPS.reports ?? []),
+    legacy("activity", `${LEGACY}/activity`, "سجل النشاط", "Activity log", ActivityIcon, NAV_CAPS.activity ?? []),
+    legacy("points", `${LEGACY}/points`, "النقاط", "Points", GiftIcon),
+    v2("settings", "الإعدادات", "Settings", SettingsIcon),
   ] },
 ];
+
 export function canNavigate(item: ShowroomNavItem, capabilities: readonly string[]) {
+  // The activity log is an exact-capability module in the legacy workspace: org.manage must not unlock it.
+  if (item.id === "activity") return item.capabilities.some((cap) => capabilities.includes(cap));
   return !item.capabilities.length || capabilities.includes("org.manage") || item.capabilities.some((cap) => capabilities.includes(cap));
 }
 export function showroomNavigation(capabilities: readonly string[]) {
-  return SHOWROOM_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canNavigate(item, capabilities)) })).filter((group) => group.items.length);
+  return SHOWROOM_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden && canNavigate(item, capabilities)) })).filter((group) => group.items.length);
+}
+
+/** The path part of an item's href (items may carry a view query). */
+const hrefPath = (href: string) => href.split("?")[0];
+
+/**
+ * The item that owns a location. The longest matching path wins, so /b2b/rfqs/123 highlights Direct RFQs and
+ * a ?view= query on the same path chooses between the sent and received entries.
+ */
+export function activeShowroomItem(pathname: string, search: string, items: readonly ShowroomNavItem[]): ShowroomNavItem | null {
+  const params = new URLSearchParams(search);
+  let best: ShowroomNavItem | null = null;
+  let bestScore = -1;
+  for (const item of items) {
+    const [path = "", query] = item.href.split("?");
+    if (pathname !== path && !pathname.startsWith(`${path}/`)) continue;
+    const wantsView = new URLSearchParams(query ?? "").get("view");
+    const view = params.get("view");
+    // An item pinned to a view only owns that view; an unpinned item owns the rest.
+    if (wantsView ? view !== wantsView : (view !== null && items.some((other) => other !== item && hrefPath(other.href) === path && new URLSearchParams(other.href.split("?")[1] ?? "").get("view") === view))) continue;
+    const score = path.length;
+    if (score > bestScore) { best = item; bestScore = score; }
+  }
+  return best;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canNavigate, showroomNavigation, SHOWROOM_GROUPS, SHOWROOM_ROOT } from "./navigation";
+import { activeShowroomItem, canNavigate, showroomNavigation, SHOWROOM_GROUPS, SHOWROOM_ROOT } from "./navigation";
 import { eligibleWorkspaces, isShowroomBusinessType, SHOWROOM_BUSINESS_LABELS } from "./workspace-model";
 import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, REGISTRATION_CHOICE_ORDER, CHOICE_GROUPS } from "@/lib/onboarding/account-types";
 import type { WorkspaceEntry } from "@/lib/workspace/model";
@@ -9,16 +9,48 @@ describe("showroom phase 1 navigation", () => {
   const items = SHOWROOM_GROUPS.flatMap((group) => group.items);
   it("has the agreed group order, directional commerce and no institutions", () => {
     expect(SHOWROOM_GROUPS.map((group) => group.label.ar)).toEqual(["", "المشتريات", "المبيعات", "المنتجات", "الشبكة", "الفريق", "إدارة النشاط"]);
-    expect(items.map((item) => item.id)).toEqual(["home", "purchase-requests", "pricing-requests-sent", "quotes-received", "purchase-orders", "customer-rfqs", "customer-quotes", "customers", "catalog", "offers", "saved", "my-products", "my-offers", "suppliers", "craftsmen", "jobs", "sales-team", "projects", "reports", "points", "settings"]);
-    expect(items.every((item) => item.href === `${SHOWROOM_ROOT}/${item.id}`)).toBe(true);
+    expect(items.map((item) => item.id)).toEqual(["home", "purchase-requests", "pricing-requests-sent", "quotes-received", "purchase-orders", "customer-rfqs", "customer-quotes", "customers", "leads", "follow-ups", "catalog", "offers", "saved", "my-products", "my-offers", "suppliers", "craftsmen", "jobs", "sales-team", "projects", "reports", "activity", "points", "settings"]);
+    // Suite pages live under the suite root; finished modules keep their existing routes inside the same shell.
+    for (const item of items) expect(item.href.startsWith(`${SHOWROOM_ROOT}/`) || item.href.startsWith("/b2b/")).toBe(true);
   });
   it("filters nav and direct-page authorization with the same capability rule", () => {
     const visible = showroomNavigation([]).flatMap((group) => group.items);
     expect(visible.map((item) => item.id)).toEqual(["home", "suppliers", "craftsmen", "points", "settings"]);
     for (const item of items) expect(visible.includes(item)).toBe(canNavigate(item, []));
-    expect(showroomNavigation(["org.manage"]).flatMap((group) => group.items)).toEqual(items);
+    // org.manage unlocks every visible module except the exact-capability activity log; hidden placeholders never show.
+    expect(showroomNavigation(["org.manage"]).flatMap((group) => group.items)).toEqual(items.filter((item) => !item.hidden && item.id !== "activity"));
     expect(showroomNavigation(["job.manage"]).flatMap((group) => group.items).some((item) => item.id === "jobs")).toBe(true);
     expect(showroomNavigation(["sales.manage"]).flatMap((group) => group.items).some((item) => item.id === "sales-team")).toBe(false);
+  });
+});
+
+describe("no placeholder in primary navigation", () => {
+  const all = SHOWROOM_GROUPS.flatMap((g) => g.items);
+  it("hides exactly the unfinished Shared Purchase Requests entry", () => {
+    expect(all.filter((i) => i.hidden).map((i) => i.id)).toEqual(["purchase-requests"]);
+    expect(showroomNavigation(["org.manage"]).flatMap((g) => g.items).some((i) => i.id === "purchase-requests")).toBe(false);
+  });
+  it("never routes a visible item to the placeholder page", () => {
+    const hiddenIds = new Set(all.filter((i) => i.hidden).map((i) => i.id));
+    for (const item of showroomNavigation(["org.manage"]).flatMap((g) => g.items)) {
+      expect(hiddenIds.has(item.id)).toBe(false);
+      expect(item.href).not.toMatch(/showroom-suite-v2\/(purchase-requests|pricing-requests-sent|quotes-received|purchase-orders|customer-rfqs|customer-quotes|customers|suppliers|craftsmen|jobs|sales-team|projects|reports|points)$/);
+    }
+  });
+  it("keeps Direct RFQs (طلبات عروض الأسعار المباشرة) apart from Shared Purchase Requests (طلبات الشراء)", () => {
+    const direct = all.find((i) => i.id === "pricing-requests-sent")!;
+    expect(direct.label.ar).toBe("طلبات عروض الأسعار المباشرة");
+    expect(direct.label.ar).not.toBe(all.find((i) => i.id === "purchase-requests")!.label.ar);
+  });
+  it("highlights the item that owns the location, including detail pages and view filters", () => {
+    const visible = showroomNavigation(["org.manage"]).flatMap((g) => g.items);
+    expect(activeShowroomItem("/b2b/rfqs", "", visible)?.id).toBe("pricing-requests-sent");
+    expect(activeShowroomItem("/b2b/rfqs/abc", "", visible)?.id).toBe("pricing-requests-sent");
+    expect(activeShowroomItem("/b2b/rfqs", "view=received", visible)?.id).toBe("customer-rfqs");
+    expect(activeShowroomItem("/b2b/quotations", "", visible)?.id).toBe("quotes-received");
+    expect(activeShowroomItem("/b2b/quotations", "view=sent", visible)?.id).toBe("customer-quotes");
+    expect(activeShowroomItem("/preview/showroom-suite-v2/my-products/new", "", visible)?.id).toBe("my-products");
+    expect(activeShowroomItem("/nowhere", "", visible)).toBeNull();
   });
 });
 

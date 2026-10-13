@@ -1,3 +1,4 @@
+import { SHOWROOM_GROUPS } from "@/features/showroom-shell/navigation";
 import { describe, expect, it } from "vitest";
 import {
   SHOWROOM_KPI_CATALOG,
@@ -87,14 +88,14 @@ describe("KPI destinations", () => {
   const period = { key: "30d" as const };
 
   it.each([
-    ["rfqs_sent", "/preview/showroom-suite-v2/pricing-requests-sent?period=30d"],
-    ["quotes_received", "/preview/showroom-suite-v2/quotes-received?period=30d"],
-    ["orders_in_progress", "/preview/showroom-suite-v2/purchase-orders?status=active"],
-    ["total_purchases", "/preview/showroom-suite-v2/purchase-orders?period=30d"],
-    ["customer_rfqs_received", "/preview/showroom-suite-v2/customer-rfqs?period=30d"],
-    ["customer_quotes_sent", "/preview/showroom-suite-v2/customer-quotes?period=30d"],
-    ["total_sales", "/preview/showroom-suite-v2/reports?view=sales&period=30d"],
-    ["projects", "/preview/showroom-suite-v2/projects?status=active"],
+    ["rfqs_sent", "/b2b/rfqs?period=30d"],
+    ["quotes_received", "/b2b/quotations?period=30d"],
+    ["orders_in_progress", "/b2b/orders?status=active"],
+    ["total_purchases", "/b2b/orders?period=30d"],
+    ["customer_rfqs_received", "/b2b/rfqs?view=received&period=30d"],
+    ["customer_quotes_sent", "/b2b/quotations?view=sent&period=30d"],
+    ["total_sales", "/b2b/reports?view=sales&period=30d"],
+    ["projects", "/b2b/projects?status=active"],
     ["saved_products", "/preview/showroom-suite-v2/saved"],
   ] as const)("%s opens %s", (key, href) => {
     expect(showroomKpiHref(entry(key), period)).toBe(href);
@@ -102,15 +103,16 @@ describe("KPI destinations", () => {
 
   it("carries a custom range to period cards only", () => {
     const custom = { key: "custom" as const, from: "2026-01-01", to: "2026-01-31" };
-    expect(showroomKpiHref(entry("rfqs_sent"), custom)).toBe(
-      "/preview/showroom-suite-v2/pricing-requests-sent?period=custom&from=2026-01-01&to=2026-01-31",
-    );
-    expect(showroomKpiHref(entry("projects"), custom)).toBe("/preview/showroom-suite-v2/projects?status=active");
+    expect(showroomKpiHref(entry("rfqs_sent"), custom)).toBe("/b2b/rfqs?period=custom&from=2026-01-01&to=2026-01-31");
+    expect(showroomKpiHref(entry("projects"), custom)).toBe("/b2b/projects?status=active");
   });
 
-  it("only ever links to pages that exist in the suite navigation", () => {
-    const ids = new Set(SHOWROOM_KPI_CATALOG.map((e) => e.page));
-    for (const id of ids) expect(showroomKpiHref(SHOWROOM_KPI_CATALOG.find((e) => e.page === id)!, period)).toContain(`/${id}`);
+  it("never links to a hidden placeholder page", () => {
+    const hidden = new Set(SHOWROOM_GROUPS.flatMap((g) => g.items).filter((i) => i.hidden).map((i) => i.id));
+    for (const e of SHOWROOM_KPI_CATALOG) {
+      expect(hidden.has(e.page)).toBe(false);
+      expect(showroomKpiHref(e, period)).not.toMatch(/showroom-suite-v2\/(purchase-requests)/);
+    }
   });
 });
 

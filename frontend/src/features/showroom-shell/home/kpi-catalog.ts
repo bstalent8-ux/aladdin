@@ -147,12 +147,18 @@ export function resolveShowroomKpiOrder(
   return out;
 }
 
-/** Destination for a card, carrying its filter and — for period cards — the same period the Home resolved. */
+/**
+ * Destination for a card: the destination page's own href (a V2 page or a finished module the shell frames),
+ * carrying the card's filter and - for period cards - the same period the Home resolved.
+ */
 export function showroomKpiHref(
   entry: ShowroomKpiEntry,
   period: { key: DashboardPeriodKey; from?: string; to?: string },
 ): string {
-  const params = new URLSearchParams(entry.query);
+  const base = PAGE_ITEMS.get(entry.page)?.href ?? `${SHOWROOM_ROOT}/${entry.page}`;
+  const [path, existing] = base.split("?");
+  const params = new URLSearchParams(existing);
+  for (const [k, v] of Object.entries(entry.query ?? {})) params.set(k, v);
   if (entry.basis === "period") {
     params.set("period", period.key);
     if (period.key === "custom" && period.from && period.to) {
@@ -161,5 +167,5 @@ export function showroomKpiHref(
     }
   }
   const qs = params.toString();
-  return `${SHOWROOM_ROOT}/${entry.page}${qs ? `?${qs}` : ""}`;
+  return `${path}${qs ? `?${qs}` : ""}`;
 }

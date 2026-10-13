@@ -8,10 +8,11 @@ import type { Page } from "@playwright/test";
  * whether real backend data was on screen, limitation) so the audit document is generated from
  * what actually happened, not from memory.
  */
-export const SHOT_ROOT = path.resolve(process.cwd(), "..", "docs", "frontend", "screenshots", "m4-audit");
+// SHOT_ROOT_NAME lets the V2 release evidence land beside (never inside) the untouched M4 audit archive.
+export const SHOT_ROOT = path.resolve(process.cwd(), "..", "docs", "frontend", "screenshots", process.env.SHOT_ROOT_NAME ?? "m4-audit");
 export const MANIFEST = path.join(SHOT_ROOT, "manifest.jsonl");
 
-export type Area = "m2-registration-applications" | "m3-organization-branch-governance" | "m4a-independent-publishing" | "existing-showroom-commerce";
+export type Area = "v2-release" | "m2-registration-applications" | "m3-organization-branch-governance" | "m4a-independent-publishing" | "existing-showroom-commerce";
 
 export type ShotMeta = {
   area: Area;

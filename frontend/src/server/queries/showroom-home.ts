@@ -113,3 +113,118 @@ export async function loadRecommendedProducts(
     (row): row is RecommendedProduct => !!row.id && !!row.name,
   );
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Home V2 sections. Same rules as above: the caller's own client, RLS-bound, organization filter stated
+// explicitly, no service role, nothing fabricated - an empty result is an empty result.
+// ---------------------------------------------------------------------------------------------------------------
+
+export type ShowroomHeadlineExtras = { activeRfqs: number; completedOrders: number };
+
+/**
+ * Two figures `showroom_home_metrics` does not carry, counted from the same RLS-scoped list views.
+ *  - activeRfqs: Direct RFQs this organization SENT that are still open (submitted, or answered but not closed).
+ *    Direct RFQs only - Shared Purchase Requests are a different system with no Home figure yet.
+ *  - completedOrders: orders this organization PLACED that reached `completed` inside the period.
+ */
+export async function loadShowroomHeadlineExtras(
+  supabase: DB,
+  orgId: string,
+  window: { start: string; end: string },
+): Promise<ShowroomHeadlineExtras> {
+  const [rfqs, orders] = await Promise.all([
+    supabase.from("rfq_list").select("id", { count: "exact", head: true }).eq("requester_org_id", orgId).in("status", ["submitted", "quoted"]),
+    supabase
+      .from("order_list")
+      .select("id", { count: "exact", head: true })
+      .eq("requester_org_id", orgId)
+      .eq("status", "completed")
+      .gte("completed_at", window.start)
+      .lt("completed_at", window.end),
+  ]);
+  if (rfqs.error) throw rfqs.error;
+  if (orders.error) throw orders.error;
+  return { activeRfqs: rfqs.count ?? 0, completedOrders: orders.count ?? 0 };
+}
+
+export type IncomingQuotation = {
+  id: string;
+  supplierName: string;
+  rfqTitle: string;
+  status: string;
+  total: number | null;
+  itemCount: number;
+  submittedAt: string | null;
+  validityDate: string | null;
+};
+
+/** Quotations answering THIS organization's Direct RFQs, newest first. Drafts are the supplier's private work and never listed. */
+export async function loadLatestIncomingQuotations(supabase: DB, orgId: string, limit = 5): Promise<IncomingQuotation[]> {
+  const { data, error } = await supabase
+    .from("quotation_list")
+    .select("id, supplier_name, rfq_title, status, total, item_count, submitted_at, validity_date, created_at")
+    .eq("requester_org_id", orgId)
+    .neq("status", "draft")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).flatMap((q) =>
+    q.id && q.status
+      ? [{ id: q.id, supplierName: q.supplier_name ?? "", rfqTitle: q.rfq_title ?? "", status: q.status, total: q.total === null ? null : Number(q.total), itemCount: Number(q.item_count ?? 0), submittedAt: q.submitted_at, validityDate: q.validity_date }]
+      : [],
+  );
+}
+
+export type ActiveDirectRfq = {
+  id: string;
+  title: string;
+  supplierName: string;
+  status: "submitted" | "quoted";
+  itemCount: number;
+  requiredDate: string | null;
+  submittedAt: string | null;
+};
+
+/** Open Direct RFQs this organization sent, newest first. */
+export async function loadActiveDirectRfqs(supabase: DB, orgId: string, limit = 5): Promise<ActiveDirectRfq[]> {
+  const { data, error } = await supabase
+    .from("rfq_list")
+    .select("id, title, supplier_name, status, item_count, required_date, submitted_at, created_at")
+    .eq("requester_org_id", orgId)
+    .in("status", ["submitted", "quoted"])
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).flatMap((r) =>
+    r.id && (r.status === "submitted" || r.status === "quoted")
+      ? [{ id: r.id, title: r.title ?? "", supplierName: r.supplier_name ?? "", status: r.status, itemCount: Number(r.item_count ?? 0), requiredDate: r.required_date, submittedAt: r.submitted_at }]
+      : [],
+  );
+}
+
+export type CategorySpend = { category: string; amount: number };
+
+/**
+ * Where this organization's committed purchasing went, by product category, for orders CONFIRMED in the
+ * period and not cancelled (the same basis as the Total purchases figure). Each order line is attributed
+ * through the quotation line it came from (`order_category_spend`); a line whose product is no longer in the
+ * catalog is reported as `other` rather than dropped, so the parts still sum to the order lines' total.
+ */
+export async function loadPurchasingByCategory(supabase: DB, orgId: string, window: { start: string; end: string }): Promise<CategorySpend[]> {
+  const { data, error } = await supabase
+    .from("order_category_spend")
+    .select("category, amount")
+    .eq("requester_org_id", orgId)
+    .neq("status", "cancelled")
+    .gte("confirmed_at", window.start)
+    .lt("confirmed_at", window.end);
+  if (error) throw error;
+  const sums = new Map<string, number>();
+  for (const row of data ?? []) {
+    if (!row.category) continue;
+    sums.set(row.category, (sums.get(row.category) ?? 0) + Number(row.amount ?? 0));
+  }
+  return [...sums.entries()].map(([category, amount]) => ({ category, amount })).filter((s) => s.amount > 0).sort((a, b) => b.amount - a.amount);
+}

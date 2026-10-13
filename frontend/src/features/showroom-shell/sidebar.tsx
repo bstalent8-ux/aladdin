@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from "re
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import {
   SIDEBAR_MODE_COOKIE,
@@ -22,7 +22,7 @@ import {
   XIcon,
 } from "@/components/ui/icons";
 import { pick } from "@/features/installer-dashboard-preview/localized";
-import { showroomNavigation, type ShowroomNavItem } from "./navigation";
+import { activeShowroomItem, showroomNavigation, type ShowroomNavItem } from "./navigation";
 import { signOut } from "@/server/actions/auth";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -47,6 +47,7 @@ export function ShowroomSidebar({
 }) {
   const { locale, dir, t } = useI18n();
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [mode, setMode] = useState<SidebarMode>(initialMode);
   const [revealed, setRevealed] = useState(false);
 
@@ -104,19 +105,23 @@ export function ShowroomSidebar({
             narrow ? "px-2" : "px-3",
           )}
         >
-          {showroomNavigation(capabilities).map((group, index) => (
+          {(() => {
+            const groups = showroomNavigation(capabilities);
+            const current = activeShowroomItem(pathname, search, groups.flatMap((group) => group.items));
+            return groups.map((group, index) => (
             <div key={index}>
               {group.label[locale] ? narrow ? <div className="my-3 border-t border-shell-line" /> : <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wide text-shell-fg-muted">{group.label[locale]}</p> : null}
               <ul className="flex flex-col gap-0.5" onClick={mobile ? onCloseMobile : undefined}>
-                {group.items.map((item) => <NavRow key={item.id} item={item} locale={locale} active={pathname === item.href} narrow={narrow} />)}
+                {group.items.map((item) => <NavRow key={item.id} item={item} locale={locale} active={current?.id === item.id} narrow={narrow} />)}
               </ul>
             </div>
-          ))}
+            ));
+          })()}
         </nav>
 
         <div className={cn("shrink-0 pb-2.5 pt-2", narrow ? "px-2" : "px-3")}>
           <Link
-              href="/preview/showroom-suite-v2/points"
+              href="/b2b/points"
               title={locale === "ar" ? "نقاطي ومكافآتي" : "My points and rewards"}
               className={cn(
                 "flex rounded-md border border-iris-solid/30 bg-iris-solid/15 p-2 transition-colors hover:bg-iris-solid/20",
