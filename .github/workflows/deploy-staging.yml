@@ -202,6 +202,16 @@ jobs:
           fi
           echo "Linked project matches the environment's SUPABASE_PROJECT_REF."
 
+      # OBSERVATION ONLY. On a runner without IPv6 the CLI reaches a --linked database through the pooler URL that
+      # `supabase link` saves in supabase/.temp/pooler-url; without a usable one it fails with LegacyDbConfigIpv6Error.
+      # This prints SAFE FACTS about that file (present / non-empty / parseable / looks like a Supabase pooler / bound to this
+      # project / port number) and never its contents. It changes nothing: the plan below runs exactly as before.
+      - name: Diagnose the Supabase link (safe facts only - never prints the pooler URL)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: node scripts/supabase-link-diagnostic.mjs --expected-ref "$SUPABASE_PROJECT_REF"
+
       # --- 4. plan (read-only) --------------------------------------------------------------------------------------
       - name: Plan - migration history and database dry run
         if: steps.preflight.outputs.configured == 'true'
