@@ -212,6 +212,18 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
         run: node scripts/supabase-link-diagnostic.mjs --expected-ref "$SUPABASE_PROJECT_REF"
 
+      # OBSERVATION ONLY. In CLI 2.110.0 `supabase link` learns the pooler URL from GET /v1/projects/<ref>/config/database/pooler
+      # as a BEST-EFFORT step: any failure there is swallowed, `link` still reports success, and no pooler-url file is written.
+      # This repeats that one read-only call with the same token and prints only a closed vocabulary (HTTP status number,
+      # whether the response parsed, entry count, whether a PRIMARY exists, whether it carries a connection string, its pool
+      # mode, and one verdict). It never prints the token, a header, the response body or any connection detail.
+      - name: Diagnose Supabase pooler Management API (safe facts only - never prints the response)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: node scripts/supabase-pooler-api-diagnostic.mjs
+
       # --- 4. plan (read-only) --------------------------------------------------------------------------------------
       - name: Plan - migration history and database dry run
         if: steps.preflight.outputs.configured == 'true'
