@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(108);
+select plan(119);
 
 update auth.users set email_confirmed_at = now()
   where id in ('70000001-0000-4000-8000-000000000001', '71000005-0000-4000-8000-000000000005',
@@ -397,6 +397,37 @@ select is((select count(*)::int from public.marketplace_public_catalog('wallpape
   'G16. filtering by type and search text works');
 select is((select count(*)::int from public.marketplace_public_catalog('wallpaper', 'no-such-product-xyz')), 0,
   'G17. a search with no match returns nothing');
+reset role;
+
+-- Public read hardening (every call re-evaluates; bounded; safe filters; no caller-dependent widening)
+select is(
+  (select array_agg(p.provolatile::text) from pg_proc p
+   where p.proname in ('marketplace_public_catalog', 'marketplace_public_product')),
+  array['s', 's'], 'K1. both public-read functions are STABLE (no side effects, no writes)');
+set local role anon;
+select ok((select count(*) <= 1 from public.marketplace_public_catalog(null, null, 0, 0)),
+  'K2. a page size of 0 is clamped to 1, never unbounded');
+select lives_ok($$ select * from public.marketplace_public_catalog(null, null, -5, -10) $$,
+  'K3. negative limit / offset are clamped, not an error');
+select is((select count(*)::int from public.marketplace_public_catalog(null, null, 24, 1000000)), 0,
+  'K4. an offset past the end returns an empty page');
+select is((select count(*)::int from public.marketplace_public_catalog(null, '%')), 0,
+  'K5. LIKE wildcards in the search text are matched literally, not as patterns');
+select is((select count(*)::int from public.marketplace_public_catalog(null, $q$' or 1=1 --$q$)), 0,
+  'K6. an injection-shaped search string is just text and matches nothing');
+select is((select count(*)::int from public.marketplace_public_catalog(null, '  SEL-WALLPAPER-B  ')), 1,
+  'K7. search is case-insensitive and trims whitespace');
+select is((select count(*)::int from public.marketplace_public_catalog('no_such_type')), 0,
+  'K8. an unknown product-type filter returns nothing');
+select is(public.marketplace_public_product(' sel-wallpaper-b') is null, true,
+  'K9. the detail lookup is an exact slug match');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"70000001-0000-4000-8000-000000000001","role":"authenticated"}';
+select is((select count(*)::int from public.marketplace_public_catalog() where slug = 'sel-wallpaper-a'), 0,
+  'K10. a seller sees its OWN draft nowhere in the public catalogue (no owner widening)');
+select is(public.marketplace_public_product('sel-wallpaper-a') is null, true,
+  'K11. ...nor in the public detail');
 reset role;
 
 -- stock-out after publication: still listed, no longer purchasable, NOT archived

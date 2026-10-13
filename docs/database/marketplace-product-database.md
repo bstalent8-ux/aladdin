@@ -1,6 +1,6 @@
 # Marketplace product database
 
-**Status:** in progress — Migrations 01–04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
+**Status:** in progress — Migrations 01–05 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
 **Branch / worktree:** `feat/public-marketplace-20261011` · `D:\projects\aladdin-wt-public-marketplace-20261011` (from `origin/main` @ `6c088d9`). Nothing is merged, pushed or deployed.
 
 ## Purpose
@@ -15,7 +15,7 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-001
 | 02 | `20261013090001_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
 | 03 | `20261013090002_marketplace_inventory.sql` | Inventory | applied + tested locally (isolated Supabase) |
 | 04 | `20261013090003_marketplace_seller_enablement_and_catalog.sql` | Seller enablement · Publication · Safe public catalog | applied + tested locally (isolated Supabase) |
-| 05 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
+| 05 | `20261013090004_marketplace_bulk_import_foundation.sql` | Bulk import foundation (jobs, staging rows/assets, findings, trusted worker functions) | applied + tested locally (isolated Supabase) |
 
 Product types are **rows, not an enum**. Adding paints, doors, flooring, curtains or posters is an `INSERT` plus field mappings — no structural change.
 
@@ -107,6 +107,16 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 
 **Touched existing objects:** two rows inserted into `admin_permissions` and their `admin_role_permissions` mappings (data only). Test `85_` asserted the catalogue size (25) and was updated to 27.
 
+## Migration 05 — bulk import foundation
+
+Full design, idempotency model, image matching and worker contract: [`marketplace-bulk-import.md`](marketplace-bulk-import.md). Summary:
+
+* Five import tables (`marketplace_import_jobs`, `_job_events`, `_rows`, `_assets`, `_errors`), organisation-scoped through composite FKs; staging only — imported products land in the **canonical** product tables as **draft**, images as **pending**.
+* Identity: product = (seller, `external_ref`), variant = (seller, `sku`); jobs idempotent per (organization, key).
+* Worker surface is `service_role`-only SECURITY DEFINER functions; the seller can only create / cancel / report their own jobs. No client write grants; a guard trigger refuses writes outside the functions.
+* Chunked (≤2000 rows per call), each row in its own sub-transaction, leased and resumable; dry-run mode validates and reports without writing products.
+* Nothing in the import path can publish or verify media; publication stays behind the Migration 04 blockers.
+
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
@@ -118,10 +128,10 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 | Check | Result |
 |---|---|
 | Isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
-| `supabase db reset` — all **108** migrations (01–04 included) + seeds | ✅ |
-| `supabase test db` — whole suite, **91 files / 4049 tests** | ✅ **PASS** |
-| `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) · `93_` seller enablement (108) | ✅ |
-| Existing B2B / RLS suites (01–89) | ✅ no regression (only edit: `85_` permission-catalogue count 25 → 27) |
+| `supabase db reset` — all **109** migrations (01–05 included) + seeds | ✅ |
+| `supabase test db` — whole suite, **92 files / 4199 tests** | ✅ **PASS** |
+| `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) · `93_` seller enablement (119) · `94_` bulk import (126) | ✅ |
+| Existing B2B / RLS suites (01–89) | ✅ no regression (only edits: `85_` now pins the 25 original permissions + role mappings by content hash and verifies the two Marketplace permissions) |
 | `marketplace_stock_concurrency_test.sh` — real parallel sessions (oversell, same-key, 10-way stampede) | ✅ PASS |
 
 An earlier scratch run (PostgreSQL 17.5, stubbed baseline) caught one real defect — a `CHECK` that a NULL `unit_kind` silently satisfied — which was fixed before the local-stack run.

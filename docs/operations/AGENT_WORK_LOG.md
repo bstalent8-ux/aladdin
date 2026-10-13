@@ -6551,3 +6551,15 @@ Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
 **Validation:** `supabase db reset` (108 migrations) then `supabase test db`: **PASS, 91 files / 4049 tests**; concurrency script PASS. Isolated stack `aladdin-marketplace` only.
 
 **Still closed:** publication cannot succeed anywhere until `marketplace_platform_settings.media_verification_ready` is turned on by a deliberate platform act. No seller is approved. No checkout, no order-specific reservations, no seller write RPCs for product/variant/image/inventory, no R2.
+
+## Marketplace database — Migration 05 (bulk import foundation), 2026-10-13
+
+Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
+
+**Part A (Migration 04 final review):** test `85_` strengthened (25 original permissions + every role mapping pinned by content hash; two new permissions and their role mapping verified; Moderator read-only; Support / ordinary users have neither; functional `has_admin_permission` checks). Test `93_` extended with public-catalogue hardening checks (bounded paging, literal wildcards, injection-shaped search, no owner widening). `media_verification_ready` stays false; no code path enables it.
+
+**Part B:** `supabase/migrations/20261013090004_marketplace_bulk_import_foundation.sql` (import jobs / events / rows / assets / errors, state machine, lease, trusted worker functions, seller create/cancel/report), `supabase/tests/94_marketplace_bulk_import_test.sql` (126 assertions), `docs/database/marketplace-bulk-import.md`.
+
+**Validation:** `supabase db reset` (109 migrations) then `supabase test db`: **PASS, 92 files / 4199 tests**. Scale probe (15,000 rows / 15,000 images, one rolled-back transaction) recorded in the bulk-import doc.
+
+**Still closed:** no parser / worker / upload / R2, no checkout, no publication path, no real seller activated.
