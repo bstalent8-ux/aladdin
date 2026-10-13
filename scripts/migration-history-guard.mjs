@@ -62,6 +62,14 @@ export function parseCliJson(text) {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new MalformedInputError("CLI output is not a JSON object");
   }
+  if (parsed._tag === "Error") {
+    // `--output-format json` reports a failed command as { "_tag": "Error", "error": { code, message, suggestion } } ON STDOUT.
+    // That is the CLI failing, not a malformed migration list: say so, using only the safe fields.
+    const e = parsed.error && typeof parsed.error === "object" ? parsed.error : {};
+    const field = (v) => (typeof v === "string" && v.trim() !== "" ? v.trim().replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi, "<redacted-uri>") : "");
+    const parts = [`code=${field(e.code) || "unknown"}`, field(e.message) && `message=${field(e.message)}`, field(e.suggestion) && `suggestion=${field(e.suggestion)}`];
+    throw new MalformedInputError(`the Supabase CLI reported an error instead of a result (${parts.filter(Boolean).join("; ")})`);
+  }
   return parsed;
 }
 

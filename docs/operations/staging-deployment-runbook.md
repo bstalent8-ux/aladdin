@@ -529,8 +529,8 @@ Nothing in `deploy-staging.yml` writes anything until **all** of this is done. U
 
    | Kind | Name | Used for |
    |---|---|---|
-   | secret | `SUPABASE_ACCESS_TOKEN` | the Supabase CLI |
-   | secret | `SUPABASE_DB_PASSWORD` | `supabase link` / `db push` |
+   | secret | `SUPABASE_ACCESS_TOKEN` | the Supabase CLI: `link`, `migration list`, `db push` (token auth through a temporary login role; no database password) |
+   | secret | `SUPABASE_DB_PASSWORD` | **not used by the workflow.** It may stay in the Environment unused and be removed later. Do **not** pass it to the CLI in CI: a database password makes the CLI open a direct database connection (which failed from GitHub's runners with `LegacyDbConnectError`); the workflow authenticates with `SUPABASE_ACCESS_TOKEN` and the CLI's temporary login role instead. |
    | secret | `VERCEL_TOKEN` | listing and promoting deployments (project-scoped token) |
    | secret | `SMOKE_INSTALLER_PHONE`, `SMOKE_INSTALLER_PASSWORD` | the installer smoke account |
    | secret | `SMOKE_BUSINESS_EMAIL`, `SMOKE_BUSINESS_PASSWORD` | the business smoke account |
@@ -589,3 +589,9 @@ The first cloud STAGING environment: which services exist, which variables they 
 ## Related files
 
 [`deployment-overview.md`](deployment-overview.md) · [`RUNTIME_STATE.md`](RUNTIME_STATE.md) · [`staging-demo-accounts.md`](staging-demo-accounts.md) · [`../security/secrets-and-environments.md`](../security/secrets-and-environments.md) · [`../decisions/ADR-0004-deployment-platforms.md`](../decisions/ADR-0004-deployment-platforms.md) · `scripts/build_staging_seed.py` · `scripts/verify_staging_seed.py` · `scripts/rehearse_staging_seed.py` · `frontend/src/lib/env/index.ts`
+
+## Supabase authentication in CI: token only, and failures are visible
+
+* The workflow runs `supabase link --project-ref "$SUPABASE_PROJECT_REF" --yes`, `migration list --linked --output-format json`, `db push --linked --dry-run` and (deploy mode only) `db push --linked --yes`. None of them takes a database password; `SUPABASE_DB_PASSWORD` is not read, required or injected.
+* Both the dry run and the real push acquire access the same way: `POST /v1/projects/<ref>/cli/login-role` with the access token ("Initialising login role..."), then connect with that temporary role. A successful PLAN-only run therefore validates that the token can mint the role the later write needs.
+* With `--output-format json` the CLI reports a failed command as `{"_tag":"Error","error":{"code","message","suggestion"}}` on **stdout**. A bare `> file` redirect hides it, so the read-only commands run through `scripts/supabase-capture.mjs`, which keeps stdout for the guard and, on failure, prints only `error.code`, `error.message` and `error.suggestion` (or a redacted tail of stderr) and exits non-zero. Secrets, credential-bearing URIs and token shapes are redacted, and `scripts/migration-history-guard.mjs` fails closed with a readable line when handed such an error file.
