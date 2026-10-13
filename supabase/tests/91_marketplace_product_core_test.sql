@@ -359,9 +359,9 @@ select ok(
   (select 'missing_product_attribute:material_wallpaper' = any(app.marketplace_publication_blockers('b1000000-0000-4000-8000-000000000001'))),
   'G1. an empty product reports its missing required product-level field (read from the live mapping)');
 select ok(
-  (select 'seller_enablement_not_available' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))
+  (select 'seller_not_approved' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))
       and 'no_available_stock' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-000000000001'))),
-  'G2. a populated product with no stock reports seller enablement (deferred) and no_available_stock');
+  'G2. a populated product of an unapproved seller reports seller_not_approved and no_available_stock');
 select throws_ok($$ update public.marketplace_products set status = 'published' where id = 'a1000000-0000-4000-8000-000000000001' $$,
   '23514', null, 'G3. publishing a product is refused');
 select throws_ok($$ update public.marketplace_products set status = 'published', published_at = now()

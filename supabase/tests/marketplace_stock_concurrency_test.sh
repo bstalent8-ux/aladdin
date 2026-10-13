@@ -41,6 +41,7 @@ select set_config('app.marketplace_stock_write', 'on', true);
 delete from public.marketplace_inventory_levels where variant_id = '${variant}';
 delete from public.marketplace_stock_locations where id = '${location}';
 delete from public.marketplace_products where id = '${product}';
+delete from public.marketplace_seller_accounts where organization_id = '${org}' and status_reason = 'concurrency-test';
 commit;
 SQL
 }
@@ -53,6 +54,10 @@ insert into public.marketplace_product_variants (id, product_id, seller_organiza
 values ('${variant}', '${product}', '${org}', 'RACE-${run}', 'roll', 10);
 insert into public.marketplace_stock_locations (id, organization_id, key, name_ar, name_en)
 values ('${location}', '${org}', 'race_${run}', 'سباق', 'race');
+-- Migration 04: reserve needs an enabled seller. Fixture row, removed by the trap.
+select set_config('app.marketplace_seller_write', 'on', false);
+insert into public.marketplace_seller_accounts (organization_id, status, status_reason, approved_at)
+values ('${org}', 'approved', 'concurrency-test', now()) on conflict do nothing;
 SQL
 
 apply_sql() { # type qty key

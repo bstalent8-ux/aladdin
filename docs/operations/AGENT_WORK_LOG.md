@@ -6539,3 +6539,15 @@ Branch `feat/public-marketplace-20261011`, after the B2B non-regression audit of
 **Found by running it:** the first test run flagged "SECURITY DEFINER view in public" — it was pgTAP's own views, left in `public` because a manual `psql -f` of a test file ran its `create extension if not exists pgtap` outside the CLI's lifecycle. Dropped the stray extension from the disposable local DB; never run test files by hand with `psql -f`. Also: a JS `$$` replacement string collapses to `$` in `String.replace`.
 
 **Still deferred (Migration 04):** seller enablement and the public product projection. Publication stays unreachable.
+
+## Marketplace database — Migration 04 (seller enablement, publication, safe public catalog), 2026-10-13
+
+Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
+
+**Added:** `supabase/migrations/20261013090003_marketplace_seller_enablement_and_catalog.sql` (seller accounts + append-only events, `marketplace_sellers.read/manage` permissions, admin approve/suspend/revoke/reinstate RPCs, real publication blockers, publish/unpublish RPCs, `marketplace_public_catalog` / `marketplace_public_product` functions, media-verification platform flag defaulting to OFF, reserve-requires-enabled-seller trigger), `supabase/tests/93_marketplace_seller_enablement_test.sql` (108 assertions).
+
+**Changed existing tests:** `85_` permission-catalogue count 25 → 27 (two new permissions); `91_` G2 and `92_` J4 + fixtures (seller must be approved to reserve); concurrency script approves/cleans a fixture seller.
+
+**Validation:** `supabase db reset` (108 migrations) then `supabase test db`: **PASS, 91 files / 4049 tests**; concurrency script PASS. Isolated stack `aladdin-marketplace` only.
+
+**Still closed:** publication cannot succeed anywhere until `marketplace_platform_settings.media_verification_ready` is turned on by a deliberate platform act. No seller is approved. No checkout, no order-specific reservations, no seller write RPCs for product/variant/image/inventory, no R2.

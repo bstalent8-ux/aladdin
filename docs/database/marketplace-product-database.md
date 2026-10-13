@@ -1,6 +1,6 @@
 # Marketplace product database
 
-**Status:** in progress — Migrations 01–03 of 04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
+**Status:** in progress — Migrations 01–04 authored, applied to the isolated local Supabase stack and validated by the full pgTAP suite (see "Validation record").
 **Branch / worktree:** `feat/public-marketplace-20261011` · `D:\projects\aladdin-wt-public-marketplace-20261011` (from `origin/main` @ `6c088d9`). Nothing is merged, pushed or deployed.
 
 ## Purpose
@@ -14,7 +14,8 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-001
 | 01 | `20261012090001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
 | 02 | `20261013090001_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
 | 03 | `20261013090002_marketplace_inventory.sql` | Inventory | applied + tested locally (isolated Supabase) |
-| 04 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
+| 04 | `20261013090003_marketplace_seller_enablement_and_catalog.sql` | Seller enablement · Publication · Safe public catalog | applied + tested locally (isolated Supabase) |
+| 05 | bulk import foundation (jobs, errors, optional staging) | Bulk import (15,000+ products) | not started |
 
 Product types are **rows, not an enum**. Adding paints, doors, flooring, curtains or posters is an `INSERT` plus field mappings — no structural change.
 
@@ -84,6 +85,28 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 
 **Hardening:** EXECUTE on every `app.marketplace_*` function (trigger functions and helpers) is revoked from public, anon, authenticated and service_role (trigger functions are authorised at CREATE TRIGGER, so this cannot break them).
 
+## Migration 04 — seller enablement, publication, safe public catalog
+
+**Seller accounts.** `marketplace_seller_accounts` (PK = `organization_id` → `organizations`, RESTRICT). Being a Showroom is *eligibility*, never authorization: a row must exist and be `approved`. Status `pending | approved | suspended | revoked` (revoked is terminal in V1). Eligibility is **recomputed live** (`app.marketplace_seller_is_eligible`: org exists, not soft-deleted, `status = active`, `org_type = showroom_dealer`) at approval, at reinstatement, at every publication check, at every reservation and on every public read — the type/status recorded at approval is never trusted. No organization id is hard-coded; the migration approves nobody.
+
+**Admin authorization.** Two new RBAC permissions, `marketplace_sellers.manage` (Super Admin + Administrator) and `marketplace_sellers.read` (+ Moderator; Support has neither). Transitions are `public.admin_marketplace_seller_approve / suspend / revoke / reinstate` (SECURITY DEFINER, empty search_path, authenticated only, each checks `app.has_admin_permission` itself, reason of 3–500 chars mandatory). Reads: `admin_marketplace_sellers()`, `admin_marketplace_seller_history(org)`. The table itself has no write grant and a guard trigger refuses any write outside the transition function (even the owner).
+
+**Audit.** `marketplace_seller_account_events` (append-only: actor, from/to status, reason, org type/status at that moment) and `marketplace_product_status_events` (publish / unpublish / archive). Both reject UPDATE/DELETE. The platform `audit_log` action vocabulary is deliberately **not** extended (it is an existing B2B constraint).
+
+**Publication.** `app.marketplace_publication_blockers` now evaluates, fail closed: `seller_organization_not_eligible`, `seller_not_approved`, `product_type_inactive`, `missing_product_attribute:*`, `no_active_variant`, `missing_variant_attribute:*`, `variant_without_option_combination`, `invalid_variant_price`, `no_available_stock`, `no_verified_primary_image`, `media_verification_not_available`. Trusted RPCs `public.marketplace_product_publish / marketplace_product_unpublish(p_archive)` authorise through `app.can_publish_catalog(seller org)` (existing `catalog.publish` or `org.manage`), lock the row, require an empty blocker list, and write an event. States: draft → published ⇄ unpublished, → archived (terminal). A stock-out after publication does **not** archive: the product stays listed with `in_stock=false` / `purchasable=false`. Suspending, revoking or deactivating the seller hides its products on the next read without rewriting product state, and reinstating restores them.
+
+**Public read.** Two SECURITY DEFINER *functions* (not definer views — Advisor rule 0010 / test 29), granted to `anon` + `authenticated`, fixed projection, page size capped at 60: `marketplace_public_catalog(type, query, limit, offset)` and `marketplace_public_product(slug)`. Returned: slug, bilingual name/description, brand, type/category keys, tax-exclusive prices, `in_stock`/`purchasable` booleans, attributes, image **ids**. Never returned: bucket, object key, stock counts, seller identity, admin metadata. Base tables stay unreadable to `anon`.
+
+**Media boundary.** `marketplace_platform_settings.media_verification_ready` (single row, default **false**, no client write). While false: publication is refused (`media_verification_not_available`) and public responses carry no image reference. A DB `status = verified` alone is not trusted; flipping the flag is a deliberate platform act once an upload/verification/delivery pipeline exists (Cloudflare R2 is out of scope).
+
+**Reservations.** A `reserve` movement now requires an enabled seller (trigger); release/deduct remain possible so orders can be wound down. **Known limit:** aggregate `reserved` cannot attribute units to an order; checkout needs per-order reservation rows (with expiry) so one order can only release/deduct its own. Not built.
+
+**Seller access.** Members of the seller organization may read only `organization_id, status, requested_at, status_changed_at` of their own account (column grant); reason and admin identities are admin-RPC only.
+
+**Deferred seller write interfaces (required before Bulk Import / seller UI):** trusted RPCs for product create/update, variant create/update/deactivate, attribute-value upsert, image registration and verification, and inventory adjustment by a seller member. Today these tables are written only by the owner/service path; no client has INSERT/UPDATE/DELETE.
+
+**Touched existing objects:** two rows inserted into `admin_permissions` and their `admin_role_permissions` mappings (data only). Test `85_` asserted the catalogue size (25) and was updated to 27.
+
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
@@ -95,10 +118,10 @@ Product types are **rows, not an enum**. Adding paints, doors, flooring, curtain
 | Check | Result |
 |---|---|
 | Isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
-| `supabase db reset` — all **107** migrations (01, 02, 03 included) + seeds | ✅ |
-| `supabase test db` — whole suite, **90 files / 3941 tests** | ✅ **PASS** |
-| `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) | ✅ |
-| Existing B2B / RLS suites (01–89) | ✅ no regression |
+| `supabase db reset` — all **108** migrations (01–04 included) + seeds | ✅ |
+| `supabase test db` — whole suite, **91 files / 4049 tests** | ✅ **PASS** |
+| `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) · `93_` seller enablement (108) | ✅ |
+| Existing B2B / RLS suites (01–89) | ✅ no regression (only edit: `85_` permission-catalogue count 25 → 27) |
 | `marketplace_stock_concurrency_test.sh` — real parallel sessions (oversell, same-key, 10-way stampede) | ✅ PASS |
 
 An earlier scratch run (PostgreSQL 17.5, stubbed baseline) caught one real defect — a `CHECK` that a NULL `unit_kind` silently satisfied — which was fixed before the local-stack run.

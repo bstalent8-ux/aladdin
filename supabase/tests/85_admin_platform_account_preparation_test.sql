@@ -198,7 +198,8 @@ select ok((select pg_get_constraintdef(oid) from pg_constraint where conname = '
   'account.platform_cleanup (the explicit cleanup record) is in the audit vocabulary');
 select is((select count(*)::int from public.audit_log where action = 'account.platform_cleanup'), 0,
   'the helper itself never writes a cleanup event (only the operational transaction does)');
-select is((select count(*)::int from public.admin_permissions), 25, 'the permission catalog is unchanged');
+-- 25 original + 2 Marketplace seller permissions (marketplace_sellers.read / .manage, Migration 04)
+select is((select count(*)::int from public.admin_permissions), 27, 'the permission catalog is unchanged apart from the two Marketplace seller permissions');
 select is((select count(*)::int from public.admin_roles), 4, 'the admin roles are unchanged');
 
 select * from finish();

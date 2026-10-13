@@ -56,6 +56,13 @@ values ('a1200000-0000-4000-8000-0000000000a1', current_setting('t.a')::uuid, 'b
        ('b1200000-0000-4000-8000-0000000000b1', current_setting('t.b')::uuid, 'b1000005-0000-4000-8000-000000000005',
         'zayed_showroom', 'معرض زايد', 'Zayed showroom', 'showroom', true);
 
+-- Migration 04: reserving needs an enabled seller. Fixture-level approval (owner
+-- session + the transition flag); the approval workflow itself is tested in 93_.
+select set_config('app.marketplace_seller_write', 'on', true);
+insert into public.marketplace_seller_accounts (organization_id, status, approved_at)
+values (current_setting('t.a')::uuid, 'approved', now()), (current_setting('t.b')::uuid, 'approved', now());
+select set_config('app.marketplace_seller_write', 'off', true);
+
 -- ===========================================================================
 -- A. Shape
 -- ===========================================================================
@@ -399,8 +406,9 @@ select ok(not ('no_available_stock' = any(app.marketplace_publication_blockers('
 update public.marketplace_stock_locations set is_active = false where organization_id = current_setting('t.b')::uuid;
 select ok('no_available_stock' = any(app.marketplace_publication_blockers('b1000000-0000-4000-8000-0000000000b1')),
   'J3. a product whose stock sits only at inactive locations reports no_available_stock');
-select ok('seller_enablement_not_available' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-0000000000a1')),
-  'J4. seller enablement is STILL a blocker (Migration 04)');
+select ok(not ('seller_not_approved' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-0000000000a1')))
+      and 'media_verification_not_available' = any(app.marketplace_publication_blockers('a1000000-0000-4000-8000-0000000000a1')),
+  'J4. with the seller approved, publication is STILL closed by the media-verification flag (Migration 04)');
 select throws_ok($$ update public.marketplace_products set status = 'published' where id = 'a1000000-0000-4000-8000-0000000000a1' $$,
   '23514', null, 'J5. publication is still refused');
 
