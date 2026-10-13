@@ -169,7 +169,13 @@ test("10: the workflow runs the diagnostic IMMEDIATELY after the link-and-verify
   const plan = stepNames.findIndex((n) => /^Plan - migration history/.test(n));
   assert.ok(link !== -1 && diag !== -1 && plan !== -1);
   assert.equal(diag, link + 1, "the very next step after link");
-  assert.equal(plan, diag + 1, "and the plan follows it");
+  // The Management API diagnostic is the one observation-only step allowed between this diagnostic and the plan.
+  assert.ok(plan > diag, "the plan comes after the file diagnostic");
+  assert.deepEqual(
+    stepNames.slice(diag + 1, plan).filter((n) => !/^Diagnose Supabase pooler Management API/.test(n)),
+    [],
+    "nothing but the API diagnostic sits between them",
+  );
   const block = stepBlock("Diagnose the Supabase link (safe facts only - never prints the pooler URL)");
   assert.match(block, /node scripts\/supabase-link-diagnostic\.mjs --expected-ref "\$SUPABASE_PROJECT_REF"/);
   assert.match(block, /if: steps\.preflight\.outputs\.configured == 'true'/);
