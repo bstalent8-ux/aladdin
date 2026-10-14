@@ -6,7 +6,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(36);
+select plan(37);
 
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data,
                         raw_user_meta_data, email_confirmed_at, created_at, updated_at)
@@ -167,6 +167,12 @@ select is((select char_length(description) from public.portfolio_items where id 
 reset role;
 select is((select count(*)::int from pg_trigger where tgname like '%\_description\_limit' and not tgisinternal), 6,
   'D-30: the direct-write safeguard exists on bio, portfolio, draft, onboarding, product and offer descriptions');
+
+-- The caller-run trigger could not reach its own helper: with the plan warmed by an earlier superuser statement (as in
+-- this file) the direct writes above pass, but a fresh PostgREST connection failed every direct bio write with
+-- 42501 "permission denied for function description_norm". Pin the property that fixes it, independent of plan caching.
+select is((select prosecdef from pg_proc where oid = 'app.enforce_description_limit()'::regprocedure), true,
+  'D-37: the limit trigger runs as its owner, so a direct client write reaches the 250-character rule instead of a permission error');
 
 select * from finish();
 rollback;
