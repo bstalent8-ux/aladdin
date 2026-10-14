@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/workspace-layout";
 import { StatePanel } from "@/components/ui/primitives";
 import { StatTiles } from "@/components/ui/stat-tiles";
 import { FilterBar } from "@/components/ui/filter-bar";
-import { Button, ButtonLink } from "@/components/ui/controls";
+import { ButtonLink } from "@/components/ui/controls";
 import { QuantityStepper } from "@/features/marketplace-seller/stock-editor";
 import { MARKETPLACE_IMAGE_BUCKET } from "@/features/marketplace-seller/errors";
 import {
@@ -30,21 +30,18 @@ import { cn } from "@/lib/ui/cn";
 import { sellerPageAccess } from "@/features/marketplace-seller/access";
 import {
   PRODUCT_STATUSES,
+  SELLER_PRODUCTS_PAGE_SIZE,
   STOCK_STATES,
-  applyFilters,
   displayState,
-  paginate,
+  fromPaged,
+  pageWindow,
   parseFilters,
-  productStats,
-  toRow,
   type DisplayState,
-  type RawProduct,
+  type PagedProducts,
 } from "@/features/marketplace-seller/products-model";
 
 export const dynamic = "force-dynamic";
 
-/** Upper bound of one read. The page summarises in memory; a larger catalogue needs server-side paging. */
-const MAX_PRODUCTS = 2000;
 
 const PILL: Record<DisplayState, { dot: string; chip: string }> = {
   published: { dot: "bg-success", chip: "bg-success/15 text-success" },
@@ -72,8 +69,8 @@ const PILL: Record<DisplayState, { dot: string; chip: string }> = {
  * WRITES go through the trusted seller RPCs (Migration 06): Add / Edit open the
  * product form; the inline − / + changes stock through the ledger for a product
  * with ONE active variant at ONE location (otherwise "manage stock" opens the
- * product page, where the variant and location are explicit). Bulk upload is
- * still disabled ("coming soon"). Thumbnails are short-lived signed URLs of the
+ * product page, where the variant and location are explicit). Bulk upload opens
+ * /b2c/seller/imports. The list is paged in the database (Migration 09). Thumbnails are short-lived signed URLs of the
  * seller's own private images; customers do not see them before verification.
  */
 export default async function MarketplaceProductsPage({
@@ -107,33 +104,41 @@ export default async function MarketplaceProductsPage({
     );
   }
 
-  // RLS scopes every table here to the caller's own organization; the explicit
-  // filter keeps a user who belongs to several businesses on the ACTIVE one.
-  const [{ data: products }, { data: types }] = await Promise.all([
-    supabase
-      .from("marketplace_products")
-      .select(
-        "id, slug, name_ar, name_en, description_ar, description_en, status, " +
-          "marketplace_product_types(key, name_ar, name_en), " +
-          "marketplace_product_images(object_key, is_primary, variant_id, upload_state, status), " +
-          "marketplace_product_variants(id, sku, price_egp, status, marketplace_inventory_levels(location_id, on_hand, reserved, available, marketplace_stock_locations(is_active)))",
-      )
-      .eq("seller_organization_id", org.organizationId)
-      .order("created_at", { ascending: false })
-      .limit(MAX_PRODUCTS),
-    supabase.from("marketplace_product_types").select("key, name_ar, name_en").eq("is_active", true).order("sort_order"),
-  ]);
-
-  const all = ((products ?? []) as unknown as RawProduct[]).map(toRow);
-  const typeOptions = types ?? [];
   const sp = await searchParams;
+  const { data: types } = await supabase
+    .from("marketplace_product_types")
+    .select("key, name_ar, name_en")
+    .eq("is_active", true)
+    .order("sort_order");
+  const typeOptions = types ?? [];
   const filters = parseFilters(
     sp,
     typeOptions.map((x) => x.key),
   );
-  const filtered = applyFilters(all, filters);
-  const { page, pageCount, items } = paginate(filtered, sp.page);
-  const stats = productStats(all);
+  const requested = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+  // Server-side paging (Migration 09): filters, counts and the page are computed
+  // in the database, so a catalogue of thousands loads one page at a time. The
+  // RPC re-checks that the caller reads for THIS (the active) organization.
+  const { data: pageData } = await supabase.rpc("marketplace_seller_products_page", {
+    p_organization_id: org.organizationId,
+    p_query: filters.q,
+    p_type: filters.type,
+    p_status: filters.status,
+    p_stock: filters.stock,
+    p_limit: SELLER_PRODUCTS_PAGE_SIZE,
+    p_offset: (requested - 1) * SELLER_PRODUCTS_PAGE_SIZE,
+  });
+  const paged = (pageData ?? { total: 0, stats: null, items: [] }) as unknown as PagedProducts;
+  const items = (paged.items ?? []).map(fromPaged);
+  const filteredTotal = Number(paged.total ?? 0);
+  const pageCount = Math.max(1, Math.ceil(filteredTotal / SELLER_PRODUCTS_PAGE_SIZE));
+  const page = Math.min(requested, pageCount);
+  const stats = {
+    total: Number(paged.stats?.total ?? 0),
+    published: Number(paged.stats?.published ?? 0),
+    draft: Number(paged.stats?.draft ?? 0),
+    lowStock: Number(paged.stats?.low_stock ?? 0),
+  };
 
   // Short-lived URLs for this page's thumbnails only (private bucket, member-scoped policy).
   const thumbKeys = items.map((p) => p.primaryImageKey).filter((k): k is string => Boolean(k));
@@ -163,10 +168,10 @@ export default async function MarketplaceProductsPage({
         subtitle={t.subtitle}
         toolbar={
           <div className="flex flex-wrap items-center gap-sm">
-            <Button variant="outline" disabled title={t.comingSoon} aria-description={t.comingSoon}>
+            <ButtonLink href="/b2c/seller/imports" variant="outline">
               <UploadIcon size={16} />
               {t.bulkUpload}
-            </Button>
+            </ButtonLink>
             <ButtonLink href="/b2c/seller/products/new" variant="accent">
               <PlusIcon size={16} />
               {t.addProduct}
@@ -288,8 +293,8 @@ export default async function MarketplaceProductsPage({
                         </td>
                         <td className="px-md py-sm font-mono text-label text-fg-secondary" dir="ltr">
                           {p.skus[0] ?? "—"}
-                          {p.skus.length > 1 ? (
-                            <span className="ms-1 text-fg-muted">{t.moreSkus.replace("{n}", String(p.skus.length - 1))}</span>
+                          {p.variantCount > 1 ? (
+                            <span className="ms-1 text-fg-muted">{t.moreSkus.replace("{n}", formatCount(p.variantCount - 1, locale))}</span>
                           ) : null}
                         </td>
                         <td className="whitespace-nowrap px-md py-sm text-fg">
@@ -374,14 +379,17 @@ export default async function MarketplaceProductsPage({
               <span className="text-label text-fg-secondary">
                 {t.showing
                   .replace("{shown}", formatCount(items.length, locale))
-                  .replace("{total}", formatCount(filtered.length, locale))}
+                  .replace("{total}", formatCount(filteredTotal, locale))}
               </span>
               {pageCount > 1 ? (
                 <nav aria-label={t.pagination} className="flex items-center gap-1">
                   <PageLink href={page > 1 ? pageHref(page - 1) : null} label={t.prevPage}>
                     {ar ? <ChevronRightIcon size={16} /> : <ChevronLeftIcon size={16} />}
                   </PageLink>
-                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                  {pageWindow(page, pageCount).map((n, i) =>
+                    n === null ? (
+                      <span key={`gap-${i}`} aria-hidden="true" className="px-1 text-fg-muted">…</span>
+                    ) : (
                     <Link
                       key={n}
                       href={pageHref(n)}
@@ -393,7 +401,8 @@ export default async function MarketplaceProductsPage({
                     >
                       {formatCount(n, locale)}
                     </Link>
-                  ))}
+                    ),
+                  )}
                   <PageLink href={page < pageCount ? pageHref(page + 1) : null} label={t.nextPage}>
                     {ar ? <ChevronLeftIcon size={16} /> : <ChevronRightIcon size={16} />}
                   </PageLink>

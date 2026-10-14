@@ -40,6 +40,12 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   // Image file formats (JPG / PNG / WebP) are named as the seller sees them on their files.
   "marketplaceSeller.image.hint",
   "marketplaceSeller.error.image_type_invalid",
+  // Bulk import: the spreadsheet / archive / image FORMAT names (CSV, ZIP, JPG, PNG, WebP).
+  "marketplaceSeller.imports.step1Hint",
+  "marketplaceSeller.imports.step4Hint",
+  "marketplaceSeller.imports.chooseImages",
+  "marketplaceSeller.imports.errors.format",
+  "marketplaceSeller.imports.errors.unreadable",
   "auth.emailPlaceholder",
   "authPasswordPreview.emailPlaceholder",
   // Illustrative bad-pattern examples ("aaaa", "1234") inside an otherwise

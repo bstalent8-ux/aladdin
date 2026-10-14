@@ -182,3 +182,64 @@ export function paginate<T>(rows: readonly T[], requested: string | undefined, s
   const page = Number.isFinite(n) ? Math.min(Math.max(n, 1), pageCount) : 1;
   return { page, pageCount, items: rows.slice((page - 1) * size, page * size) };
 }
+
+/** One item of `marketplace_seller_products_page` (Migration 09, server-side paging). */
+export type PagedProduct = {
+  id: string;
+  slug: string;
+  name_ar: string;
+  name_en: string;
+  description_ar: string | null;
+  description_en: string | null;
+  status: string;
+  type_key: string | null;
+  type_name_ar: string | null;
+  type_name_en: string | null;
+  skus: string[];
+  variant_count: number;
+  from_price: number | string | null;
+  quantity: number | string;
+  inline_stock: { variant_id: string; location_id: string | null; on_hand: number; reserved: number; available: number } | null;
+  cover_key: string | null;
+};
+
+export type PagedProducts = {
+  total: number;
+  stats: { total: number; published: number; draft: number; low_stock: number; out_of_stock: number; variants: number };
+  items: PagedProduct[];
+};
+
+export function fromPaged(p: PagedProduct): SellerProductRow & { variantCount: number } {
+  const status = (PRODUCT_STATUSES as readonly string[]).includes(p.status) ? (p.status as ProductStatus) : "draft";
+  const s = p.inline_stock;
+  return {
+    id: p.id,
+    slug: p.slug,
+    nameAr: p.name_ar,
+    nameEn: p.name_en,
+    descriptionAr: p.description_ar,
+    descriptionEn: p.description_en,
+    typeKey: p.type_key,
+    typeNameAr: p.type_name_ar,
+    typeNameEn: p.type_name_en,
+    status,
+    skus: p.skus ?? [],
+    variantCount: Number(p.variant_count ?? 0),
+    fromPrice: p.from_price === null ? null : Number(p.from_price),
+    quantity: Number(p.quantity ?? 0),
+    inlineStock: s
+      ? { variantId: s.variant_id, locationId: s.location_id, onHand: Number(s.on_hand), reserved: Number(s.reserved), available: Number(s.available) }
+      : null,
+    primaryImageKey: p.cover_key,
+  };
+}
+
+/** Page numbers to draw: first, last, and a window around the current page (null = gap). */
+export function pageWindow(page: number, pageCount: number, radius = 2): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let n = 1; n <= pageCount; n += 1) {
+    if (n === 1 || n === pageCount || Math.abs(n - page) <= radius) out.push(n);
+    else if (out[out.length - 1] !== null) out.push(null);
+  }
+  return out;
+}
