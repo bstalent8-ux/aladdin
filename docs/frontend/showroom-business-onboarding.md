@@ -94,6 +94,9 @@ An additional post-review journey rerun was **aborted/incomplete** when Docker e
 
 A separate untracked `frontend/e2e/auth-captcha.spec.ts` appeared during final checks. It was not created by this task, is preserved untouched and excluded from commits. The worktree therefore must not be called entirely clean or removed; task-related tracked changes are committed separately from this external file.
 
+## Pull request and final Git evidence
+[PR #84](https://github.com/hmohamed080/aladdin/pull/84) is OPEN/DRAFT, targeting main from feat/showroom-auth. Implementation commit05c4eec8 and review-fix commit4ae03891ac5b7f62dab653ff244218175cea4b44 are pushed; this final documentation update records the created PR. Main did not advance from c7963c9517cb412dde0a89090ab027712dbe403f. Original checkout stays on feature/auth-password-preview; all14baseline modified-file hashes remain identical. No merge, deployment or cleanup occurred. Preview sign-in/sign-up returned HTTP200 after push, connected only to local API63321. Final strict-type-safe rendered contrast/layout rerun2/2passed; screenshots updated. External untracked captcha test remains untouched/excluded.
+
 ## Migrations, files, references and operational limits
 Four forward migrations: phone quota/account-type/rollback security (`20261014085731`), draft/business contacts and activity (`20261014123000`), optional-address bounds/completion (`20261014133000`), activation/selling/legacy snapshots (`20261014160000`). Applied only locally. Before deployment: resolve native-auth quota coverage; verify hosted password/cookie/provider settings; assess production legacy impact; review locks/backups; migrate before a compatible app. Snapshot historical sellers once, never recreate exceptions per deployment. Rollback requires reviewed forward corrective migration and compatible app; do not reset DB, erase audits or blindly deploy an app incompatible with creation rules.
 
