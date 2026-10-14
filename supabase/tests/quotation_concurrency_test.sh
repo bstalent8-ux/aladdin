@@ -27,6 +27,8 @@ REQ='{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}'
 # Self-contained fixture through the real RPCs: supplier A publishes a product, requester B sends an
 # RFQ, supplier prices the quotation. Prints "<quotation_id>|<version>".
 fixture="$(psql_q <<SQL
+-- the other concurrency scripts leave seed memberships revoked; this one needs both owners active
+update public.memberships set status = 'active' where id in ('e1111111-eeee-4eee-8eee-eeeeeeeeeee1', 'e3333333-eeee-4eee-8eee-eeeeeeeeeee3');
 insert into public.membership_capabilities (membership_id, capability_key) values
   ('e1111111-eeee-4eee-8eee-eeeeeeeeeee1', 'catalog.publish'),
   ('e1111111-eeee-4eee-8eee-eeeeeeeeeee1', 'rfq.respond'),
