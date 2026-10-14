@@ -10,7 +10,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(78);
+select plan(81);
 
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data,
                         raw_user_meta_data, email_confirmed_at, created_at, updated_at)
@@ -157,6 +157,21 @@ select public.review_start((select id from _ids where k = 'a3'));
 select public.review_request_changes((select id from _ids where k = 'a3'), 'Add a branch address.');
 set local request.jwt.claims = :'u2';
 select is(public.my_organization_application_slot(), 'additional_pending', 'B7: needs-changes still occupies the slot');
+-- B3-D: sending an application back must be resubmittable (the guard keeps submitted_at immutable, so the resubmission keeps it).
+create temp table _resub as select submitted_at as t0 from public.verifications where id = (select id from _ids where k = 'a3');
+grant select on _resub to authenticated;
+select lives_ok(format($q$select public.organization_application_submit(%L)$q$, (select id from _ids where k = 'o3')),
+  'B7a: the applicant resubmits an application that needed changes');
+select is((select status::text from public.verifications where id = (select id from _ids where k = 'a3')), 'submitted',
+  'B7b: the same verification returns to the review queue');
+select is((select submitted_at from public.verifications where id = (select id from _ids where k = 'a3')), (select t0 from _resub),
+  'B7c: the original submission time is kept (immutable by the guard); the resubmission is in the audit trail');
+-- the reviewer sends it back again so the abandon scenarios below start from needs-changes as before
+set local request.jwt.claims = :'adm';
+select public.review_start((select id from _ids where k = 'a3'));
+select public.review_request_changes((select id from _ids where k = 'a3'), 'Still missing a branch address.');
+set local request.jwt.claims = :'u2';
+
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Third', p_org_type => 'supplier') $$,
   '42501', null, 'B8: and blocks a further application');
 select is(app.org_product_audience((select id from _ids where k = 'o2')), 'engineer',
