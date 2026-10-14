@@ -50,17 +50,19 @@ select is(
      and not has_function_privilege('anon', p.oid, 'execute')
      and not has_function_privilege('service_role', p.oid, 'execute')),
   6, 'A1. every image RPC is SECURITY DEFINER, empty search_path, authenticated-only');
-select is((select count(*)::int from pg_policies where schemaname = 'storage' and tablename = 'objects'), 14,
-  'A2. no storage policy was added or removed (still 14)');
+select is((select count(*)::int from pg_policies where schemaname = 'storage' and tablename = 'objects'), 16,
+  'A2. storage policies: 14 + the two reviewed Migration 09 additions (moderator read, import upload)');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_owns_image'],
+  array['marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_can_upload_import',
+        'marketplace_storage_moderator_can_read', 'marketplace_storage_owns_image'],
   'A3. clients still run only the three storage predicates in app.*');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('app', 'public') and p.prosrc like '%storage.objects%'),
-  array['marketplace_seller_image_confirm_upload', 'marketplace_seller_image_remove_finalize'],
+  array['admin_marketplace_media_record_validation', 'marketplace_seller_image_confirm_upload',
+        'marketplace_seller_image_remove_finalize', 'marketplace_seller_stage_import_assets'],
   'A4. exactly two functions read storage.objects (confirm: bytes exist; finalize: bytes are gone)');
 select is((select public from storage.buckets where id = 'marketplace-product-images'), false, 'A5. the bucket is still private');
 select is((select count(*)::int from information_schema.role_table_grants

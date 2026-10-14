@@ -80,14 +80,15 @@ select is(
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like '%marketplace%' and has_function_privilege('anon', p.oid, 'execute')),
-  array['marketplace_public_catalog', 'marketplace_public_product'],
+  array['marketplace_public_catalog', 'marketplace_public_catalog_page', 'marketplace_public_facets', 'marketplace_public_product'],
   'A5. anon can execute exactly the two public-read functions');
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
           unnest(array['anon', 'authenticated', 'service_role']) r
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege(r, p.oid, 'execute')
      -- storage-policy predicates (Migration 06) must be callable by the querying role
-     and p.proname not in ('marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_owns_image')),
+     and p.proname not in ('marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_can_upload_import',
+                        'marketplace_storage_moderator_can_read', 'marketplace_storage_owns_image')),
   0, 'A6. NO client role can execute any app.marketplace_* function (hardening, incl. the new helpers)');
 select is(
   (select count(*)::int from public.admin_permissions where key in ('marketplace_sellers.read', 'marketplace_sellers.manage')),
@@ -371,8 +372,10 @@ select is(
 set local role anon;
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.marketplace_public_product('sel-wallpaper-b')) k),
-  array['attributes', 'brand', 'description_ar', 'description_en', 'images', 'name_ar', 'name_en', 'product_type_key',
-        'published_at', 'slug', 'variants'],
+  -- Migration 09 added the public seller and taxonomy names and the cover image id (still no keys, stock or admin data)
+  array['attributes', 'brand', 'category_key', 'category_name_ar', 'category_name_en', 'cover_image_id',
+        'description_ar', 'description_en', 'images', 'name_ar', 'name_en', 'product_type_key',
+        'product_type_name_ar', 'product_type_name_en', 'published_at', 'seller_name', 'slug', 'variants'],
   'G8. the detail document has exactly the approved top-level keys');
 select ok(
   (select position('object_key' in t) = 0 and position('storage_bucket' in t) = 0 and position('seller_organization_id' in t) = 0

@@ -220,7 +220,7 @@ select ok(
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  14,
+  16,
   'Fourteen policies on storage.objects: three each for certificates/portfolio/avatars/marketplace images, plus two public doors'
 );
 
@@ -235,6 +235,8 @@ select is(
     'marketplace_images_delete_unreferenced',
     'marketplace_images_insert_authorized',
     'marketplace_images_select_member',
+    'marketplace_images_select_moderator',
+    'marketplace_import_assets_insert',
     'professional_certificates_delete_own',
     'professional_certificates_insert_own',
     'professional_certificates_select_own',
@@ -711,7 +713,8 @@ select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('app', 'public')
       and p.prosrc like '%storage.objects%'),
-  array['marketplace_seller_image_confirm_upload', 'marketplace_seller_image_remove_finalize'],
+  array['admin_marketplace_media_record_validation', 'marketplace_seller_image_confirm_upload',
+        'marketplace_seller_image_remove_finalize', 'marketplace_seller_stage_import_assets'],
   'Only two Marketplace functions read storage.objects (upload confirmation: the bytes exist; removal finalize: the bytes are gone); metadata still points AT objects everywhere else'
 );
 

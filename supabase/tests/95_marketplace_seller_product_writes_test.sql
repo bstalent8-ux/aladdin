@@ -40,18 +40,19 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like 'marketplace\_seller\_%'
      and p.prosecdef and exists (select 1 from unnest(p.proconfig) c where c = 'search_path=""')),
-  11, 'A1. the eleven seller RPCs (nine from Migration 06, two from Migration 07) are SECURITY DEFINER with an empty search_path');
+  14, 'A1. the fourteen seller RPCs (nine from Migration 06, two from 07, three from 09) are SECURITY DEFINER with an empty search_path');
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like 'marketplace\_seller\_%'
      and has_function_privilege('authenticated', p.oid, 'execute')
      and not has_function_privilege('anon', p.oid, 'execute')
      and not has_function_privilege('service_role', p.oid, 'execute')),
-  11, 'A2. ...executable by authenticated only (never anon, never a service credential)');
+  14, 'A2. ...executable by authenticated only (never anon, never a service credential)');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_owns_image'],
+  array['marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_can_upload_import',
+        'marketplace_storage_moderator_can_read', 'marketplace_storage_owns_image'],
   'A3. the only app.marketplace_* functions a client may run are the three storage-policy predicates');
 select is((select public from storage.buckets where id = 'marketplace-product-images'), false,
   'A4. the product image bucket is private');

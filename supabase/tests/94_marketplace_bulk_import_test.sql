@@ -87,7 +87,8 @@ select is(
           unnest(array['anon', 'authenticated', 'service_role']) r
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege(r, p.oid, 'execute')
      -- storage-policy predicates (Migration 06) must be callable by the querying role
-     and p.proname not in ('marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_owns_image')),
+     and p.proname not in ('marketplace_storage_can_delete_image', 'marketplace_storage_can_upload_image', 'marketplace_storage_can_upload_import',
+                        'marketplace_storage_moderator_can_read', 'marketplace_storage_owns_image')),
   0, 'A8. no client role can execute any app.marketplace_* helper');
 select is(
   (select count(*)::int from pg_constraint c

@@ -18,7 +18,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(59);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (seeded users that hold no membership), driven to a known state.
@@ -199,7 +199,13 @@ select ok((select pg_get_constraintdef(oid) from pg_constraint where conname = '
 select is((select count(*)::int from public.audit_log where action = 'account.platform_cleanup'), 0,
   'the helper itself never writes a cleanup event (only the operational transaction does)');
 -- 25 original + 2 Marketplace seller permissions (marketplace_sellers.read / .manage, Migration 04)
-select is((select count(*)::int from public.admin_permissions), 27, 'the permission catalog is unchanged apart from the two Marketplace seller permissions');
+select is((select count(*)::int from public.admin_permissions), 28, 'the permission catalog is unchanged apart from the three Marketplace permissions');
+select is(
+  (select array_agg(r.key || ':' || rp.is_locked::text order by r.key)
+   from public.admin_role_permissions rp join public.admin_roles r on r.id = rp.role_id
+   where rp.permission_key = 'marketplace_media.moderate'),
+  array['administrator:false', 'super_admin:true'],
+  'RBAC-14. media moderation (Migration 09) is held by Super Admin (locked) and Administrator only');
 select is((select count(*)::int from public.admin_roles), 4, 'the admin roles are unchanged');
 
 -- ---------------------------------------------------------------------------
@@ -212,11 +218,11 @@ select is((select count(*)::int from public.admin_roles), 4, 'the admin roles ar
 select is(
   (select md5(string_agg(key || '|' || resource || '|' || action || '|' || description || '|' || sort_order::text || '|' || is_active::text,
                          E'\n' order by key))
-   from public.admin_permissions where key not like 'marketplace\_sellers.%'),
+   from public.admin_permissions where key not like 'marketplace\_%'),
   '0742c9851ca7b55f8874396fde2234f4',
   'RBAC-1. the 25 pre-existing permissions are present and byte-for-byte unchanged');
 select is(
-  (select count(*)::int from public.admin_permissions where key not like 'marketplace\_sellers.%'), 25,
+  (select count(*)::int from public.admin_permissions where key not like 'marketplace\_%'), 25,
   'RBAC-2. ...and there are exactly 25 of them');
 select is(
   (select array_agg(key || ':' || action || ':' || is_active::text || ':' || is_system::text order by key)
@@ -227,7 +233,7 @@ select is(
   (select array_agg(x order by x) from (
      select r.key || ':' || count(*)::text || ':' || md5(string_agg(rp.permission_key || ':' || rp.is_locked::text, ',' order by rp.permission_key)) as x
      from public.admin_role_permissions rp join public.admin_roles r on r.id = rp.role_id
-     where rp.permission_key not like 'marketplace\_sellers.%'
+     where rp.permission_key not like 'marketplace\_%'
      group by r.key) q),
   array['administrator:24:9e8dcc59cf3f3e5b1bc63338d75e4895', 'moderator:16:829c7432b215b59760ac28145a50abc5',
         'super_admin:25:0139b1bbe0b1f22811be9f1b8691c2b1', 'support:7:a102b27eac08be9dbae163eeb0ed6002'],

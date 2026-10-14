@@ -2105,6 +2105,42 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_image_moderation_events: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          detail: Json
+          id: string
+          image_id: string
+          organization_id: string
+          product_id: string
+          sequence: number
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          image_id: string
+          organization_id: string
+          product_id: string
+          sequence?: never
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          image_id?: string
+          organization_id?: string
+          product_id?: string
+          sequence?: never
+        }
+        Relationships: []
+      }
       marketplace_import_assets: {
         Row: {
           byte_size: number | null
@@ -2547,6 +2583,33 @@ export type Database = {
           },
         ]
       }
+      marketplace_platform_events: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          detail: Json
+          id: string
+          sequence: number
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          sequence?: never
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          sequence?: never
+        }
+        Relationships: []
+      }
       marketplace_platform_settings: {
         Row: {
           media_verification_ready: boolean
@@ -2632,11 +2695,17 @@ export type Database = {
           alt_text_en: string | null
           byte_size: number | null
           checksum_sha256: string | null
+          content_checked_at: string | null
+          content_format: string | null
+          content_valid: boolean | null
           created_at: string
           height_px: number | null
           id: string
           is_primary: boolean
           mime_type: string | null
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_reason: string | null
           object_key: string
           product_id: string
           sort_order: number
@@ -2653,11 +2722,17 @@ export type Database = {
           alt_text_en?: string | null
           byte_size?: number | null
           checksum_sha256?: string | null
+          content_checked_at?: string | null
+          content_format?: string | null
+          content_valid?: boolean | null
           created_at?: string
           height_px?: number | null
           id?: string
           is_primary?: boolean
           mime_type?: string | null
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_reason?: string | null
           object_key: string
           product_id: string
           sort_order?: number
@@ -2674,11 +2749,17 @@ export type Database = {
           alt_text_en?: string | null
           byte_size?: number | null
           checksum_sha256?: string | null
+          content_checked_at?: string | null
+          content_format?: string | null
+          content_valid?: boolean | null
           created_at?: string
           height_px?: number | null
           id?: string
           is_primary?: boolean
           mime_type?: string | null
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_reason?: string | null
           object_key?: string
           product_id?: string
           sort_order?: number
@@ -6955,6 +7036,32 @@ export type Database = {
         Args: { p_subject_id: string; p_subject_type: string }
         Returns: Json
       }
+      admin_marketplace_media_approve: {
+        Args: { p_image_ids: string[] }
+        Returns: Json
+      }
+      admin_marketplace_media_queue: {
+        Args: { p_limit?: number; p_offset?: number; p_status?: string }
+        Returns: Json
+      }
+      admin_marketplace_media_record_validation: {
+        Args: {
+          p_byte_size: number
+          p_format: string
+          p_height: number
+          p_image_id: string
+          p_note?: string
+          p_sha256: string
+          p_valid: boolean
+          p_width: number
+        }
+        Returns: Json
+      }
+      admin_marketplace_media_reject: {
+        Args: { p_image_ids: string[]; p_reason: string }
+        Returns: Json
+      }
+      admin_marketplace_media_settings: { Args: never; Returns: Json }
       admin_marketplace_seller_approve: {
         Args: { p_organization_id: string; p_reason: string }
         Returns: string
@@ -6971,6 +7078,23 @@ export type Database = {
           reason: string
           sequence: number
           to_status: string
+        }[]
+      }
+      admin_marketplace_seller_overview: {
+        Args: never
+        Returns: {
+          approved_at: string
+          approved_by_name: string
+          eligible: boolean
+          org_status: string
+          organization_id: string
+          organization_name: string
+          products_draft: number
+          products_published: number
+          products_total: number
+          seller_status: string
+          status_changed_at: string
+          status_reason: string
         }[]
       }
       admin_marketplace_seller_reinstate: {
@@ -7004,6 +7128,10 @@ export type Database = {
           suspended_at: string
           suspended_by: string
         }[]
+      }
+      admin_marketplace_set_media_verification_ready: {
+        Args: { p_ready: boolean; p_reason: string }
+        Returns: boolean
       }
       admin_my_access: { Args: never; Returns: Json }
       admin_network_referrals_list: {
@@ -7823,6 +7951,27 @@ export type Database = {
           slug: string
         }[]
       }
+      marketplace_public_catalog_page: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_sort?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      marketplace_public_facets: { Args: never; Returns: Json }
+      marketplace_public_image_ref: {
+        Args: { p_image_id: string }
+        Returns: {
+          checksum_sha256: string
+          mime_type: string
+          object_key: string
+          storage_bucket: string
+        }[]
+      }
       marketplace_public_product: { Args: { p_slug: string }; Returns: Json }
       marketplace_seller_default_location: {
         Args: { p_organization_id: string }
@@ -7856,6 +8005,10 @@ export type Database = {
         Args: { p_images: Json; p_product_id: string }
         Returns: undefined
       }
+      marketplace_seller_import_step: {
+        Args: { p_job: string; p_payload?: Json; p_step: string }
+        Returns: Json
+      }
       marketplace_seller_product_get: {
         Args: { p_product_id: string }
         Returns: Json
@@ -7866,6 +8019,22 @@ export type Database = {
       }
       marketplace_seller_product_save: {
         Args: { p_payload: Json }
+        Returns: Json
+      }
+      marketplace_seller_products_page: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_organization_id: string
+          p_query?: string
+          p_status?: string
+          p_stock?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      marketplace_seller_publish_ready: {
+        Args: { p_limit?: number; p_organization_id: string }
         Returns: Json
       }
       marketplace_seller_stock_adjust: {
@@ -8944,3 +9113,4 @@ export const Constants = {
     },
   },
 } as const
+
