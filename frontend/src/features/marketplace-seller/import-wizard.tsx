@@ -7,12 +7,13 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { formatCount } from "@/lib/ui/format";
 import { cn } from "@/lib/ui/cn";
 import { Card, InlineError, InlineSuccess, ProgressMeter } from "@/components/ui/primitives";
-import { Button, Input, LabeledField, Select } from "@/components/ui/controls";
+import { Button, Input, LabeledField, Select, Textarea } from "@/components/ui/controls";
 import { UploadIcon } from "@/components/ui/icons";
 import { readSpreadsheet, type SheetGrid } from "@/lib/marketplace-import/spreadsheet";
 import { listZipEntries, readZipEntry } from "@/lib/marketplace-import/zip";
 import {
   TARGET_FIELDS,
+  attributeColumns,
   buildPlan,
   chunk,
   matchImages,
@@ -423,6 +424,22 @@ export function ImportWizard({
             {tx("groupBySuffix")}
           </label>
           <p className="text-label text-fg-muted">{tx("templateHint")}</p>
+          <LabeledField label={tx("fixedAttributes")} htmlFor="fixed-attributes" hint={tx("fixedAttributesHint")}>
+            <Textarea
+              id="fixed-attributes"
+              rows={3}
+              dir="ltr"
+              className="font-mono"
+              placeholder="material_wallpaper=non_woven"
+              value={config.fixedAttributes ?? ""}
+              maxLength={2000}
+              onChange={(e) => setConfig({ ...config, fixedAttributes: e.target.value })}
+            />
+          </LabeledField>
+          <p className="text-label text-fg-secondary">
+            {tx("attrColumns", { count: n(attributeColumns(header).size) })}
+            {attributeColumns(header).size ? ` — ${[...attributeColumns(header).keys()].join(", ")}` : ""}
+          </p>
         </Card>
       ) : null}
 

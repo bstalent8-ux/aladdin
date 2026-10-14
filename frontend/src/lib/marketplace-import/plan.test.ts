@@ -93,3 +93,20 @@ describe("matchImages", () => {
     expect(r.unsupported).toEqual(["notes.txt"]);
   });
 });
+
+describe("attributes", () => {
+  it("reads attr:<key> columns and fixed attributes, the column winning", () => {
+    const grid = [
+      ["code", "price", "attr:color", "attr:roll_width", "attr:washable"],
+      ["W-1", "100", "beige", "٥٣٠", "نعم"],
+      ["W-2", "100", "", "530", "no"],
+    ];
+    const plan = buildPlan(grid, {
+      ...config({ groupBySuffix: false }),
+      fixedAttributes: "material_wallpaper=non_woven\ncolor=white\nbad key=1",
+      fields: { ...config().fields, price: { kind: "column", column: 1 }, quantity: { kind: "none" } },
+    });
+    expect(plan.rows[0]!.attributes).toEqual({ material_wallpaper: "non_woven", color: "beige", roll_width: "530", washable: true });
+    expect(plan.rows[1]!.attributes).toEqual({ material_wallpaper: "non_woven", color: "white", roll_width: "530", washable: false });
+  });
+});

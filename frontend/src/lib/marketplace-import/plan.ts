@@ -40,7 +40,15 @@ export type ImportConfig = {
   fields: Record<TargetField, FieldSource>;
   /** Group codes that differ only by a trailing `-N` into one product with several variants. */
   groupBySuffix: boolean;
+  /**
+   * Attribute values applied to EVERY row, one `key=value` per line (e.g.
+   * `material_wallpaper=non_woven`). A column headed `attr:<key>` sets that
+   * attribute per row and wins over a fixed value.
+   */
+  fixedAttributes?: string;
 };
+
+export type AttributeValue = string | boolean | string[];
 
 export type PlannedRow = {
   row_number: number;
@@ -56,7 +64,7 @@ export type PlannedRow = {
   selling_unit: string;
   price: string;
   quantity?: string;
-  attributes: Record<string, never>;
+  attributes: Record<string, AttributeValue>;
 };
 
 export type LocalIssue = { row_number: number; code: string; field: TargetField | "sku"; detail?: string };
@@ -121,7 +129,52 @@ function valueOf(source: FieldSource, row: string[]): string {
   }
 }
 
+/**
+ * A cell to the JSON the attribute validator expects: yes/no words become a
+ * boolean, `a|b` a list (multi-option), anything else stays text (option keys,
+ * and numbers / measurements, which the database accepts as numeric strings).
+ */
+export function attributeValue(raw: string): AttributeValue | null {
+  const v = normalizeAttributeText(raw);
+  if (!v) return null;
+  if (/^(true|yes|نعم)$/i.test(v)) return true;
+  if (/^(false|no|لا)$/i.test(v)) return false;
+  if (v.includes("|")) return v.split("|").map((x) => x.trim()).filter(Boolean);
+  return v;
+}
+
+function normalizeAttributeText(raw: string) {
+  const v = (raw ?? "").trim();
+  return /^[0-9٠-٩۰-۹.,٫٬\s]+$/.test(v) ? normalizeNumber(v) : v;
+}
+
+const ATTR_KEY = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** `attr:<key>` headers → column index. */
+export function attributeColumns(header: readonly string[]): Map<string, number> {
+  const out = new Map<string, number>();
+  header.forEach((h, i) => {
+    const m = /^(?:attr|attribute):\s*([a-z][a-z0-9_]*)$/i.exec((h ?? "").trim());
+    if (m && ATTR_KEY.test(m[1]!.toLowerCase())) out.set(m[1]!.toLowerCase(), i);
+  });
+  return out;
+}
+
+export function parseFixedAttributes(text: string | undefined): Map<string, AttributeValue> {
+  const out = new Map<string, AttributeValue>();
+  for (const line of (text ?? "").split(/\r?\n/)) {
+    const i = line.indexOf("=");
+    if (i < 1) continue;
+    const key = line.slice(0, i).trim().toLowerCase();
+    const value = attributeValue(line.slice(i + 1));
+    if (ATTR_KEY.test(key) && value !== null) out.set(key, value);
+  }
+  return out;
+}
+
 export function buildPlan(grid: SheetGrid, config: ImportConfig): ImportPlan {
+  const attrColumns = attributeColumns(grid[config.headerRow] ?? []);
+  const fixed = parseFixedAttributes(config.fixedAttributes);
   const rows: PlannedRow[] = [];
   const rejected: LocalIssue[] = [];
   const warnings: LocalIssue[] = [];
@@ -182,8 +235,12 @@ export function buildPlan(grid: SheetGrid, config: ImportConfig): ImportPlan {
       name_en: valueOf(config.fields.name_en, r).slice(0, 200),
       selling_unit: valueOf(config.fields.selling_unit, r).toLowerCase(),
       price,
-      attributes: {},
+      attributes: Object.fromEntries(fixed),
     };
+    for (const [key, col] of attrColumns) {
+      const v = attributeValue(r[col] ?? "");
+      if (v !== null) planned.attributes[key] = v;
+    }
     const optional: [TargetField, keyof PlannedRow][] = [
       ["description_ar", "description_ar"],
       ["description_en", "description_en"],

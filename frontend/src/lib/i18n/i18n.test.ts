@@ -42,6 +42,9 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   "marketplaceSeller.error.image_type_invalid",
   // Bulk import: the spreadsheet / archive / image FORMAT names (CSV, ZIP, JPG, PNG, WebP).
   "marketplaceSeller.imports.step1Hint",
+  // attribute keys (key=value, attr:<key>) are the machine keys the seller types
+  "marketplaceSeller.imports.fixedAttributesHint",
+  "marketplaceSeller.imports.attrColumns",
   "marketplaceSeller.imports.step4Hint",
   "marketplaceSeller.imports.chooseImages",
   "marketplaceSeller.imports.errors.format",
