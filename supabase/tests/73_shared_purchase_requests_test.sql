@@ -25,7 +25,7 @@ begin;
 -- as established businesses approves them here, inside its own transaction.
 update public.organizations set status = 'active', is_verified = true
  where id in ('9d000000-dddd-4ddd-8ddd-000000000002', '9e000000-eeee-4eee-8eee-000000000003');
-select plan(187);
+select plan(188);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -104,7 +104,9 @@ set local request.jwt.claims = :'hana';
 select is((select count(*)::int from public.purchase_requests_discover(:'orgC'::uuid) where id = (select id from _r where name = 'eng')), 0, 'a DRAFT is not discoverable');
 
 set local request.jwt.claims = :'engineer';
-select throws_ok(format($f$select public.purchase_request_publish(%L, 99)$f$, (select id from _r where name = 'eng')), '40001', null, 'a stale version cannot publish');
+select throws_ok(format($f$select public.purchase_request_publish(%L, 99)$f$, (select id from _r where name = 'eng')), 'VC001', null, 'a stale version cannot publish');
+select throws_ok(format($f$select public.purchase_request_save(null, %L, 99, 'Stale edit', null, null, false, %L::jsonb)$f$, (select id from _r where name = 'eng'), :'item1'),
+  'VC001', null, 'a stale purchase_request_save is a version conflict (not the retryable 40001)');
 select throws_ok(format($f$select public.purchase_request_save(null, null, null, 'x', null, null, false, %L::jsonb)$f$, :'item1'), '22023', null, 'a one-character title is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"a","category_code":"paints","quantity":1,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'a one-character item name is refused');
 select throws_ok($f$select public.purchase_request_save(null, null, null, 'Valid title', null, null, false, '[{"name":"Item","category_code":"nope","quantity":1,"unit":"pail"}]'::jsonb)$f$, '22023', null, 'an unknown category is refused');

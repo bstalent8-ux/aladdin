@@ -30,7 +30,7 @@ function failure(error: { code?: string; hint?: string | null; message?: string 
   if (error.hint === "already_active") return { ok: false, code: "independentPublishing.errors.alreadyActive" };
   if (error.code === "23505") return { ok: false, code: "independentPublishing.errors.duplicateCode" };
   if (error.code === "22023") return { ok: false, code: "independentPublishing.errors.invalid" };
-  if (error.code === "40001") return { ok: false, code: "states.staleConflict" };
+  if (error.code === "VC001" || error.code === "40001") return { ok: false, code: "states.staleConflict" };
   return { ok: false, code: "states.genericRetry" };
 }
 

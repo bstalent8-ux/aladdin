@@ -28,7 +28,7 @@ begin;
 -- as established businesses approves them here, inside its own transaction.
 update public.organizations set status = 'active', is_verified = true
  where id in ('9d000000-dddd-4ddd-8ddd-000000000002', '9e000000-eeee-4eee-8eee-000000000003');
-select plan(117);
+select plan(119);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -131,7 +131,13 @@ select is((select row(unit::text, name, weight_kg, size_label, brand, colors)::t
   'an edit replaces the editable fields and clears omitted optional ones');
 select throws_ok(
   format('select public.own_product_update(%L, 1, %L, %L, %L, %L)', (select id from _o where name = 'a'), 'Stale', 'PNT-001', 'paints', 'gallon'),
-  '40001', null, 'a stale version is refused');
+  'VC001', null, 'a stale version is refused');
+select throws_ok(
+  format('select public.set_product_published(%L, true, 1)', (select id from _o where name = 'a')),
+  'VC001', null, 'a stale publish is a version conflict (not the retryable 40001)');
+select throws_ok(
+  format('select public.own_product_set_archived(%L, true, 1)', (select id from _o where name = 'a')),
+  'VC001', null, 'a stale archive is a version conflict (not the retryable 40001)');
 insert into _o select 'b', public.own_product_create(:'orgC'::uuid, 'Second paint', 'PNT-002', 'paints', 'gallon');
 select throws_ok(
   format('select public.own_product_update(%L, 1, %L, %L, %L, %L)', (select id from _o where name = 'b'), 'Second paint', ' pnt-001 ', 'paints', 'gallon'),

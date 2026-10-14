@@ -13,7 +13,7 @@ export function mapOwnProductError(error: unknown): { code: string; field?: "cod
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return { code: "commerce.errors.conflict" };
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return { code: "commerce.errors.conflict" };
   if (code === "23505" || msg.includes("already used in your organization")) {
     return { code: "showroomProducts.errors.duplicateCode", field: "code" };
   }

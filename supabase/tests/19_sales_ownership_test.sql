@@ -91,7 +91,7 @@ select throws_ok(
   $$ select public.set_customer_ownership('c0000002-0000-4000-8000-000000000002',
        (select stale_u0 from _o) - interval '1 hour',
        p_change_assignee => true, p_new_assignee_membership_id => 'e1111111-eeee-4eee-8eee-eeeeeeeeeee1') $$,
-  '40001', null, 'a mismatched expected updated_at is rejected (40001)');
+  'VC001', null, 'a mismatched expected updated_at is rejected (VC001)');
 
 -- Lead: change source + branch + reassign in one call.
 select is(
@@ -111,7 +111,7 @@ select is((select status::text || '/' || stage::text from public.leads where id=
 select throws_ok(
   $$ select public.set_lead_source_branch('1eadf002-0000-4000-8000-000000000002', 999,
        p_change_source => true, p_new_source => 'phone') $$,
-  '40001', null, 'a stale lead version is rejected (40001)');
+  'VC001', null, 'a stale lead version is rejected (VC001)');
 
 -- Lead: strand rejection — moving to SZ while keeping the Cairo-only assignee.
 select throws_ok(

@@ -132,6 +132,7 @@ describe("database refusals become translation keys, never raw text", () => {
   const key = (message: string, code = "22023") => mapRequestError({ code, message });
   it("maps the lifecycle, validation and response rules", () => {
     expect(key("purchase request was modified concurrently", "40001")).toBe("purchaseRequests.errors.conflict");
+    expect(key("", "VC001")).toBe("purchaseRequests.errors.conflict");
     expect(key("only a draft request can be edited")).toBe("purchaseRequests.errors.notDraft");
     expect(key("add at least one item before publishing")).toBe("purchaseRequests.errors.needsItem");
     expect(key("a response needs at least one item")).toBe("purchaseRequests.errors.responseNeedsItem");

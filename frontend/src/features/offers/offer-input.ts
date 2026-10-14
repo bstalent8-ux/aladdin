@@ -96,7 +96,7 @@ export function parseOfferForm(fd: FormData, zone: string): OfferFormResult {
 export function mapOfferError(error: unknown): { code: string; field?: string } {
   const e = (error ?? {}) as { code?: string; message?: string };
   const msg = (e.message ?? "").toLowerCase();
-  if (e.code === "40001" || msg.includes("modified concurrently")) return { code: "showroomOffers.errors.conflict" };
+  if (e.code === "VC001" || e.code === "40001" || msg.includes("modified concurrently")) return { code: "showroomOffers.errors.conflict" };
   if (e.code === "P0002" || msg.includes("offer not found")) return { code: "showroomOffers.errors.notFound" };
   if (e.code === "42501" || msg.includes("required") || msg.includes("not a member")) return { code: "showroomOffers.errors.denied" };
   if (msg.includes("offer name")) return { code: "showroomOffers.errors.title", field: "title" };

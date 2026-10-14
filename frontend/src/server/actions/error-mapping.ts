@@ -14,7 +14,7 @@ export function mapSalesError(error: unknown): string {
   const msg = (e.message ?? "").toLowerCase();
 
   if (code === "23505" || msg.includes("phone already exists")) return "states.duplicatePhone";
-  if (code === "40001" || msg.includes("modified concurrently")) return "leads.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "leads.conflict";
   if (msg.includes("only an open follow-up")) return "states.followUpNotOpen";
   if (msg.includes("a reason is required when marking")) return "leads.lostReasonRequired";
   if (msg.includes("branch not in caller scope") || msg.includes("another tenant"))
@@ -97,7 +97,7 @@ export function mapJobError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
   if (msg.includes("must be verified to publish")) return "jobs.errors.unverified";
   if (msg.includes("cancel its assignment first")) return "jobs.errors.awardedCancel";
   if (msg.includes("offer and trade")) return "jobs.errors.offerLocked";
@@ -200,7 +200,7 @@ export function mapApplicationError(error: unknown): string {
   if (msg.includes("only the applicant")) return "jobs.installerErrors.notYours";
   if (msg.includes("cannot be accepted") || msg.includes("cannot be rejected"))
     return "jobs.installerErrors.alreadyDecided";
-  if (code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
   if (code === "42501") return "jobs.errors.denied";
   return "states.genericRetry";
 }
@@ -227,7 +227,7 @@ export function mapAssignmentError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently"))
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently"))
     return "work.errors.conflict";
   if (msg.includes("only the assigned installer may start"))
     return "work.errors.notYoursToStart";

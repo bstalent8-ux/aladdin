@@ -12,7 +12,7 @@ export function mapRequestError(error: unknown): string {
   const msg = (e.message ?? "").toLowerCase();
   const k = (s: string) => `purchaseRequests.errors.${s}`;
 
-  if (code === "40001" || msg.includes("modified concurrently")) return k("conflict");
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return k("conflict");
   if (msg.includes("a request title is required")) return k("titleInvalid");
   if (msg.includes("notes are limited")) return k("notesTooLong");
   if (msg.includes("needed-by date")) return k("neededByPast");

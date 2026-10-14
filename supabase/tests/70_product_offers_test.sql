@@ -28,7 +28,7 @@ begin;
 -- as established businesses approves them here, inside its own transaction.
 update public.organizations set status = 'active', is_verified = true
  where id in ('9d000000-dddd-4ddd-8ddd-000000000002', '9e000000-eeee-4eee-8eee-000000000003');
-select plan(145);
+select plan(146);
 
 update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
@@ -147,7 +147,10 @@ select is(public.offer_detail((select id from _o where name = 'o1'), :'orgI'::uu
 set local request.jwt.claims = :'sara';
 select throws_ok(format('select public.own_offer_set_status(%L, %L, 1)', (select id from _o where name = 'o1'), 'publish'), '42501', null, 'publishing needs catalog.publish');
 set local request.jwt.claims = :'hana';
-select throws_ok(format('select public.own_offer_set_status(%L, %L, 99)', (select id from _o where name = 'o1'), 'publish'), '40001', null, 'a stale version is refused');
+select throws_ok(format('select public.own_offer_set_status(%L, %L, 99)', (select id from _o where name = 'o1'), 'publish'), 'VC001', null, 'a stale version is refused');
+select throws_ok(format($f$select public.own_offer_save(%L, %L, 99, 'Stale edit', null, 100, null, now(), now() + interval '1 day', %L::jsonb, array['importer'])$f$, :'orgC', (select id from _o where name = 'o1'),
+  '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'),
+  'VC001', null, 'a stale own_offer_save is a version conflict (not the retryable 40001)');
 -- an audience with no feed yet
 select lives_ok(format($f$select public.own_offer_save(%L, null, null, 'Offer', null, 100, null, now() - interval '1 day', now() + interval '1 day', %L::jsonb, array['design_office'])$f$, :'orgC', '[{"product_id":"' || (select id from _o where name = 'p1') || '","quantity":1}]'), 'a draft may name the wholesaler audience');
 insert into _o (name, id, version) select 'o2', id, version from public.product_offers where organization_id = :'orgC'::uuid and id <> (select id from _o where name = 'o1');

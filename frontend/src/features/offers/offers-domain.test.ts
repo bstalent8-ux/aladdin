@@ -188,6 +188,7 @@ describe("parseOfferForm", () => {
 describe("mapOfferError", () => {
   it("never leaks database text and routes known refusals to fields", () => {
     expect(mapOfferError({ code: "40001", message: "offer was modified concurrently" }).code).toBe("showroomOffers.errors.conflict");
+    expect(mapOfferError({ code: "VC001", message: "" }).code).toBe("showroomOffers.errors.conflict");
     expect(mapOfferError({ code: "42501", message: "catalog.publish required" }).code).toBe("showroomOffers.errors.denied");
     expect(mapOfferError({ code: "22023", message: "the price before the offer must be greater than the offer price" })).toEqual({ code: "showroomOffers.errors.priceBefore", field: "referencePrice" });
     expect(mapOfferError({ code: "22023", message: "quantity must be a whole number of at least 1" }).field).toBe("items");

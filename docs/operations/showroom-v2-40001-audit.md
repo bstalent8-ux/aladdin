@@ -1,6 +1,6 @@
 # Showroom V2 - SQLSTATE 40001 audit (remaining uses after the B2 fix)
 
-Status: **classification for review. No database or code change is made by this document.** Written 2026-10-14 against the live local schema (`aladdin_sr2`, migrations through `20261026090003`). Builds on `showroom-v2-b2-stale-conflict.md`.
+Status: **classification approved (Option C) and implemented locally - see `showroom-v2-b2-option-c-version-conflicts.md`.** This document keeps the audit as written before the change. Written 2026-10-14 against the live local schema (`aladdin_sr2`, migrations through `20261026090003`). Builds on `showroom-v2-b2-stale-conflict.md`.
 
 ## 1. Method
 
