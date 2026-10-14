@@ -37,7 +37,7 @@ export function mapCommerceError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "commerce.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "commerce.errors.conflict";
   if (code === "22023" && msg.includes("description")) return "commerce.errors.descriptionTooLong";
   if (msg.includes("live quotation already exists")) return "commerce.errors.quotationExists";
   if (msg.includes("at least one item")) return "commerce.errors.rfqNeedsItem";
@@ -63,7 +63,7 @@ export function mapExecutionError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "execution.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "execution.errors.conflict";
   if (msg.includes("order already exists for this quotation")) return "execution.errors.orderExists";
   if (msg.includes("project already exists for this order")) return "execution.errors.projectExists";
   if (msg.includes("only be created from an accepted quotation"))
@@ -170,7 +170,7 @@ export function mapGovernanceError(error: unknown): string {
 /** True when the error means "the record moved under me" (caller should refresh). */
 export function isStaleVersion(error: unknown): boolean {
   const e = (error ?? {}) as PgLikeError;
-  return e.code === "40001" || (e.message ?? "").toLowerCase().includes("modified concurrently");
+  return e.code === "VC001" || e.code === "40001" || (e.message ?? "").toLowerCase().includes("modified concurrently");
 }
 
 /**

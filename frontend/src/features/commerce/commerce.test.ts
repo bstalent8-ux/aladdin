@@ -16,6 +16,7 @@ function resolve(obj: unknown, key: string): unknown {
 
 describe("mapCommerceError", () => {
   it("maps optimistic-concurrency conflicts", () => {
+    expect(mapCommerceError({ code: "VC001", message: "quotation was modified concurrently" })).toBe("commerce.errors.conflict");
     expect(mapCommerceError({ code: "40001" })).toBe("commerce.errors.conflict");
     expect(mapCommerceError({ message: "quotation was modified concurrently" })).toBe(
       "commerce.errors.conflict",
@@ -50,6 +51,7 @@ describe("mapCommerceError", () => {
 
   it("only ever returns keys that exist in BOTH message catalogs", () => {
     const samples = [
+      { code: "VC001" },
       { code: "40001" },
       { message: "a live quotation already exists for this RFQ" },
       { message: "an RFQ needs at least one item" },

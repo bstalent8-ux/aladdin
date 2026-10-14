@@ -58,8 +58,8 @@ test("J2 supplier: receives the Direct RFQ, prices and submits a quotation", asy
   await price.fill("125");
   await page.getByRole("button", { name: "Save prices" }).click();
   await expect.poll(() => q(`select coalesce(sum(line_total),0) from public.quotation_items where quotation_id = '${quotationId}'`), { timeout: 20_000 }).not.toBe("0");
-  // Saving prices bumps the quotation version; a real user submits on the refreshed page, so reload before submitting
-  // (submitting with the stale version is a conflict - see the release notes about the local PostgREST 40001 behaviour).
+  // Wait for the save action to return (it refreshes the page with the new version) before submitting.
+  await expect(page.getByText("Prices saved.")).toBeVisible({ timeout: 20_000 });
   await page.reload();
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("button", { name: "Submit to requester" })).toBeEnabled({ timeout: 60_000 });

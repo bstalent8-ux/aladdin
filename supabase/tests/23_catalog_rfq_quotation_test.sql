@@ -9,7 +9,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(42);
+select plan(48);
 
 -- Org B owner needs the commerce caps that org.manage implies via the helper
 -- functions; grant the explicit rfq/quote caps too so we also exercise the
@@ -177,6 +177,24 @@ select lives_ok(
 select is((select total from public.quotations where id=(select q from _qids)),
   30000.00, 'the quotation total recomputes from the priced lines (120 x 250)');
 
+-- B2: a stale expected_version is a business conflict (SQLSTATE VC001, NOT the retryable 40001 that
+-- PostgREST re-runs until the gateway times out). The stale call changes nothing.
+select throws_ok(
+  $$ select public.update_quotation((select q from _qids), (select q_v from _qids) - 1, 'stale note') $$,
+  'VC001', 'quotation was modified concurrently', 'a stale update_quotation is a VC001 conflict');
+select throws_ok(
+  $$ select public.submit_quotation((select q from _qids), (select q_v from _qids) - 1) $$,
+  'VC001', 'quotation was modified concurrently', 'a stale submit_quotation is a VC001 conflict');
+select is((select status::text || ':' || (version = (select q_v from _qids))::text from public.quotations where id=(select q from _qids)),
+  'draft:true', 'the stale calls left the quotation untouched (still a draft, same version)');
+
+-- Authorization is checked BEFORE the version: a non-member holding a stale version learns nothing.
+set local request.jwt.claims = '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated"}';
+select throws_ok(
+  $$ select public.update_quotation((select q from _qids), 0, 'intruder') $$,
+  '42501', null, 'a non-member with a stale version is denied (42501), not told it is a conflict');
+set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+
 -- The requester cannot see the draft quotation.
 set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';
 select is((select count(*)::int from public.quotations where id=(select q from _qids)),
@@ -202,6 +220,14 @@ set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","r
 select throws_ok(
   $$ select public.decide_quotation((select q from _qids), true, (select version from public.quotations where id=(select q from _qids))) $$,
   '42501', null, 'the supplier cannot accept/reject their own quotation');
+
+-- A stale decision is a conflict and leaves the quotation submitted.
+set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';
+select throws_ok(
+  $$ select public.decide_quotation((select q from _qids), true, 1) $$,
+  'VC001', 'quotation was modified concurrently', 'a stale decide_quotation is a VC001 conflict');
+select is((select status::text from public.quotations where id=(select q from _qids)),
+  'submitted', 'the stale decision did not change the quotation');
 
 -- ===== Decision: requester accepts → READY FOR ORDER =======================
 set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';

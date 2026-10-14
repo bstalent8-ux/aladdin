@@ -471,7 +471,7 @@ select public.add_rfq_item((select rid from _r6), (select pid from _p), 2);
 -- A stale expected_version aborts the whole transition.
 select throws_ok(
   $$ select public.submit_rfq((select rid from _r6), 999) $$,
-  '40001', null, 'a concurrent-modification guard still aborts submit_rfq');
+  'VC001', null, 'a concurrent-modification guard still aborts submit_rfq');
 
 reset role;
 set local request.jwt.claims = '';
