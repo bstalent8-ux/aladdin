@@ -145,8 +145,8 @@ export function DiscoverRail({ products, imageUrls, t, href }: {
     >
       {products.map((product) => (
         <li key={product.id} className="w-[14rem] shrink-0 snap-start tablet:w-[15rem] desktop:w-auto">
-          <article className="flex h-full flex-col gap-2" data-testid="showroom-discover-card">
-            <div className="relative overflow-hidden rounded-md">
+          <article className="flex h-full flex-col gap-2 rounded-md border border-[color:color-mix(in_srgb,var(--warm-sand)_60%,transparent)] bg-surface p-2.5 transition-colors duration-200 hover:border-accent focus-within:border-accent" data-testid="showroom-discover-card">
+            <div className="relative overflow-hidden rounded-sm">
               <ProductMedia src={imageUrls[product.id] ?? null} alt={product.name ?? ""} aspect="aspect-[4/3]" />
               <span className="absolute end-1.5 top-1.5 max-w-[calc(100%-0.75rem)]"><Badge tone="neutral">{catalogCategoryLabel(t, product)}</Badge></span>
             </div>
