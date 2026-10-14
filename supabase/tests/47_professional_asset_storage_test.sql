@@ -698,17 +698,21 @@ select is(
 -- the traffic runs the other way, with storage policies consulting the metadata.
 -- So the product still cannot ask a question of the byte store, and a file still
 -- cannot be an input to any authorization decision.
--- ONE NAMED EXCEPTION (Marketplace Migration 06): marketplace_seller_image_confirm_upload
--- reads storage.objects to prove the bytes really exist before an upload is
--- recorded as confirmed (and to take the real size / type). It is not an
--- authorization input — the storage policies still consult only metadata — and it
--- never trusts the client's word that an upload happened.
+-- TWO NAMED EXCEPTIONS (Marketplace Migrations 06 and 07):
+--   * marketplace_seller_image_confirm_upload reads storage.objects to prove the bytes
+--     really exist before an upload is recorded as confirmed (and to take the real
+--     size / type);
+--   * marketplace_seller_image_remove_finalize reads storage.objects to prove the bytes
+--     are really GONE before the image row is forgotten (a failed delete is retried,
+--     never reported as done).
+-- Neither is an authorization input — the storage policies still consult only
+-- metadata — and neither trusts the client's word about what happened in storage.
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('app', 'public')
       and p.prosrc like '%storage.objects%'),
-  array['marketplace_seller_image_confirm_upload'],
-  'Only the Marketplace upload confirmation reads storage.objects (existence + size); metadata still points AT objects everywhere else'
+  array['marketplace_seller_image_confirm_upload', 'marketplace_seller_image_remove_finalize'],
+  'Only two Marketplace functions read storage.objects (upload confirmation: the bytes exist; removal finalize: the bytes are gone); metadata still points AT objects everywhere else'
 );
 
 select * from finish();

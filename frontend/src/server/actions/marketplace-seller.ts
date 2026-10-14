@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { MARKETPLACE_IMAGE_BUCKET, parseSellerError, type SellerActionError } from "@/features/marketplace-seller/errors";
+import { removeImageLifecycle, type RemovalResult } from "@/features/marketplace-seller/image-removal";
+import { IMAGE_SIGNATURE_BYTES, matchesDeclaredType } from "@/features/marketplace-seller/image-signature";
 import type { Json } from "@/types/database.types";
 
 /**
@@ -105,15 +107,80 @@ export async function requestImageUploadAction(
   return { ok: true, imageId: r.image_id, objectKey: r.object_key };
 }
 
-/** Confirmed only if the database finds the bytes in storage. */
+type Supabase = Awaited<ReturnType<typeof getServerSupabase>>;
+
+/** Phase 1 -> 2 -> 3 of the image removal (Migration 07), under the caller's own session. */
+async function runImageRemoval(supabase: Supabase, imageId: string): Promise<RemovalResult> {
+  return removeImageLifecycle(
+    {
+      async mark(id) {
+        const { data, error } = await supabase.rpc("marketplace_seller_image_remove", { p_image_id: id });
+        if (error) return { error: parseSellerError(error.message).code };
+        return { key: String(data) };
+      },
+      async deleteObject(key) {
+        // Storage answers 200 with an empty list when a policy filtered the object out, so a
+        // "successful" response proves nothing: the database confirms the bytes are gone in step 3.
+        const { error } = await supabase.storage.from(MARKETPLACE_IMAGE_BUCKET).remove([key]);
+        return error ? { error: error.message } : {};
+      },
+      async finalize(id) {
+        const { error } = await supabase.rpc("marketplace_seller_image_remove_finalize", { p_image_id: id });
+        return error ? { error: parseSellerError(error.message).code } : { ok: true as const };
+      },
+    },
+    imageId,
+  );
+}
+
+/** The first bytes of a stored object, read with a short-lived signed URL and a Range request. */
+async function readHeadBytes(supabase: Supabase, key: string): Promise<Uint8Array | "missing" | "error"> {
+  const { data, error } = await supabase.storage.from(MARKETPLACE_IMAGE_BUCKET).createSignedUrl(key, 30);
+  if (error || !data?.signedUrl) return "missing";
+  try {
+    const res = await fetch(data.signedUrl, {
+      headers: { range: `bytes=0-${IMAGE_SIGNATURE_BYTES - 1}` },
+      cache: "no-store",
+    });
+    if (res.status === 404 || res.status === 400) return "missing";
+    if (!res.ok) return "error";
+    return new Uint8Array((await res.arrayBuffer()).slice(0, IMAGE_SIGNATURE_BYTES));
+  } catch {
+    return "error";
+  }
+}
+
+/**
+ * Confirmed only if the database finds the bytes in storage AND the first bytes
+ * really are the image type the file claims. A file whose content does not match
+ * is withdrawn through the removal lifecycle and refused. (The database cannot read
+ * file bytes; a direct RPC call skips this check, which is why uploads stay `pending`
+ * and the content review that precedes any publication must re-validate every image.)
+ */
 export async function confirmImageUploadAction(imageId: string): Promise<SellerResult<{ isPrimary: boolean }>> {
   const supabase = await getServerSupabase();
+
+  const { data: row } = await supabase
+    .from("marketplace_product_images")
+    .select("object_key, mime_type, upload_state")
+    .eq("id", imageId)
+    .maybeSingle();
+  if (row && row.upload_state === "awaiting_upload") {
+    const head = await readHeadBytes(supabase, row.object_key);
+    if (head === "error") return { ok: false, code: "unexpected" };
+    if (head === "missing") return { ok: false, code: "upload_not_found" };
+    if (!matchesDeclaredType(head, row.mime_type)) {
+      await runImageRemoval(supabase, imageId);
+      revalidatePath(PRODUCTS_PATH);
+      return { ok: false, code: "image_content_invalid" };
+    }
+  }
+
   const { data, error } = await supabase.rpc("marketplace_seller_image_confirm_upload", { p_image_id: imageId });
   if (error || !data) return { ok: false, ...fail(error) };
   revalidatePath(PRODUCTS_PATH);
   return { ok: true, isPrimary: Boolean((data as { is_primary?: boolean }).is_primary) };
 }
-
 export async function updateImagesAction(
   productId: string,
   images: { id: string; sort_order: number; is_primary: boolean; variant_id: string | null }[],
@@ -128,12 +195,31 @@ export async function updateImagesAction(
   return { ok: true };
 }
 
-/** Removes the image row, then deletes the bytes (allowed once nothing confirmed references them). */
-export async function removeImageAction(imageId: string): Promise<SellerResult<object>> {
+/**
+ * Removes an image: mark -> delete the bytes -> finalize (see `image-removal.ts`).
+ * Success is reported only once the database has confirmed the object is gone; a
+ * failure leaves the image withdrawn (invisible to everyone) and retryable.
+ */
+export async function removeImageAction(imageId: string): Promise<SellerResult<{ alreadyRemoved: boolean }>> {
   const supabase = await getServerSupabase();
-  const { data: key, error } = await supabase.rpc("marketplace_seller_image_remove", { p_image_id: imageId });
-  if (error) return { ok: false, ...fail(error) };
-  if (key) await supabase.storage.from(MARKETPLACE_IMAGE_BUCKET).remove([key as string]);
+  const r = await runImageRemoval(supabase, imageId);
   revalidatePath(PRODUCTS_PATH);
-  return { ok: true };
+  if (!r.ok) return { ok: false, code: r.code };
+  return { ok: true, alreadyRemoved: r.alreadyRemoved };
+}
+
+/** Retries every removal of a product that was marked but not finished. */
+export async function finishPendingImageRemovalsAction(productId: string): Promise<SellerResult<{ finished: number; failed: number }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("marketplace_seller_images_pending_removal", { p_product_id: productId });
+  if (error) return { ok: false, ...fail(error) };
+  let finished = 0;
+  let failed = 0;
+  for (const item of (data ?? []) as { image_id: string }[]) {
+    const r = await runImageRemoval(supabase, item.image_id);
+    if (r.ok) finished += 1;
+    else failed += 1;
+  }
+  revalidatePath(PRODUCTS_PATH);
+  return failed > 0 ? { ok: false, code: "delete_incomplete" } : { ok: true, finished, failed };
 }

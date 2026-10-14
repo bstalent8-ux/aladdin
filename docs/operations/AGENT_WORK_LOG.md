@@ -6589,3 +6589,23 @@ Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
 **Known defect (not a security issue; fails closed):** `marketplace_seller_image_remove` deletes the image row, after which the Storage API refuses the owner's DELETE of the bytes (Storage reads the object first and `marketplace_images_select_member` requires an image row), so removed images leave an orphan object in the private bucket; `removeImageAction` ignores the failed `remove()`. Fix before public launch: let the select policy also admit a catalogue manager for an org-prefixed key with no confirmed row (or delete bytes with a server-side credential), and surface the error. Needs a new migration + test.
 
 **Not re-run here:** a clean-DB `db reset` + full suite (local QA data would be wiped). On the QA-populated DB, 47/90/92/94/95 pass; 91 and 93 fail only on global counts that include the approved Decore Store QA seller and its 9 products.
+
+## Marketplace Migration 07 — safe image removal lifecycle, 2026-10-14
+
+Branch `feat/public-marketplace-20261011`. Local only; nothing pushed; **uncommitted, awaiting review**.
+
+**Root cause.** `marketplace_seller_image_remove` deleted the image row before the bytes; Storage reads the object as the caller (select policy needs the row) so the owner's DELETE was refused ("Access denied") and the object orphaned, while `removeImageAction` ignored the failure.
+
+**Fix.** New `20261014090002_marketplace_image_removal_lifecycle.sql`: two-phase removal (mark `deleting`+`rejected`, keep the row; Storage deletes; `remove_finalize` forgets the row only when the object is really gone), `images_pending_removal` for retries, delete predicate authorised from the row (never the path), upload keys valid 1 h, per-product (10) and per-org-hour (200) limits, no resurrection of a removed image. App: `image-removal.ts` orchestration (idempotent, success only after finalize), `image-signature.ts` magic-byte gate in `confirmImageUploadAction`, signed URLs 300 s, retry banner in the images panel, AR/EN strings. No storage policy added or widened; `media_verification_ready` untouched (false).
+
+**Verification.** Clean `db reset` (111 migrations) + full `supabase test db`: 94 files / 4348 tests PASS; both stock concurrency scripts PASS; `marketplace_image_removal_api_test.mjs` 59/59 on the clean DB and on the QA DB; frontend vitest/tsc/lint clean. The pre-existing `professional_asset_storage_api_test.mjs` asserts the OLD Storage error `code` strings (`AccessDenied`, …) which Storage v1.66.4 no longer returns (it sends `error`); with a scratch shim mapping them all 59 checks pass — the repo copy still needs that update (not done here). It also hard-codes the non-isolated container/port.
+
+**Local QA safety.** The QA volumes (DB + Storage) were copied to `aladdin-mp-pre07-db` / `aladdin-mp-pre07-storage` before the reset and restored after. LESSON: `cp -a` in the Postgres image did NOT preserve the Storage file xattrs (content-type/cache-control), so the two QA objects (Decore Store product image, one avatar) returned 500 `ENODATA` until their bytes were re-uploaded with the platform credential (identical bytes verified). Next time snapshot the Storage volume with a xattr-preserving tool (or re-upload).
+
+**Limits.** Magic bytes are checked only on the app path (a direct confirm-RPC call skips it; uploads stay `pending`); deleted-image signed URLs are not guaranteed revoked on a CDN-fronted host; deleting a product row cascades image rows and would orphan bytes (platform-only path); row-less orphans need a trusted cleanup job (detection query in the DB doc).
+
+### Migration 07 follow-up — final checks (same day)
+
+- `professional_asset_storage_api_test.mjs` now understands the current Storage (v1.66.x) error shape: `(body.statusCode, body.error)` pairs `403|Unauthorized`, `415|invalid_mime_type`, `413|Payload too large`, `409|Duplicate`, `404|not_found` map to the old semantic codes; every other error stays `null`, so a 500 / 400 / 401 is never read as a denial. Assertions untouched; `DB_CONTAINER` env added. Unshimmed run on the isolated stack: **59 passed, 0 failed** (was 19 failing). `public_media_exposure_test.mjs` (also `DB_CONTAINER`): 53 passed, 0 failed against the worktree app.
+- QA media verified: the Decore Store product image and the avatar serve HTTP 200 with SHA-256 identical to the pre-snapshot originals; no orphan objects, no rows without objects; 111 migrations, `20261014090002` recorded and byte-identical to the file.
+- `scripts/local-storage-snapshot.mjs` + `docs/guides/local-supabase-qa-backup-restore.md`: xattr-safe backup/verify/restore of Storage through the API (restore proven only on disposable buckets).

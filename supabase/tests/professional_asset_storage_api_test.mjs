@@ -87,7 +87,7 @@ function token(sub) {
 function sql(statement) {
   return execFileSync(
     "docker",
-    ["exec", "-i", "supabase_db_aladdin", "psql", "-U", "postgres", "-d", "postgres",
+    ["exec", "-i", process.env.DB_CONTAINER ?? "supabase_db_aladdin", "psql", "-U", "postgres", "-d", "postgres",
      "-tAX", "-v", "ON_ERROR_STOP=1", "-c", statement],
     { encoding: "utf8" },
   ).trim();
@@ -95,7 +95,9 @@ function sql(statement) {
 
 /**
  * Every Storage refusal arrives as HTTP 400 carrying a typed body —
- * `{"statusCode":"403","code":"AccessDenied"}`. The HTTP status is therefore
+ * `{"statusCode":"403","code":"AccessDenied"}` (older Storage) or
+ * `{"statusCode":"403","error":"Unauthorized","message":"..."}` (current Storage,
+ * v1.66.x, which dropped `code`). The HTTP status is therefore
  * worthless as an assertion: it is 400 for a policy denial, a rejected MIME type,
  * an oversized body and a duplicate key alike. `code` is the signal.
  *
@@ -110,8 +112,21 @@ async function parse(res) {
   // literal JSON `null`, and that is a SUCCESS worth distinguishing from a
   // parse failure. Reading `.code` off it directly is how this first crashed.
   try { body = JSON.parse(text) ?? {}; } catch { body = { raw: text }; }
-  return { status: res.status, code: body.code ?? null, text };
+  // Current Storage names the refusal by (body.statusCode, body.error). Only these exact,
+  // verified pairs map to a semantic code; ANY other error stays `null`, so an unrelated
+  // failure (a 500, a 400 for a malformed request, a 401 for a bad token) is never
+  // mistaken for the denial a test is asserting.
+  const semantic = CURRENT_STORAGE_ERRORS[`${body.statusCode}|${body.error}`] ?? null;
+  return { status: res.status, code: body.code ?? semantic, text };
 }
+
+const CURRENT_STORAGE_ERRORS = {
+  "403|Unauthorized": "AccessDenied",        // RLS / policy refusal
+  "415|invalid_mime_type": "InvalidMimeType", // bucket allowed_mime_types
+  "413|Payload too large": "EntityTooLarge",  // bucket file_size_limit
+  "409|Duplicate": "KeyAlreadyExists",        // existing key, no upsert
+  "404|not_found": "NoSuchKey",               // absent OR not visible to the caller
+};
 
 const refusedAs = (result, code) => result.status !== 200 && result.code === code;
 

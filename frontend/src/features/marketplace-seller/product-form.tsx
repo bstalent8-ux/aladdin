@@ -428,7 +428,7 @@ export function ProductForm({
       {/* ---------------- Images ---------------- */}
       <Section title={t("marketplaceSeller.image.title")}>
         {product ? (
-          <ImagesPanel productId={product.id} images={product.images} variants={savedVariants} />
+          <ImagesPanel productId={product.id} images={product.images} pendingRemovals={product.pendingRemovals.length} variants={savedVariants} />
         ) : (
           <p className="rounded-md border border-dashed px-md py-lg text-center text-body text-fg-muted">
             {t("marketplaceSeller.image.saveFirst")}

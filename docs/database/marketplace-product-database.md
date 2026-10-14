@@ -131,6 +131,40 @@ Full design, idempotency model, image matching and worker contract: [`marketplac
 
 Every write re-checks: authenticated caller, active member with `catalog.write` / `catalog.publish` / `org.manage`, enabled (approved, eligible) seller, ownership. Refusals are `mp:<code>[:detail]`. New private bucket `marketplace-product-images` (5 MB, jpeg/png/webp) with three storage policies; `marketplace_product_images.upload_state` added. Test `47_` updated for the three reviewed policies and ONE named exception to "no function reads storage.objects" (the upload confirmation). Tests: `95_` (76) + `marketplace_seller_stock_concurrency_test.sh`.
 
+## Migration 07 — safe image removal lifecycle
+
+`20261014090002_marketplace_image_removal_lifecycle.sql`. Fixes a defect found by the Migration 06 audit: `marketplace_seller_image_remove` deleted the image row at once, but Supabase Storage reads an object *as the caller* before deleting it, and that read (`marketplace_images_select_member`) needs the very row that had just been deleted — so the bytes were refused and stayed in the private bucket forever (and the app ignored the failure).
+
+**Two-phase removal; the authorising row outlives the bytes.**
+
+| Phase | Who / what | Effect |
+|---|---|---|
+| 1 `marketplace_seller_image_remove(image)` | catalogue manager of an enabled seller | row kept but withdrawn: `upload_state = deleting`, `status = rejected`, not primary (hidden from every read at once); next confirmed product image is promoted to primary; a *published* product left unpublishable is unpublished with an audit event. Idempotent. Returns the object key. |
+| 2 Storage API `DELETE` | the caller's own session | allowed only for a row `awaiting_upload` or `deleting`, only to a catalogue manager of that row's organization. A confirmed image can never be deleted here. |
+| 3 `marketplace_seller_image_remove_finalize(image)` | same caller | forgets the row **only if the object is truly absent** from `storage.objects` (`mp:object_still_present` otherwise); refuses a live image (`mp:image_not_marked_for_removal`). |
+
+`marketplace_seller_images_pending_removal(product)` lists unfinished removals so a failed delete is shown and retried, never forgotten. The server action (`removeImageAction` → `image-removal.ts`) runs the three steps and reports success only after step 3; every step is idempotent and a retry resumes where it stopped.
+
+**Storage policy changes (none widened).** Still 14 policies. `marketplace_storage_can_delete_image` no longer derives the organization from the object *path* (a `text → uuid` cast that raised on a malformed key); it consults only the server-issued row, so a malformed, unknown or row-less key simply matches nothing. `marketplace_storage_can_upload_image` now also requires the key to be less than one hour old.
+
+**Abuse limits (`request_upload`).** ≤ 10 un-uploaded keys per product, ≤ 200 new keys per organization per hour (`P0001`, not the retried `40001`); expired un-uploaded keys are swept into the removal lifecycle. A removed image can never be re-confirmed or re-arranged (`mp:image_removed`).
+
+**Magic bytes.** The database cannot read file bytes, and Storage checks only the Content-Type *header*. `confirmImageUploadAction` therefore reads the first bytes of the stored object (signed URL + Range) and withdraws a file whose signature is not the declared PNG / JPEG / WebP. A caller who invokes the confirm RPC directly skips this check — which is why uploads stay `pending` and the content review that must precede `media_verification_ready` has to decode and re-validate every image itself.
+
+**Deleted images and signed URLs — what is and is not guaranteed.** Seller-facing signed URLs now live 300 s (was 600 s) and objects are uploaded with `cache-control: 300`. Once the bytes are deleted, a signed URL issued earlier stops serving them *on the local stack* (verified). This is **not** a revocation guarantee: the hosted platform serves objects through a CDN, a browser or intermediary may hold a copy for its cache lifetime, and a downloaded copy is out of anyone's reach. Public delivery of any product image remains off (`media_verification_ready = false`) so no public URL exists to revoke.
+
+**Orphans.** After this migration every object in the bucket has an image row. Detection query (run as the platform):
+
+```sql
+select o.name from storage.objects o
+where o.bucket_id = 'marketplace-product-images'
+  and not exists (select 1 from public.marketplace_product_images i
+                  where i.storage_bucket = o.bucket_id and i.object_key = o.name);
+```
+
+A row-less object is **not** deletable by any seller (the select policy needs a row); cleanup is a trusted maintenance task with the platform credential, not a client right. Deleting a *product* (platform-only) cascades its image rows and would leave bytes behind — that path must delete objects first.
+
+Tests: `96_marketplace_image_removal_lifecycle_test.sql` (73), `marketplace_image_removal_api_test.mjs` (59, real Storage HTTP; asserts the object is gone from the API, `storage.objects` **and** a service-role GET), `image-removal.test.ts`, `image-signature.test.ts`; `47_` now names two `storage.objects` readers (confirm: bytes exist; finalize: bytes gone).
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.

@@ -9,6 +9,7 @@ import { cn } from "@/lib/ui/cn";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   confirmImageUploadAction,
+  finishPendingImageRemovalsAction,
   removeImageAction,
   requestImageUploadAction,
   updateImagesAction,
@@ -34,10 +35,13 @@ type Arranged = SellerProductImage;
 export function ImagesPanel({
   productId,
   images,
+  pendingRemovals = 0,
   variants,
 }: {
   productId: string;
   images: SellerProductImage[];
+  /** Removals marked but not confirmed deleted yet — shown so a failed delete is retried, not forgotten. */
+  pendingRemovals?: number;
   variants: { id: string; sku: string }[];
 }) {
   const { t } = useI18n();
@@ -75,7 +79,7 @@ export function ImagesPanel({
       }
       const { error } = await supabase.storage
         .from(MARKETPLACE_IMAGE_BUCKET)
-        .upload(ticket.objectKey, file, { contentType: file.type, upsert: false });
+        .upload(ticket.objectKey, file, { contentType: file.type, upsert: false, cacheControl: "300" });
       if (error) {
         setMessage({ tone: "error", text: `${file.name}: ${t(errorKey("upload_failed"))}` });
         await removeImageAction(ticket.imageId);
@@ -123,6 +127,16 @@ export function ImagesPanel({
       if (!r.ok) return setMessage({ tone: "error", text: t(errorKey(r.code)) });
       setDirty(false);
       setMessage({ tone: "ok", text: t("marketplaceSeller.image.arrangementSaved") });
+      router.refresh();
+    });
+  };
+
+  const finishRemovals = () => {
+    setMessage(null);
+    startTransition(async () => {
+      const r = await finishPendingImageRemovalsAction(productId);
+      if (!r.ok) return setMessage({ tone: "error", text: t(errorKey(r.code)) });
+      setMessage({ tone: "ok", text: t("marketplaceSeller.image.removalDone") });
       router.refresh();
     });
   };
@@ -180,6 +194,15 @@ export function ImagesPanel({
           </p>
         ) : null}
       </div>
+
+      {pendingRemovals > 0 ? (
+        <div role="alert" className="flex flex-wrap items-center gap-sm rounded-md border border-warning/40 bg-warning/10 px-md py-sm">
+          <p className="text-label text-fg-secondary">{t("marketplaceSeller.image.pendingRemoval", { count: pendingRemovals })}</p>
+          <Button size="sm" variant="outline" onClick={finishRemovals} disabled={pending}>
+            {t("marketplaceSeller.image.retryRemoval")}
+          </Button>
+        </div>
+      ) : null}
 
       {items.length === 0 ? (
         <p className="text-label text-fg-muted">{t("marketplaceSeller.image.empty")}</p>

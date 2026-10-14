@@ -7836,12 +7836,20 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: string
       }
+      marketplace_seller_image_remove_finalize: {
+        Args: { p_image_id: string }
+        Returns: Json
+      }
       marketplace_seller_image_request_upload: {
         Args: {
           p_content_type: string
           p_product_id: string
           p_variant_id?: string
         }
+        Returns: Json
+      }
+      marketplace_seller_images_pending_removal: {
+        Args: { p_product_id: string }
         Returns: Json
       }
       marketplace_seller_images_update: {
@@ -8936,4 +8944,3 @@ export const Constants = {
     },
   },
 } as const
-

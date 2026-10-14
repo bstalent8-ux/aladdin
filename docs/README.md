@@ -104,6 +104,7 @@ The five files above are **persistent project memory and part of the core archit
 - [`guides/frontend-setup.md`](guides/frontend-setup.md)
 - [`guides/backend-setup.md`](guides/backend-setup.md)
 - [`guides/supabase-setup.md`](guides/supabase-setup.md)
+- [`guides/local-supabase-qa-backup-restore.md`](guides/local-supabase-qa-backup-restore.md) — backup/restore of the local QA database and Storage (xattr-safe)
 
 ## UI/UX
 

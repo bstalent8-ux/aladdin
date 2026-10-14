@@ -118,9 +118,14 @@ export type SellerProductDetail = {
   }[];
   images: SellerProductImage[];
   blockers: string[];
+  /** Images the seller removed whose bytes are not confirmed deleted yet (retryable). */
+  pendingRemovals: { imageId: string; variantId: string | null }[];
 };
 
-/** The seller's own product for editing (the RPC enforces membership), with short-lived image URLs. */
+/** Lifetime of the signed URLs shown to the seller. Short on purpose: see the note on deleted images in docs. */
+export const IMAGE_URL_TTL_SECONDS = 300;
+
+/** The seller''s own product for editing (the RPC enforces membership), with short-lived image URLs. */
 export async function loadSellerProduct(supabase: Client, productId: string): Promise<SellerProductDetail | null> {
   const { data, error } = await supabase.rpc("marketplace_seller_product_get", { p_product_id: productId });
   if (error || !data) return null;
@@ -137,7 +142,7 @@ export async function loadSellerProduct(supabase: Client, productId: string): Pr
   const confirmedKeys = rawImages.filter((i) => i.upload_state === "confirmed").map((i) => i.object_key);
   const urls = new Map<string, string>();
   if (confirmedKeys.length) {
-    const { data: signed } = await supabase.storage.from(MARKETPLACE_IMAGE_BUCKET).createSignedUrls(confirmedKeys, 600);
+    const { data: signed } = await supabase.storage.from(MARKETPLACE_IMAGE_BUCKET).createSignedUrls(confirmedKeys, IMAGE_URL_TTL_SECONDS);
     for (const s of signed ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
   }
   return {
@@ -165,6 +170,7 @@ export async function loadSellerProduct(supabase: Client, productId: string): Pr
       url: urls.get(i.object_key) ?? null,
     })),
     blockers: (p.blockers ?? []) as string[],
+    pendingRemovals: await loadPendingRemovals(supabase, productId),
   };
 }
 
@@ -177,4 +183,9 @@ export async function loadStockLocations(supabase: Client, organizationId: strin
     .eq("is_active", true)
     .order("created_at");
   return data ?? [];
+}
+
+async function loadPendingRemovals(supabase: Client, productId: string): Promise<SellerProductDetail["pendingRemovals"]> {
+  const { data } = await supabase.rpc("marketplace_seller_images_pending_removal", { p_product_id: productId });
+  return ((data ?? []) as { image_id: string; variant_id: string | null }[]).map((r) => ({ imageId: r.image_id, variantId: r.variant_id }));
 }

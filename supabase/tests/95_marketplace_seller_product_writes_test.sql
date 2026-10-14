@@ -40,14 +40,14 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like 'marketplace\_seller\_%'
      and p.prosecdef and exists (select 1 from unnest(p.proconfig) c where c = 'search_path=""')),
-  9, 'A1. the nine seller RPCs are SECURITY DEFINER with an empty search_path');
+  11, 'A1. the eleven seller RPCs (nine from Migration 06, two from Migration 07) are SECURITY DEFINER with an empty search_path');
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like 'marketplace\_seller\_%'
      and has_function_privilege('authenticated', p.oid, 'execute')
      and not has_function_privilege('anon', p.oid, 'execute')
      and not has_function_privilege('service_role', p.oid, 'execute')),
-  9, 'A2. ...executable by authenticated only (never anon, never a service credential)');
+  11, 'A2. ...executable by authenticated only (never anon, never a service credential)');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege('authenticated', p.oid, 'execute')),
@@ -313,9 +313,9 @@ select throws_like(format($$ select public.marketplace_seller_images_update(%L::
                     jsonb_build_object('id', current_setting('t.img'), 'sort_order', 1, 'is_primary', true))),
   'mp:one_primary_image%', 'G9. two primary images are refused');
 select is(public.marketplace_seller_image_remove(current_setting('t.img')::uuid), current_setting('t.key'),
-  'G10. removing an image returns its key so the bytes can be deleted');
+  'G10. removing an image (phase 1) returns its key so the bytes can be deleted');
 select ok(app.marketplace_storage_can_delete_image(current_setting('t.key')),
-  'G11. ...and the storage policy now lets the seller delete the unreferenced object (deletion itself goes through the Storage API)');
+  'G11. ...and the storage policy lets the seller delete the bytes of that marked row (the real Storage call is proven in marketplace_image_removal_api_test.mjs; lifecycle in 96_)');
 set local request.jwt.claims = '{"sub":"70000009-0000-4000-8000-000000000009","role":"authenticated"}';
 select is((select count(*)::int from storage.objects where bucket_id = 'marketplace-product-images'), 0,
   'G12. an outsider cannot see the seller''s image objects');
