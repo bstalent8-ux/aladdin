@@ -6563,3 +6563,29 @@ Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
 **Validation:** `supabase db reset` (109 migrations) then `supabase test db`: **PASS, 92 files / 4199 tests**. Scale probe (15,000 rows / 15,000 images, one rolled-back transaction) recorded in the bulk-import doc.
 
 **Still closed:** no parser / worker / upload / R2, no checkout, no publication path, no real seller activated.
+
+## Marketplace seller product creation & management (Migration 06 + B2C seller UI), 2026-10-14
+
+Branch `feat/public-marketplace-20261011`. Local only; nothing pushed. Uncommitted at the time of writing (awaiting review).
+
+**DB:** `supabase/migrations/20261014090001_marketplace_seller_product_writes.sql` — trusted seller RPCs (product save/get/readiness, default location, stock adjust, image request/confirm/arrange/remove), private `marketplace-product-images` bucket + 3 storage policies, `marketplace_product_images.upload_state`. Tests: `95_marketplace_seller_product_writes_test.sql` (76), `marketplace_seller_stock_concurrency_test.sh`; `47_` updated (reviewed policies + one named storage-read exception); 92/93/94 hardening checks exempt only `app.marketplace_storage_*` (storage-policy predicates).
+
+**UI:** `/b2c/seller/products` (real data, thumbnails, inline − / + for one variant at one location, Edit), `/b2c/seller/products/new`, `/b2c/seller/products/[id]/edit` (type fields from the DB, variants, stock per variant/location, image upload/arrange, readiness, publish only when the server allows).
+
+**Validation:** pristine `supabase test db` 93 files / 4275 PASS (DB volume snapshotted and restored around the reset so the local Decore Store QA data survived); both concurrency scripts PASS; frontend vitest 2776 PASS; tsc clean. Browser E2E as Decore Store: draft with 2 variants + initial stock, real image upload (confirmed from storage, pending review), edit, duplicate-SKU refusal, inline stock change, stale-screen refusal.
+
+**Found while testing:** `mp:stock_changed` used SQLSTATE 40001, which PostgREST silently retries (48 s hang) — now P0001. Variant row ids used Date.now (hydration mismatch) — now deterministic.
+
+**Still blocked for public publishing:** the media verification pipeline (`media_verification_ready` stays false), so no product can be published.
+
+## Marketplace Migration 06 — pre-commit security & isolation audit, 2026-10-14
+
+Branch `feat/public-marketplace-20261011`. Local only; nothing pushed.
+
+**Audit (isolated local stack, rolled-back / self-cleaning probes):** storage policies + predicates, every SECURITY DEFINER function and EXECUTE grant, cross-org confirm/upload/delete/read, anon access, path manipulation, overwrite (no UPDATE policy), confirm-never-verifies, publish still blocked — all denied/closed as intended (SQL probe + 42-check Storage HTTP probe). All 18 functions in the stored migration match the live local DB byte-for-byte; 110 migrations applied.
+
+**Test exceptions tightened:** 92/93/94 now exempt exactly the three named predicates (`marketplace_storage_can_delete_image`, `_can_upload_image`, `_owns_image`) instead of the `marketplace_storage_%` pattern; `47_` keeps its exact-array exception for `marketplace_seller_image_confirm_upload`.
+
+**Known defect (not a security issue; fails closed):** `marketplace_seller_image_remove` deletes the image row, after which the Storage API refuses the owner's DELETE of the bytes (Storage reads the object first and `marketplace_images_select_member` requires an image row), so removed images leave an orphan object in the private bucket; `removeImageAction` ignores the failed `remove()`. Fix before public launch: let the select policy also admit a catalogue manager for an org-prefixed key with no confirmed row (or delete bytes with a server-side credential), and surface the error. Needs a new migration + test.
+
+**Not re-run here:** a clean-DB `db reset` + full suite (local QA data would be wiped). On the QA-populated DB, 47/90/92/94/95 pass; 91 and 93 fail only on global counts that include the approved Decore Store QA seller and its 9 products.
