@@ -5951,6 +5951,20 @@ export type Database = {
       }
       business_draft_save: {
         Args: {
+          p_city?: string
+          p_city_custom_name?: string
+          p_description?: string
+          p_display_name?: string
+          p_draft_id?: string
+          p_governorate?: string
+          p_legal_name?: string
+          p_org_type?: Database["public"]["Enums"]["organization_type"]
+          p_primary_branch_name?: string
+        }
+        Returns: string
+      }
+      business_draft_save_v2: {
+        Args: {
           p_contact_phone?: string
           p_contact_email?: string
           p_activity_type?: string
@@ -5968,6 +5982,7 @@ export type Database = {
         Returns: string
       }
       business_draft_submit: { Args: { p_draft_id?: string }; Returns: string }
+      business_draft_submit_v2: { Args: { p_draft_id?: string }; Returns: string }
       business_save: {
         Args: {
           p_city?: string

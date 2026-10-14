@@ -224,3 +224,7 @@ Reuse business_creation_drafts / business_draft_save / business_draft_submit and
 
 ## Showroom authentication and selling extension — 2026-10-14
 ADR-0014 retains Installer identity/session architecture for Showroom. ADR-0015 documents DB-enforced business completion and private historical product/order continuation snapshots. Existing canonical wizard and transactional RPCs remain the only business-creation flow. Native GoTrue endpoints bypass application per-account quotas; a provider-wide mitigation is a merge/deployment blocker, documented in the feature report. Production impact/settings are unverified; no hosted mutation performed.
+
+# PR #84 pending expand/contract correction — 2026-10-14
+
+Business creation keeps its deployed nine-argument draft-save and draft-submit RPCs; extended Showroom callers use separately named v2 RPCs over the same transactional organization engine. Pending PR migrations add private generated country metadata and triggers so direct contact writes share application numbering rules. Historical address exceptions remain separate from current approval: expiry, rejection, revocation and suspension deny seller eligibility. These corrections are pending clean CI acceptance and are not deployed. [ADR-0016](../decisions/ADR-0016-business-phone-database-validation.md) records metadata provenance and refresh procedure. [Provider security research](../security/showroom-auth-provider-security-options.md) remains decision-only; no authentication provider or paid plan was changed.

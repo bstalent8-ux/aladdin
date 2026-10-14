@@ -12,7 +12,9 @@ export const businessDetailsSchema = z.object({
   detailedAddress: businessAddressSchema.nullish(),
 });
 export function validBusinessPhone(value: string | null | undefined): boolean {
-  if (!value || value.length > 32) return false;
+  // libphonenumber retains some nationally valid numbers beyond E.164's
+  // 15-digit transport limit. The authoritative storage contract rejects those.
+  if (!value || !/^\+[1-9][0-9]{1,14}$/.test(value)) return false;
   const phone = parsePhoneNumberFromString(value);
   return !!phone?.country && toCanonicalPhone(value, phone.country)?.e164 === value;
 }

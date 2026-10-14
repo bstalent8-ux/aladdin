@@ -16,21 +16,6 @@ create extension if not exists pgtap;
 begin;
 select plan(32);
 
--- Complete ONLY test fixtures for the updated creation contract. This temporary
--- function rolls back with this test; no production row or authorization rule changes.
-create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
-begin
- update public.business_creation_drafts set
- governorate=coalesce(governorate,'cairo'),
- city=case when governorate is null then 'maadi' else city end,
- detailed_address=coalesce(detailed_address,'10 Fixture Street'),
- contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
- activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
- where user_id=(select auth.uid()) and completed_at is null;
-end;
-$fixture$;
-
-
 -- ---------------------------------------------------------------------------
 -- Fixtures (all verified). Persona is set directly as the postgres owner role.
 -- ---------------------------------------------------------------------------
@@ -94,7 +79,7 @@ select ok(
   not has_function_privilege('authenticated', 'app.can_create_or_complete_business(uuid)', 'execute'),
   'the entitlement helper is not callable by clients');
 select ok(
-  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text,text,text,text,text)', 'execute')
+  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text)', 'execute')
   and has_function_privilege('authenticated', 'public.business_draft_submit(uuid)', 'execute'),
   'the RPCs stay callable by authenticated — the authority is inside them');
 
@@ -112,29 +97,29 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"65000001-0000-4000-8000-000000000065","role":"authenticated"}';
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Bypass', p_org_type => 'supplier') $$,
   '42501', null, '1. installer: business_draft_save is denied');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select throws_ok($$ select public.business_draft_submit(null) $$,
   '42501', null, '2. installer: business_draft_submit is denied');
 select throws_ok($$ select public.business_save(p_display_name => 'Bypass', p_org_type => 'supplier') $$,
   '42501', null, '2b. installer: the business_save wrapper is denied too');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+select throws_ok($$ select public.business_submit() $$,
   '42501', null, '2c. installer: the business_submit wrapper is denied too');
 
 set local request.jwt.claims = '{"sub":"65000002-0000-4000-8000-000000000065","role":"authenticated"}';
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Bypass', p_org_type => 'showroom_dealer') $$,
   '42501', null, '3. sales: business_draft_save is denied');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select throws_ok($$ select public.business_draft_submit(null) $$,
   '42501', null, '3b. sales: business_draft_submit is denied');
 
 set local request.jwt.claims = '{"sub":"65000003-0000-4000-8000-000000000065","role":"authenticated"}';
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Bypass', p_org_type => 'supplier') $$,
   '42501', null, '4. personal / end_consumer: business_draft_save is denied');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select throws_ok($$ select public.business_draft_submit(null) $$,
   '42501', null, '4b. personal / end_consumer: business_draft_submit is denied');
 
 set local request.jwt.claims = '{"sub":"65000004-0000-4000-8000-000000000065","role":"authenticated"}';
 select throws_ok($$ select public.business_draft_save(p_display_name => 'Bypass', p_org_type => 'importer') $$,
   '42501', null, '4c. contractor: business_draft_save is denied');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select throws_ok($$ select public.business_draft_submit(null) $$,
   '42501', null, '4d. contractor: business_draft_submit is denied');
 
 -- 5. membership alone never grants creation.
@@ -186,7 +171,7 @@ select lives_ok($$ select public.business_draft_save(p_display_name => 'P65 Seco
 set local request.jwt.claims = '{"sub":"65000011-0000-4000-8000-000000000065","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P65 First Business LLC', p_display_name => 'P65 First Business', p_org_type => 'supplier', p_primary_branch_name => 'HQ') $$,
   '8. first-business registration may open its draft');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select lives_ok($$ select public.business_draft_submit(null) $$,
   '8b. ...and create its first organization');
 select is(
   (select count(*)::int from public.organizations where created_by = '65000011-0000-4000-8000-000000000065'),
@@ -196,23 +181,20 @@ select is(
 set local request.jwt.claims = '{"sub":"65000013-0000-4000-8000-000000000065","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_draft_id => '65d00013-0000-4000-8000-000000000065', p_legal_name => 'P65 Open Draft LLC', p_display_name => 'P65 Open Draft', p_org_type => 'supplier') $$,
   '9. an existing OPEN draft may still be updated');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit('65d00013-0000-4000-8000-000000000065') $$,
+select lives_ok($$ select public.business_draft_submit('65d00013-0000-4000-8000-000000000065') $$,
   '9b. ...and finished');
 
 -- 10. A completed draft retried is idempotent and creates no second organization —
 -- even after the caller has since lost their entitlement.
 set local request.jwt.claims = '{"sub":"65000016-0000-4000-8000-000000000065","role":"authenticated"}';
 select set_config('test.d16', public.business_draft_save(p_legal_name => 'P65 Retry Co LLC', p_display_name => 'P65 Retry Co', p_org_type => 'manufacturer')::text, true);
-select pg_temp.complete_business_fixture();
 select set_config('test.o16', public.business_draft_submit(current_setting('test.d16')::uuid)::text, true);
 reset role;
 update public.users set primary_account_type = 'end_consumer' where id = '65000016-0000-4000-8000-000000000065';
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"65000016-0000-4000-8000-000000000065","role":"authenticated"}';
-select pg_temp.complete_business_fixture();
 select is(public.business_draft_submit(current_setting('test.d16')::uuid)::text, current_setting('test.o16'),
   '10. retrying a completed draft returns the SAME organization (idempotent, even after losing the entitlement)');
-select pg_temp.complete_business_fixture();
 select is(public.business_draft_submit(null)::text, current_setting('test.o16'),
   '10b. the no-argument retry also returns the same organization');
 reset role;

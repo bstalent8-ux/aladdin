@@ -1,12 +1,13 @@
+-- Expand-only: existing business_draft_save/submit signatures and bodies remain intact.
+-- Versioned RPC names avoid PostgREST default-argument overload ambiguity.
 -- Reuse existing business drafts, branches and activity catalogue. No identity/approval changes.
 alter table public.business_creation_drafts add column contact_phone text, add column contact_email text, add column activity_type text, add column detailed_address text;
 alter table public.organizations add column contact_phone text, add column contact_email text;
 comment on column public.organizations.contact_phone is 'Unverified business contact; never an authentication identifier.';
 comment on column public.organizations.contact_email is 'Unverified business contact; never the internal authentication alias.';
-alter table public.business_creation_drafts add constraint business_draft_contact_shape check ((contact_phone is null or contact_phone ~ '^\+[1-9][0-9]{6,14}$') and (contact_email is null or char_length(contact_email)<=254) and (detailed_address is null or char_length(detailed_address)<=500));
-alter table public.organizations add constraint organization_contact_shape check ((contact_phone is null or contact_phone ~ '^\+[1-9][0-9]{6,14}$') and (contact_email is null or char_length(contact_email)<=254));
-drop function public.business_draft_save(uuid, text, text, public.organization_type, text, text, text, text, text);
-create function public.business_draft_save(
+alter table public.business_creation_drafts add constraint business_draft_contact_shape check ((contact_phone is null or contact_phone ~ '^\+[1-9][0-9]{1,14}$') and (contact_email is null or char_length(contact_email)<=254) and (detailed_address is null or char_length(detailed_address)<=500));
+alter table public.organizations add constraint organization_contact_shape check ((contact_phone is null or contact_phone ~ '^\+[1-9][0-9]{1,14}$') and (contact_email is null or char_length(contact_email)<=254));
+create function public.business_draft_save_v2(
   p_draft_id uuid default null,
   p_legal_name text default null,
   p_display_name text default null,
@@ -68,7 +69,7 @@ begin
     end if;
   end if;
 
-  if p_contact_phone is not null and p_contact_phone !~ '^\+[1-9][0-9]{6,14}$' then raise exception 'invalid showroom phone' using errcode='22023'; end if;
+  if p_contact_phone is not null and p_contact_phone !~ '^\+[1-9][0-9]{1,14}$' then raise exception 'invalid showroom phone' using errcode='22023'; end if;
   if v_email is not null and (char_length(v_email)>254 or v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') then raise exception 'invalid showroom email' using errcode='22023'; end if;
   if v_address is not null and char_length(v_address)>500 then raise exception 'address too long' using errcode='22023'; end if;
   if p_activity_type is not null and not exists(select 1 from public.activities a where a.organization_type='showroom_dealer' and a.key=p_activity_type and a.is_active) then raise exception 'invalid showroom activity' using errcode='22023'; end if;
@@ -112,10 +113,10 @@ begin
 end;
 $$;
 
-revoke execute on function public.business_draft_save(uuid, text, text, public.organization_type, text, text, text, text, text, text, text, text, text) from public, anon;
-grant  execute on function public.business_draft_save(uuid, text, text, public.organization_type, text, text, text, text, text, text, text, text, text) to authenticated;
+revoke execute on function public.business_draft_save_v2(uuid, text, text, public.organization_type, text, text, text, text, text, text, text, text, text) from public, anon;
+grant  execute on function public.business_draft_save_v2(uuid, text, text, public.organization_type, text, text, text, text, text, text, text, text, text) to authenticated;
 
-create or replace function public.business_draft_submit(p_draft_id uuid default null)
+create or replace function public.business_draft_submit_v2(p_draft_id uuid default null)
 returns uuid
 language plpgsql
 security definer
@@ -223,7 +224,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.business_draft_submit(uuid) from public, anon;
-grant  execute on function public.business_draft_submit(uuid) to authenticated;
+revoke execute on function public.business_draft_submit_v2(uuid) from public, anon;
+grant  execute on function public.business_draft_submit_v2(uuid) to authenticated;
 
 notify pgrst, 'reload schema';

@@ -43,7 +43,7 @@ describe("business draft writers — the same entitlement as the page", () => {
     state.allowed = true;
     const res = await saveBusiness({ displayName: "X" });
     expect(res).toEqual({ ok: true, draftId: "draft-1" });
-    expect(state.rpc).toHaveBeenCalledWith("business_draft_save", expect.any(Object));
+    expect(state.rpc).toHaveBeenCalledWith("business_draft_save_v2", expect.any(Object));
   });
 
   it("surfaces a database refusal (42501) as the same not-allowed code, not a generic save failure", async () => {
@@ -70,7 +70,7 @@ describe("business draft writers - the registered type is locked while the first
   it("writes the type the person registered with, whatever the client posted", async () => {
     state.mandatory = { required: true, orgType: "showroom_dealer" };
     await saveBusiness({ displayName: "Nile Showroom", orgType: "supplier" });
-    expect(state.rpc).toHaveBeenCalledWith("business_draft_save", expect.objectContaining({ p_org_type: "showroom_dealer" }));
+    expect(state.rpc).toHaveBeenCalledWith("business_draft_save_v2", expect.objectContaining({ p_org_type: "showroom_dealer" }));
   });
 
   it("supplies the registered type even when the client posted none (the wizard never asks twice)", async () => {
@@ -82,7 +82,7 @@ describe("business draft writers - the registered type is locked while the first
   it("the submit path saves through the same lock before creating the organization", async () => {
     state.mandatory = { required: true, orgType: "manufacturer" };
     await submitBusiness({ displayName: "Giza Factory", legalName: "Giza Factory Industries SAE", governorate: "giza", city: "dokki", detailedAddress: "10 Test Street", orgType: "showroom_dealer" }).catch(() => undefined);
-    expect(state.rpc.mock.calls[0]).toEqual(["business_draft_save", expect.objectContaining({ p_org_type: "manufacturer" })]);
+    expect(state.rpc.mock.calls[0]).toEqual(["business_draft_save_v2", expect.objectContaining({ p_org_type: "manufacturer" })]);
   });
 
   it("an owner adding ANOTHER business (no outstanding first business) still chooses the type freely", async () => {
@@ -123,25 +123,25 @@ describe("business draft writers - required legal name and canonical location", 
     expect(await submitBusiness({ ...complete, city: undefined })).toEqual({ ok: false, code: "onboarding.error.locationRequired" });
     expect(state.rpc).not.toHaveBeenCalled();
     await submitBusiness(complete).catch(() => undefined);
-    expect(state.rpc).toHaveBeenCalledWith("business_draft_submit", expect.any(Object));
+    expect(state.rpc).toHaveBeenCalledWith("business_draft_submit_v2", expect.any(Object));
   });
 
   it("passes a canonical governorate and city to the database", async () => {
     await saveBusiness({ ...complete, governorate: "dakahlia", city: "mansoura" });
-    expect(rpcArgs("business_draft_save")).toMatchObject({ p_governorate: "dakahlia", p_city: "mansoura", p_legal_name: "Nile Supply Trading LLC" });
-    expect(rpcArgs("business_draft_save")!.p_city_custom_name).toBeUndefined();
+    expect(rpcArgs("business_draft_save_v2")).toMatchObject({ p_governorate: "dakahlia", p_city: "mansoura", p_legal_name: "Nile Supply Trading LLC" });
+    expect(rpcArgs("business_draft_save_v2")!.p_city_custom_name).toBeUndefined();
   });
 
   it("passes the typed city (Other) as the custom name and never as a city key", async () => {
     await saveBusiness({ ...complete, governorate: "dakahlia", city: null, cityCustomName: "Kafr Test" });
-    const args = rpcArgs("business_draft_save")!;
+    const args = rpcArgs("business_draft_save_v2")!;
     expect(args).toMatchObject({ p_governorate: "dakahlia", p_city_custom_name: "Kafr Test" });
     expect(args.p_city).toBeUndefined();
   });
 
   it("resolves a historical underscore city before it reaches the database", async () => {
     await saveBusiness({ ...complete, governorate: "cairo", city: "nasr_city" });
-    expect(rpcArgs("business_draft_save")).toMatchObject({ p_governorate: "cairo", p_city: "nasr-city" });
+    expect(rpcArgs("business_draft_save_v2")).toMatchObject({ p_governorate: "cairo", p_city: "nasr-city" });
   });
 
   it("rejects, without a database call, a city of another governorate, an unknown governorate, and the literal Other", async () => {
@@ -161,13 +161,13 @@ describe("business draft writers - required legal name and canonical location", 
 
   it("maps the database's own legal-name / city refusals to specific codes", async () => {
     state.rpc.mockImplementation(async (name: unknown) =>
-      name === "business_draft_save"
+      name === "business_draft_save_v2"
         ? { data: "draft-1", error: null }
         : { data: null, error: { code: "22023", message: "a legal business name is required" } as never },
     );
     expect((await submitBusiness(complete)).code).toBe("onboarding.error.legalNameRequired");
     state.rpc.mockImplementation(async (name: unknown) =>
-      name === "business_draft_save"
+      name === "business_draft_save_v2"
         ? { data: "draft-1", error: null }
         : { data: null, error: { code: "22023", message: "a city is required once a governorate is chosen" } as never },
     );
@@ -178,6 +178,6 @@ describe("business draft writers - required legal name and canonical location", 
 
 describe("showroom step requirements", () => {
  beforeEach(() => {state.allowed=true;state.mandatory={required:true,orgType:"showroom_dealer"};state.rpc.mockClear();});
- it("requires business phone and activity on identity without changing login identity", async () => {expect((await saveBusiness({step:"identity",displayName:"Showroom",legalName:"Showroom LLC"})).code).toBe("onboarding.error.showroomPhoneRequired");expect(state.rpc).not.toHaveBeenCalled();await saveBusiness({step:"identity",displayName:"Showroom",legalName:"Showroom LLC",contactPhone:"+14155552671",activityType:"paint_showroom",contactEmail:" Contact@Example.test "});expect(state.rpc).toHaveBeenCalledWith("business_draft_save",expect.objectContaining({p_contact_phone:"+14155552671",p_contact_email:"contact@example.test",p_activity_type:"paint_showroom"}));expect(state.rpc.mock.calls.every(call=>call[0]==="business_draft_save")).toBe(true);});
+ it("requires business phone and activity on identity without changing login identity", async () => {expect((await saveBusiness({step:"identity",displayName:"Showroom",legalName:"Showroom LLC"})).code).toBe("onboarding.error.showroomPhoneRequired");expect(state.rpc).not.toHaveBeenCalled();await saveBusiness({step:"identity",displayName:"Showroom",legalName:"Showroom LLC",contactPhone:"+14155552671",activityType:"paint_showroom",contactEmail:" Contact@Example.test "});expect(state.rpc).toHaveBeenCalledWith("business_draft_save_v2",expect.objectContaining({p_contact_phone:"+14155552671",p_contact_email:"contact@example.test",p_activity_type:"paint_showroom"}));expect(state.rpc.mock.calls.every(call=>call[0]==="business_draft_save_v2")).toBe(true);});
  it("allows optional address, requires city/governorate and bounds description",async()=>{expect((await saveBusiness({step:"location",governorate:"cairo",city:"maadi",detailedAddress:""})).ok).toBe(true);expect((await saveBusiness({step:"location",governorate:"cairo"})).code).toBe("onboarding.error.locationRequired");state.rpc.mockClear();expect((await saveBusiness({description:"x".repeat(251)})).ok).toBe(false);expect(state.rpc).not.toHaveBeenCalled();});
 });

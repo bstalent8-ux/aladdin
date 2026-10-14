@@ -15,21 +15,6 @@ create extension if not exists pgtap;
 begin;
 select plan(51);
 
--- Complete ONLY test fixtures for the updated creation contract. This temporary
--- function rolls back with this test; no production row or authorization rule changes.
-create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
-begin
- update public.business_creation_drafts set
- governorate=coalesce(governorate,'cairo'),
- city=case when governorate is null then 'maadi' else city end,
- detailed_address=coalesce(detailed_address,'10 Fixture Street'),
- contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
- activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
- where user_id=(select auth.uid()) and completed_at is null;
-end;
-$fixture$;
-
-
 -- ---------------------------------------------------------------------------
 -- Fixtures (all verified). Persona is set directly as the postgres owner role.
 -- ---------------------------------------------------------------------------
@@ -89,7 +74,7 @@ select ok(
   not has_function_privilege('authenticated', 'app.mandatory_registration_business_type(uuid)', 'execute'),
   'the lock helper is not callable by clients');
 select ok(
-  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text,text,text,text,text)', 'execute')
+  has_function_privilege('authenticated', 'public.business_draft_save(uuid,text,text,public.organization_type,text,text,text,text,text)', 'execute')
   and has_function_privilege('authenticated', 'public.business_draft_submit(uuid)', 'execute'),
   'the RPC signatures are unchanged and stay callable by authenticated');
 select is(app.mandatory_registration_business_type('86000001-0000-4000-8000-000000000086')::text, 'showroom_dealer',
@@ -123,7 +108,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000001-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Showroom Co LLC', p_display_name => 'P86 Showroom Co', p_org_type => 'showroom_dealer') $$,
   '1. showroom registrant + showroom draft: allowed');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select lives_ok($$ select public.business_draft_submit(null) $$,
   '1b. ...and the organization is created');
 reset role;
 select is((select org_type::text from public.organizations where created_by = '86000001-0000-4000-8000-000000000086'),
@@ -151,7 +136,7 @@ select is((select org_type::text from public.business_creation_drafts where user
   'supplier', '7c. the open draft still holds the registered type');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000002-0000-4000-8000-000000000086","role":"authenticated"}';
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_submit() $$, '3b. the business_submit wrapper creates the first organization');
+select lives_ok($$ select public.business_submit() $$, '3b. the business_submit wrapper creates the first organization');
 reset role;
 select is((select org_type::text from public.organizations where created_by = '86000002-0000-4000-8000-000000000086'),
   'supplier', '3c. the first organization is a supplier');
@@ -163,11 +148,11 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000003-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Maker LLC', p_display_name => 'P86 Maker', p_org_type => 'manufacturer') $$,
   '5. manufacturer registrant + manufacturer draft: allowed');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '5b. ...and created');
+select lives_ok($$ select public.business_draft_submit(null) $$, '5b. ...and created');
 set local request.jwt.claims = '{"sub":"86000004-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Importer LLC', p_display_name => 'P86 Importer', p_org_type => 'importer') $$,
   '6. importer registrant + importer draft: allowed');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '6b. ...and created');
+select lives_ok($$ select public.business_draft_submit(null) $$, '6b. ...and created');
 reset role;
 select is((select string_agg(org_type::text, ',' order by created_by) from public.organizations
             where created_by in ('86000003-0000-4000-8000-000000000086', '86000004-0000-4000-8000-000000000086')),
@@ -178,7 +163,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000005-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Null Type LLC', p_display_name => 'P86 Null Type') $$,
   '5d. a NULL p_org_type is stored as NULL while locked (unchanged behaviour)');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$,
+select throws_ok($$ select public.business_draft_submit(null) $$,
   '22023', null, '5e. ...and submit refuses it: a business type is required');
 reset role;
 select is((select count(*)::int from public.organizations where created_by = '86000005-0000-4000-8000-000000000086'),
@@ -189,9 +174,9 @@ set local role authenticated;
 -- A STALE open draft of another type can neither be submitted nor override the intent.
 -- ===========================================================================
 set local request.jwt.claims = '{"sub":"86000012-0000-4000-8000-000000000086","role":"authenticated"}';
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit('86d00012-0000-4000-8000-000000000086') $$,
+select throws_ok($$ select public.business_draft_submit('86d00012-0000-4000-8000-000000000086') $$,
   '22023', null, '12b. a stale draft of another type cannot be submitted as the first business');
-select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+select throws_ok($$ select public.business_submit() $$,
   '22023', null, '12c. ...nor through the business_submit wrapper');
 select throws_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_legal_name => 'P86 Stale LLC', p_display_name => 'P86 Stale', p_org_type => 'supplier') $$,
   '22023', null, '12d. re-saving the stale value is rejected: it cannot override the registration');
@@ -202,7 +187,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000012-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_draft_id => '86d00012-0000-4000-8000-000000000086', p_legal_name => 'P86 Stale LLC', p_display_name => 'P86 Stale', p_org_type => 'importer') $$,
   '12f. correcting the draft to the registered type works');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit('86d00012-0000-4000-8000-000000000086') $$,
+select lives_ok($$ select public.business_draft_submit('86d00012-0000-4000-8000-000000000086') $$,
   '12g. ...and the same draft is then submitted');
 reset role;
 select is((select org_type::text from public.organizations where created_by = '86000012-0000-4000-8000-000000000086'),
@@ -214,10 +199,10 @@ set local role authenticated;
 -- ===========================================================================
 set local request.jwt.claims = '{"sub":"86000010-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 First LLC', p_display_name => 'P86 First', p_org_type => 'supplier') $$, '8a. first business saved');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '8b. first business created');
+select lives_ok($$ select public.business_draft_submit(null) $$, '8b. first business created');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Second LLC', p_display_name => 'P86 Second', p_org_type => 'importer') $$,
   '8c. the same user may now save a DIFFERENT approved type (a second business)');
-select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '8d. ...and create it');
+select lives_ok($$ select public.business_draft_submit(null) $$, '8d. ...and create it');
 reset role;
 select is((select string_agg(org_type::text, ',' order by org_type::text) from public.organizations where created_by = '86000010-0000-4000-8000-000000000086'),
   'importer,supplier', '8e. both organizations exist with their own types');

@@ -6,8 +6,8 @@ select ('9200000'||n||'-0000-4000-8000-000000000092')::uuid,'00000000-0000-0000-
 insert into public.onboarding_progress(user_id,selected_track,selected_org_type,account_type_completed_at,completed_at) values('92000001-0000-4000-8000-000000000092','business','showroom_dealer',now(),now());
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"92000001-0000-4000-8000-000000000092","role":"authenticated"}',true);
-select lives_ok($$select public.business_draft_save(p_display_name=>'Showroom 92',p_legal_name=>'Showroom 92 LLC',p_org_type=>'showroom_dealer',p_governorate=>'cairo',p_city=>'maadi',p_contact_phone=>'+201012345678',p_activity_type=>'decor_showroom',p_detailed_address=>'')$$,'A: required onboarding without address is accepted');
-select set_config('test.org',public.business_draft_submit()::text,true);
+select lives_ok($$select public.business_draft_save_v2(p_display_name=>'Showroom 92',p_legal_name=>'Showroom 92 LLC',p_org_type=>'showroom_dealer',p_governorate=>'cairo',p_city=>'maadi',p_contact_phone=>'+201012345678',p_activity_type=>'decor_showroom',p_detailed_address=>'')$$,'A: required onboarding without address is accepted');
+select set_config('test.org',public.business_draft_submit_v2()::text,true);
 select is((select status::text from public.organizations where id=current_setting('test.org')::uuid),'pending_verification','onboarding leaves approval pending');
 select throws_ok(format('update public.organizations set status=''active'',is_verified=true where id=%L',current_setting('test.org')),'42501',null,'direct API self-activation denied');
 select throws_ok($$update public.users set primary_account_type='engineer' where id='92000001-0000-4000-8000-000000000092'$$,'42501',null,'direct role assignment denied');

@@ -17,8 +17,8 @@ import type { Database } from "@/types/database.types";
  * Business creation writers. Thin, shape-only validators over the trusted
  * security-definer RPCs — the verified-caller gate, the required-field check, the
  * transactional organization + owner-membership + primary-branch creation, and the
- * idempotency guarantee all live in the database (`business_draft_save` /
- * `business_draft_submit` → app.organization_create_owned).
+ * idempotency guarantee all live in the database (`business_draft_save_v2` /
+ * `business_draft_submit_v2` → app.organization_create_owned).
  *
  * The DRAFT ID is the thread that makes this safe. It is the resume handle and the
  * idempotency key: submitting the same draft twice returns the same organization,
@@ -98,7 +98,7 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
   if (!location.ok) return { ok: false, code: "onboarding.error.locationInvalid" };
 
   const supabase = await getServerSupabase();
-  const { data, error } = await supabase.rpc("business_draft_save", {
+  const { data, error } = await supabase.rpc("business_draft_save_v2", {
     p_contact_phone: v.contactPhone ?? undefined,
     p_contact_email: input.contactEmail == null ? undefined : v.contactEmail ?? "",
     p_activity_type: v.activityType ?? undefined,
@@ -150,7 +150,7 @@ export async function submitBusiness(input: BusinessInput): Promise<BusinessActi
   if (!saved.ok) return saved;
 
   const supabase = await getServerSupabase();
-  const { data: orgId, error } = await supabase.rpc("business_draft_submit", {
+  const { data: orgId, error } = await supabase.rpc("business_draft_submit_v2", {
     p_draft_id: input.draftId ?? saved.draftId ?? undefined,
   });
   if (error) {

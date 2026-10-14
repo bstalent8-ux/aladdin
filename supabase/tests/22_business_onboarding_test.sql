@@ -22,21 +22,6 @@ create extension if not exists pgtap;
 begin;
 select plan(24);
 
--- Complete ONLY test fixtures for the updated creation contract. This temporary
--- function rolls back with this test; no production row or authorization rule changes.
-create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
-begin
- update public.business_creation_drafts set
- governorate=coalesce(governorate,'cairo'),
- city=case when governorate is null then 'maadi' else city end,
- detailed_address=coalesce(detailed_address,'10 Fixture Street'),
- contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
- activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
- where user_id=(select auth.uid()) and completed_at is null;
-end;
-$fixture$;
-
-
 -- Omar (44…) is our fresh business registrant; Layla (11…) is an unrelated caller.
 update auth.users set email_confirmed_at = now()
   where id in ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-111111111111');
@@ -69,7 +54,7 @@ select lives_ok(
   $$ select public.business_save(p_display_name => null) $$,
   'business_save opens a draft even before any answer is given');
 select throws_ok(
-  $$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+  $$ select public.business_submit() $$,
   '22023', null, 'submit requires a business name');
 select lives_ok(
   $$ select public.business_save(p_display_name => '  Al-Noor Supply  ') $$,
@@ -78,13 +63,13 @@ select is((select display_name from public.business_creation_drafts
            where user_id='44444444-4444-4444-8444-444444444444' and completed_at is null),
   'Al-Noor Supply', 'the display name is trimmed and persisted');
 select throws_ok(
-  $$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+  $$ select public.business_submit() $$,
   '22023', null, 'submit requires a business type');
 select lives_ok(
   $$ select public.business_save(p_display_name => 'Al-Noor Supply', p_org_type => 'supplier') $$,
   'business_save records the type before the legal name is known');
 select throws_ok(
-  $$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+  $$ select public.business_submit() $$,
   '22023', 'a legal business name is required', 'submit requires a legal business name');
 
 -- ===== successful creation (no owner confirmation is asked for) =====
@@ -93,7 +78,7 @@ select lives_ok(
        p_org_type => 'supplier', p_primary_branch_name => 'Cairo HQ') $$,
   'business_save records the org type and primary branch');
 select lives_ok(
-  $$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+  $$ select public.business_submit() $$,
   'business_submit creates the organization');
 
 -- The legal name is persisted on the organization (private); the display name stays the organization name.
@@ -139,7 +124,7 @@ select is((select public.my_registration_state()), 'active_personal',
 
 -- Idempotent: re-submitting returns the same org, does not create a second one.
 select lives_ok(
-  $$ select pg_temp.complete_business_fixture(); select public.business_submit() $$,
+  $$ select public.business_submit() $$,
   'business_submit is idempotent after the org exists');
 select is(
   (select count(*)::int from public.organizations where created_by='44444444-4444-4444-8444-444444444444'),

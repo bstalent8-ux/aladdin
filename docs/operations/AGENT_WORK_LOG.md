@@ -1,5 +1,18 @@
 # Agent Work Log
 
+# 2026-10-14 — PR #84 independent blocker fixes under concurrent CAPTCHA work
+
+Purpose: resolve additive migration compatibility, authoritative business-phone validation and expired/revoked historical seller authorization while retaining Draft status and no paid/hosted authentication changes.
+
+Safety: inventoried existing worktrees and tracked/untracked changes read-only. Unexpected CAPTCHA/environment/E2E changes are externally owned; seven paths are hashed outside the repository and excluded from edits/staging. Only the already owned business validation/actions/types, pending migrations, database regressions, CI parity step and task documentation are changed. No global staging, resets, stashes, branch creation, service restarts or original-directory edits.
+
+Implementation: retain deployed nine-argument save and submit; add v2 RPC names. Generate 245 private country plans from existing pinned max metadata; apply canonical E.164/number-type checks at database write boundary. Separate current legacy approval from optional-address exception; test expiry/revocation/suspension without unpublishing products. ADR-0016 records provenance and maintenance.
+
+Executed validation: migration-policy zero failures/exemptions; typecheck passed; focused Vitest three files59passed/0failed. All migrations/seeds replayed into a new empty local acceptance database. Full DB CLI timed out; Docker control API500 prevents completion and parity rerun. Earlier 9,058-case parity identified transport-limit differences; application/expected cases now explicitly reject >15digits, acceptance rerun remains required. Full old-head GitHub results are historical, not new-head acceptance.
+
+Read-only hosted review: staging Free, native CAPTCHA off, no hooks, signups/signins30/5min/IP, refresh150/5min/IP, token verification30/5min/IP, forwarding off. Acceptance dashboard required login and remains unverified. Separate security options report covers direct origins, distributed attacks, costs and identity migration; no approved lower-cost provider-level guarantee yet. Pending: fresh CI full DB/parity, any failures, task-only browser acceptance after concurrency/runtime resolution, architectural decision. PR remains Draft; no merge/deploy/cleanup.
+
+
 ## 2026-10-14 — Final Showroom security and approved legacy rollout
 
 **Purpose/current decision:** UI approved; owner authorized commit/push/draft PR, preserving original checkout. Address optional onboarding, mandatory approval/activation/new selling; captured old products/orders continue for historical approved businesses. [ADR-0015](../decisions/ADR-0015-showroom-address-selling-rollout.md).
