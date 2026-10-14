@@ -117,6 +117,20 @@ Full design, idempotency model, image matching and worker contract: [`marketplac
 * Chunked (≤2000 rows per call), each row in its own sub-transaction, leased and resumable; dry-run mode validates and reports without writing products.
 * Nothing in the import path can publish or verify media; publication stays behind the Migration 04 blockers.
 
+## Migration 06 — trusted seller product writes
+
+`20261014090001_marketplace_seller_product_writes.sql`. The write layer the seller UI uses — no client gains a table write grant.
+
+| RPC (authenticated) | Purpose |
+|---|---|
+| `marketplace_seller_product_save(jsonb)` | create (always **draft**) or update a product with its variants and dynamic attributes in one atomic call; variants missing from the form are deactivated, never deleted; a published product edited into a blocked state is unpublished |
+| `marketplace_seller_product_get(uuid)` / `_readiness(uuid)` | the seller's own product for editing / its publication blockers (members only) |
+| `marketplace_seller_default_location(uuid)` | ensures the organization's main stock location |
+| `marketplace_seller_stock_adjust(...)` | +/- stock through `marketplace_stock_apply` (ledger, row lock, idempotency key, optional expected on-hand; reserved units cannot be removed) |
+| `marketplace_seller_image_request_upload / _confirm_upload / _images_update / _image_remove` | images: server-issued org/product key + pending row; the storage INSERT policy requires that row; confirm succeeds only if the object exists in storage (records real size/type); uploads stay `status = pending` (never auto-verified) |
+
+Every write re-checks: authenticated caller, active member with `catalog.write` / `catalog.publish` / `org.manage`, enabled (approved, eligible) seller, ownership. Refusals are `mp:<code>[:detail]`. New private bucket `marketplace-product-images` (5 MB, jpeg/png/webp) with three storage policies; `marketplace_product_images.upload_state` added. Test `47_` updated for the three reviewed policies and ONE named exception to "no function reads storage.objects" (the upload confirmation). Tests: `95_` (76) + `marketplace_seller_stock_concurrency_test.sh`.
+
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
@@ -128,8 +142,8 @@ Full design, idempotency model, image matching and worker contract: [`marketplac
 | Check | Result |
 |---|---|
 | Isolated local stack (`project_id = aladdin-marketplace`, ports 544xx; machine-local, not committed) | ✅ |
-| `supabase db reset` — all **109** migrations (01–05 included) + seeds | ✅ |
-| `supabase test db` — whole suite, **92 files / 4199 tests** | ✅ **PASS** |
+| `supabase db reset` — all **110** migrations (01–06 included) + seeds | ✅ |
+| `supabase test db` — whole suite, **93 files / 4275 tests** | ✅ **PASS** |
 | `90_` taxonomy (63) · `91_` product core (99) · `92_` inventory (101) · `93_` seller enablement (119) · `94_` bulk import (126) | ✅ |
 | Existing B2B / RLS suites (01–89) | ✅ no regression (only edits: `85_` now pins the 25 original permissions + role mappings by content hash and verifies the two Marketplace permissions) |
 | `marketplace_stock_concurrency_test.sh` — real parallel sessions (oversell, same-key, 10-way stampede) | ✅ PASS |

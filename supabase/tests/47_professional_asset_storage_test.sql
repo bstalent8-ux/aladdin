@@ -212,11 +212,16 @@ select ok(
 -- select-published), for 11 total. Updated here rather than left stale,
 -- since this file's own point is to name every policy explicitly so a NEW
 -- one cannot pass quietly — the avatars bucket is a reviewed addition, named.
+-- Marketplace Migration 06 (20261014090001) adds the private
+-- marketplace-product-images bucket with the same pending-row shape and NO
+-- public door: insert (needs a server-issued pending row) / select (members of
+-- the owning organization) / delete (only once no confirmed row references the
+-- object): 3 more, 14 total. Reviewed addition, named below.
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  11,
-  'Eleven policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors'
+  14,
+  'Fourteen policies on storage.objects: three each for certificates/portfolio/avatars/marketplace images, plus two public doors'
 );
 
 select is(
@@ -227,6 +232,9 @@ select is(
     'avatars_insert_authorized',
     'avatars_select_own',
     'avatars_select_published',
+    'marketplace_images_delete_unreferenced',
+    'marketplace_images_insert_authorized',
+    'marketplace_images_select_member',
     'professional_certificates_delete_own',
     'professional_certificates_insert_own',
     'professional_certificates_select_own',
@@ -690,12 +698,17 @@ select is(
 -- the traffic runs the other way, with storage policies consulting the metadata.
 -- So the product still cannot ask a question of the byte store, and a file still
 -- cannot be an input to any authorization decision.
+-- ONE NAMED EXCEPTION (Marketplace Migration 06): marketplace_seller_image_confirm_upload
+-- reads storage.objects to prove the bytes really exist before an upload is
+-- recorded as confirmed (and to take the real size / type). It is not an
+-- authorization input — the storage policies still consult only metadata — and it
+-- never trusts the client's word that an upload happened.
 select is(
-  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('app', 'public')
       and p.prosrc like '%storage.objects%'),
-  0,
-  'No app/public function reads storage.objects: metadata points AT objects, and nothing in the product reads back from them'
+  array['marketplace_seller_image_confirm_upload'],
+  'Only the Marketplace upload confirmation reads storage.objects (existence + size); metadata still points AT objects everywhere else'
 );
 
 select * from finish();
