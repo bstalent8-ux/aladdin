@@ -6,12 +6,19 @@ import type { Database } from "@/types/database.types";
 export type PlatformRole = "support" | "moderator" | "administrator";
 
 /**
- * The caller's platform (staff) role, or null for an ordinary user. Derived from
- * `platform_role_grants`, which every authenticated user may read for THEIR OWN
- * row (RLS `platform_role_grants_select_self`) — a non-staff caller simply reads
- * zero rows. Platform authority NEVER comes from `primary_account_type`; it is
- * only ever this grant (ADR-0007 / PRODUCT_DIRECTION_GUIDE). RLS remains the real
- * boundary on every admin query; this only decides what chrome to render.
+ * The caller's platform (staff) role, or null for an ordinary user.
+ *
+ * Derived from the Admin RBAC source of truth — `admin_my_access()`, i.e. the
+ * caller's active `admin_role_assignments` — mapped onto the console's three
+ * chrome tiers by RANK, exactly as the database's own `app.is_platform()` gate
+ * does (administrator >= 80, moderator >= 60, support >= 1). Reading the legacy
+ * `platform_role_grants` table here (as this used to) left an account provisioned
+ * through the documented path — `admin_prepare_platform_account` then the one-time
+ * `admin_bootstrap_super_admin` — locked out of /admin, because that path writes
+ * an RBAC assignment only (a Super Admin has no legacy grant tier to mirror into).
+ * Platform authority NEVER comes from `primary_account_type`. RLS and the RPCs
+ * remain the real boundary on every admin query; this only decides what chrome
+ * to render.
  */
 export async function loadPlatformRole(
   supabase: SupabaseClient<Database>,
@@ -21,13 +28,15 @@ export async function loadPlatformRole(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
-    .from("platform_role_grants")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("admin_my_access");
   if (error || !data) return null;
-  return data.role as PlatformRole;
+  const access = data as { is_staff?: boolean; rank?: number };
+  if (!access.is_staff) return null;
+  const rank = Number(access.rank ?? 0);
+  if (rank >= 80) return "administrator";
+  if (rank >= 60) return "moderator";
+  if (rank >= 1) return "support";
+  return null;
 }
 
 /** True when the caller may open the Admin surface (any staff role). */

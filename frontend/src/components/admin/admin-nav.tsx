@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
-import { GaugeIcon, UsersIcon, BuildingIcon, BadgeCheckIcon, ScrollIcon } from "@/components/ui/icons";
+import { GaugeIcon, UsersIcon, BuildingIcon, BadgeCheckIcon, ScrollIcon, StorefrontIcon, CameraIcon } from "@/components/ui/icons";
 
 type Item = { href: string; key: string; exact: boolean; Icon: ComponentType<{ size?: number }> };
 
@@ -14,6 +14,8 @@ const items: Item[] = [
   { href: "/admin/users", key: "admin.nav.users", exact: false, Icon: UsersIcon },
   { href: "/admin/organizations", key: "admin.nav.organizations", exact: false, Icon: BuildingIcon },
   { href: "/admin/verifications", key: "admin.nav.verifications", exact: false, Icon: BadgeCheckIcon },
+  { href: "/admin/marketplace", key: "admin.nav.marketplace", exact: true, Icon: StorefrontIcon },
+  { href: "/admin/marketplace/media", key: "admin.nav.marketplaceMedia", exact: false, Icon: CameraIcon },
   { href: "/admin/audit", key: "admin.nav.audit", exact: false, Icon: ScrollIcon },
 ];
 
