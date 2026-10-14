@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, type InputHTMLAttributes } from "react";
+import { forwardRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 
@@ -21,18 +21,19 @@ const fieldBase =
  */
 export const PasswordInput = forwardRef<
   HTMLInputElement,
-  InputHTMLAttributes<HTMLInputElement>
->(function PasswordInput({ className, onChange, ...rest }, ref) {
+  InputHTMLAttributes<HTMLInputElement> & { leadingIcon?: ReactNode }
+>(function PasswordInput({ className, onChange, leadingIcon, ...rest }, ref) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
 
   return (
     <div className="relative">
+      {leadingIcon ? <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-fg-muted">{leadingIcon}</span> : null}
       <input
         ref={ref}
         type={visible ? "text" : "password"}
         onChange={onChange}
-        className={cn(fieldBase, "min-h-11 pe-11", className)}
+        className={cn(fieldBase, "min-h-11 pe-11", leadingIcon ? "ps-11" : undefined, className)}
         {...rest}
       />
       <button

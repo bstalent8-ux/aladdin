@@ -1,4 +1,7 @@
 "use server";
+import { authFormWithinLimit } from "@/lib/auth/form-limits";
+import { loginPasswordSchema } from "@/features/auth-password-preview/password-policy";
+
 
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
@@ -14,7 +17,7 @@ import {
 } from "@/lib/supabase/recovery-grant";
 import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
 import { sanitizeNext } from "@/server/auth/next";
-import { clientIpFrom, verifyTurnstileToken } from "@/server/auth/turnstile";
+import { captchaTokenFrom, isCaptchaFailure } from "@/server/auth/captcha";
 import { resolveActiveLanding } from "@/server/queries/landing";
 import { hasAppAccess, type RegistrationState } from "@/server/queries/registration";
 import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
@@ -138,21 +141,23 @@ function isRateLimitError(error: GoTrueError): boolean {
 }
 
 /**
- * APPLICATION-SCOPED CAPTCHA gate (server/auth/turnstile.ts): the token is
- * verified with Cloudflare Siteverify HERE, before Supabase Auth is called —
- * Supabase's global `[auth.captcha]` stays OFF, so nothing downstream would
- * ever judge it. Fails closed. Returns the neutral error code to show, or
- * null when the token verified. Never exposes Cloudflare's own error codes.
+ * GOTRUE-VALIDATED CAPTCHA (server/auth/captcha.ts). Every operation in this
+ * module that GoTrue itself processes - signUp, resend, resetPasswordForEmail,
+ * signInWithPassword - forwards the Turnstile token through the supported
+ * `captchaToken` option and lets GoTrue judge it (Supabase's `[auth.captcha]`
+ * is ON for protected environments). The application does NOT also call
+ * Siteverify for these tokens: a Turnstile token is single-use, so a second
+ * validation would fail with `timeout-or-duplicate`. A missing token is
+ * refused HERE, before any GoTrue call, so no email is sent and no account is
+ * touched for an unchallenged request. Fails closed. Never exposes
+ * Cloudflare's or GoTrue's own error text.
  */
-async function captchaFailure(formData: FormData): Promise<string | null> {
-  const h = await headers();
-  const verdict = await verifyTurnstileToken(formData.get("captchaToken"), {
-    remoteIp: clientIpFrom((name) => h.get(name)),
-  });
-  if (verdict.ok) return null;
-  return verdict.reason === "missing"
-    ? "authPasswordPreview.error.captchaRequired"
-    : "authPasswordPreview.error.captchaRejected";
+const CAPTCHA_REQUIRED = "authPasswordPreview.error.captchaRequired";
+const CAPTCHA_REJECTED = "authPasswordPreview.error.captchaRejected";
+
+function requireCaptcha(formData: FormData): { token: string } | { code: string } {
+  const token = captchaTokenFrom(formData);
+  return token ? { token } : { code: CAPTCHA_REQUIRED };
 }
 
 /**
@@ -282,6 +287,7 @@ export async function requestPasswordSignUp(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const parsed = registrationSchema.safeParse({
     displayName: formData.get("displayName"),
     email: formData.get("email"),
@@ -308,9 +314,9 @@ export async function requestPasswordSignUp(
     return { ok: false, code: "authPasswordPreview.error.consentRequired", email: parsed.data.email };
   }
 
-  // Only a Cloudflare-verified token lets signUp() run at all.
-  const captchaCode = await captchaFailure(formData);
-  if (captchaCode) return { ok: false, code: captchaCode, email: parsed.data.email };
+  // No token, no signUp(). GoTrue judges the token itself (single validation).
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code, email: parsed.data.email };
 
   const supabase = await getServerSupabase();
 
@@ -341,9 +347,14 @@ export async function requestPasswordSignUp(
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: { data: { display_name: parsed.data.displayName, locale } },
+    options: { data: { display_name: parsed.data.displayName, locale }, captchaToken: captcha.token },
   });
   if (error) {
+    // A failed challenge is judged before any account logic runs, so it says
+    // nothing about the email; it is the only error shown as a CAPTCHA error.
+    if (isCaptchaFailure(error as GoTrueError)) {
+      return { ok: false, code: CAPTCHA_REJECTED, email: parsed.data.email };
+    }
     if (isRateLimitError(error as GoTrueError)) {
       return { ok: false, code: "authPasswordPreview.error.rateLimited", email: parsed.data.email };
     }
@@ -404,19 +415,24 @@ export async function resendPasswordSignUpCode(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return { ok: false, code: "authPasswordPreview.error.invalidEmail" };
 
-  const captchaCode = await captchaFailure(formData);
-  if (captchaCode) return { ok: false, code: captchaCode, email: email.data };
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code, email: email.data };
 
   const supabase = await getServerSupabase();
   const callStart = Date.now();
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: email.data,
+    options: { captchaToken: captcha.token },
   });
   if (error) {
+    if (isCaptchaFailure(error as GoTrueError)) {
+      return { ok: false, code: CAPTCHA_REJECTED, email: email.data };
+    }
     if (isRateLimitError(error as GoTrueError)) {
       return { ok: false, code: "authPasswordPreview.error.rateLimited", email: email.data };
     }
@@ -441,6 +457,7 @@ export async function verifyPasswordSignUp(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const email = emailSchema.safeParse(formData.get("email"));
   const token = formData.get("token");
   if (!email.success) return { ok: false, code: "authPasswordPreview.error.invalidEmail" };
@@ -525,7 +542,11 @@ export async function verifyPasswordSignUp(
     if (accountTypeError) redirect(FINISH_REGISTRATION_PATH);
   }
 
-  return postSessionRedirect(supabase, "/onboarding");
+  // A new user who arrived from an employee invitation returns to it; every
+  // other `next` is ignored here (only the invitation entry is honored, and
+  // `sanitizeNext` has already confined it to a same-origin path).
+  const requestedNext = sanitizeNext(formData.get("next"));
+  return postSessionRedirect(supabase, requestedNext.startsWith("/auth/invite/") ? requestedNext : "/onboarding");
 }
 
 /**
@@ -573,23 +594,30 @@ export async function passwordSignIn(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const email = emailSchema.safeParse(formData.get("email"));
   const password = formData.get("password");
-  if (!email.success || typeof password !== "string" || password.length === 0) {
+  if (!email.success || typeof password !== "string" || !loginPasswordSchema.safeParse(password).success) {
     return { ok: false, code: "authPasswordPreview.error.invalidCredentials" };
   }
 
-  // No CAPTCHA on Sign In, by design: CAPTCHA is application-scoped to
-  // Create Account and Forgot Password (server/auth/turnstile.ts), and
-  // Supabase's global [auth.captcha] stays OFF, so password sign-in carries
-  // no token and no added friction. Brute force is bounded by GoTrue's own
-  // rate limits.
+  // GoTrue's password grant is CAPTCHA-protected whenever `[auth.captcha]` is
+  // on (it cannot be scoped per endpoint), so the sign-in form carries an
+  // interaction-only Turnstile widget and the token is forwarded for GoTrue to
+  // judge. Brute force is additionally bounded by GoTrue's own rate limits.
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code, email: email.data };
+
   const supabase = await getServerSupabase();
   const { error } = await supabase.auth.signInWithPassword({
     email: email.data,
     password,
+    options: { captchaToken: captcha.token },
   });
   if (error) {
+    if (isCaptchaFailure(error as GoTrueError)) {
+      return { ok: false, code: CAPTCHA_REJECTED, email: email.data };
+    }
     if (isRateLimitError(error as GoTrueError)) {
       return { ok: false, code: "authPasswordPreview.error.rateLimited", email: email.data };
     }
@@ -611,17 +639,20 @@ export async function requestRecoveryCode(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return { ok: false, code: "authPasswordPreview.error.invalidEmail" };
 
-  // Same application-scoped gate as Create Account: no recovery email is ever
-  // requested for an unverified token.
-  const captchaCode = await captchaFailure(formData);
-  if (captchaCode) return { ok: false, code: captchaCode, email: email.data };
+  // No token, no recovery email: GoTrue judges the forwarded token itself.
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code, email: email.data };
 
   const isolated = createIsolatedAuthClient();
   const redirectTo = await absoluteUrl(`${RECOVERY_FLOW_PATH}/reset`);
-  const { error } = await isolated.auth.resetPasswordForEmail(email.data, { redirectTo });
+  const { error } = await isolated.auth.resetPasswordForEmail(email.data, { redirectTo, captchaToken: captcha.token });
+  if (error && isCaptchaFailure(error as GoTrueError)) {
+    return { ok: false, code: CAPTCHA_REJECTED, email: email.data };
+  }
 
   // Rate limiting and a rejected captcha are the only signals allowed to
   // differ (§Forgot-password privacy) — neither reveals whether the account
@@ -660,6 +691,7 @@ export async function verifyRecoveryCode(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const store = await cookies();
   const email = store.get(RECOVERY_EMAIL_COOKIE)?.value;
   const token = formData.get("token");
@@ -701,18 +733,24 @@ export async function verifyRecoveryCode(
 /** Screen 2's resend — same cookie-sourced email, same isolated client, same neutral-safe rate-limit surfacing. */
 export async function resendRecoveryCode(
   _prev: PasswordAuthState,
-  // useActionState requires this shape; the resend has nothing to read from the form.
-  _formData: FormData,
+  formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   void _prev;
-  void _formData;
+  // The destination email still comes from the server-side cookie, never the
+  // form. The form carries only the CAPTCHA token GoTrue requires for a send.
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code };
   const store = await cookies();
   const email = store.get(RECOVERY_EMAIL_COOKIE)?.value;
   if (!email) return { ok: false, code: "authPasswordPreview.error.recoveryStateMissing" };
 
   const isolated = createIsolatedAuthClient();
   const redirectTo = await absoluteUrl(`${RECOVERY_FLOW_PATH}/reset`);
-  const { error } = await isolated.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await isolated.auth.resetPasswordForEmail(email, { redirectTo, captchaToken: captcha.token });
+  if (error && isCaptchaFailure(error as GoTrueError)) {
+    return { ok: false, code: CAPTCHA_REJECTED, email };
+  }
   if (error && isRateLimitError(error as GoTrueError)) {
     return { ok: false, code: "authPasswordPreview.error.rateLimited", email };
   }
@@ -745,6 +783,7 @@ export async function resetPasswordAndSignOut(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const store = await cookies();
   const grant = decryptRecoveryGrant(store.get(RECOVERY_GRANT_COOKIE)?.value);
   if (!grant) {
@@ -848,6 +887,7 @@ export async function completeMigration(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const supabase = await getServerSupabase();
   const {
     data: { user },
@@ -882,6 +922,7 @@ export async function changePassword(
   _prev: PasswordAuthState,
   formData: FormData,
 ): Promise<PasswordAuthState> {
+  if (!authFormWithinLimit(formData)) return { ok: false, code: "authPasswordPreview.error.passwordTooLong" };
   const supabase = await getServerSupabase();
   const {
     data: { user },
@@ -890,16 +931,32 @@ export async function changePassword(
   await redirectPhoneLoginAccount(supabase, user.email);
 
   const currentPassword = formData.get("currentPassword");
-  if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+  if (typeof currentPassword !== "string" || !loginPasswordSchema.safeParse(currentPassword).success) {
     return { ok: false, code: "authPasswordPreview.error.currentPasswordRequired" };
   }
-  const { error: reauthError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+  // The current-password check is a password grant, which GoTrue protects with
+  // CAPTCHA, so it carries a token. It runs on an ISOLATED, non-persisting
+  // client: a grant on the cookie-backed client would mint and store a NEW
+  // session in place of the caller's own. The isolated session is revoked
+  // immediately and never reaches the browser.
+  const captcha = requireCaptcha(formData);
+  if ("code" in captcha) return { ok: false, code: captcha.code };
+  const checker = createIsolatedAuthClient();
+  const { error: reauthError } = await checker.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+    options: { captchaToken: captcha.token },
+  });
   if (reauthError) {
+    if (isCaptchaFailure(reauthError as GoTrueError)) {
+      return { ok: false, code: CAPTCHA_REJECTED };
+    }
     if (isRateLimitError(reauthError as GoTrueError)) {
       return { ok: false, code: "authPasswordPreview.error.rateLimited" };
     }
     return { ok: false, code: "authPasswordPreview.error.currentPasswordWrong" };
   }
+  try { await checker.auth.signOut({ scope: "local" }); } catch { /* best effort: the throwaway session expires on its own */ }
 
   const parsed = passwordWithContextSchema([user.email]).safeParse(formData.get("newPassword"));
   const confirm = formData.get("confirmNewPassword");

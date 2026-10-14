@@ -45,7 +45,12 @@ const RESEND_COOLDOWN_SECONDS = 30;
  * and never receives a code has an immediate, non-suspicious way out instead
  * of waiting indefinitely on a code that GoTrue never actually sent.
  */
-export function PasswordSignUpForm() {
+/**
+ * `next` is set only when the person arrived from an employee invitation
+ * (`/auth/invite/...`); it rides the verify step so a brand-new user returns to
+ * the invitation after the email code instead of landing on generic onboarding.
+ */
+export function PasswordSignUpForm({ next }: { next?: string } = {}) {
   const { t } = useI18n();
   const [sendState, dispatchSend] = useActionState(requestPasswordSignUp, initial);
   const [resendState, dispatchResend] = useActionState(resendPasswordSignUpCode, initial);
@@ -268,7 +273,7 @@ export function PasswordSignUpForm() {
             )}
           </fieldset>
 
-          <TurnstileWidget resetKey={sendState} />
+          <TurnstileWidget action="sign-up" resetKey={sendState} />
           {sendState.code === "authPasswordPreview.error.captchaRequired" ||
           sendState.code === "authPasswordPreview.error.captchaRejected" ? (
             <p role="alert" className="text-label text-danger">
@@ -291,6 +296,7 @@ export function PasswordSignUpForm() {
               comment). */}
           <form action={dispatchVerify} className="flex flex-col gap-md" noValidate>
             <input type="hidden" name="email" value={email} />
+            {next ? <input type="hidden" name="next" value={next} /> : null}
             <LabeledField
               label={t("authPasswordPreview.codeLabel")}
               htmlFor="token"
@@ -306,7 +312,7 @@ export function PasswordSignUpForm() {
           <div className="flex items-center justify-between gap-sm border-t pt-md">
             <form action={dispatchResend} className="flex items-center gap-sm">
               <input type="hidden" name="email" value={email} />
-              <TurnstileWidget resetKey={resendState} />
+              <TurnstileWidget action="sign-up-resend" resetKey={resendState} />
               <ResendButton cooldown={cooldown} />
             </form>
             <Button type="button" variant="ghost" size="sm" onClick={() => setEditingEmail(true)}>

@@ -16,6 +16,21 @@ create extension if not exists pgtap;
 begin;
 select plan(37);
 
+-- Complete ONLY test fixtures for the updated creation contract. This temporary
+-- function rolls back with this test; no production row or authorization rule changes.
+create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
+begin
+ update public.business_creation_drafts set
+ governorate=coalesce(governorate,'cairo'),
+ city=case when governorate is null then 'maadi' else city end,
+ detailed_address=coalesce(detailed_address,'10 Fixture Street'),
+ contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
+ activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
+ where user_id=(select auth.uid()) and completed_at is null;
+end;
+$fixture$;
+
+
 -- Ahmed (44…) is our multi-business identity: a personal ENGINEER who will also
 -- own two businesses of different types. Layla (11…) is an unrelated caller.
 update auth.users set email_confirmed_at = now()
@@ -103,7 +118,7 @@ select isnt(public.business_draft_save(
 -- C + D. Transactional creation, idempotent per draft
 -- ===========================================================================
 select lives_ok(
-  $$ select public.business_draft_submit(
+  $$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(
        (select id from public.business_creation_drafts
         where user_id='44444444-4444-4444-8444-444444444444' and completed_at is null)) $$,
   'C: submitting the draft creates the business');
@@ -178,7 +193,7 @@ select isnt(public.business_draft_save(
   p_legal_name => 'AH Import LLC', p_display_name => 'AH Import', p_org_type => 'importer',
   p_primary_branch_name => 'Port Said'), null, 'E: the same user can open a NEW business draft');
 select lives_ok(
-  $$ select public.business_draft_submit(
+  $$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(
        (select id from public.business_creation_drafts
         where user_id='44444444-4444-4444-8444-444444444444' and completed_at is null)) $$,
   'E: the second draft creates a second business');

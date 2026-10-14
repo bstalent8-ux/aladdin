@@ -1,5 +1,26 @@
 # Agent Work Log
 
+## 2026-10-14 — Final Showroom security and approved legacy rollout
+
+**Purpose/current decision:** UI approved; owner authorized commit/push/draft PR, preserving original checkout. Address optional onboarding, mandatory approval/activation/new selling; captured old products/orders continue for historical approved businesses. [ADR-0015](../decisions/ADR-0015-showroom-address-selling-rollout.md).
+
+**Scope/implementation:** Existing shared Installer/Showroom auth, canonical routes and transactional business wizard extended; four forward-only local migrations, private auditable historical exceptions and server/DB selling guards. Original14baseline hashes unchanged; no additional worktree, no hosted writes, no merge/deployment.
+
+**Verification:** pnpm typecheck passed; pnpm lint0errors/1pre-existing warning; Vitest full2793pass/13skip and finalfocused232pass; nextbuild passed; Chromium Playwright24pass/0fail; sequential local pgTAP90/91/92 116pass. Earlier fullDB90files3794pass; latest fullDB90files3615executed21failed in6files with aborted plans due retained browser fixtures/seed-only assumptions, not concealed or fixed by audit deletion. Native-auth account-quota diagnostic failed coverage (HTTP400 reached credential verification after app quota exhausted). All original reference PNG hashes match. Local preview3341 retained; API63321/DB63322 only. Relative documentation links checked during packaging.
+
+**Consequences/deferred:** Draft PR blocked for merge/deployment by native Supabase per-account quota gap; connected organization Free cannot use paid password verification hook without separate decision. Hosted policy and production legacy impact unverified. Staging2affectedshowrooms/6products IDs in feature report. Full seed-only DB suite needs pristine disposable acceptance environment. Contacts unverified; vector brand master/OAuth/recovery deferred. [Report](../frontend/showroom-business-onboarding.md).
+
+## 2026-10-14 — Showroom onboarding review updates
+
+**Purpose/current decision:** Product owner extended the authorized Showroom task to business wizard Steps 1–2, then made the detailed address optional (250 words) and description max 250 characters.
+
+**Implementation/scope:** Extended the existing draft RPCs, existing activity catalogue/assignments, organization contacts and primary-branch address; reused country-specific phone validation and existing branch/profile-completion UI. No new authentication/onboarding implementation or production changes.
+
+**Verification:** tsc --noEmit and scoped ESLint passed; focused frontend 149 tests passed; full local Supabase suite 89 files / 3761 assertions passed. Desktop/mobile browser navigation and screenshots verified; no overflow. Original 14 baseline files unchanged.
+
+**Consequences/deferred:** Unverified contacts never change login identifiers. Organization approval remains pending_verification. UI feedback and final PR packaging pending; local dev server stays on 3341, dedicated database API 63321. [Full report](../frontend/showroom-business-onboarding.md).
+
+
 ## Session — 2026-10-10: migration-first staging deployment safety
 
 - Worktree: `C:/Users/scorp/.codex/worktrees/staging-deployment-safety/aladdin`; branch `chore/staging-deployment-safety`, base `236dd48` (PR #74 merged). Not pushed; no PR yet.

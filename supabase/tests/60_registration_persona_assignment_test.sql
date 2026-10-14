@@ -9,6 +9,21 @@ create extension if not exists pgtap;
 begin;
 select plan(145);
 
+-- Complete ONLY test fixtures for the updated creation contract. This temporary
+-- function rolls back with this test; no production row or authorization rule changes.
+create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
+begin
+ update public.business_creation_drafts set
+ governorate=coalesce(governorate,'cairo'),
+ city=case when governorate is null then 'maadi' else city end,
+ detailed_address=coalesce(detailed_address,'10 Fixture Street'),
+ contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
+ activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
+ where user_id=(select auth.uid()) and completed_at is null;
+end;
+$fixture$;
+
+
 insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data,
                         email_confirmed_at, created_at, updated_at)
 select id::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', email,
@@ -123,9 +138,10 @@ select is((public.my_profile_completion() ->> 'percent')::int, 80, 'showroom: 4 
 select throws_ok($$ select public.user_trades_set(array['painting']) $$, '42501', null, 'showroom: cannot declare trades');
 select throws_ok($$ select public.user_activities_set(array['sales_rep']) $$, '22023', null, 'showroom: cannot take a persona subtype');
 select set_config('test.draft_showroom', public.business_draft_save(p_legal_name => 'P60 showroom LLC', p_display_name => 'P60 showroom', p_org_type => 'showroom_dealer', p_primary_branch_name => 'HQ')::text, true);
+select pg_temp.complete_business_fixture();
 select set_config('test.org_showroom', public.business_draft_submit(current_setting('test.draft_showroom')::uuid)::text, true);
 select is((select org_type::text from public.organizations where id = current_setting('test.org_showroom')::uuid), 'showroom_dealer', 'showroom: the organization is created only by the explicit business flow, with the intended type');
-select is((select array_agg(x order by x) from jsonb_array_elements_text(public.my_profile_completion() -> 'missing') x), array['organization_activities'], 'showroom: the owner is now asked for organization activities');
+select ok(not ((public.my_profile_completion()->'missing') ? 'organization_activities'), 'showroom: activity selected during onboarding completes the activity criterion');
 select lives_ok(format($$ select public.organization_activities_set(%L, array['decor_showroom']) $$, current_setting('test.org_showroom')), 'showroom: sets an organization subtype');
 select is((public.my_profile_completion() ->> 'percent')::int, 100, 'showroom: reaches 100%');
 select is(public.my_registration_state(), 'active_personal', 'showroom: a REAL membership is what yields active_personal');
@@ -160,6 +176,7 @@ select is((public.my_profile_completion() ->> 'percent')::int, 80, 'supplier: 4 
 select throws_ok($$ select public.user_trades_set(array['painting']) $$, '42501', null, 'supplier: cannot declare trades');
 select throws_ok($$ select public.user_activities_set(array['sales_rep']) $$, '22023', null, 'supplier: cannot take a persona subtype');
 select set_config('test.draft_supplier', public.business_draft_save(p_legal_name => 'P60 supplier LLC', p_display_name => 'P60 supplier', p_org_type => 'supplier', p_primary_branch_name => 'HQ')::text, true);
+select pg_temp.complete_business_fixture();
 select set_config('test.org_supplier', public.business_draft_submit(current_setting('test.draft_supplier')::uuid)::text, true);
 select is((select org_type::text from public.organizations where id = current_setting('test.org_supplier')::uuid), 'supplier', 'supplier: the organization is created only by the explicit business flow, with the intended type');
 select is((select array_agg(x order by x) from jsonb_array_elements_text(public.my_profile_completion() -> 'missing') x), array['organization_activities'], 'supplier: the owner is now asked for organization activities');
@@ -197,6 +214,7 @@ select is((public.my_profile_completion() ->> 'percent')::int, 80, 'manufacturer
 select throws_ok($$ select public.user_trades_set(array['painting']) $$, '42501', null, 'manufacturer: cannot declare trades');
 select throws_ok($$ select public.user_activities_set(array['sales_rep']) $$, '22023', null, 'manufacturer: cannot take a persona subtype');
 select set_config('test.draft_manufacturer', public.business_draft_save(p_legal_name => 'P60 manufacturer LLC', p_display_name => 'P60 manufacturer', p_org_type => 'manufacturer', p_primary_branch_name => 'HQ')::text, true);
+select pg_temp.complete_business_fixture();
 select set_config('test.org_manufacturer', public.business_draft_submit(current_setting('test.draft_manufacturer')::uuid)::text, true);
 select is((select org_type::text from public.organizations where id = current_setting('test.org_manufacturer')::uuid), 'manufacturer', 'manufacturer: the organization is created only by the explicit business flow, with the intended type');
 select is((select array_agg(x order by x) from jsonb_array_elements_text(public.my_profile_completion() -> 'missing') x), array['organization_activities'], 'manufacturer: the owner is now asked for organization activities');
@@ -234,6 +252,7 @@ select is((public.my_profile_completion() ->> 'percent')::int, 80, 'importer: 4 
 select throws_ok($$ select public.user_trades_set(array['painting']) $$, '42501', null, 'importer: cannot declare trades');
 select throws_ok($$ select public.user_activities_set(array['sales_rep']) $$, '22023', null, 'importer: cannot take a persona subtype');
 select set_config('test.draft_importer', public.business_draft_save(p_legal_name => 'P60 importer LLC', p_display_name => 'P60 importer', p_org_type => 'importer', p_primary_branch_name => 'HQ')::text, true);
+select pg_temp.complete_business_fixture();
 select set_config('test.org_importer', public.business_draft_submit(current_setting('test.draft_importer')::uuid)::text, true);
 select is((select org_type::text from public.organizations where id = current_setting('test.org_importer')::uuid), 'importer', 'importer: the organization is created only by the explicit business flow, with the intended type');
 select is((select array_agg(x order by x) from jsonb_array_elements_text(public.my_profile_completion() -> 'missing') x), array['organization_activities'], 'importer: the owner is now asked for organization activities');

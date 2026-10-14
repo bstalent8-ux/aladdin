@@ -60,8 +60,16 @@ beforeEach(() => {
 });
 
 describe("canonical /auth/* routes render the tested password flow", () => {
-  it("/auth/sign-up → PasswordSignUpForm", () => {
-    expect(element(SignUpPage()).type).toBe(PasswordSignUpForm);
+  it("/auth/sign-up → PasswordSignUpForm", async () => {
+    expect(element(await SignUpPage(params({}))).type).toBe(PasswordSignUpForm);
+  });
+
+  it("/auth/sign-up carries ONLY an employee-invitation return path", async () => {
+    const invite = element(await SignUpPage(params({ next: "/auth/invite/abc123def456ghi789jkl012" })));
+    expect(invite.props.next).toBe("/auth/invite/abc123def456ghi789jkl012");
+    for (const hostile of ["https://evil.example/x", "//evil.example", "/b2b/leads", "/admin"]) {
+      expect(element(await SignUpPage(params({ next: hostile }))).props.next).toBeUndefined();
+    }
   });
 
   it("/auth/sign-in → PasswordSignInForm with a sanitized next", async () => {

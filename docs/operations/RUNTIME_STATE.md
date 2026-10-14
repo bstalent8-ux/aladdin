@@ -518,3 +518,8 @@ pnpm --filter frontend typecheck && pnpm --filter frontend lint && pnpm --filter
 # Supabase (needs Docker)
 pnpm exec supabase start && pnpm exec supabase db reset
 ```
+
+
+## Verified local Showroom review — 2026-10-14
+
+Worktree: aladdin-wt-showroom-auth; branch feat/showroom-auth, based on origin/main c7963c9. Development preview remains http://localhost:3341, isolated local Supabase API http://127.0.0.1:63321 / database 63322. Canonical routes: /showroom/sign-in, /showroom/sign-up, /onboarding/business. UI approved; final draft PR packaging authorized, no merge/deployment. Original checkout's 14 baseline file hashes and feature/auth-password-preview branch are unchanged. Four task migrations applied only locally; temporary config/build-generated tracked files restored. Full frontend 2793 passed/13 skipped; final focused auth232 passed; browser24 passed; sequential task pgTAP116 passed; production build/typecheck passed; lint0errors/1oldwarning. Earlier full DB3794 passed; latest full DB polluted by retained browser fixtures failed21 assertions across6files/abortedplans. Native GoTrue bypasses the extra application phone quota: DRAFT/MERGE-BLOCKED pending provider-wide mitigation. Free plan hook limitation and production impact remain open. [Full report](../frontend/showroom-business-onboarding.md), [approved legacy policy](../decisions/ADR-0015-showroom-address-selling-rollout.md). Never run the historical reset commands above against this preview stack as part of this task.

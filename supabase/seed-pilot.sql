@@ -1,3 +1,14 @@
+
+-- Seed-only historical fixture bootstrap. This runs as the local DB owner,
+-- in one transaction; every guard is enabled before committing. No production
+-- caller has ALTER TABLE rights or a way to expand the private rollout ledger.
+begin;
+alter table public.organizations disable trigger showroom_activation_complete;
+alter table public.verifications disable trigger showroom_review_complete;
+alter table public.products disable trigger showroom_product_publish_complete;
+alter table public.quotations disable trigger showroom_quotation_sell_complete;
+alter table public.orders disable trigger trg_zz_showroom_order_sell_complete;
+alter table public.branches disable trigger showroom_live_address_required;
 -- ===========================================================================
 -- Aladdin Pilot world (Sprint 11) — deterministic, CONNECTED demo data.
 --
@@ -1216,3 +1227,15 @@ insert into public.user_trades (user_id, trade_id, is_primary)
 select '72000001-0000-4000-8000-000000000001'::uuid, t.id, true
 from public.trades t where t.key = 'hvac'
 on conflict (user_id, trade_id) do nothing;
+
+-- Synthetic pre-rollout fixture cohort: active/approved only.
+insert into app.showroom_legacy_seller_exceptions(organization_id,closed_at,reason) select o.id,case when app.showroom_address_complete(o.id) then now() else null end,'Synthetic local pre-rollout approved business' from public.organizations o where o.org_type='showroom_dealer' and o.status='active' and o.is_verified and o.deleted_at is null on conflict do nothing;
+insert into app.showroom_legacy_published_products(product_id,organization_id) select p.id,p.organization_id from public.products p join app.showroom_legacy_seller_exceptions e on e.organization_id=p.organization_id where e.closed_at is null and p.status='published' and p.deleted_at is null on conflict do nothing;
+insert into app.showroom_legacy_orders(order_id,organization_id) select o.id,o.supplier_org_id from public.orders o join app.showroom_legacy_seller_exceptions e on e.organization_id=o.supplier_org_id where e.closed_at is null on conflict do nothing;
+alter table public.organizations enable trigger showroom_activation_complete;
+alter table public.verifications enable trigger showroom_review_complete;
+alter table public.products enable trigger showroom_product_publish_complete;
+alter table public.quotations enable trigger showroom_quotation_sell_complete;
+alter table public.orders enable trigger trg_zz_showroom_order_sell_complete;
+alter table public.branches enable trigger showroom_live_address_required;
+commit;

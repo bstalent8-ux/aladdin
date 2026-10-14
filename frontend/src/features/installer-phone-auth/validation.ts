@@ -1,4 +1,4 @@
-import { toCanonicalPhone, DEFAULT_PHONE_COUNTRY, type CanonicalPhone } from "@/lib/contact/phone";
+import { toCanonicalPhone, DEFAULT_PHONE_COUNTRY, type CanonicalPhone, toAsciiDigits, splitE164 } from "@/lib/contact/phone";
 import {
   PASSWORD_MAX_BYTES,
   PASSWORD_MIN_LENGTH,
@@ -31,12 +31,7 @@ type Err = { ok: false; code: string };
  * digits. Map them to ASCII before parsing so a valid number is not rejected
  * for its script.
  */
-export function toAsciiDigits(value: string): string {
-  return value.replace(/[٠-٩۰-۹]/g, (d) => {
-    const code = d.charCodeAt(0);
-    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660);
-  });
-}
+export { toAsciiDigits } from "@/lib/contact/phone";
 
 export function parseFullName(input: unknown): { ok: true; value: string } | Err {
   const value = typeof input === "string" ? input.trim().replace(/\s+/g, " ") : "";
@@ -45,10 +40,12 @@ export function parseFullName(input: unknown): { ok: true; value: string } | Err
   return { ok: true, value };
 }
 
-export function parsePhone(input: unknown): { ok: true; value: CanonicalPhone } | Err {
+export function parsePhone(input: unknown, country?: unknown): { ok: true; value: CanonicalPhone } | Err {
   const raw = typeof input === "string" ? toAsciiDigits(input).trim() : "";
   if (raw.length === 0) return { ok: false, code: "temporaryCraftsman.error.phoneInvalid" };
-  const canonical = toCanonicalPhone(raw, DEFAULT_PHONE_COUNTRY);
+  const selectedCountry = country ?? (raw.startsWith("+") || raw.startsWith("00") ? splitE164(raw.replace(/^00/, "+"))?.countryIso2 : null) ?? DEFAULT_PHONE_COUNTRY;
+  if (raw.length > 64 || typeof selectedCountry !== "string") return { ok: false, code: "temporaryCraftsman.error.phoneInvalid" };
+  const canonical = toCanonicalPhone(raw, selectedCountry as typeof DEFAULT_PHONE_COUNTRY);
   if (!canonical) return { ok: false, code: "temporaryCraftsman.error.phoneInvalid" };
   return { ok: true, value: canonical };
 }
@@ -62,10 +59,11 @@ export function checkNewPassword(
   password: unknown,
   context: { phone?: CanonicalPhone | null; name?: string | null } = {},
 ): { ok: true; value: string } | Err {
-  if (typeof password !== "string" || password.length < PASSWORD_MIN_LENGTH) {
+  if (typeof password === "string" && password.length > PASSWORD_MAX_BYTES) return { ok: false, code: "temporaryCraftsman.error.passwordTooLong" };
+  if (typeof password !== "string" || Array.from(password).length < PASSWORD_MIN_LENGTH) {
     return { ok: false, code: "temporaryCraftsman.error.passwordTooShort" };
   }
-  if (passwordByteLength(password) > PASSWORD_MAX_BYTES) {
+  if (password.length > PASSWORD_MAX_BYTES || passwordByteLength(password) > PASSWORD_MAX_BYTES) {
     return { ok: false, code: "temporaryCraftsman.error.passwordTooLong" };
   }
   const identifiers: string[] = [];

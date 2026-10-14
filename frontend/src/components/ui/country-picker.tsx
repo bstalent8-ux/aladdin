@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/controls";
@@ -102,7 +103,7 @@ export function CountryPicker({
           compact && "px-2.5",
         )}
       >
-        <span aria-hidden="true">{flagEmoji(value)}</span>
+        <Image src={`/assets/country-flags/${value.toLowerCase()}.svg`} alt="" aria-hidden="true" width={24} height={18} unoptimized className="shrink-0" />
         <span dir="ltr" className="tabular-nums">+{callingCode}</span>
         <ChevronDownIcon size={15} aria-hidden="true" className={cn("ms-auto shrink-0 text-fg-secondary transition-transform", open && "rotate-180")} />
       </button>
@@ -149,7 +150,7 @@ export function CountryPicker({
                 }}
                 className={menuItemClass(selected, "min-h-10 rounded-sm")}
               >
-                <span aria-hidden="true">{flagEmoji(c.iso2)}</span>
+                <Image src={`/assets/country-flags/${c.iso2.toLowerCase()}.svg`} alt="" aria-hidden="true" width={24} height={18} unoptimized className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{c.name}</span>
                 <span dir="ltr" className="text-fg-secondary tabular-nums">+{c.callingCode}</span>
                 {selected ? <CheckIcon size={16} className="text-accent" /> : null}

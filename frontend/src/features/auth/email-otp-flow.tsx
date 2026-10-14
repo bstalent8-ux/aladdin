@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n/context";
 import type { AuthState } from "@/server/actions/auth";
 import { Input, LabeledField, SubmitButton, Button, Checkbox, ResendButton } from "@/components/ui/controls";
 import { OtpInput } from "@/components/ui/otp-input";
+import { TurnstileWidget } from "@/features/auth-password-preview/turnstile-widget";
 
 const initial: AuthState = { ok: false };
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -112,6 +113,13 @@ export function EmailOtpFlow({
         </fieldset>
       ) : null}
 
+      {/* GoTrue protects every OTP send with CAPTCHA (interaction-only: a challenge
+          appears only if Cloudflare requires one). */}
+      <TurnstileWidget action="otp-send" appearance="interaction-only" resetKey={sendState} />
+      {sendState.code === "auth.error.captchaRequired" || sendState.code === "auth.error.captchaRejected" ? (
+        <p role="alert" className="text-label text-danger">{t(sendState.code)}</p>
+      ) : null}
+
       <SubmitButton className="w-full" pendingLabel={sendingLabel} disabled={!allConsented}>
         {sendLabel}
       </SubmitButton>
@@ -148,6 +156,7 @@ export function EmailOtpFlow({
               <input type="hidden" name="consent_pilot" value="on" />
             </>
           ) : null}
+          <TurnstileWidget action="otp-resend" appearance="interaction-only" resetKey={sendState} />
           <ResendButton cooldown={cooldown} />
         </form>
         <Button type="button" variant="ghost" size="sm" onClick={() => setEditingEmail(true)}>

@@ -16,6 +16,21 @@ create extension if not exists pgtap;
 begin;
 select plan(71);
 
+-- Complete ONLY test fixtures for the updated creation contract. This temporary
+-- function rolls back with this test; no production row or authorization rule changes.
+create function pg_temp.complete_business_fixture() returns void language plpgsql security definer set search_path='' as $fixture$
+begin
+ update public.business_creation_drafts set
+ governorate=coalesce(governorate,'cairo'),
+ city=case when governorate is null then 'maadi' else city end,
+ detailed_address=coalesce(detailed_address,'10 Fixture Street'),
+ contact_phone=case when org_type='showroom_dealer' then coalesce(contact_phone,'+201012345678') else contact_phone end,
+ activity_type=case when org_type='showroom_dealer' then coalesce(activity_type,'decor_showroom') else activity_type end
+ where user_id=(select auth.uid()) and completed_at is null;
+end;
+$fixture$;
+
+
 -- ---------------------------------------------------------------------------
 -- Fixtures (all verified)
 -- ---------------------------------------------------------------------------
@@ -138,15 +153,15 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"87000001-0000-4000-8000-000000000087","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_display_name => 'Nile Showroom', p_org_type => 'showroom_dealer') $$,
   '1. a draft may be saved without a legal name while the user is still editing');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a legal business name is required',
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'a legal business name is required',
   '1b. a Showroom cannot complete without a legal name');
 select lives_ok($$ select public.business_draft_save(p_legal_name => '   ', p_display_name => 'Nile Showroom', p_org_type => 'showroom_dealer') $$,
   '1c. a whitespace-only legal name is saved as empty');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a legal business name is required',
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'a legal business name is required',
   '1d. ...and still cannot complete');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'A', p_display_name => 'Nile Showroom', p_org_type => 'showroom_dealer') $$,
   '1e. a one-character legal name can be saved as a draft');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'the legal business name must be 2..120 characters',
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'the legal business name must be 2..120 characters',
   '1f. ...but is too short to complete');
 select lives_ok($$ select public.business_draft_save(p_legal_name => '  Nile Showroom for Ceramics LLC  ', p_display_name => 'Nile Showroom', p_org_type => 'showroom_dealer') $$,
   '1g. the legal name is trimmed and saved');
@@ -155,7 +170,7 @@ select is((select legal_name from public.business_creation_drafts where user_id 
   'Nile Showroom for Ceramics LLC', '13. a draft resume preserves the legal name');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"87000001-0000-4000-8000-000000000087","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_submit(null) $$, '1h. with a legal name the Showroom completes (description stayed optional)');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '1h. with a legal name the Showroom completes (description stayed optional)');
 reset role;
 select is((select o.legal_name || '|' || o.name from public.organizations o where o.created_by = '87000001-0000-4000-8000-000000000087'),
   'Nile Showroom for Ceramics LLC|Nile Showroom', '9/10. organizations.legal_name = the legal name, organizations.name = the display name');
@@ -163,28 +178,28 @@ set local role authenticated;
 
 set local request.jwt.claims = '{"sub":"87000002-0000-4000-8000-000000000087","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_display_name => 'Delta Supply', p_org_type => 'supplier') $$, '2a. Supplier draft saved without legal name');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '2. a Supplier cannot complete without a legal name');
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '2. a Supplier cannot complete without a legal name');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'Delta Supply Trading Co', p_display_name => 'Delta Supply', p_org_type => 'supplier') $$, '2b. legal name added');
-select lives_ok($$ select public.business_draft_submit(null) $$, '2c. the Supplier completes');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '2c. the Supplier completes');
 
 set local request.jwt.claims = '{"sub":"87000003-0000-4000-8000-000000000087","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_display_name => 'Giza Works', p_org_type => 'manufacturer') $$, '3a. Manufacturer draft saved without legal name');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '3. a Manufacturer cannot complete without a legal name');
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '3. a Manufacturer cannot complete without a legal name');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'Giza Works Industries SAE', p_display_name => 'Giza Works', p_org_type => 'manufacturer') $$, '3b. legal name added');
-select lives_ok($$ select public.business_draft_submit(null) $$, '3c. the Manufacturer completes');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '3c. the Manufacturer completes');
 
 set local request.jwt.claims = '{"sub":"87000004-0000-4000-8000-000000000087","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_display_name => 'Port Imports', p_org_type => 'importer') $$, '4a. Importer draft saved without legal name');
-select throws_ok($$ select public.business_submit() $$, '22023', 'a legal business name is required', '4. an Importer cannot complete without a legal name (business_submit wrapper)');
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_submit() $$, '22023', 'a legal business name is required', '4. an Importer cannot complete without a legal name (business_submit wrapper)');
 select lives_ok($$ select public.business_save(p_legal_name => 'Port Imports and Trade LLC', p_display_name => 'Port Imports', p_org_type => 'importer') $$, '4b. legal name added (business_save wrapper)');
-select lives_ok($$ select public.business_submit() $$, '4c. the Importer completes');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_submit() $$, '4c. the Importer completes');
 
 -- 5. A LATER business (the /business/new path: an Engineer) needs the legal name too.
 set local request.jwt.claims = '{"sub":"87000005-0000-4000-8000-000000000087","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_display_name => 'Eng Studio', p_org_type => 'supplier') $$, '5a. an Engineer opens a later business');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '5. a later business cannot complete without a legal name');
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'a legal business name is required', '5. a later business cannot complete without a legal name');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'Eng Studio Co', p_display_name => 'Eng Studio', p_org_type => 'supplier') $$, '5b. legal name added');
-select lives_ok($$ select public.business_draft_submit(null) $$, '5c. the later business completes (any approved type, unchanged)');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '5c. the later business completes (any approved type, unchanged)');
 
 -- 12. A historical organization with a NULL legal name stays valid and readable by its member.
 set local request.jwt.claims = '{"sub":"87000010-0000-4000-8000-000000000087","role":"authenticated"}';
@@ -199,7 +214,7 @@ set local request.jwt.claims = '{"sub":"87000006-0000-4000-8000-000000000087","r
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'Mansoura Supply LLC', p_display_name => 'Mansoura Supply', p_org_type => 'supplier',
                       p_governorate => 'dakahlia', p_city => 'mansoura', p_primary_branch_name => 'Mansoura HQ') $$,
   'B1. a canonical governorate + city is accepted');
-select lives_ok($$ select public.business_draft_submit(null) $$, 'B1b. ...and creates the business');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, 'B1b. ...and creates the business');
 reset role;
 select is((select b.governorate_key || '|' || b.city_key || '|' || coalesce(b.city_custom_name, 'NULL')
              from public.branches b join public.organizations o on o.id = b.organization_id
@@ -218,7 +233,7 @@ select is((select governorate || '|' || coalesce(city, 'NULL') || '|' || city_cu
   'dakahlia|NULL|Kafr Test Village', 'B2b. the draft keeps the custom city (trimmed, collapsed), city key NULL');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"87000007-0000-4000-8000-000000000087","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_submit(null) $$, 'B2c. the custom-city business completes');
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, 'B2c. the custom-city business completes');
 reset role;
 select is((select b.governorate_key || '|' || coalesce(b.city_key, 'NULL') || '|' || b.city_custom_name
              from public.branches b join public.organizations o on o.id = b.organization_id
@@ -248,7 +263,7 @@ select throws_ok($$ select public.business_draft_save(p_display_name => 'X Co', 
   '22023', null, 'B11. a city without a governorate is rejected');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'X Co LLC', p_display_name => 'X Co', p_org_type => 'showroom_dealer', p_governorate => 'cairo') $$,
   'B12. a governorate alone can be saved while editing');
-select throws_ok($$ select public.business_draft_submit(null) $$, '22023', 'a city is required once a governorate is chosen',
+select throws_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit(null) $$, '22023', 'business location is required',
   'B13. ...but a chosen governorate needs a city to complete');
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'X Co LLC', p_display_name => 'X Co', p_org_type => 'showroom_dealer', p_governorate => 'cairo', p_city_custom_name => 'Maadi') $$,
   'B14. a custom name that IS a catalogue city of the governorate is accepted');
@@ -260,7 +275,7 @@ set local role authenticated;
 
 -- Historical underscore keys (the persona vocabulary) still resume and complete.
 set local request.jwt.claims = '{"sub":"87000009-0000-4000-8000-000000000087","role":"authenticated"}';
-select lives_ok($$ select public.business_draft_submit('87d00009-0000-4000-8000-000000000087') $$,
+select lives_ok($$ select pg_temp.complete_business_fixture(); select public.business_draft_submit('87d00009-0000-4000-8000-000000000087') $$,
   'B15. a historical draft with legacy underscore keys still completes');
 reset role;
 select is((select b.governorate_key || '|' || b.city_key from public.branches b join public.organizations o on o.id = b.organization_id
@@ -272,6 +287,7 @@ select throws_ok($$ update public.branches set governorate_key = 'cairo', city_k
   '22023', null, 'B16. branches cannot store city_key = other (guard trigger; the check constraint sits behind it)');
 select throws_ok($$ update public.branches set governorate_key = 'cairo', city_key = 'mansoura' where id = '87bbbbbb-0000-4000-8000-000000000087' $$,
   '22023', null, 'B17. branches cannot store a city outside its governorate (guard trigger)');
+insert into app.showroom_legacy_seller_exceptions(organization_id,reason) values('87aaaaaa-0000-4000-8000-000000000087','Synthetic historical approved business fixture');
 select lives_ok($$ update public.branches set governorate_key = 'giza', city_key = 'sheikh-zayed' where id = '87bbbbbb-0000-4000-8000-000000000087' $$,
   'B18. a canonical location can be set on a historical branch');
 

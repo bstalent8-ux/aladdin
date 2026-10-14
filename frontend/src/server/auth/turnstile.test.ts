@@ -6,8 +6,18 @@ import {
   CLOUDFLARE_TEST_SECRET_ALWAYS_PASS,
   TURNSTILE_SITEVERIFY_URL,
   clientIpFrom,
+  turnstileHostnamesFrom,
   verifyTurnstileToken,
 } from "./turnstile";
+
+const EXPECT = { expectedAction: "phone-sign-up", expectedHostnames: ["app.example.test"] } as const;
+/** A genuine-looking Siteverify success for THIS deployment and form. */
+const genuine = (extra: Record<string, unknown> = {}) => ({
+  success: true,
+  hostname: "app.example.test",
+  action: "phone-sign-up",
+  ...extra,
+});
 
 function reply(body: unknown, status = 200) {
   return vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status }));
@@ -15,30 +25,36 @@ function reply(body: unknown, status = 200) {
 function sentBody(fetchImpl: ReturnType<typeof vi.fn>) {
   return new URLSearchParams(String((fetchImpl.mock.calls[0]![1] as RequestInit).body));
 }
+function stubLocalEnv(appEnv: string) {
+  vi.stubEnv("NEXT_PUBLIC_APP_ENV", appEnv);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+}
 
 describe("verifyTurnstileToken — Cloudflare Siteverify, fail closed", () => {
   beforeEach(() => {
     vi.stubEnv("TURNSTILE_SECRET_KEY", "real-secret");
+    stubLocalEnv("production");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
   it.each([undefined, null, 42, "", "   "])("treats %p as a missing token without calling Cloudflare", async (token) => {
-    const fetchImpl = reply({ success: true });
-    expect(await verifyTurnstileToken(token, { fetchImpl })).toEqual({ ok: false, reason: "missing" });
+    const fetchImpl = reply(genuine());
+    expect(await verifyTurnstileToken(token, { fetchImpl, ...EXPECT })).toEqual({ ok: false, reason: "missing" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("rejects an oversized token without calling Cloudflare", async () => {
-    const fetchImpl = reply({ success: true });
-    expect(await verifyTurnstileToken("x".repeat(2049), { fetchImpl })).toEqual({ ok: false, reason: "rejected" });
+    const fetchImpl = reply(genuine());
+    expect(await verifyTurnstileToken("x".repeat(2049), { fetchImpl, ...EXPECT })).toEqual({ ok: false, reason: "rejected" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("passes only on an explicit success:true, POSTing secret + response form-encoded", async () => {
-    const fetchImpl = reply({ success: true, hostname: "example.com" });
-    expect(await verifyTurnstileToken("tok", { fetchImpl, remoteIp: "203.0.113.7" })).toEqual({ ok: true });
+  it("passes only on success:true for THIS hostname and action, POSTing secret + response form-encoded", async () => {
+    const fetchImpl = reply(genuine());
+    expect(await verifyTurnstileToken("tok", { fetchImpl, remoteIp: "203.0.113.7", ...EXPECT })).toEqual({ ok: true });
     const [url, init] = fetchImpl.mock.calls[0]! as [string, RequestInit];
     expect(url).toBe(TURNSTILE_SITEVERIFY_URL);
     expect(init.method).toBe("POST");
@@ -50,60 +66,151 @@ describe("verifyTurnstileToken — Cloudflare Siteverify, fail closed", () => {
     expect(body.get("remoteip")).toBe("203.0.113.7");
   });
 
+  it("matches the hostname case-insensitively", async () => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine({ hostname: "APP.Example.TEST" })), ...EXPECT })).toEqual({ ok: true });
+  });
+
   it("omits remoteip when it is not a valid IP", async () => {
-    const fetchImpl = reply({ success: true });
-    await verifyTurnstileToken("tok", { fetchImpl, remoteIp: "not-an-ip, 1.2.3.4" });
+    const fetchImpl = reply(genuine());
+    await verifyTurnstileToken("tok", { fetchImpl, remoteIp: "not-an-ip, 1.2.3.4", ...EXPECT });
     expect(sentBody(fetchImpl).has("remoteip")).toBe(false);
   });
 
   it.each([
     ["success:false", { success: false, "error-codes": ["invalid-input-response"] }],
-    ["duplicate (single-use)", { success: false, "error-codes": ["timeout-or-duplicate"] }],
+    ["expired or replayed (single-use)", { success: false, "error-codes": ["timeout-or-duplicate"] }],
     ["success as a string", { success: "true" }],
-    ["no success field", { hostname: "example.com" }],
+    ["no success field", { hostname: "app.example.test", action: "phone-sign-up" }],
     ["a JSON array", [true]],
     ["JSON null", null],
   ])("rejects %s", async (_label, body) => {
-    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(body) })).toEqual({ ok: false, reason: "rejected" });
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(body), ...EXPECT })).toEqual({ ok: false, reason: "rejected" });
+  });
+
+  it("rejects a real token minted for ANOTHER hostname", async () => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine({ hostname: "evil.example" })), ...EXPECT })).toEqual({
+      ok: false,
+      reason: "hostname",
+    });
   });
 
   it.each([
-    ["a non-2xx status", () => reply({ success: true }, 503)],
+    ["missing", undefined],
+    ["not a string", 7],
+  ])("rejects a response whose hostname is %s", async (_label, hostname) => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine({ hostname })), ...EXPECT })).toEqual({
+      ok: false,
+      reason: "hostname",
+    });
+  });
+
+  it("fails closed when no expected hostname is configured", async () => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine()), expectedAction: "phone-sign-up", expectedHostnames: [] })).toEqual({
+      ok: false,
+      reason: "hostname",
+    });
+  });
+
+  it("rejects a real token minted for ANOTHER form (action mismatch)", async () => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine({ action: "sign-in" })), ...EXPECT })).toEqual({
+      ok: false,
+      reason: "action",
+    });
+  });
+
+  it("rejects a token that carries no action at all", async () => {
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(genuine({ action: undefined })), ...EXPECT })).toEqual({
+      ok: false,
+      reason: "action",
+    });
+  });
+
+  it.each([
+    ["a non-2xx status", () => reply(genuine(), 503)],
     ["malformed JSON", () => vi.fn().mockResolvedValue(new Response("<html>oops", { status: 200 }))],
     ["a network error", () => vi.fn().mockRejectedValue(new TypeError("fetch failed"))],
     ["a timeout", () => vi.fn().mockRejectedValue(new DOMException("The operation timed out.", "TimeoutError"))],
   ])("fails closed on %s", async (_label, make) => {
-    expect(await verifyTurnstileToken("tok", { fetchImpl: make() })).toEqual({ ok: false, reason: "unavailable" });
-  });
-
-  it("uses Cloudflare's always-pass TEST secret only in local dev when no secret is set", async () => {
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    vi.stubEnv("NEXT_PUBLIC_APP_ENV", "local");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
-    const fetchImpl = reply({ success: true });
-    expect(await verifyTurnstileToken("tok", { fetchImpl })).toEqual({ ok: true });
-    expect(sentBody(fetchImpl).get("secret")).toBe(CLOUDFLARE_TEST_SECRET_ALWAYS_PASS);
-  });
-
-  it.each(["staging", "production"])("fails closed in %s when no secret is set — never calls Cloudflare", async (appEnv) => {
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    vi.stubEnv("NEXT_PUBLIC_APP_ENV", appEnv);
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
-    const fetchImpl = reply({ success: true });
-    expect(await verifyTurnstileToken("tok", { fetchImpl })).toEqual({ ok: false, reason: "unavailable" });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await verifyTurnstileToken("tok", { fetchImpl: make(), ...EXPECT })).toEqual({ ok: false, reason: "unavailable" });
   });
 
   it("never logs the secret or the token", async () => {
     const spies = (["log", "info", "warn", "error", "debug"] as const).map((m) => vi.spyOn(console, m));
-    await verifyTurnstileToken("tok-secretive", { fetchImpl: vi.fn().mockRejectedValue(new Error("boom")) });
-    await verifyTurnstileToken("tok-secretive", { fetchImpl: reply({ success: false }) });
+    await verifyTurnstileToken("tok-secretive", { fetchImpl: vi.fn().mockRejectedValue(new Error("boom")), ...EXPECT });
+    await verifyTurnstileToken("tok-secretive", { fetchImpl: reply({ success: false }), ...EXPECT });
     for (const spy of spies) {
       expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
     }
+  });
+});
+
+describe("Cloudflare TEST secrets (simulation only — never proof of real-token behavior)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // Cloudflare's published test secret answers `hostname: "example.com"`, no action and
+  // `metadata.result_with_testing_key: true` (observed against the live Siteverify endpoint).
+  const testingKeyAnswer = { success: true, hostname: "example.com", metadata: { result_with_testing_key: true } };
+
+  it("uses the always-pass TEST secret only in local dev when no secret is set, and accepts its answer there", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    stubLocalEnv("local");
+    const fetchImpl = reply(testingKeyAnswer);
+    expect(await verifyTurnstileToken("tok", { fetchImpl, ...EXPECT })).toEqual({ ok: true });
+    expect(sentBody(fetchImpl).get("secret")).toBe(CLOUDFLARE_TEST_SECRET_ALWAYS_PASS);
+  });
+
+  it.each(["staging", "production"])("rejects a TEST-key answer in %s even with a real secret configured", async (appEnv) => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "configured-secret");
+    stubLocalEnv(appEnv);
+    expect(await verifyTurnstileToken("tok", { fetchImpl: reply(testingKeyAnswer), ...EXPECT })).toEqual({
+      ok: false,
+      reason: "testing_key",
+    });
+  });
+
+  it.each(["staging", "production"])("fails closed in %s when no secret is set — never calls Cloudflare", async (appEnv) => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    stubLocalEnv(appEnv);
+    const fetchImpl = reply(genuine());
+    expect(await verifyTurnstileToken("tok", { fetchImpl, ...EXPECT })).toEqual({ ok: false, reason: "unavailable" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("local dev still rejects the test secret's rejected and spent answers", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    stubLocalEnv("local");
+    for (const body of [
+      { success: false, "error-codes": ["invalid-input-response"] },
+      { success: false, "error-codes": ["timeout-or-duplicate"] },
+    ]) {
+      expect(await verifyTurnstileToken("tok", { fetchImpl: reply(body), ...EXPECT })).toEqual({ ok: false, reason: "rejected" });
+    }
+  });
+});
+
+describe("turnstileHostnamesFrom", () => {
+  const headers = (h: Record<string, string>) => (name: string) => h[name] ?? null;
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("prefers x-forwarded-host over host and strips the port", () => {
+    expect(turnstileHostnamesFrom(headers({ "x-forwarded-host": "App.Example.test:443", host: "internal:3000" }))).toEqual([
+      "app.example.test",
+    ]);
+  });
+  it("falls back to host", () => {
+    expect(turnstileHostnamesFrom(headers({ host: "127.0.0.1:3341" }))).toEqual(["127.0.0.1"]);
+  });
+  it("returns nothing (so verification fails closed) when no host is known", () => {
+    expect(turnstileHostnamesFrom(headers({}))).toEqual([]);
+  });
+  it("lets TURNSTILE_ALLOWED_HOSTNAMES pin the exact hostnames, ignoring the request host", () => {
+    vi.stubEnv("TURNSTILE_ALLOWED_HOSTNAMES", "app.example.test, www.example.test");
+    expect(turnstileHostnamesFrom(headers({ host: "attacker.example" }))).toEqual(["app.example.test", "www.example.test"]);
   });
 });
 

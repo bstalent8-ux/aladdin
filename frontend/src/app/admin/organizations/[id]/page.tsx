@@ -45,6 +45,8 @@ export default async function AdminOrgDetailPage({ params }: { params: Promise<{
           <Field label={m.admin.orgs.verification}>
             {org.isVerified ? m.admin.orgs.verified : m.admin.orgs.notVerified}
           </Field>
+          <Field label={m.onboarding.business.identity.phoneLabel}><span dir="ltr">{org.contactPhone ?? "—"}</span></Field>
+          <Field label={m.onboarding.business.identity.emailLabel}><span dir="ltr">{org.contactEmail ?? "—"}</span></Field>
           <Field label={m.admin.orgs.created}>{formatDate(org.createdAt, locale)}</Field>
         </dl>
       </Card>

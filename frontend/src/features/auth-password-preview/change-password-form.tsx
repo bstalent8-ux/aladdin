@@ -6,6 +6,7 @@ import { changePassword, type PasswordAuthState } from "@/server/actions/auth-pa
 import { AuthCard } from "@/features/auth/auth-card";
 import { LabeledField, SubmitButton } from "@/components/ui/controls";
 import { PasswordInput } from "./password-input";
+import { TurnstileWidget } from "./turnstile-widget";
 import { PasswordStrengthMeter } from "./password-strength-meter";
 
 const initial: PasswordAuthState = { ok: false };
@@ -41,6 +42,8 @@ export function ChangePasswordForm({ email }: { email: string }) {
           error={
             state.code === "authPasswordPreview.error.currentPasswordRequired" ||
             state.code === "authPasswordPreview.error.currentPasswordWrong" ||
+            state.code === "authPasswordPreview.error.captchaRequired" ||
+            state.code === "authPasswordPreview.error.captchaRejected" ||
             state.code === "authPasswordPreview.error.rateLimited"
               ? t(state.code)
               : undefined
@@ -71,6 +74,8 @@ export function ChangePasswordForm({ email }: { email: string }) {
           <PasswordInput id="confirmNewPassword" name="confirmNewPassword" autoComplete="new-password" required value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} aria-invalid={mismatch || undefined} />
         </LabeledField>
 
+        {/* The current-password check is a CAPTCHA-protected password grant. */}
+        <TurnstileWidget name="captchaToken" action="change-password" appearance="interaction-only" resetKey={state} />
         <SubmitButton className="w-full" pendingLabel={t("authPasswordPreview.changePassword.submitting")} disabled={mismatch}>
           {t("authPasswordPreview.changePassword.submit")}
         </SubmitButton>

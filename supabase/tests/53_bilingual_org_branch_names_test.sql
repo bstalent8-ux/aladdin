@@ -74,8 +74,8 @@ select lives_ok(
   'clearing it back to null is legal — no dual-entry is forced'
 );
 select throws_ok(
-  format('update public.branches set address_ar = %L where id = %L', repeat('a', 301), :'branchC'),
-  '23514', null, 'a 301-char address_ar is rejected by ck_branches_address_ar_len'
+  format('update public.branches set address_ar = %L where id = %L', repeat('word ', 251), :'branchC'),
+  '23514', null, 'a 251-word address_ar is rejected by ck_branches_address_ar_len'
 );
 
 -- ===========================================================================

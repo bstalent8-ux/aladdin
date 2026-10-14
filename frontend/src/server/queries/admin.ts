@@ -234,6 +234,8 @@ export async function listOrganizations(supabase: Client): Promise<AdminOrgRow[]
 }
 
 export type AdminOrgDetail = {
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   id: string;
   name: string;
   orgType: string;
@@ -251,7 +253,7 @@ export async function getOrganizationDetail(
 ): Promise<AdminOrgDetail | null> {
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, name, org_type, status, is_verified, created_at")
+    .select("id, name, org_type, status, is_verified, created_at, contact_phone, contact_email")
     .eq("id", orgId)
     .maybeSingle();
   if (!org) return null;
@@ -274,6 +276,8 @@ export async function getOrganizationDetail(
   );
 
   return {
+    contactPhone: org.contact_phone,
+    contactEmail: org.contact_email,
     id: org.id,
     name: org.name,
     orgType: org.org_type,

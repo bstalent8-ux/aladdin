@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/server/auth/phone-auth-limit", () => ({ phoneAuthLimit: vi.fn(async () => "allowed") }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -13,7 +14,7 @@ vi.mock("next/headers", () => ({
 const signInWithPassword = vi.fn();
 const signOut = vi.fn();
 const rpc = vi.fn();
-const supabase = { auth: { signInWithPassword, signOut }, rpc };
+const supabase = { auth: { signInWithPassword, signOut, getUser: vi.fn(async () => ({ data: { user: null }, error: null })) }, rpc };
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn(async () => supabase) }));
 
 const { resolveActiveLanding, verifyTurnstileToken, isCanonicalPhoneTaken, createCraftsmanPasswordUser, deleteCraftsmanPasswordUser } =
@@ -25,7 +26,7 @@ const { resolveActiveLanding, verifyTurnstileToken, isCanonicalPhoneTaken, creat
     deleteCraftsmanPasswordUser: vi.fn(),
   }));
 vi.mock("@/server/queries/landing", () => ({ resolveActiveLanding }));
-vi.mock("@/server/auth/turnstile", () => ({ verifyTurnstileToken, clientIpFrom: () => null }));
+vi.mock("@/server/auth/turnstile", () => ({ verifyTurnstileToken, clientIpFrom: () => null, turnstileHostnamesFrom: () => ["app.example.test"] }));
 vi.mock("@/lib/supabase/admin-server", () => ({ isCanonicalPhoneTaken, createCraftsmanPasswordUser, deleteCraftsmanPasswordUser }));
 
 import { craftsmanSignIn, craftsmanSignUp } from "./installer-phone-auth";
@@ -40,12 +41,16 @@ function form(values: Record<string, string>): FormData {
 }
 
 const validSignUp = () =>
-  form({ name: " أحمد  محمد ", phone: "01093817264", password: PASSWORD, consent: "on", captchaToken: "tok" });
+  form({ name: " أحمد  محمد ", phone: "01093817264", password: PASSWORD, consent: "on", captchaToken: "tok", captchaSessionToken: "tok-session" });
+
+/** Sign-in forms carry the one Turnstile token GoTrue judges. */
+const signInForm = (values: Record<string, string>) => form({ captchaToken: "tok", ...values });
 
 /** Default RPC behavior: every write succeeds, the account ends access_ready. */
 function rpcOk(overrides: Record<string, unknown> = {}) {
   rpc.mockImplementation(async (name: string) => {
     if (name in overrides) return overrides[name];
+    if (name === "phone_password_account_allowed") return { data: true, error: null };
     if (name === "my_registration_state") return { data: "access_ready", error: null };
     return { data: null, error: null };
   });
@@ -79,7 +84,7 @@ describe("craftsmanSignUp", () => {
     // Auth user: internal alias + the password once + the cleaned name. Never the raw phone.
     expect(createCraftsmanPasswordUser).toHaveBeenCalledWith({ loginAlias: ALIAS, password: PASSWORD, fullName: "أحمد محمد" });
     // The normal cookie session.
-    expect(signInWithPassword).toHaveBeenCalledWith({ email: ALIAS, password: PASSWORD });
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: ALIAS, password: PASSWORD, options: { captchaToken: "tok-session" } });
 
     const calls = rpc.mock.calls.map(([name, args]) => [name, args]);
     expect(calls).toContainEqual(["record_consent", { p_types: ["terms", "privacy", "pilot"], p_locale: "ar" }]);
@@ -155,7 +160,7 @@ describe("craftsmanSignUp", () => {
       field: "form",
       code: "temporaryCraftsman.error.signUpFailed",
     });
-    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(signOut).toHaveBeenCalledWith({ scope: "global" });
     expect(deleteCraftsmanPasswordUser).toHaveBeenCalledWith("user-1");
   });
 
@@ -191,14 +196,14 @@ describe("craftsmanSignUp", () => {
 
 describe("craftsmanSignIn", () => {
   it("signs in with the phone's alias and lands on the derived landing", async () => {
-    const result = await run(() => craftsmanSignIn({ ok: false }, form({ phone: "+20 109 381 7264", password: PASSWORD })));
+    const result = await run(() => craftsmanSignIn({ ok: false }, signInForm({ phone: "+20 109 381 7264", password: PASSWORD })));
     expect(result).toBe("REDIRECT:/home");
-    expect(signInWithPassword).toHaveBeenCalledWith({ email: ALIAS, password: PASSWORD });
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: ALIAS, password: PASSWORD, options: { captchaToken: "tok" } });
   });
 
   it("returns ONE generic message for any credential failure", async () => {
     signInWithPassword.mockResolvedValue({ data: {}, error: { code: "invalid_credentials", status: 400 } });
-    const result = await craftsmanSignIn({ ok: false }, form({ phone: "01093817264", password: "wrong-password" }));
+    const result = await craftsmanSignIn({ ok: false }, signInForm({ phone: "01093817264", password: "wrong-password" }));
     expect(result).toEqual({
       ok: false,
       code: "temporaryCraftsman.error.invalidCredentials",
@@ -209,13 +214,13 @@ describe("craftsmanSignIn", () => {
 
   it("maps a rate limit separately", async () => {
     signInWithPassword.mockResolvedValue({ data: {}, error: { code: "over_request_rate_limit", status: 429 } });
-    expect(await craftsmanSignIn({ ok: false }, form({ phone: "01093817264", password: "x" }))).toMatchObject({
+    expect(await craftsmanSignIn({ ok: false }, signInForm({ phone: "01093817264", password: "x" }))).toMatchObject({
       code: "temporaryCraftsman.error.rateLimited",
     });
   });
 
   it("validates the phone before calling Auth", async () => {
-    expect(await craftsmanSignIn({ ok: false }, form({ phone: "12", password: "x" }))).toMatchObject({
+    expect(await craftsmanSignIn({ ok: false }, signInForm({ phone: "12", password: "x" }))).toMatchObject({
       field: "phone",
       code: "temporaryCraftsman.error.phoneInvalid",
     });
@@ -232,22 +237,77 @@ describe("craftsmanSignIn", () => {
     ["/admin", "/home"],
     [undefined, "/home"],
   ])("keeps a validated next=%s only inside the caller's own surface → %s", async (next, destination) => {
-    const data = form({ phone: "01093817264", password: PASSWORD });
+    const data = signInForm({ phone: "01093817264", password: PASSWORD });
     if (next !== undefined) data.set("next", next);
     expect(await run(() => craftsmanSignIn({ ok: false }, data))).toBe(`REDIRECT:${destination}`);
   });
 
   it("hands onboarding and invitation continuations straight through, like the email sign-in", async () => {
     for (const next of ["/onboarding/username", "/auth/invite/abc123"]) {
-      const data = form({ phone: "01093817264", password: PASSWORD, next });
+      const data = signInForm({ phone: "01093817264", password: PASSWORD, next });
       expect(await run(() => craftsmanSignIn({ ok: false }, data))).toBe(`REDIRECT:${next}`);
     }
   });
 
   it("resumes /onboarding for an account that is not access_ready", async () => {
     rpcOk({ my_registration_state: { data: "account_type_pending", error: null } });
-    expect(await run(() => craftsmanSignIn({ ok: false }, form({ phone: "01093817264", password: PASSWORD })))).toBe(
+    expect(await run(() => craftsmanSignIn({ ok: false }, signInForm({ phone: "01093817264", password: PASSWORD })))).toBe(
       "REDIRECT:/onboarding",
     );
+  });
+});
+
+describe("CAPTCHA tokens - installer (A: verified by Aladdin, B: forwarded to GoTrue)", () => {
+  it("verifies token A once with the expected action and hostnames, forwards token B to GoTrue", async () => {
+    const data = validSignUp();
+    data.set("captchaToken", "token-a");
+    data.set("captchaSessionToken", "token-b");
+    await run(() => craftsmanSignUp({ ok: false }, data));
+    expect(verifyTurnstileToken).toHaveBeenCalledTimes(1);
+    expect(verifyTurnstileToken).toHaveBeenCalledWith(
+      "token-a",
+      expect.objectContaining({ expectedAction: "phone-sign-up", expectedHostnames: ["app.example.test"] }),
+    );
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: ALIAS, password: PASSWORD, options: { captchaToken: "token-b" } });
+  });
+
+  it("refuses a sign-up without token B before verifying A or creating anything", async () => {
+    const data = validSignUp();
+    data.delete("captchaSessionToken");
+    expect(await craftsmanSignUp({ ok: false }, data)).toMatchObject({
+      ok: false,
+      field: "captcha",
+      code: "temporaryCraftsman.error.captchaRequired",
+    });
+    expect(verifyTurnstileToken).not.toHaveBeenCalled();
+    expect(createCraftsmanPasswordUser).not.toHaveBeenCalled();
+  });
+
+  it("rolls back and asks to verify again - never success - when GoTrue rejects token B", async () => {
+    signInWithPassword.mockResolvedValue({ data: {}, error: { code: "captcha_failed" } });
+    expect(await run(() => craftsmanSignUp({ ok: false }, validSignUp()))).toMatchObject({
+      ok: false,
+      field: "captcha",
+      code: "temporaryCraftsman.error.signInVerificationRetry",
+    });
+    expect(deleteCraftsmanPasswordUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a sign-in token and forwards it", async () => {
+    expect(await craftsmanSignIn({ ok: false }, form({ phone: "01093817264", password: PASSWORD }))).toMatchObject({
+      ok: false,
+      field: "captcha",
+      code: "temporaryCraftsman.error.captchaRequired",
+    });
+    expect(signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("reports a GoTrue-rejected sign-in token as CAPTCHA, not wrong credentials", async () => {
+    signInWithPassword.mockResolvedValue({ data: {}, error: { code: "captcha_failed" } });
+    expect(await craftsmanSignIn({ ok: false }, signInForm({ phone: "01093817264", password: PASSWORD }))).toMatchObject({
+      ok: false,
+      field: "captcha",
+      code: "temporaryCraftsman.error.captchaRejected",
+    });
   });
 });

@@ -801,6 +801,10 @@ export type Database = {
       }
       business_creation_drafts: {
         Row: {
+          contact_phone: string | null
+          contact_email: string | null
+          activity_type: string | null
+          detailed_address: string | null
           city: string | null
           city_custom_name: string | null
           completed_at: string | null
@@ -817,6 +821,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          contact_phone?: string | null
+          contact_email?: string | null
+          activity_type?: string | null
+          detailed_address?: string | null
           city?: string | null
           city_custom_name?: string | null
           completed_at?: string | null
@@ -833,6 +841,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          contact_phone?: string | null
+          contact_email?: string | null
+          activity_type?: string | null
+          detailed_address?: string | null
           city?: string | null
           city_custom_name?: string | null
           completed_at?: string | null
@@ -2931,6 +2943,8 @@ export type Database = {
       }
       organizations: {
         Row: {
+          contact_phone: string | null
+          contact_email: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -2952,6 +2966,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contact_phone?: string | null
+          contact_email?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -2973,6 +2989,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contact_phone?: string | null
+          contact_email?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -5587,6 +5605,15 @@ export type Database = {
       }
     }
     Functions: {
+      phone_auth_consume_limit: {
+        Args: { p_action: string; p_ip_key: string; p_phone_key: string }
+        Returns: boolean
+      }
+      phone_password_account_allowed: {
+        Args: { p_kind: string; p_phone: string }
+        Returns: boolean
+      }
+
       activate_project: {
         Args: { p_expected_version: number; p_project_id: string }
         Returns: number
@@ -5924,6 +5951,10 @@ export type Database = {
       }
       business_draft_save: {
         Args: {
+          p_contact_phone?: string
+          p_contact_email?: string
+          p_activity_type?: string
+          p_detailed_address?: string
           p_city?: string
           p_city_custom_name?: string
           p_description?: string

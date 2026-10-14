@@ -48,6 +48,11 @@ export const serverEnvSchema = z.object({
   // in staging/production an unset secret makes every CAPTCHA check fail
   // closed.
   TURNSTILE_SECRET_KEY: z.string().trim().min(1).optional(),
+  // Comma-separated public hostnames a genuine Turnstile challenge may report
+  // (e.g. "app.example.com,www.example.com"). Server-only. Optional: when
+  // unset the request's own host is used (server/auth/turnstile.ts). Pin it in
+  // staging/production.
+  TURNSTILE_ALLOWED_HOSTNAMES: z.string().trim().min(1).optional(),
 });
 
 /**
@@ -98,4 +103,11 @@ export function readPublicEnv(): PublicEnv {
     NEXT_PUBLIC_SUPPORT_CONTACT: process.env.NEXT_PUBLIC_SUPPORT_CONTACT,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   });
+}
+
+/** Existing server-only grant secret also keys non-reversible auth throttle identifiers. */
+export function readAuthIdentifierSecret(): string {
+  const secret = parseServerEnv({ AUTH_PASSWORD_PREVIEW_GRANT_SECRET: process.env.AUTH_PASSWORD_PREVIEW_GRANT_SECRET }).AUTH_PASSWORD_PREVIEW_GRANT_SECRET;
+  if (!secret) throw new Error("AUTH_PASSWORD_PREVIEW_GRANT_SECRET is required for phone authentication");
+  return secret;
 }

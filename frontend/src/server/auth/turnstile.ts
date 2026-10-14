@@ -44,7 +44,16 @@ const SITEVERIFY_TIMEOUT_MS = 5_000;
 
 export type TurnstileVerdict =
   | { ok: true }
-  | { ok: false; reason: "missing" | "rejected" | "unavailable" };
+  | {
+      ok: false;
+      /**
+       * `hostname` / `action` / `testing_key` are post-Cloudflare policy
+       * failures (a genuine token minted for another site, another form, or by
+       * Cloudflare's public test secret outside local development). Callers
+       * show the same neutral "rejected" copy for all of them.
+       */
+      reason: "missing" | "rejected" | "unavailable" | "hostname" | "action" | "testing_key";
+    };
 
 /** The secret to verify with, or null (→ fail closed). Never throws. */
 function resolveSecret(): string | null {
@@ -62,12 +71,62 @@ function resolveSecret(): string | null {
 }
 
 /**
- * Verify one Turnstile token. `remoteIp` is forwarded only when it parses as
- * an IP address; it is advisory for Cloudflare, never trusted by the app.
+ * The hostnames a genuine challenge for THIS deployment may report.
+ *
+ * `TURNSTILE_ALLOWED_HOSTNAMES` (comma-separated) is the authority when set —
+ * it is how staging/production pin the exact public hostnames. When unset, the
+ * request's own host (`x-forwarded-host`, then `host`; port stripped) is used,
+ * which on a managed host is always one of the project's own domains. The
+ * Cloudflare widget's own hostname allowlist is the first line of defence;
+ * this is the second.
+ */
+export function turnstileHostnamesFrom(getHeader: (name: string) => string | null): string[] {
+  let configured: string | undefined;
+  try {
+    configured = parseServerEnv({
+      TURNSTILE_ALLOWED_HOSTNAMES: process.env.TURNSTILE_ALLOWED_HOSTNAMES?.trim() || undefined,
+    }).TURNSTILE_ALLOWED_HOSTNAMES;
+  } catch {
+    configured = undefined;
+  }
+  const raw = configured ?? getHeader("x-forwarded-host") ?? getHeader("host") ?? "";
+  return raw
+    .split(",")
+    .map((host) => host.trim().toLowerCase().replace(/:\d+$/, ""))
+    .filter((host) => host.length > 0);
+}
+
+function isLocalApp(): boolean {
+  try {
+    return readPublicEnv().NEXT_PUBLIC_APP_ENV === "local";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify one Turnstile token — FOR OPERATIONS THAT BYPASS GOTRUE ONLY (see
+ * server/auth/captcha.ts). A token verified here is spent; never forward the
+ * same token to Supabase Auth afterwards.
+ *
+ * `expectedAction` and `expectedHostnames` are REQUIRED: a token minted for a
+ * different form or another site is refused even when Cloudflare says it is a
+ * valid token. `remoteIp` is forwarded only when it parses as an IP address;
+ * it is advisory for Cloudflare, never trusted by the app.
  */
 export async function verifyTurnstileToken(
   token: unknown,
-  { remoteIp, fetchImpl = fetch }: { remoteIp?: string | null; fetchImpl?: typeof fetch } = {},
+  {
+    remoteIp,
+    fetchImpl = fetch,
+    expectedAction,
+    expectedHostnames,
+  }: {
+    remoteIp?: string | null;
+    fetchImpl?: typeof fetch;
+    expectedAction: string;
+    expectedHostnames: readonly string[];
+  },
 ): Promise<TurnstileVerdict> {
   if (typeof token !== "string") return { ok: false, reason: "missing" };
   const response = token.trim();
@@ -90,10 +149,31 @@ export async function verifyTurnstileToken(
     });
     if (!res.ok) return { ok: false, reason: "unavailable" };
     const data: unknown = await res.json();
-    if (typeof data === "object" && data !== null && (data as { success?: unknown }).success === true) {
-      return { ok: true };
+    if (typeof data !== "object" || data === null || (data as { success?: unknown }).success !== true) {
+      return { ok: false, reason: "rejected" };
     }
-    return { ok: false, reason: "rejected" };
+    const { hostname, action, metadata } = data as {
+      hostname?: unknown;
+      action?: unknown;
+      metadata?: { result_with_testing_key?: unknown } | null;
+    };
+
+    // Cloudflare's published TEST secrets report `hostname: "example.com"`, no
+    // action, and `metadata.result_with_testing_key: true`. That is a valid
+    // local-development result and nothing else: outside `local` it means a
+    // test key reached a real environment, which must never authorize anything.
+    if (metadata?.result_with_testing_key === true) {
+      return isLocalApp() ? { ok: true } : { ok: false, reason: "testing_key" };
+    }
+
+    const allowed = expectedHostnames.map((host) => host.toLowerCase());
+    if (typeof hostname !== "string" || allowed.length === 0 || !allowed.includes(hostname.toLowerCase())) {
+      return { ok: false, reason: "hostname" };
+    }
+    if (typeof action !== "string" || action !== expectedAction) {
+      return { ok: false, reason: "action" };
+    }
+    return { ok: true };
   } catch {
     // Network failure, timeout (AbortSignal), or malformed JSON — fail closed.
     return { ok: false, reason: "unavailable" };

@@ -13,7 +13,10 @@ declare global {
           callback: (token: string) => void;
           "expired-callback"?: () => void;
           "error-callback"?: () => void;
+          "timeout-callback"?: () => void;
           theme?: "light" | "dark";
+          action?: string;
+          appearance?: TurnstileAppearance;
         },
       ) => string;
       remove: (widgetId: string) => void;
@@ -26,6 +29,13 @@ declare global {
 // server/auth/turnstile.ts uses ONLY when TURNSTILE_SECRET_KEY is unset in
 // local dev. Never a real key — see docs/frontend/auth-password-preview.md
 // §CAPTCHA.
+/**
+ * `always`: the visible widget. `interaction-only`: nothing is shown unless
+ * Cloudflare needs the person to do something — a real challenge is NEVER
+ * assumed to be invisible, it simply appears when required.
+ */
+export type TurnstileAppearance = "always" | "interaction-only";
+
 const TEST_SITE_KEY = "1x00000000000000000000AA";
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
@@ -53,14 +63,28 @@ function loadTurnstileScript(): Promise<void> {
  * (server/auth/turnstile.ts) before Supabase Auth is called. Supabase's
  * global `[auth.captcha]` stays OFF. This component never sees the secret.
  *
- * Renders a hidden `name="captchaToken"` input the surrounding form submits.
+ * Renders a hidden input (default `name="captchaToken"`) the surrounding form submits.
+ * The token is judged by exactly one party — GoTrue (forwarded as `captchaToken`)
+ * or the app's Siteverify (server/auth/captcha.ts) — never both.
  * A Turnstile token is single-use: once the server has spent it on Siteverify,
  * a resubmission after an UNRELATED failure (weak password, invalid email, …)
  * needs a fresh one. The parent form changes `resetKey` (e.g. to the server
  * action's own result object) after every submission, which remounts the
  * widget and requests a new token.
  */
-export function TurnstileWidget({ resetKey }: { resetKey?: unknown }) {
+export function TurnstileWidget({
+  resetKey,
+  name = "captchaToken",
+  action,
+  appearance = "always",
+}: {
+  resetKey?: unknown;
+  /** The hidden input's name. A form that needs TWO independent tokens gives each widget its own. */
+  name?: string;
+  /** Cloudflare `action` (letters, digits, `_`, `-`; max 32). Reported back by Siteverify. */
+  action?: string;
+  appearance?: TurnstileAppearance;
+}) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -80,8 +104,11 @@ export function TurnstileWidget({ resetKey }: { resetKey?: unknown }) {
         if (cancelled || !containerRef.current || !window.turnstile) return;
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
+          ...(action ? { action } : {}),
+          appearance,
           callback: (t) => !cancelled && setToken(t),
           "expired-callback": () => !cancelled && setToken(""),
+          "timeout-callback": () => !cancelled && setToken(""),
           "error-callback": () => !cancelled && setFailed(true),
         });
       })
@@ -97,12 +124,12 @@ export function TurnstileWidget({ resetKey }: { resetKey?: unknown }) {
     // `resetKey` deliberately re-runs this whole effect: the caller changes it
     // after every submission so a spent (single-use) Turnstile token is never
     // reused across an unrelated validation failure.
-  }, [siteKey, resetKey]);
+  }, [siteKey, resetKey, action, appearance]);
 
   return (
     <div>
       <div ref={containerRef} />
-      <input type="hidden" name="captchaToken" value={token} />
+      <input type="hidden" name={name} value={token} data-captcha-ready={token ? "true" : "false"} />
       {failed ? (
         <p role="alert" className="text-label text-danger">
           {t("authPasswordPreview.error.captchaUnavailable")}
