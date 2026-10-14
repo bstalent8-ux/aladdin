@@ -8,6 +8,7 @@ import { StatePanel } from "@/components/ui/primitives";
 import { StatTiles } from "@/components/ui/stat-tiles";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ButtonLink } from "@/components/ui/controls";
+import { RowPublishToggle } from "@/features/marketplace-seller/row-publish";
 import { QuantityStepper } from "@/features/marketplace-seller/stock-editor";
 import { MARKETPLACE_IMAGE_BUCKET } from "@/features/marketplace-seller/errors";
 import {
@@ -20,7 +21,6 @@ import {
   AlertIcon,
   PencilIcon,
   EyeIcon,
-  MoreHorizontalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@/components/ui/icons";
@@ -363,9 +363,7 @@ export default async function MarketplaceProductsPage({
                                 <EyeIcon size={16} />
                               </IconSlot>
                             )}
-                            <IconSlot label={`${t.action.more} — ${t.comingSoon}`} disabled>
-                              <MoreHorizontalIcon size={16} />
-                            </IconSlot>
+                            <RowPublishToggle productId={p.id} status={p.status} />
                           </div>
                         </td>
                       </tr>

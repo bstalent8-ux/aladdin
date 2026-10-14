@@ -4355,7 +4355,7 @@ export const en = {
     status: { draft: "Draft", published: "Published", unpublished: "Unpublished", archived: "Archived", low: "Low", out: "Out of stock" },
     moreSkus: "+{n}",
     price: "EGP {amount}",
-    action: { edit: "Edit", preview: "Preview on the Marketplace", previewUnavailable: "Preview is available for published products only", more: "More" },
+    action: { edit: "Edit", preview: "Preview on the Marketplace", previewUnavailable: "Preview is available for published products only", more: "More", publish: "Publish to Marketplace", unpublish: "Unpublish", checking: "Checking…", published: "Published — the product is now on the Marketplace.", unpublished: "Unpublished.", blocked: "Cannot publish yet:" },
     showing: "Showing {shown} of {total} products",
     pagination: "Pagination",
     prevPage: "Previous page",

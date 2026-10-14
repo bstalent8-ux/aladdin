@@ -54,6 +54,17 @@ export async function publishProductAction(productId: string): Promise<SellerRes
   const { data, error } = await supabase.rpc("marketplace_product_publish", { p_product_id: productId });
   if (error) return { ok: false, ...fail(error) };
   revalidatePath(PRODUCTS_PATH);
+  revalidatePath("/marketplace");
+  return { ok: true, status: String(data) };
+}
+
+/** Takes a published product off the public Marketplace (back to "unpublished"; never archives). */
+export async function unpublishProductAction(productId: string): Promise<SellerResult<{ status: string }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("marketplace_product_unpublish", { p_product_id: productId, p_archive: false });
+  if (error) return { ok: false, ...fail(error) };
+  revalidatePath(PRODUCTS_PATH);
+  revalidatePath("/marketplace");
   return { ok: true, status: String(data) };
 }
 

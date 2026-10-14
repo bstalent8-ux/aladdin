@@ -4196,7 +4196,7 @@ export const ar: Messages = {
     status: { draft: "مسودة", published: "منشور", unpublished: "غير منشور", archived: "مؤرشف", low: "منخفض", out: "نفد المخزون" },
     moreSkus: "+{n}",
     price: "{amount} جنيه",
-    action: { edit: "تعديل", preview: "معاينة في الماركت", previewUnavailable: "المعاينة متاحة للمنتجات المنشورة فقط", more: "المزيد" },
+    action: { edit: "تعديل", preview: "معاينة في الماركت", previewUnavailable: "المعاينة متاحة للمنتجات المنشورة فقط", more: "المزيد", publish: "نشر في الماركت", unpublish: "إلغاء النشر", checking: "جارٍ الفحص…", published: "تم النشر — المنتج ظاهر في الماركت الآن.", unpublished: "تم إلغاء النشر.", blocked: "لا يمكن النشر بعد:" },
     showing: "عرض {shown} من {total} منتج",
     pagination: "ترقيم الصفحات",
     prevPage: "الصفحة السابقة",
