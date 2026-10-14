@@ -28,6 +28,18 @@ const ARABIC = /[؀-ۿ]/;
 // Values that are intentionally identical technical samples in both locales
 // (neutral placeholders), so they carry Latin/digits and no Arabic script.
 const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
+  // "SKU" is the stock-keeping-unit code sellers type and search by; it stays
+  // in Latin in the Arabic UI, as on their own spreadsheets and labels.
+  "marketplaceSeller.searchPlaceholder",
+  "marketplaceSeller.col.sku",
+  "marketplaceSeller.form.sku",
+  "marketplaceSeller.form.variantsHint",
+  "marketplaceSeller.error.duplicate_sku_in_form",
+  "marketplaceSeller.error.sku_invalid",
+  "marketplaceSeller.error.sku_taken",
+  // Image file formats (JPG / PNG / WebP) are named as the seller sees them on their files.
+  "marketplaceSeller.image.hint",
+  "marketplaceSeller.error.image_type_invalid",
   "auth.emailPlaceholder",
   "authPasswordPreview.emailPlaceholder",
   // Illustrative bad-pattern examples ("aaaa", "1234") inside an otherwise

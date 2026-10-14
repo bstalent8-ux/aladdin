@@ -74,6 +74,7 @@ const ITEMS: Record<NavKey, Item> = {
   leads: { href: "/b2b/leads", key: "nav.leads", exact: false, Icon: TargetIcon },
   followUps: { href: "/b2b/follow-ups", key: "nav.followUps", exact: false, Icon: CalendarCheckIcon },
   products: { href: "/b2b/products", key: "nav.products", exact: false, Icon: PackageIcon },
+  marketplaceProducts: { href: "/b2c/seller/products", key: "nav.marketplaceProducts", exact: false, Icon: StorefrontIcon },
 
   points: { href: "/b2b/points", key: "nav.points", exact: false, Icon: GaugeIcon },
   projects: { href: "/b2b/projects", key: "nav.projects", exact: false, Icon: LayersIcon },
@@ -121,6 +122,7 @@ const sectionLabel: Record<NavSection, string | null> = {
   buying: "nav.section.buying",
   network: "nav.section.network",
   selling: "nav.section.selling",
+  marketplace: "nav.section.marketplace",
   business: "nav.section.business",
 };
 
@@ -136,6 +138,7 @@ const sectionLabel: Record<NavSection, string | null> = {
 const GROUP_ICON: Partial<Record<NavSection, ComponentType<{ size?: number }>>> = {
   network: GlobeIcon,
   selling: TargetIcon,
+  marketplace: StorefrontIcon,
   buying: SearchIcon,
   business: BuildingIcon,
 };
