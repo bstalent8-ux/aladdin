@@ -1,5 +1,12 @@
 # Runtime State
 
+## Current continuation — 2026-10-14: Marketplace catalog launch (local only)
+
+- Branch `feat/public-marketplace-20261011` (worktree `D:/projects/aladdin-wt-public-marketplace-20261011`), local stack `aladdin-marketplace` (API 54421). Migrations through **09** applied locally only; nothing pushed/deployed.
+- Live: `/admin/marketplace`, `/admin/marketplace/media`, `/b2c/seller/imports`, server-paged `/b2c/seller/products`, real-data `/marketplace` + product page, `/marketplace/media/[imageId]` (no-store proxy).
+- Local data: Decore Store holds 795 draft products (786 from the real file + 9 QA), 0 published; `media_verification_ready=false`.
+- Details and acceptance numbers: `docs/marketplace/catalog-launch.md`.
+
 ## Current continuation — 2026-10-05: installer UI final polish on PR #70
 
 - Installer UI final polish is on **PR #70** (`feature/installer-ui-final-polish` → `main`), PR head `b696ac38f095769456f6afefe2bca9f087d7c908`. It is open and not yet merged.

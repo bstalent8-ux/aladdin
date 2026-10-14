@@ -6613,3 +6613,13 @@ Branch `feat/public-marketplace-20261011`. Local only; nothing pushed; **uncommi
 ## Marketplace Migration 08 — nine more product types, 2026-10-14
 
 Branch `feat/public-marketplace-20261011`. Local only; uncommitted. Trigger: the seller "product type" dropdown showed 6 of the 15 approved types — types are DATABASE rows, so the fix is data, not UI. New `20261014090003_marketplace_product_types_expansion.sql` adds بانوهات, وزرة, أبواب داخلية, أبواب مصفحة, أرضيات فينيل, أرضيات SPC, ستائر, بوسترات, دهانات (4 new categories, ~33 field definitions, options, mappings; 5 new colours). No structural/security change. Tests: new `97_` (38), `90_` counts updated. Clean `db reset` (112 migrations) + full suite: **95 files / 4386 PASS**; removal HTTP test 59/59 and professional-asset HTTP test 59/59 on the clean DB. QA restored after: DB volume restored from a copy (DB files carry no xattrs), Storage was never copied (backed up/verified with `scripts/local-storage-snapshot.mjs`: 2/2, checksums identical). Note: "وزر" in the brief stored as "وزرة".
+
+## Marketplace catalog launch sprint (Decore Store), 2026-10-14
+
+Branch `feat/public-marketplace-20261011`, local only, nothing pushed. Commits: `47aa22f` Migration 09 (moderation, delivery ref, paged reads, import dispatcher), `e38553c` admin sellers + media moderation + public media route, `28b4c04` live `/marketplace` + product page, `0951eb2` server-paged seller list + `/b2c/seller/imports`, `264cb43` import attributes. Full write-up and numbers: `docs/marketplace/catalog-launch.md`.
+
+- Admin: `admin@aladdin.test` (Super Admin, local) reaches `/admin` because `loadPlatformRole` now reads `admin_my_access()`.
+- Real file imported as 1,200 draft variant rows / 786 products (31 price-0 rows refused); **0 published** — no photos, wallpaper attributes missing, media flag off. Synthetic sample proved moderation → publication → delivery → revocation end to end, then DB + Storage were restored (no synthetic data left).
+- `media_verification_ready` = **false** (was on only inside the restored synthetic run).
+- LESSON (again): volume `cp -a` loses Storage `user.supabase.*` xattrs → 500 `ENODATA`. The restore script now dumps/restores xattrs with `getfattr`/`setfattr` (alpine + attr); the two QA objects had their xattrs re-set from `storage.objects` metadata. Prefer `scripts/local-storage-snapshot.mjs`.
+- Open: photos + attributes from Decore, product names, unit labels for measurements, imports sidebar entry, staging rollout.
