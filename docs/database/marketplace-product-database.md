@@ -165,6 +165,23 @@ where o.bucket_id = 'marketplace-product-images'
 A row-less object is **not** deletable by any seller (the select policy needs a row); cleanup is a trusted maintenance task with the platform credential, not a client right. Deleting a *product* (platform-only) cascades its image rows and would leave bytes behind — that path must delete objects first.
 
 Tests: `96_marketplace_image_removal_lifecycle_test.sql` (73), `marketplace_image_removal_api_test.mjs` (59, real Storage HTTP; asserts the object is gone from the API, `storage.objects` **and** a service-role GET), `image-removal.test.ts`, `image-signature.test.ts`; `47_` now names two `storage.objects` readers (confirm: bytes exist; finalize: bytes gone).
+## Migration 08 — product-type expansion (fifteen approved types)
+
+`20261014090003_marketplace_product_types_expansion.sql`. Migration 01 seeded six types; the approved catalogue is fifteen. This migration adds the other nine **as data only** (categories, types, field definitions, options, type → field mappings) — no table, column, constraint, policy, grant, function or trigger changes, so Migration 01's security model (public read of ACTIVE rows, no client write grant) applies unchanged. The seller form, readiness blockers and import read a type's fields from these rows, so no code change is needed.
+
+| Category | Types (Arabic · key) |
+|---|---|
+| Wall Coverings & Decorative Panels | ورق حائط `wallpaper` · بديل خشب `wood_alternative` · بديل رخام `marble_alternative` · شيبورد `sheeboard` · **بانوهات `wall_panel`** · **بوسترات `poster`** |
+| Cornices & Mouldings | كرانيش `cornice` · **وزرة `skirting`** |
+| Finishing Accessories | زوايا `corner_trim` |
+| **Doors** | **أبواب داخلية `interior_door`** · **أبواب مصفحة `armored_door`** |
+| **Flooring** | **أرضيات فينيل `vinyl_flooring`** · **أرضيات SPC `spc_flooring`** |
+| **Curtains & Blinds** | **ستائر `curtain`** |
+| **Paints & Coatings** | **دهانات `paint`** |
+
+Each new type has a required product-level field, a required variant-level field and one to three variant axes (the V1 limit): panels = colour + thickness; skirting = colour + bar length + height; doors = colour + width + handing (height required, not an axis); flooring = colour + thickness; curtains = colour + width + height; posters = width + height; paints = colour + pack size (`pack_volume`: 0.5 L … 18 L, an option field, so sellers pick a size instead of typing millilitres). Measurements stay canonical (length → mm); new fields: `height`, `wear_layer`, `coverage_per_liter` (number, m²/L), booleans (`includes_frame`, `fire_rated`, `sound_insulated`, `waterproof`, `underlay_attached`, `framed`). The colour catalogue gains yellow, orange, red, purple, turquoise (24 colours). Selling units stay within the existing set.
+
+The Arabic name for skirting is stored as **وزرة** (the standard word; the brief wrote "وزر") — a one-row `update` away if the platform prefers otherwise. Tests: `97_marketplace_product_type_expansion_test.sql` (38: catalogue, schema sanity, unchanged security, and a complete draft saved through the seller RPC for every new type); `90_` counts updated (7 categories, 15 types, 24 colours).
 ## Isolation
 
 1. **Git:** dedicated worktree and branch; the `main` working tree and the landing-page worktree are untouched.
