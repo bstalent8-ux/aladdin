@@ -1,5 +1,7 @@
 # Showroom V2 - production release plan (release candidate, NOT deployed)
 
+Closure plan, risk-based test policy and the remaining user decisions: [showroom-v2-closure-plan.md](showroom-v2-closure-plan.md).
+
 Status: planning only. Nothing has been pushed, merged or deployed. The user must approve the screenshots and the decisions in section 8 first.
 
 ## 1. Baseline and size of the change
