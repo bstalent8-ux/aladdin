@@ -12,8 +12,9 @@ const metadata = JSON.parse(bytes);
 const version = JSON.parse(readFileSync(resolve(root, "frontend/node_modules/libphonenumber-js/package.json"))).version;
 const license = readFileSync(resolve(root, "frontend/node_modules/libphonenumber-js/LICENSE"), "utf8");
 if (metadata.version !== 4) throw new Error("Review changed phone metadata format before generating SQL");
-const target = resolve(process.argv[2] ?? "");
-if (!target.startsWith(resolve(root, "supabase/migrations") + "/") && !target.startsWith(resolve(root, "supabase/migrations") + "\\")) throw new Error("Supply a new migration path inside this repository");
+const printOnly = process.argv[2] === "--stdout";
+const target = printOnly ? null : resolve(process.argv[2] ?? "");
+if (!printOnly && !target.startsWith(resolve(root, "supabase/migrations") + "/") && !target.startsWith(resolve(root, "supabase/migrations") + "\\")) throw new Error("Supply a new migration path inside this repository");
 const quote = value => value == null ? "null" : "'" + String(value).replaceAll("'", "''") + "'";
 const rows = [];
 for (const [country, data] of Object.entries(metadata.countries)) {
@@ -98,5 +99,10 @@ revoke all on function app.business_contact_phone_guard() from public,anon,authe
 create trigger business_draft_phone_numbering before insert or update of contact_phone on public.business_creation_drafts for each row execute function app.business_contact_phone_guard();
 create trigger organization_phone_numbering before insert or update of contact_phone on public.organizations for each row execute function app.business_contact_phone_guard();
 `;
-writeFileSync(target, sql);
-console.log(`Generated ${rows.length} country plans; libphonenumber-js ${version}; SHA256 ${hash}`);
+// CLI-created scaffolds can receive reviewed --stdout output through ordinary
+// editing; the generator itself must never overwrite an existing migration.
+if (printOnly) process.stdout.write(sql);
+else {
+ writeFileSync(target, sql, { flag: "wx" });
+ console.log(`Generated ${rows.length} country plans; libphonenumber-js ${version}; SHA256 ${hash}`);
+}

@@ -97,7 +97,7 @@ Use the current schema to confirm field names; capture project ref, observation 
 |---|---|
 | Application account quota is atomic, bounded and independent of IP | Existing application tests; retain regression for both account entry points. |
 | Direct native wrong-password request after exhausted app bucket | Local diagnostic proved bypass. Preserve this as a failing coverage check until the architecture changes. |
-| Hosted rate-limit/CAPTCHA flags and plan | Plan read Free; current configuration values pending authorized read-only inspection. Record each environment separately. |
+| Hosted rate-limit/CAPTCHA flags and plan | Staging dashboard inspected: Free, signups/signins30/5min/IP, refresh150/5min/IP, verification30/5min/IP, native CAPTCHA/forwarding off, no hooks. Acceptance and production remain unverified; see observations above. |
 | Native CAPTCHA missing/invalid/replayed token | Test on isolated local configuration or a separately approved test environment; confirm denial before credentials, successful login with fresh token, recovery/refresh compatibility. No hosted changes authorized. |
 | Cross-IP, concurrent same-account attempts | Proposed solutions must cap aggregate attempts on every native route; use isolated synthetic users and trusted test ingress. Client-spoofed X-Forwarded-For is not proof of distinct source IPs. |
 | New-account spray and resource exhaustion | Test IP/global limits and bounded account bucket storage as well as known-account thresholds. |

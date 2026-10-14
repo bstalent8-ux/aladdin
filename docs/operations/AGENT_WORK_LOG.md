@@ -2,6 +2,8 @@
 
 # 2026-10-14 — PR #84 independent blocker fixes under concurrent CAPTCHA work
 
+Final acceptance addendum: corrected0c348382 GitHub CI passed. Supabase92files/3847tests passed twice after clean resets;9058countryparitycases/245countries/hashmatch/0mismatches; threeconcurrency checks passed. Frontend2864passed13skipped/build/typecheck/lint; backend/docs/policy passed. Spec review0new findings. Standards generator overwrite finding fixed with exclusive creation and print-only mode; executed EEXIST/unchanged-file/exact-output verification passed. Final follow-up limited to generator safety/ADR and verified reports. Provider account-budget architecture remains unapproved; local Docker runtime and parallel CAPTCHA browser journeys remain separate limitations. External sevenpath hashes preserved, explicit stageddiff reviewed, samefeaturebranch/PRDraft, no merge/deploy/restart/cleanup.
+
 Purpose: resolve additive migration compatibility, authoritative business-phone validation and expired/revoked historical seller authorization while retaining Draft status and no paid/hosted authentication changes.
 
 Safety: inventoried existing worktrees and tracked/untracked changes read-only. Unexpected CAPTCHA/environment/E2E changes are externally owned; seven paths are hashed outside the repository and excluded from edits/staging. Only the already owned business validation/actions/types, pending migrations, database regressions, CI parity step and task documentation are changed. No global staging, resets, stashes, branch creation, service restarts or original-directory edits.

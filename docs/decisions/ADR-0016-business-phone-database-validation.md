@@ -14,6 +14,8 @@ Preserve the original business_draft_save/submit RPCs unchanged for currently de
 No shared migration history is rewritten: the four feature migrations were not present in either accessible shared project's migration history. Pending PR migrations may be corrected before their first deployment; previously applied main migrations remain untouched. Clean replay and original caller compatibility are required acceptance checks. After any future phone-library update, create a new forward migration updating the existing private metadata table, run cross-country parity tests, then deploy a compatible app. The current generator scaffolds the initial table snapshot; a later migration must adapt its generated rows to that existing table instead of recreating it. Never edit an already-applied metadata snapshot. Provider-boundary password throttling remains a separate decision and does not follow from phone validation.
 
 ## Related files
+The generator refuses every existing output path using exclusive creation. `--stdout` supports reviewing generated SQL before editing a new CLI-created empty scaffold; it does not write any file. Future metadata migrations must update the existing table rather than replaying its initial creation.
+
 - [Feature report](../frontend/showroom-business-onboarding.md)
 - [Original authentication decision](ADR-0014-showroom-phone-password.md)
 - [Legacy selling decision](ADR-0015-showroom-address-selling-rollout.md)
