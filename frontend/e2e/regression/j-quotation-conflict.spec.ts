@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { IDENTITIES, signIn } from "../helpers/auth";
 import { REG, psql, signedInClient } from "./setup";
+import { draftQuotation, ok } from "./commerce-fixtures";
 import { prefs } from "./util";
 
 /**
@@ -12,39 +13,6 @@ import { prefs } from "./util";
  */
 const q = (s: string) => psql(s).trim();
 const CONFLICT = /changed since you opened it|تم تعديل/;
-
-type Org = { organization_id: string; kind: string };
-async function orgOf(email: string): Promise<string> {
-  const c = await signedInClient(email);
-  const ws = (await c.rpc("my_workspaces")).data as Org[];
-  return ws.find((w) => w.kind === "business")!.organization_id;
-}
-
-async function ok<T>(p: PromiseLike<{ data: T; error: { message: string; code?: string } | null }>, what: string): Promise<T> {
-  const { data, error } = await p;
-  if (error) throw new Error(`${what}: ${error.code} ${error.message}`);
-  return data;
-}
-
-/** Buyer (Showroom) sends a Direct RFQ to the Distributor, who opens a DRAFT quotation. Real RPCs only. */
-async function draftQuotation(): Promise<{ quotationId: string; rfqId: string }> {
-  const hana = await signedInClient(IDENTITIES.showroom);
-  const rania = await signedInClient(IDENTITIES.distributor);
-  const rfqId = (await ok(
-    hana.rpc("create_rfq", {
-      p_requester_org_id: await orgOf(IDENTITIES.showroom),
-      p_supplier_org_id: await orgOf(IDENTITIES.distributor),
-      p_title: `REG B2 ${Date.now().toString(36)}`,
-    }),
-    "create_rfq",
-  )) as string;
-  await ok(hana.rpc("add_rfq_item", { p_rfq_id: rfqId, p_product_id: process.env.REG_PRODUCT_ID, p_quantity: 4 }), "add_rfq_item");
-  const v = (await ok(hana.from("rfqs").select("version").eq("id", rfqId).single(), "rfq version")) as { version: number };
-  await ok(hana.rpc("submit_rfq", { p_rfq_id: rfqId, p_expected_version: v.version }), "submit_rfq");
-  const created = await ok(rania.rpc("create_quotation", { p_rfq_id: rfqId }), "create_quotation");
-  const quotationId = typeof created === "string" ? created : (created as { id: string }).id;
-  return { quotationId, rfqId };
-}
 
 const version = (id: string) => Number(q(`select version from public.quotations where id = '${id}'`));
 const status = (id: string) => q(`select status from public.quotations where id = '${id}'`);
