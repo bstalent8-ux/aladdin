@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Archivo, JetBrains_Mono, Readex_Pro, Reem_Kufi } from "next/font/google";
 import { LOCALE_COOKIE, resolveLocale, directionFor } from "@/lib/i18n/config";
 import { THEME_COOKIE, THEME_BOOTSTRAP, resolveThemePreference } from "@/lib/theme/config";
 import { ThemeSync } from "@/components/layout/theme-sync";
+import { BRAND_2026_SCOPE_CLASS, BRAND_SURFACE_HEADER } from "@/lib/brand/surface";
 import "./globals.css";
 
 // Bilingual (AR + EN) product-UI workhorse — the default body font.
@@ -20,7 +21,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const store = await cookies();
+  const [store, requestHeaders] = await Promise.all([cookies(), headers()]);
+  // Set by the middleware for the routes that preview the 2026 palette, so the
+  // body carries it in the first byte and never paints the old canvas first.
+  const brand2026 = requestHeaders.get(BRAND_SURFACE_HEADER) === "2026";
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const dir = directionFor(locale);
   // The stored PREFERENCE, which may be "system" — a value the server cannot
@@ -48,7 +52,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             every dark-mode user sees a white flash on every navigation. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
-      <body className="min-h-dvh bg-canvas text-fg">
+      <body className={`min-h-dvh bg-canvas text-fg${brand2026 ? ` ${BRAND_2026_SCOPE_CLASS}` : ""}`}>
         <ThemeSync />
         {children}
       </body>

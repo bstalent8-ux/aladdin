@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readPublicEnv } from "@/lib/env";
+import { BRAND_SURFACE_HEADER, isBrand2026Path } from "@/lib/brand/surface";
 
 /**
  * Refreshes the Supabase session cookie on every navigation and guards the B2B
@@ -9,6 +10,11 @@ import { readPublicEnv } from "@/lib/env";
  * with no session, and bounces a signed-in caller away from the sign-in page.
  */
 export async function middleware(request: NextRequest) {
+  // Tell the root layout, before anything renders, whether this route paints in
+  // the 2026 palette (presentation only). Never trust a client-sent value.
+  request.headers.delete(BRAND_SURFACE_HEADER);
+  if (isBrand2026Path(request.nextUrl.pathname)) request.headers.set(BRAND_SURFACE_HEADER, "2026");
+
   let response = NextResponse.next({ request });
   const env = readPublicEnv();
 
@@ -46,6 +52,7 @@ export async function middleware(request: NextRequest) {
   // staff, org membership, capabilities) is still enforced by RLS + route guards.
   const authRequired =
     path.startsWith("/b2b") ||
+    path.startsWith("/b2c/seller") ||
     path.startsWith("/admin") ||
     path.startsWith("/home") ||
     path.startsWith("/onboarding");

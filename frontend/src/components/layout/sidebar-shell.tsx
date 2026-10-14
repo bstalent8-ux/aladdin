@@ -329,6 +329,7 @@ export function SidebarShell({
   nav,
   mode: initialMode,
   appName,
+  brandEdition = "classic",
   footer = "workspace",
 }: {
   /**
@@ -366,6 +367,8 @@ export function SidebarShell({
    * stating one fact twice rather than a second fact worth the space.
    */
   appName: string;
+  /** Which brand edition the rail's head draws — see `Brand`'s `edition`. */
+  brandEdition?: "classic" | "2026";
   /**
    * WHICH FIXED BOTTOM BLOCK, IF ANY, THE PANEL CARRIES.
    *
@@ -656,7 +659,9 @@ export function SidebarShell({
             same treatment. */}
         <div
           className={cn(
-            "relative z-10 flex h-16 shrink-0 items-center",
+            // The 2026 lockup carries its own wordmark under the emblem, so it needs a taller row to stay legible.
+            "relative z-10 flex shrink-0 items-center",
+            brandEdition === "2026" && !narrow ? "h-24" : "h-16",
             narrow ? "justify-center px-2" : "justify-between px-5",
           )}
           style={{ width: "var(--shell-nav-w)" }}
@@ -674,7 +679,7 @@ export function SidebarShell({
                 exit={reduced ? undefined : { opacity: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                <Brand name={appName} size="sm" tone="shell" wordmark />
+                <Brand name={appName} size={brandEdition === "2026" ? "lg" : "sm"} tone="shell" wordmark edition={brandEdition} />
               </motion.div>
             ) : null}
           </AnimatePresence>
