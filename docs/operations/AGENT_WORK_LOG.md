@@ -6524,3 +6524,6 @@ compose, that a filtered queue really is filtered, and that every chip's `href` 
 being driven — rather than the latency of a synthetic click. 5/5, no retries, twice consecutively.
 
 Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
+
+### Final independent review addendum — 2026-10-14
+Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.

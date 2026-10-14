@@ -67,6 +67,19 @@ test("desktop/mobile layout, accessible controls and source assets", async ({ pa
         await page.evaluate(() => document.fonts.ready);
         await expect(page.locator('input[type="tel"]')).toHaveAttribute("autocomplete", "tel-national");
         await expect(page.locator('input[name="country"]')).toHaveValue("EG");
+        const cta = await page.locator('button[type="submit"]').evaluate(button => {
+            const style = getComputedStyle(button);
+            const luminance = (color: string) => {
+                const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(value => Number(value) / 255);
+                const linear = channels.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+                return linear.reduce((total, value, index) => total + value * ([0.2126, 0.7152, 0.0722][index] ?? 0), 0);
+            };
+            const a = luminance(style.color), b = luminance(style.backgroundColor);
+            return { ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), size: parseFloat(style.fontSize), weight: Number(style.fontWeight) };
+        });
+        expect(cta.weight).toBeGreaterThanOrEqual(700);
+        expect(cta.size).toBeGreaterThanOrEqual(18.67);
+        expect(cta.ratio).toBeGreaterThanOrEqual(3);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await expect(page.getByRole("link", { name: route === "sign-in" ? "إنشاء حساب" : "تسجيل الدخول", exact: true })).toBeVisible();
         await page.screenshot({ path: resolve(screenshotDir, route + "-" + info.project.name + ".png"), fullPage: true });

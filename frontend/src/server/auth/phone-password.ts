@@ -24,33 +24,14 @@ import { generateCraftsmanUsername } from "@/features/installer-phone-auth/usern
 import type { Database } from "@/types/database.types";
 
 /**
- * Installer/technician phone + password entry point (approved, role-specific)
- * (docs/frontend/installer-phone-auth.md). A parallel ENTRY POINT only —
- * it creates an ordinary account through the existing infrastructure and
- * hands it to the existing installer experience:
- *
- *   phone + password
- *     → canonical E.164 (lib/contact/phone.ts)
- *     → internal login alias (lib/auth/craftsman-login-alias.ts)
- *     → Supabase Auth user, password hashed by GoTrue      (service role, once)
- *     → normal cookie session via signInWithPassword         (caller's client)
- *     → record_consent · onboarding_select_account_type(professional,
- *       installer_technician) · profile_set_phone · profile_set_username
- *       — the SAME RPCs, as the SAME authenticated caller, the canonical
- *       registration uses
- *     → my_registration_state() must be access_ready
- *     → resolveActiveLanding() (/home for an installer)
- *
- * The one intentional bypass is that no OTP is sent. Everything else holds:
- * Turnstile on sign-up, the existing password policy, GoTrue's own password
- * storage and rate limits, RLS on every write after the account exists.
- *
- * ROLLBACK: if anything after the Auth user is created fails, the session is
- * dropped and that user is deleted (the identity rows cascade), so a failed
- * sign-up never leaves an account that exists but cannot be used.
- *
- * Nothing here logs a phone, alias, password, token, or session.
- * Not wired to `/auth/*` or `server/actions/auth.ts`, which stay unchanged.
+ * Shared Installer/Showroom phone-password orchestration. Server wrappers select
+ * the account type; the historical Craftsman alias and exported state names are
+ * retained for compatibility. Reuse ordinary Supabase users, SSR sessions and
+ * authenticated consent/onboarding/profile RPCs; registration grants intent only.
+ * On initialization failure, sign out and delete the new identity. If deletion
+ * fails, attempt quarantine; transport failure may require operator cleanup.
+ * Application quotas supplement native provider limits but do not cover direct
+ * GoTrue requests (documented draft blocker). Never log credentials or sessions.
  */
 
 export type CraftsmanField = "name" | "phone" | "password" | "confirmPassword" | "consent" | "captcha" | "form";

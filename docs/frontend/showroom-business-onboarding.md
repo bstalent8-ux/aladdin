@@ -1,7 +1,7 @@
 # Showroom business onboarding — local review
 
 ## Purpose and current decision
-Extend the existing business wizard and draft RPCs. The product owner approved these changes as part of Showroom authentication, with final PR preparation held until visual review.
+Extend the existing business wizard and draft RPCs. The product owner approved the UI and authorized final review/PR creation. The PR remains a draft because the security limitations below are unresolved.
 
 Step 1 keeps trading name, legal name and optional description (maximum 250 characters). Showroom accounts additionally require a valid canonical E.164 business phone and one existing showroom activity; email is optional and normalized by trim/lowercase. The exact Arabic activities are معرض ديكور, معرض دهانات, معرض ديكور ودهانات and موان. The last option retains the existing building_and_finishing_supplies_retailer key.
 
@@ -17,7 +17,7 @@ Forward-only migrations: 20261014123000_showroom_business_onboarding_details.sql
 
 The local test stack is aladdin_showroom_auth, API http://127.0.0.1:63321, database port 63322. Worktree frontend .env.local contains local-only configuration. No production database or deployment was modified.
 
-## Verification
+## Earlier onboarding review verification
 - TypeScript noEmit: passed.
 - Scoped ESLint: passed.
 - Latest focused onboarding / profile / Showroom and Installer auth run: 149 tests passed in 8 files.
@@ -76,7 +76,23 @@ Separate reruns overlap; do not sum their counts.
 
 The later full DB rerun shared the preview database with browser-created fixtures. Historical suites assume exact seed-only org/membership/audit counts and no extra active Super Admin; retained synthetic business/reviewer fixtures violate those assumptions, with concurrent execution compounding the problem. New task suites 90/91/92 passed in that run. Do not present the previous full pass as a clean latest overall gate. No DB reset/audit deletion was used to manufacture a pass. Synthetic local identities with protected business history are quarantined/archived. A pristine disposable acceptance database is required for a repeatable full seed-only run.
 
-An earlier browser run passed 22 and failed two journeys because the test reloaded before navigation after saving. Both desktop/mobile journeys passed after waiting for the next step. Final full browser rerun: **24 passed, 0 failed** (2.8 minutes). Final TypeScript check passed; ESLint had 0 errors / 1 pre-existing sidebar-shell hook warning. Sequential task database suites 90/91/92: **116 passed, 0 failed**. Scenarios use genuine local auth, caller/admin RPCs, local verification and synthetic users. No production accounts are exercised. No formal axe audit was run.
+An earlier browser run passed 22 and failed two journeys because the test reloaded before navigation after saving. Both desktop/mobile journeys passed after waiting for the next step. Final full browser rerun: **24 passed, 0 failed** (2.8 minutes). Final TypeScript check passed; ESLint had 0 errors / 1 pre-existing sidebar-shell hook warning. Sequential task database suites 90/91/92 originally **116 passed, 0 failed**; review added three quotation acceptance/RFQ-preservation/rejection tests, with suite92 **36 passed** and the complete three-suite rerun **119 passed / 0 failed**. Scenarios use genuine local auth, caller/admin RPCs, local verification and synthetic users. No production accounts are exercised. No formal axe audit was run.
+
+## Independent review: Standards
+One material finding: CTA cream/terracotta contrast is approximately3.19:1 and needs large bold text to meet AA. Fixed CTA weight from600 to700 at20px; retain the approved palette. One judgement-call finding: shared orchestration retained installer-only documentation. Corrected module/rollback/quota comments; historical exported Craftsman names remain for compatibility. No further actionable standards findings were reported in reviewed auth/selling SQL. Build/screenshots are refreshed after the CSS change.
+
+## Independent review: Spec
+Two new findings, separate from the previously known native quota blocker. Quotation eligibility was checked only at submission; fixed accepted transition too. Three local regression assertions verify denial after eligibility loss, RFQ remains quoted and rejection still succeeds.
+
+**Remaining merge blocker: direct business-contact RPC metadata validation.** Next actions and UI enforce libphonenumber, but business_draft_save/submit enforce E.164 shape rather than full country numbering metadata. A rolled-back synthetic diagnostic saved/submitted `+201000000000`, which fails the application's Egyptian numbering validation. An invalid contact does not grant approval automatically, but this violates the direct-RPC valid-contact contract; it is not resolved by frontend restrictions. The authoritative database boundary needs equivalent metadata validation or a reviewed trusted validation contract before merge. Do not replace this with a fixed global length regex or claim all phone security checks passed. No extra dependency/service or hosted setting was introduced to conceal this issue.
+
+Review totals: Standards1material+1maintainability finding, both addressed; Spec2newfindings, quotationfixed/contactvalidationopen, plus previously documented nativequota blocker. A clean full seed-only DB run and production impact/configuration review remain required.
+
+Reviewed build passed; desktop/mobile layout rerun **2/2 passed**, verifying actual rendered CTA weight/size/contrast and refreshing all four authentication screenshots. Shared auth focused rerun **114/114 passed**. DB advisors/lint also surfaced pre-existing mutable-search-path warnings and PostGIS dynamic-SQL diagnostics; these are not represented as a clean global security scan, and unrelated database cleanup was not performed.
+
+An additional post-review journey rerun was **aborted/incomplete** when Docker exec stopped responding; the diagnostic container query also stalled. Only the exact task's worker/acceptance server on3340 was stopped; no Docker restart or other Aladdin server interruption. This rerun is not counted as a pass. The prior full24/24browser run remains the executed complete run; the quotation change is independently covered by the119/119task database run. Final TypeScript rerun passed after correcting strict array indexing in the contrast test.
+
+A separate untracked `frontend/e2e/auth-captcha.spec.ts` appeared during final checks. It was not created by this task, is preserved untouched and excluded from commits. The worktree therefore must not be called entirely clean or removed; task-related tracked changes are committed separately from this external file.
 
 ## Migrations, files, references and operational limits
 Four forward migrations: phone quota/account-type/rollback security (`20261014085731`), draft/business contacts and activity (`20261014123000`), optional-address bounds/completion (`20261014133000`), activation/selling/legacy snapshots (`20261014160000`). Applied only locally. Before deployment: resolve native-auth quota coverage; verify hosted password/cookie/provider settings; assess production legacy impact; review locks/backups; migrate before a compatible app. Snapshot historical sellers once, never recreate exceptions per deployment. Rollback requires reviewed forward corrective migration and compatible app; do not reset DB, erase audits or blindly deploy an app incompatible with creation rules.

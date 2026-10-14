@@ -136,7 +136,7 @@ create policy products_select_published on public.products for select to authent
 create function app.showroom_quotation_guard() returns trigger
 language plpgsql security definer set search_path='' as $$
 begin
- if new.status='submitted' and (tg_op='INSERT' or old.status is distinct from new.status) and not app.showroom_seller_ready(new.supplier_org_id) then
+ if new.status in ('submitted','accepted') and (tg_op='INSERT' or old.status is distinct from new.status) and not app.showroom_seller_ready(new.supplier_org_id) then
  raise exception 'showroom selling is not authorized' using errcode='42501'; end if;
  return new;
 end;

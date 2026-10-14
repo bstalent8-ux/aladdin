@@ -52,7 +52,11 @@ insert into public.products(id,organization_id,name,category,unit,status,publish
 alter table public.products enable trigger showroom_product_publish_complete;
 insert into app.showroom_legacy_published_products(product_id,organization_id) values('92c00001-0000-4000-8000-000000000092','92b00001-0000-4000-8000-000000000092');
 insert into public.rfqs(id,requester_org_id,supplier_org_id,title,created_by) values('92d00001-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','92b00001-0000-4000-8000-000000000092','Historical order','11111111-1111-4111-8111-111111111111'),('92d00002-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','92b00001-0000-4000-8000-000000000092','New order','11111111-1111-4111-8111-111111111111');
+alter table public.quotations disable trigger showroom_quotation_sell_complete;
 insert into public.quotations(id,rfq_id,supplier_org_id,requester_org_id,status,submitted_at,decided_at,created_by) values('92e00001-0000-4000-8000-000000000092','92d00001-0000-4000-8000-000000000092','92b00001-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','accepted',now(),now(),'92000003-0000-4000-8000-000000000092'),('92e00002-0000-4000-8000-000000000092','92d00002-0000-4000-8000-000000000092','92b00001-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','accepted',now(),now(),'92000003-0000-4000-8000-000000000092');
+insert into public.rfqs(id,requester_org_id,supplier_org_id,title,created_by,status) values('92d00003-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','92b00001-0000-4000-8000-000000000092','Historical submitted quote','11111111-1111-4111-8111-111111111111','quoted');
+insert into public.quotations(id,rfq_id,supplier_org_id,requester_org_id,status,submitted_at,created_by) values('92e00003-0000-4000-8000-000000000092','92d00003-0000-4000-8000-000000000092','92b00001-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','submitted',now(),'92000003-0000-4000-8000-000000000092');
+alter table public.quotations enable trigger showroom_quotation_sell_complete;
 alter table public.orders disable trigger trg_zz_showroom_order_sell_complete;
 insert into public.orders(id,quotation_id,rfq_id,requester_org_id,supplier_org_id,title,created_by) values('92f00001-0000-4000-8000-000000000092','92e00001-0000-4000-8000-000000000092','92d00001-0000-4000-8000-000000000092','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','92b00001-0000-4000-8000-000000000092','Historical order','11111111-1111-4111-8111-111111111111');
 alter table public.orders enable trigger trg_zz_showroom_order_sell_complete;
@@ -68,6 +72,9 @@ select throws_ok(format('select public.set_product_published(%L,true,1)',current
 select lives_ok($$select public.start_order('92f00001-0000-4000-8000-000000000092',1)$$,'captured existing order operations continue');
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}',true);
 select throws_ok($$select public.create_order_from_quotation('92e00002-0000-4000-8000-000000000092')$$,'42501',null,'uncaptured new selling order blocked until address completion');
+select throws_ok($$select public.decide_quotation('92e00003-0000-4000-8000-000000000092',true,1)$$,'42501',null,'acceptance denied after showroom loses selling eligibility');
+select is((select status::text from public.rfqs where id='92d00003-0000-4000-8000-000000000092'),'quoted','denied acceptance does not close the RFQ');
+select lives_ok($$select public.decide_quotation('92e00003-0000-4000-8000-000000000092',false,1)$$,'requester may still reject an ineligible supplier quotation');
 select set_config('request.jwt.claims','{"sub":"92000003-0000-4000-8000-000000000092","role":"authenticated"}',true);
 select lives_ok($$select public.branch_update_i18n('92b00002-0000-4000-8000-000000000092',null,null,'10 Legacy Showroom Street',null,null)$$,'legacy owner remedies address via existing editor');
 select lives_ok(format('select public.set_product_published(%L,true,1)',current_setting('test.legacy_product')),'legacy new publishing enabled after remediation');
