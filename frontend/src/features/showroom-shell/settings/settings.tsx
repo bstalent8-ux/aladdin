@@ -21,6 +21,7 @@ import { loadOrganizationActivities, loadOrganizationActivityCatalog } from "@/s
 import { loadMyIdentity } from "@/server/queries/profile-identity";
 import { loadOrganizationImageUrl } from "@/server/queries/organization-image";
 import { OrganizationImageField } from "@/features/organization/organization-image-field";
+import { OrganizationDescriptionField } from "@/features/organization/organization-description-field";
 import { setOrganizationActivitiesAction } from "@/server/actions/activities";
 import { BadgeCheckIcon, BuildingIcon, LayersIcon, MapPinIcon, SettingsIcon, ShieldIcon, TagIcon, UsersIcon, UserIcon, HelpIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
@@ -127,7 +128,7 @@ async function BusinessSection({ ctx, locale, canManageOrg }: { ctx: Ctx; locale
   const [{ data: record }, identityState, imageUrl] = await Promise.all([
     supabase
       .from("organizations")
-      .select("name, org_type, status, is_verified, name_ar, name_en, timezone")
+      .select("name, org_type, status, is_verified, name_ar, name_en, timezone, description")
       .eq("id", org.organizationId)
       .maybeSingle(),
     // A verified organization's name changes only through a review request (never a direct edit).
@@ -148,6 +149,7 @@ async function BusinessSection({ ctx, locale, canManageOrg }: { ctx: Ctx; locale
           {m.settings.business}
         </SectionTitle>
         <div className="mt-md"><OrganizationImageField orgId={org.organizationId} imageUrl={imageUrl} canManage={canManageOrg} /></div>
+        <div className="mt-md"><OrganizationDescriptionField orgId={org.organizationId} description={record?.description ?? null} canManage={canManageOrg} /></div>
         <dl className="mt-md grid gap-md tablet:grid-cols-2">
           <Field label={m.settings.field.name}>{resolveBilingualText(locale, record?.name ?? org.organizationName, record?.name_ar ?? null, record?.name_en ?? null)}</Field>
           <Field label={m.settings.field.type}>{record?.org_type ? m.directory.orgType[record.org_type] : "—"}</Field>

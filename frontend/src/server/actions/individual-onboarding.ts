@@ -115,7 +115,7 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Indivi
     p_city: v.city ?? undefined,
     p_max_travel_km: v.maxTravelKm ?? undefined,
   });
-  if (error) return { ok: false, code: "onboarding.error.saveFailed" };
+  if (error) return { ok: false, code: error.code === "22023" && /description/i.test(error.message) ? "onboarding.error.descriptionTooLong" : "onboarding.error.saveFailed" };
   return OK;
 }
 

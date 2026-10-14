@@ -38,6 +38,7 @@ export function mapCommerceError(error: unknown): string {
   const msg = (e.message ?? "").toLowerCase();
 
   if (code === "40001" || msg.includes("modified concurrently")) return "commerce.errors.conflict";
+  if (code === "22023" && msg.includes("description")) return "commerce.errors.descriptionTooLong";
   if (msg.includes("live quotation already exists")) return "commerce.errors.quotationExists";
   if (msg.includes("at least one item")) return "commerce.errors.rfqNeedsItem";
   if (msg.includes("price every line") || msg.includes("every line must have a price"))
@@ -307,6 +308,7 @@ export function mapPortfolioError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
+  if (code === "22023" && msg.includes("description")) return "portfolio.errors.descriptionTooLong";
   if (msg.includes("professional persona is required"))
     return "portfolio.errors.notProfessional";
   if (msg.includes("unfinished item cannot be published"))

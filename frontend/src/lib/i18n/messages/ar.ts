@@ -1590,6 +1590,7 @@ export const ar: Messages = {
       comingSoon: "هذا الخيار غير متاح للتسجيلات الجديدة حاليًا.",
       saveFailed: "تعذّر الحفظ. حاول مجددًا.",
       businessNotAllowed: "إضافة نشاط تجاري غير متاحة لنوع الحساب هذا.",
+      descriptionTooLong: "الحد الأقصى للوصف ٢٥٠ حرفًا. يرجى اختصاره.",
     },
     consumer: {
       step: { intent: "المشروع", interests: "الاهتمامات", location: "الموقع", budget: "الميزانية", review: "المراجعة" },
@@ -3553,6 +3554,19 @@ export const ar: Messages = {
       appearance: "المظهر واللغة",
       support: "الدعم",
     },
+    description: {
+      label: "وصف النشاط التجاري",
+      placeholder: "ماذا يقدّم نشاطك التجاري؟ وصف مختصر لفريقك.",
+      hint: "يظهر لفريق مؤسستك.",
+      chars: "حرفًا",
+      empty: "لا يوجد وصف بعد.",
+      save: "حفظ الوصف",
+      saving: "جارٍ الحفظ…",
+      saved: "تم حفظ الوصف.",
+      errorTooLong: "الحد الأقصى للوصف {max} حرفًا. اختصره لتتمكن من الحفظ.",
+      errorForbidden: "ليست لديك صلاحية تعديل وصف النشاط التجاري.",
+      errorFailed: "تعذّر حفظ الوصف. حاول مرة أخرى.",
+    },
     image: {
       label: "صورة المعرض",
       add: "إضافة صورة",
@@ -3900,6 +3914,7 @@ export const ar: Messages = {
     errors: {
       conflict: "تغيّر هذا منذ فتحك له. حدّث الصفحة وحاول مجددًا.",
       quotationExists: "يوجد بالفعل عرض سعر ساري لهذا الطلب.",
+      descriptionTooLong: "الحد الأقصى للوصف ٢٥٠ حرفًا. يرجى اختصاره.",
       rfqNeedsItem: "أضف بندًا واحدًا على الأقل قبل الإرسال.",
       quotationNeedsPrices: "سعّر كل بند قبل الإرسال.",
       productNotPublished: "هذا المنتج ليس منتجًا منشورًا لهذا الموزع.",
@@ -4301,6 +4316,7 @@ export const ar: Messages = {
     },
     errors: {
       titleRequired: "اكتب عنوانًا لهذا العمل.",
+      descriptionTooLong: "الحد الأقصى للوصف ٢٥٠ حرفًا. يرجى اختصاره.",
       fileRequired: "اختر صورة للرفع.",
       notProfessional: "إضافة الأعمال متاحة للحسابات المهنية فقط.",
       notReady: "لم يكتمل رفع هذا العنصر بعد.",

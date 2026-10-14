@@ -1,4 +1,5 @@
 import type { Database } from "@/types/database.types";
+import { DESCRIPTION_MAX_CHARS } from "@/lib/text/description-limit";
 
 /**
  * Shared commerce constants and formatters. Enum value lists mirror the DB enums
@@ -122,8 +123,8 @@ export function isOwnProductUnit(value: unknown): value is OwnProductUnit {
   return typeof value === "string" && (OWN_PRODUCT_UNITS as readonly string[]).includes(value);
 }
 
-/** The one limit for every showroom Description / Details free-text field. */
-export const DESCRIPTION_MAX_CHARS = 250;
+/** The one limit for every Description / Details free-text field (defined once in `lib/text/description-limit`). */
+export { DESCRIPTION_MAX_CHARS };
 
 /** Limits mirrored from the database (the database is the authority). */
 export const PRODUCT_LIMITS = {

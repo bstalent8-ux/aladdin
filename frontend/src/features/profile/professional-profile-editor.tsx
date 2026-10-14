@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Textarea, Select, LabeledField, Checkbox, Button } from "@/components/ui/controls";
+import { Input, Select, LabeledField, Checkbox, Button } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isAcceptableEdit } from "@/lib/text/description-limit";
 import { Badge, Card } from "@/components/ui/primitives";
 import { ChoiceCard, ChoiceChip } from "@/features/onboarding/wizard";
 import { saveProfessional, type ProfessionalInput } from "@/server/actions/individual-onboarding";
@@ -208,13 +210,18 @@ export function ProfessionalProfileEditor({
           htmlFor="bio"
           optional={t("common.optional")}
         >
-          <Textarea
+          <CountedTextarea
             id="bio"
             value={state.bio}
-            maxLength={1000}
+            max={DESCRIPTION_MAX_CHARS}
+            unitLabel={t("showroomSettings.description.chars")}
+            counterTestId="bio-count"
             placeholder={t("onboarding.professional.identity.bioPlaceholder")}
             onChange={(e) => set({ bio: e.target.value })}
           />
+          {isAcceptableEdit(state.bio, answers.bio) ? null : (
+            <p role="alert" className="mt-1 text-label text-danger">{t("onboarding.error.descriptionTooLong")}</p>
+          )}
         </LabeledField>
       </Card>
 
@@ -354,7 +361,7 @@ export function ProfessionalProfileEditor({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-sm">
-        <Button type="button" variant="primary" onClick={save} disabled={pending}>
+        <Button type="button" variant="primary" onClick={save} disabled={pending || !isAcceptableEdit(state.bio, answers.bio)}>
           {pending ? t("profile.edit.saving") : t("profile.edit.save")}
         </Button>
         <Link href="/home/profile">

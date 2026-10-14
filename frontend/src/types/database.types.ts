@@ -2247,6 +2247,7 @@ export type Database = {
           created_at: string
           created_by: string
           deleted_at: string | null
+          description: string | null
           id: string
           is_verified: boolean
           locality_id: string | null
@@ -2267,6 +2268,7 @@ export type Database = {
           created_at?: string
           created_by: string
           deleted_at?: string | null
+          description?: string | null
           id?: string
           is_verified?: boolean
           locality_id?: string | null
@@ -2287,6 +2289,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          description?: string | null
           id?: string
           is_verified?: boolean
           locality_id?: string | null
@@ -6613,6 +6616,10 @@ export type Database = {
       }
       organization_image_current: {
         Args: { p_org_id: string }
+        Returns: string
+      }
+      organization_description_set: {
+        Args: { p_description: string; p_org_id: string }
         Returns: string
       }
       organization_image_remove: {

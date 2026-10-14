@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import {
   createProductAction,
@@ -8,7 +8,9 @@ import {
   type FormState,
 } from "@/server/actions/commerce-forms";
 import { Card } from "@/components/ui/primitives";
-import { Input, Textarea, Select, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { Input, Select, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS } from "@/lib/text/description-limit";
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from "@/features/commerce/constants";
 import type { ProductRow } from "@/server/queries/commerce";
 import { ProductAudiencePicker } from "@/features/showroom-shell/products/product-audience-picker";
@@ -33,6 +35,7 @@ export function ProductForm({
   audiences?: readonly ProductAudienceCode[];
 }) {
   const { t } = useI18n();
+  const [shortDescription, setShortDescription] = useState(product?.short_description ?? "");
   const editing = Boolean(product);
   const [state, action] = useActionState(
     editing ? updateProductAction : createProductAction,
@@ -130,11 +133,14 @@ export function ProductForm({
             htmlFor="shortDescription"
             optional={t("common.optional")}
           >
-            <Textarea
+            <CountedTextarea
               id="shortDescription"
               name="shortDescription"
-              maxLength={600}
-              defaultValue={product?.short_description ?? ""}
+              value={shortDescription}
+              max={DESCRIPTION_MAX_CHARS}
+              unitLabel={t("showroomSettings.description.chars")}
+              counterTestId="legacy-product-description-count"
+              onChange={(e) => setShortDescription(e.target.value)}
             />
           </LabeledField>
         </div>

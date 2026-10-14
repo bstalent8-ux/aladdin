@@ -7,6 +7,7 @@ import { getServerSupabase } from "@/lib/supabase/server";
 import { loadBusinessCreationAccess } from "@/server/queries/business-creation-access";
 import { APPLICATION_ORG_TYPES } from "@/lib/onboarding/account-types";
 import { slotErrorCode } from "@/lib/workspace/applications";
+import { isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import type { Database } from "@/types/database.types";
 
 /**
@@ -34,12 +35,17 @@ const businessSchema = z.object({
   legalName: z.string().trim().max(120).nullish(),
   displayName: z.string().trim().max(120).nullish(),
   orgType: z.enum(APPLICATION_ORG_TYPES).nullish(),
-  description: z.string().trim().max(1000).nullish(),
+  description: z.string().trim().refine(isWithinDescriptionLimit).nullish(),
   governorate: z.string().trim().max(80).nullish(),
   city: z.string().trim().max(80).nullish(),
   primaryBranchName: z.string().trim().max(120).nullish(),
 });
 export type BusinessInput = z.input<typeof businessSchema>;
+
+/** An over-limit description is the one validation failure a person can fix; everything else stays generic. */
+function failedFieldCode(error: z.ZodError): string {
+  return error.issues.some((i) => i.path[0] === "description") ? "onboarding.error.descriptionTooLong" : "onboarding.error.saveFailed";
+}
 
 function notEntitled(error: { code?: string }): boolean {
   return error.code === "42501";
@@ -50,7 +56,8 @@ function notEntitled(error: { code?: string }): boolean {
  * database says which through the error hint (`first_pending`, `first_rejected`,
  * `additional_pending`), so the person sees the real reason rather than a generic refusal.
  */
-function failureCode(error: { code?: string; hint?: string | null }): string {
+function failureCode(error: { code?: string; hint?: string | null; message?: string }): string {
+  if (error.code === "22023" && /description/i.test(error.message ?? "")) return "onboarding.error.descriptionTooLong";
   if (!notEntitled(error)) return "onboarding.error.saveFailed";
   return error.hint ? slotErrorCode(error.hint) : "onboarding.error.businessNotAllowed";
 }
@@ -62,7 +69,7 @@ function failureCode(error: { code?: string; hint?: string | null }): string {
  */
 export async function saveBusiness(input: BusinessInput): Promise<BusinessActionState> {
   const parsed = businessSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: "onboarding.error.saveFailed" };
+  if (!parsed.success) return { ok: false, code: failedFieldCode(parsed.error) };
   const v = parsed.data;
 
   // The same entitlement the page applies — a direct post to this action must not

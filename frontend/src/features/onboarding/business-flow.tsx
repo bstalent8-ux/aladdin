@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Textarea, Select, LabeledField } from "@/components/ui/controls";
+import { Input, Select, LabeledField } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import { InlineError } from "@/components/ui/primitives";
 import { WizardShell, WizardProgress, ChoiceCard, FlowActions, SavedHint } from "@/features/onboarding/wizard";
 import { saveBusiness, submitBusiness, type BusinessInput } from "@/server/actions/business-onboarding";
@@ -74,7 +76,7 @@ export function BusinessFlow({
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
 
-  const identityDone = (s: BState) => s.displayName.trim().length > 0;
+  const identityDone = (s: BState) => s.displayName.trim().length > 0 && isWithinDescriptionLimit(s.description);
   const typeDone = (s: BState) => !!s.orgType;
 
   const [step, setStep] = useState<number>(() => {
@@ -157,13 +159,18 @@ export function BusinessFlow({
             />
           </LabeledField>
           <LabeledField label={t("onboarding.business.identity.descriptionLabel")} htmlFor="bdesc" optional={t("common.optional")}>
-            <Textarea
+            <CountedTextarea
               id="bdesc"
               value={state.description}
-              maxLength={1000}
+              max={DESCRIPTION_MAX_CHARS}
+              unitLabel={t("showroomSettings.description.chars")}
+              counterTestId="business-description-count"
               placeholder={t("onboarding.business.identity.descriptionPlaceholder")}
               onChange={(e) => set({ description: e.target.value })}
             />
+            {isWithinDescriptionLimit(state.description) ? null : (
+              <p role="alert" className="mt-1 text-label text-danger">{t("onboarding.error.descriptionTooLong")}</p>
+            )}
           </LabeledField>
         </div>
       ) : null}

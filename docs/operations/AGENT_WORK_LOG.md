@@ -1,5 +1,14 @@
 # Agent Work Log
 
+## Session - 2026-10-14: Showroom V2 Business Description and the 250-character description rule
+
+- Purpose: add the missing Business Description to Showroom Settings and apply one 250-character limit to user-authored description fields, enforced beyond the frontend, without touching legacy data. Part of the ongoing V2 alignment; no new milestone.
+- Findings: `organizations` had no description column; the registration description lived only on the draft and was never copied to the organization; the draft and bio RPCs silently truncated at 1000; `profiles.bio` had a direct client UPDATE grant; product/offer validators already enforced 250.
+- Built: migration `20261025090001_organization_description_250.sql` (additive: `organizations.description` CHECK <= 250, `organization_description_set` RPC with live `org.manage` and audit, one counting rule, reject-not-truncate in the draft/bio/portfolio RPCs, legacy-safe direct-write trigger on six columns, draft description copied on submit); Settings field with live counter; registration, professional bio, portfolio and legacy product inputs moved to the counted textarea (no silent `maxLength` cut); shared `lib/text/description-limit`.
+- Records: [reference alignment section 10](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md) (now 44 migrations).
+- Validation: fresh `supabase db reset --local` then pgTAP 85 files / 3732 tests pass (new test 84: 36 assertions); Vitest 219 files / 2673 tests; tsc and eslint clean on touched files; browser `v2-description` DS-1..DS-3, `v2-settings` S-1..S-4, regression b/c/g/h pass. pgTAP on a database that still holds e2e seed data fails 8 files on row counts (pollution; passes after a reset).
+- Pending: production audit query for existing over-250 values (documented), decision on jobs/projects/referral descriptions, whether the description should ever be public or moderated, all earlier V2 blockers.
+
 ## Session - 2026-10-13 (later): Showroom V2 reference alignment and Settings corrections
 
 - Purpose: the exact Home reference image became available; align Home to it, keep KPI customization, apply the approved Settings corrections (remove business language/timezone, add a Showroom profile image, explain/hide the technical slug), audit personal-data privacy, rename the workspace-switcher actions. No deployment.

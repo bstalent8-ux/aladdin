@@ -62,6 +62,7 @@ Status legend: READY, INTEGRATED (fixed in this task), INTEGRATION NEEDED, INCOM
 |---|---|---|---|---|
 | Home aligned to the approved reference image | `showroom_home_metrics`, `order_list`, `quotation_list`, `order_category_spend`, `catalog_products` | five KPI cards + discover grid + quotations + category donut | R-1..R-4 (side-by-side image, overflow, customization, SQL parity) | READY (see `showroom-v2-reference-alignment.md` for the differences) |
 | KPI customization | `dashboard_kpi_layouts` (+ `20261024090001`) | trigger beside the period selector | R-3, pgTAP 66/81 | READY (team-default scope not browser-tested) |
+| Business Description (250 characters) and the description limit | `organizations.description`, `organization_description_set`, `app.description_text`, direct-write trigger (`20261025090001`) | Settings > Business profile; registration; bio; portfolio; legacy product form | DS-1..DS-3, pgTAP 84 | READY (members-only; legacy over-limit text preserved) |
 | Showroom business profile image | `organization_images`, `organization_image_*` RPCs, private bucket (`20261024090002`) | Settings > Business profile | S-2..S-4, pgTAP 82 | READY (members-only; public exposure not enabled) |
 | Business profile without language/timezone/handle | unchanged columns | Settings, names dialog | S-1, unit tests | READY |
 | Personal data privacy | RLS + RPCs as audited | privacy notes in Settings | pgTAP 83 | READY, four product decisions open |

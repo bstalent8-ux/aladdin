@@ -98,9 +98,47 @@ Findings that need a product decision (not changed):
 
 `workspace.addBusiness` = «طلب إضافة مؤسسة جديدة» / "Request New Organization"; `orgApplications.title` = «مؤسساتي وطلباتي» / "My Organizations & Applications" (also the heading of the existing applications page). The V2 menu now reads both from the message catalog instead of hard-coded strings; routes (`/preview/showroom-suite-v2/add-business`, `/business/applications`), eligibility, Admin approval, branch creation (Settings > Branches) and the rule that pending organizations never appear as workspaces are unchanged. Tests: `workspace-menu.test.tsx` (AR/EN labels, hrefs, no old text, nothing offered without eligibility), regression B4/D7/G3 updated or passing, legacy-harness specs updated for consistency (not run).
 
+## 10. Business Description and the 250-character rule
+
+**What was found (measured on the local database, not assumed).**
+
+| Field | Limit before | What happened to an over-limit value | Now |
+|---|---|---|---|
+| Business description of the **organization** | **none - no column existed** | n/a. The description typed at registration was saved only on the draft (`business_creation_drafts.description`) and was **never copied to the organization**, so it was lost on submit | new canonical `organizations.description`, <= 250 (CHECK + RPC) |
+| `business_creation_drafts.description` (registration) | 1000 (table) | the save RPC **silently truncated** with `left(..., 1000)` | RPC rejects > 250; copied to the organization on submit |
+| `business_onboarding.description` | 1000 (table) | no writer other than the submit hand-off | direct-write trigger only |
+| `profiles.bio` (personal / professional bio) | 1000 (table) | the save RPC **silently truncated** at 1000; clients also hold a direct UPDATE grant on the column | RPC rejects a new/changed bio > 250; trigger guards the direct grant |
+| `portfolio_items.description` | 600 (table) | the RPC stored it as is | RPC + trigger |
+| `products.short_description` | 250 in `own_product_validate` since `20261017090002`; the legacy `create_product/update_product` had only a 5000 ceiling | accepted by the legacy path | trigger guards every path; the legacy form now counts and shows the limit |
+| `product_offers.description` | 250 in `offer_validate_text`; 5000 ceiling | - | trigger as a safeguard |
+
+**Decisions implemented (migration `20261025090001_organization_description_250.sql`, additive).**
+- One canonical business description: `organizations.description` (nullable text, CHECK <= 250). It belongs to the organization, never to its creator's personal profile (pgTAP D-22, browser DS-3). Written only by `public.organization_description_set(org, text)`: live `org.manage` check, audit event `organization.description_changed` (length only, never the text), no client UPDATE/INSERT grant on the column.
+- One counting rule everywhere: **Unicode characters** (PostgreSQL `char_length`; an Arabic letter or an emoji counts once; a CRLF/CR line break counts once, exactly like the browser counter). Edges are trimmed and whitespace-only becomes null. Over the limit is **rejected, never truncated**. The `maxLength` attributes (which silently cut pasted text) were replaced by a counter that turns red plus a message.
+- **Legacy values are never cut and never block an unrelated edit.** The write RPCs (`individual_save_professional`, `portfolio_item_update`) and the direct-write trigger accept a value that is **unchanged**, even if longer than 250; changing it to another over-limit text is rejected, shortening it is accepted. The old generous table CHECKs (600/1000/5000) deliberately stay as ceilings so no historical row is invalidated and no data is rewritten. The UI mirrors this (`isAcceptableEdit`).
+- Registration shares the field: the draft description is validated when saved (rejected > 250) and copied to `organizations.description` when the draft is submitted (pgTAP D-19..D-21, browser DS-3). Registration steps and Coming Soon restrictions are untouched.
+- Public visibility and moderation: **no change**. The description is visible to the organization's own members only and is in no public directory/catalog view (pgTAP D-17). No moderation rule exists for free-text descriptions today (only name changes are Admin-reviewed).
+
+**Existing data above 250 characters.** Local database: **none** (longest bio 142, product 70, offer 16; drafts, onboarding, portfolio and referrals empty). **Production is unknown.** Run this read-only check before release; nothing is rewritten either way:
+
+```sql
+select 'profiles.bio' f, count(*) filter (where char_length(bio) > 250) over_250, max(char_length(bio)) longest from public.profiles
+union all select 'products.short_description', count(*) filter (where char_length(short_description) > 250), max(char_length(short_description)) from public.products
+union all select 'product_offers.description', count(*) filter (where char_length(description) > 250), max(char_length(description)) from public.product_offers
+union all select 'portfolio_items.description', count(*) filter (where char_length(description) > 250), max(char_length(description)) from public.portfolio_items
+union all select 'business_creation_drafts.description', count(*) filter (where char_length(description) > 250), max(char_length(description)) from public.business_creation_drafts
+union all select 'business_onboarding.description', count(*) filter (where char_length(description) > 250), max(char_length(description)) from public.business_onboarding;
+```
+
+Known consequence for published content: a **product or offer** already longer than 250 keeps working (view, pause, archive, restore), but editing its details in the V2 product/offer form asks for a shorter description (the validators from `20261017090002` check the submitted text; this is existing behaviour, not new). The bio, portfolio and draft paths above accept an unchanged long value. No published content is hidden or altered.
+
+**Not changed - not descriptions, or a decision for the user.** Product names, SKUs, technical specifications, RFQ/quotation notes (2000), reviewer/Admin reasons, review comments (1500), branch addresses (300), chat messages, follow-up and activity text. **Open decision:** `jobs.description` (2000), `projects.description` (2000) and `organization_referrals.description` (1000) are descriptions by name but long-form requirement/brief text; they stay at their current limits because forcing 250 would break working flows. Say if they should follow the 250 rule.
+
+**Verification.** pgTAP `84_description_250_test.sql` (36 assertions): 250/251 for Latin, Arabic, emoji and CRLF; manager / member / other-organization manager / outsider / anon; no direct UPDATE; audit; registration copy; bio and portfolio; legacy unchanged / changed / shortened. Vitest `description-limit.test.ts` and `organization-description-field.test.tsx`. Browser `e2e/audit/v2-description.spec.ts`: DS-1 (owner: 250 saves and reloads, 251 blocked and not cut, emoji, line break, clear), DS-2 (staff read-only; staff and other-organization RPC refused 42501; no cross-organization read), DS-3 (registration wizard: 251 blocks Continue, 250 carries to the organization and not to the personal profile). Screenshots: `docs/frontend/screenshots/v2-reference-alignment/v2-release/desc0*`.
+
 ## 8. Remaining production blockers
 
-All earlier blockers stand (`docs/operations/showroom-v2-release-plan.md`): the release is now **43** migrations; Admin review UI for identity/branch/co-owner requests; hosted validation of the quotation stale-version 40001 behaviour; untested order/project transitions, invitations and personal-profile saves; canonical route decision; visual approval. New: the profile-image bucket and its four storage policies must exist on the target project.
+All earlier blockers stand (`docs/operations/showroom-v2-release-plan.md`): the release is now **44** migrations; Admin review UI for identity/branch/co-owner requests; hosted validation of the quotation stale-version 40001 behaviour; untested order/project transitions, invitations and personal-profile saves; canonical route decision; visual approval. New: the profile-image bucket and its four storage policies must exist on the target project.
 
 ## 9. Roadmap continuity
 

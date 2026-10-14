@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Textarea, Select, LabeledField, Checkbox } from "@/components/ui/controls";
+import { Input, Select, LabeledField, Checkbox } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isAcceptableEdit } from "@/lib/text/description-limit";
 import { Badge } from "@/components/ui/primitives";
 import { WizardShell, WizardProgress, ChoiceCard, ChoiceChip, FlowActions, SavedHint } from "@/features/onboarding/wizard";
 import { saveProfessional, saveProfessionalAndReview, type ProfessionalInput } from "@/server/actions/individual-onboarding";
@@ -131,7 +133,7 @@ export function ProfessionalFlow({ persona, answers }: { persona: ProfessionalPe
     });
 
   const canContinue =
-    current === "identity" ? identityDone(state) : current === "services" ? servicesDone(state) : current === "location" ? locationDone(state) : true;
+    current === "identity" ? identityDone(state) && isAcceptableEdit(state.bio, answers.bio) : current === "services" ? servicesDone(state) : current === "location" ? locationDone(state) : true;
 
   const progress = <WizardProgress current={step} total={TOTAL} label={t(`onboarding.professional.step.${current}`)} />;
 
@@ -171,7 +173,7 @@ export function ProfessionalFlow({ persona, answers }: { persona: ProfessionalPe
           ) : null}
 
           <LabeledField label={t("onboarding.professional.identity.bioLabel")} htmlFor="bio" optional={t("common.optional")}>
-            <Textarea id="bio" value={state.bio} maxLength={1000} placeholder={t("onboarding.professional.identity.bioPlaceholder")} onChange={(e) => set({ bio: e.target.value })} />
+            <CountedTextarea id="bio" value={state.bio} max={DESCRIPTION_MAX_CHARS} unitLabel={t("showroomSettings.description.chars")} counterTestId="bio-count" placeholder={t("onboarding.professional.identity.bioPlaceholder")} onChange={(e) => set({ bio: e.target.value })} />
           </LabeledField>
         </div>
       ) : null}

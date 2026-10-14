@@ -1657,6 +1657,7 @@ export const en = {
       comingSoon: "This option isn't open for new registrations yet.",
       saveFailed: "We couldn't save that. Try again.",
       businessNotAllowed: "Adding a business isn't available for this account type.",
+      descriptionTooLong: "The description can be at most 250 characters. Please shorten it.",
     },
     consumer: {
       step: { intent: "Project", interests: "Interests", location: "Location", budget: "Budget", review: "Review" },
@@ -3665,6 +3666,19 @@ export const en = {
       appearance: "Appearance & language",
       support: "Support",
     },
+    description: {
+      label: "Business Description",
+      placeholder: "What does your business offer? A short description for your team.",
+      hint: "Shown to your organization's team.",
+      chars: "characters",
+      empty: "No description yet.",
+      save: "Save description",
+      saving: "Saving…",
+      saved: "Description saved.",
+      errorTooLong: "The description can be at most {max} characters. Shorten it to save.",
+      errorForbidden: "You do not have permission to change the business description.",
+      errorFailed: "The description could not be saved. Try again.",
+    },
     image: {
       label: "Showroom image",
       add: "Add image",
@@ -4014,6 +4028,7 @@ export const en = {
     errors: {
       conflict: "This changed since you opened it. Refresh and try again.",
       quotationExists: "A live quotation already exists for this request.",
+      descriptionTooLong: "The description can be at most 250 characters. Please shorten it.",
       rfqNeedsItem: "Add at least one item before submitting.",
       quotationNeedsPrices: "Price every line before submitting.",
       productNotPublished: "That product isn't a published product of this distributor.",
@@ -4450,6 +4465,7 @@ export const en = {
     },
     errors: {
       titleRequired: "Give this work a title.",
+      descriptionTooLong: "The description can be at most 250 characters. Please shorten it.",
       fileRequired: "Choose a photograph to upload.",
       notProfessional: "Only a professional account can add work.",
       notReady: "This item has not finished uploading yet.",
