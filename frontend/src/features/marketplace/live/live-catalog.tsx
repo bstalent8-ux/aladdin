@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Select } from "@/components/ui/controls";
 import type { FacetCategory, PublicCard, PublicPage, PublicSort } from "@/server/queries/marketplace-public";
 import { PUBLIC_PAGE_SIZE, PUBLIC_SORTS } from "@/server/queries/marketplace-public";
 import type { Locale } from "../marketplace-types";
@@ -94,13 +95,13 @@ export function LiveCatalog({
         </label>
         <label className={styles.sort}>
           {t.sort}
-          <select name="sort" defaultValue={params.sort}>
+          <Select size="compact" name="sort" defaultValue={params.sort} aria-label={t.sort}>
             {PUBLIC_SORTS.map((s) => (
               <option key={s} value={s}>
                 {t.sorts[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <button type="submit" className={styles.tab}>
           {t.searchButton}
