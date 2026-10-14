@@ -56,10 +56,57 @@ export function cliErrorFrom(stdout) {
   return { code: text(e.code), message: text(e.message), suggestion: text(e.suggestion) };
 }
 
-/** Build the diagnostic lines for a finished command. Returns [] when the command succeeded. */
-export function diagnose({ label, status, stdout, stderr }, env = process.env) {
+/** True when the CLI arguments explicitly ask for JSON output (`--output-format json` in any position, or `--output-format=json`). */
+export function expectsJson(cliArgs) {
+  for (let i = 0; i < cliArgs.length; i += 1) {
+    if (cliArgs[i] === "--output-format=json") return true;
+    if (cliArgs[i] === "--output-format" && cliArgs[i + 1] === "json") return true;
+  }
+  return false;
+}
+
+/** Does stdout hold a parseable JSON object (the guard's own rule: first "{" to last "}")? */
+export function hasJsonObject(stdout) {
+  if (typeof stdout !== "string") return false;
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start === -1 || end <= start) return false;
+  try {
+    const doc = JSON.parse(stdout.slice(start, end + 1));
+    return doc !== null && typeof doc === "object" && !Array.isArray(doc);
+  } catch {
+    return false;
+  }
+}
+
+/** Closed-vocabulary description of a stdout we refuse to echo: sizes and the CLASS of the first character, never its content. */
+export function outputShape(stdout) {
+  const text = typeof stdout === "string" ? stdout : "";
+  const first = text.trimStart()[0] ?? "";
+  const startsWith = first === "" ? "empty" : first === "{" ? "brace" : first === "[" ? "bracket" : /[A-Za-z]/.test(first) ? "letter" : /[0-9]/.test(first) ? "digit" : "other";
+  return { bytes: Buffer.byteLength(text, "utf8"), lines: text === "" ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0), startsWith };
+}
+
+/**
+ * Build the diagnostic lines for a finished command. Returns [] when the command succeeded.
+ * `expectJson`: the command asked for JSON output. If it exits 0 but its stdout is not a JSON object, that is a failure with the
+ * closed-vocabulary reason `unexpected_output_format` (stdout itself is NEVER printed: it could hold connection details).
+ */
+export function diagnose({ label, status, stdout, stderr, expectJson = false }, env = process.env) {
   const error = cliErrorFrom(stdout);
-  if (status === 0 && !error) return [];
+  if (status === 0 && !error) {
+    if (!expectJson || hasJsonObject(stdout)) return [];
+    const shape = outputShape(stdout);
+    return [
+      `${redact(label, env)} failed: unexpected_output_format`,
+      "  expected=json",
+      `  stdout_bytes=${shape.bytes}`,
+      `  stdout_lines=${shape.lines}`,
+      `  stdout_starts_with=${shape.startsWith}`,
+      "  stdout_has_json_object=false",
+      "  (stdout is not printed: it could contain connection details)",
+    ];
+  }
   const lines = [`${redact(label, env)} failed (exit ${status ?? "unknown"}).`];
   if (error) {
     lines.push(`  error.code:       ${redact(error.code, env) || "(none)"}`);
@@ -108,7 +155,7 @@ export function main(argv, { spawn = spawnSync, env = process.env, write = write
   const stdout = typeof result.stdout === "string" ? result.stdout : "";
   const stderr = typeof result.stderr === "string" ? result.stderr : "";
   write(parsed.out, stdout);
-  const problems = diagnose({ label, status: result.error ? null : result.status, stdout, stderr }, env);
+  const problems = diagnose({ label, status: result.error ? null : result.status, stdout, stderr, expectJson: expectsJson(parsed.cliArgs) }, env);
   if (result.error) problems.push(`  could not start the command: ${redact(result.error.message, env)}`);
   if (problems.length === 0) return 0;
   const text = problems.join("\n");

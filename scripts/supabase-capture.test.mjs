@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cliEnv, cliErrorFrom, diagnose, main, parseArgs, redact } from "./supabase-capture.mjs";
+import { cliEnv, cliErrorFrom, diagnose, expectsJson, hasJsonObject, main, outputShape, parseArgs, redact } from "./supabase-capture.mjs";
 
 const ERROR_JSON = JSON.stringify({
   _tag: "Error",
@@ -128,4 +128,106 @@ test("the command label is redacted too (a connection URI passed as an argument 
   const text = lines.join("\n");
   assert.ok(!text.includes("postgres://") && !text.includes("pw@"));
   assert.match(text, /<redacted-uri>/);
+});
+
+/* ---- JSON output contract ------------------------------------------------------------------------------------------------ */
+// The real CI failure: on a runner (not a coding agent) `db push --dry-run` prints a TEXT sentence unless JSON is requested.
+const TEXT_STDOUT = "Remote database is up to date.\n";
+const SENSITIVE_TEXT = `Connecting to postgresql://postgres.abcdefghijklmnopqrst:pw-in-stdout@aws-0-eu-west-3.pooler.supabase.com:5432/postgres\n`;
+
+test("`--output-format json` is recognised in any position (global flag first, flag last, or `=` form)", () => {
+  assert.equal(expectsJson(["--output-format", "json", "migration", "list", "--linked"]), true);
+  assert.equal(expectsJson(["migration", "list", "--linked", "--output-format", "json"]), true);
+  assert.equal(expectsJson(["db", "push", "--output-format=json", "--dry-run"]), true);
+  assert.equal(expectsJson(["db", "push", "--linked", "--dry-run"]), false);
+  assert.equal(expectsJson(["--output-format", "text", "migration", "list"]), false);
+  assert.equal(expectsJson(["--output-format"]), false);
+  assert.equal(expectsJson([]), false);
+});
+
+test("a successful command that returns NON-JSON stdout is reported as unexpected_output_format, expected=json", () => {
+  const text = diagnose({ label: "supabase --output-format json db push --linked --dry-run", status: 0, stdout: TEXT_STDOUT, stderr: "", expectJson: true }).join("\n");
+  assert.match(text, /failed: unexpected_output_format/);
+  assert.match(text, /expected=json/);
+  assert.match(text, /stdout_bytes=31/);
+  assert.match(text, /stdout_lines=1/);
+  assert.match(text, /stdout_starts_with=letter/);
+  assert.match(text, /stdout_has_json_object=false/);
+});
+
+test("the unexpected-format diagnostic NEVER prints stdout (it could hold connection details)", () => {
+  const lines = diagnose({ label: "supabase db push --linked --dry-run", status: 0, stdout: SENSITIVE_TEXT, stderr: "", expectJson: true });
+  const text = lines.join("\n");
+  assert.match(text, /unexpected_output_format/);
+  for (const leaked of ["postgresql://", "pw-in-stdout", "pooler.supabase.com", "aws-0-eu-west-3", "Connecting to", "abcdefghijklmnopqrst"]) assert.ok(!text.includes(leaked), `leaked: ${leaked}`);
+  // only the closed vocabulary appears
+  for (const line of lines.slice(1, -1)) assert.match(line, /^ {2}(expected=json|stdout_bytes=\d+|stdout_lines=\d+|stdout_starts_with=(empty|brace|bracket|letter|digit|other)|stdout_has_json_object=false)$/);
+});
+
+test("empty stdout from a JSON-expecting success is also unexpected_output_format", () => {
+  const text = diagnose({ label: "x", status: 0, stdout: "", stderr: "", expectJson: true }).join("\n");
+  assert.match(text, /unexpected_output_format/);
+  assert.match(text, /stdout_bytes=0/);
+  assert.match(text, /stdout_starts_with=empty/);
+});
+
+test("valid JSON stdout from a JSON-expecting success passes; a non-expecting command is not judged on its format", () => {
+  assert.deepEqual(diagnose({ label: "x", status: 0, stdout: '{"migrations":[]}', stderr: "", expectJson: true }), []);
+  assert.deepEqual(diagnose({ label: "x", status: 0, stdout: `log line\n{"upToDate":true}\n`, stderr: "", expectJson: true }), [], "surrounding log lines are tolerated, as the guard tolerates them");
+  assert.deepEqual(diagnose({ label: "x", status: 0, stdout: TEXT_STDOUT, stderr: "", expectJson: false }), []);
+  assert.equal(hasJsonObject("[1,2]"), false, "a bare array is not the object the guard needs");
+  assert.equal(hasJsonObject("{ not json }"), false);
+});
+
+test("outputShape is a closed description: sizes and the class of the first character only", () => {
+  assert.deepEqual(outputShape(""), { bytes: 0, lines: 0, startsWith: "empty" });
+  assert.deepEqual(outputShape("{}\n"), { bytes: 3, lines: 1, startsWith: "brace" });
+  assert.deepEqual(outputShape("[1]"), { bytes: 3, lines: 1, startsWith: "bracket" });
+  assert.deepEqual(outputShape("a\nb\n"), { bytes: 4, lines: 2, startsWith: "letter" });
+  assert.equal(outputShape("9").startsWith, "digit");
+  assert.equal(outputShape("#x").startsWith, "other");
+});
+
+test("a CLI error object still wins over the format check (the real error is shown, not a format message)", () => {
+  const text = diagnose({ label: "x", status: 1, stdout: ERROR_JSON, stderr: "", expectJson: true }).join("\n");
+  assert.match(text, /LegacyDbConnectError/);
+  assert.ok(!text.includes("unexpected_output_format"));
+});
+
+function runWith(args, stdout, status = 0) {
+  const logs = [];
+  const writes = [];
+  const code = main(["--out", "out.json", "--", ...args], {
+    spawn: () => ({ status, stdout, stderr: "Connecting to remote database...\n" }),
+    env: {},
+    write: (file, data) => writes.push([file, data]),
+    log: (l) => logs.push(l),
+  });
+  return { code, logs: logs.join("\n"), writes };
+}
+
+test("main: the global flag FIRST is passed through unchanged, and text stdout from a JSON command fails closed with exit 1", () => {
+  const seen = [];
+  const code = main(["--out", "out.json", "--", "--output-format", "json", "db", "push", "--linked", "--dry-run"], {
+    spawn: (cmd, args) => { seen.push(args); return { status: 0, stdout: TEXT_STDOUT, stderr: "" }; },
+    env: {},
+    write: () => {},
+    log: () => {},
+  });
+  assert.equal(code, 1);
+  assert.deepEqual(seen[0], ["exec", "supabase", "--output-format", "json", "db", "push", "--linked", "--dry-run"], "argument order is exactly what the workflow passed");
+});
+
+test("main: text stdout from a JSON-expecting command -> exit 1, named reason, no raw stdout, the file still holds what the CLI wrote", () => {
+  const { code, logs, writes } = runWith(["--output-format", "json", "migration", "list", "--linked"], SENSITIVE_TEXT);
+  assert.equal(code, 1);
+  assert.match(logs, /unexpected_output_format/);
+  assert.match(logs, /expected=json/);
+  assert.ok(!logs.includes("pw-in-stdout") && !logs.includes("postgresql://"));
+  assert.equal(writes[0][1], SENSITIVE_TEXT);
+});
+
+test("main: valid JSON from a JSON-expecting command -> exit 0; a command that did not ask for JSON is not format-checked", () => {
+  assert.equal(runWith(["--output-format", "json", "db", "push", "--linked", "--dry-run"], '{"upToDate":true,"dryRun":true,"migrations":[]}').code, 0);
+  assert.equal(runWith(["db", "push", "--linked", "--dry-run"], TEXT_STDOUT).code, 0);
 });
