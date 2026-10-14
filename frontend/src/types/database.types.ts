@@ -7953,16 +7953,20 @@ export type Database = {
       }
       marketplace_public_catalog_page: {
         Args: {
+          p_attrs?: Json
           p_category?: string
+          p_in_stock?: boolean
           p_limit?: number
           p_offset?: number
+          p_price_max?: number
+          p_price_min?: number
           p_query?: string
           p_sort?: string
           p_type?: string
         }
         Returns: Json
       }
-      marketplace_public_facets: { Args: never; Returns: Json }
+      marketplace_public_facets: { Args: { p_type?: string }; Returns: Json }
       marketplace_public_image_ref: {
         Args: { p_image_id: string }
         Returns: {

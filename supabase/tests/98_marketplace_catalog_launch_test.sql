@@ -20,7 +20,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(69);
+select plan(74);
 
 update auth.users set email_confirmed_at = now()
   where id in ('70000001-0000-4000-8000-000000000001', '71000005-0000-4000-8000-000000000005',
@@ -47,8 +47,8 @@ select ok(has_function_privilege('service_role', 'public.marketplace_public_imag
       and not has_function_privilege('anon', 'public.marketplace_public_image_ref(uuid)', 'execute')
       and not has_function_privilege('authenticated', 'public.marketplace_public_image_ref(uuid)', 'execute'),
   'A2. the public image reference (storage key) is service-role only — never a browser role');
-select ok(has_function_privilege('anon', 'public.marketplace_public_catalog_page(text,text,text,text,integer,integer)', 'execute')
-      and has_function_privilege('anon', 'public.marketplace_public_facets()', 'execute'),
+select ok(has_function_privilege('anon', 'public.marketplace_public_catalog_page(text,text,text,text,integer,integer,numeric,numeric,boolean,jsonb)', 'execute')
+      and has_function_privilege('anon', 'public.marketplace_public_facets(text)', 'execute'),
   'A3. the paged public catalogue and facets are readable anonymously');
 select is((select media_verification_ready from public.marketplace_platform_settings), false,
   'A4. the migration leaves public media OFF');
@@ -233,6 +233,12 @@ select ok((select (c ->> 'count')::int from jsonb_array_elements(public.marketpl
   'G9. facets count the public product under its category');
 select is((public.marketplace_public_product(current_setting('t.pslug')) ->> 'cover_image_id'),
   current_setting('t.img'), 'G10. the detail document names the cover image');
+-- Migration 10 filters
+select is((public.marketplace_public_catalog_page(p_price_max => 0.01) ->> 'total')::int, 0, 'G10a. a price ceiling below every variant excludes the product');
+select is((public.marketplace_public_catalog_page(p_price_min => 0.01) ->> 'total')::int, 1, 'G10b. a price floor below the price keeps it');
+select is((public.marketplace_public_catalog_page(p_attrs => '{"no_such_field":["x"]}') ->> 'total')::int, 0, 'G10c. an attribute filter nothing carries matches nothing');
+select is((public.marketplace_public_catalog_page(p_attrs => '{"no_such_field":[]}') ->> 'total')::int, 1, 'G10d. an empty attribute filter is ignored');
+select ok(public.marketplace_public_facets() ? 'price' and public.marketplace_public_facets() ? 'filters', 'G10e. facets carry the price bounds and option filters');
 reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"70000001-0000-4000-8000-000000000001","role":"authenticated"}';
