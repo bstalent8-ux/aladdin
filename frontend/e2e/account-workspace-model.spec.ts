@@ -321,7 +321,7 @@ test.describe("bilingual + responsive — changed surfaces", () => {
     const menu = page.locator('[data-testid="workspace-menu"]:visible').first();
     // Arabic copy, not English leaking through.
     await expect(menu.getByText("مساحة العمل").first()).toBeVisible();
-    await expect(menu.getByText("إضافة نشاط تجاري")).toBeVisible();
+    await expect(menu.getByText("طلب إضافة مؤسسة جديدة")).toBeVisible();
     await expect(menu.getByText(/^Workspace$|^Add business$/)).toHaveCount(0);
     await noOverflow(page);
   });

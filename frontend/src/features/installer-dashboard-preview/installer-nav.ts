@@ -11,6 +11,7 @@ import {
   SettingsIcon,
   StarIcon,
   StorefrontIcon,
+  TagIcon,
   UserIcon,
 } from "@/components/ui/icons";
 import type { Bi } from "./localized";
@@ -39,6 +40,7 @@ export const INSTALLER_PRIMARY_NAV: InstallerNavItem[] = [
 ];
 
 export const INSTALLER_QUICK_NAV: InstallerNavItem[] = [
+  { id: "offers", label: { ar: "العروض", en: "Offers" }, Icon: TagIcon, href: "/home/offers" },
   { id: "search-jobs", label: { ar: "ابحث عن شغل", en: "Search for work" }, Icon: SearchIcon, anchor: "opportunities", href: "/home/jobs" },
   { id: "my-showrooms", label: { ar: "شبكتي", en: "My network" }, Icon: StorefrontIcon, anchor: "ecosystem", href: "/home/network" },
   { id: "learn", label: { ar: "تعلم وتدرب", en: "Learn & train" }, Icon: ScrollIcon, anchor: "learning" },

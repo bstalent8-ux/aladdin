@@ -29,6 +29,8 @@ export const BUSINESS_CREATOR_PERSONAS = [
   "manufacturer",
   "importer",
   "engineer",
+  // A Contractor may apply for a contractor organization (Admin approval still required).
+  "contractor",
 ] as const;
 
 /** Organization types whose OWNER is, by definition, one of the approved creators. */

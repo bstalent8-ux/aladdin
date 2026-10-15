@@ -68,6 +68,11 @@ const eslintConfig = [
             "Unknown semantic utility — this name is not declared in tailwind.config.ts, so Tailwind emits no rule for it and the element silently gets no colour (the bg-surface-sunken / text-warning-fg / border-line / text-heading class of defect). Check the exact token name in src/styles/tokens.css, or add it to tailwind.config.ts (and eslint/ui-foundation-guard.mjs's KNOWN_SEMANTIC_TOKENS) if it is genuinely new. See docs/frontend/UI_CONTRACT.md.",
         },
         {
+          selector: "JSXOpeningElement[name.name='select']",
+          message:
+            "Raw native <select>. Use Select from @/components/ui/controls (native-compatible API) or SelectMenu from @/components/ui/select-menu — one dropdown design everywhere.",
+        },
+        {
           selector: `TemplateElement[value.raw=/${UNKNOWN_SEMANTIC_UTILITY}/]`,
           message:
             "Unknown semantic utility in a template literal — not declared in tailwind.config.ts, so it silently emits no CSS. See docs/frontend/UI_CONTRACT.md.",

@@ -21,7 +21,7 @@ import {
 describe("personalNavKeys", () => {
   it("gives a consumer a home, Settings, and Settings — and no profile, and no way to start a business", () => {
     const keys = personalNavKeys({ variant: "consumer", isSalesPersona: false });
-    expect(keys).toEqual(["home", "settings"]);
+    expect(keys).toEqual(["home", "offers", "settings"]);
     expect(keys).not.toContain("points");
     // Not withheld — a consumer has no professional profile to show.
     expect(keys).not.toContain("profile");
@@ -31,6 +31,7 @@ describe("personalNavKeys", () => {
     const keys = personalNavKeys({ variant: "professional", isSalesPersona: false });
     expect(keys).toEqual([
       "home",
+      "offers",
       "profile",
       "points",
       "settings",
@@ -53,6 +54,7 @@ describe("personalNavKeys", () => {
     const keys = personalNavKeys({ variant: "professional", isSalesPersona: true });
     expect(keys).toEqual([
       "home",
+      "offers",
       "profile",
       "points",
       "settings",
@@ -103,7 +105,7 @@ describe("personalNavKeys", () => {
     }
     // And the union covers the whole key space — a key nothing can reach would be
     // an entry that exists only in the map.
-    expect(emitted.size).toBe(10);
+    expect(emitted.size).toBe(11);
   });
 });
 
@@ -321,6 +323,7 @@ describe("Settings in the personal rail", () => {
     const sections = personalNavSections({ variant: "professional", isSalesPersona: false });
     expect(sections.find((s) => s.section === "account")?.keys).toEqual([
       "home",
+      "offers",
       "profile",
       "points",
       "settings",
@@ -341,9 +344,9 @@ describe("Settings in the personal rail", () => {
  * This is the fix: a fixed five-item priority list, not the full rail.
  */
 describe("personalMobileNavKeys", () => {
-  it("narrows a professional's eight destinations to five for the bottom bar", () => {
+  it("narrows a professional's nine destinations to five for the bottom bar", () => {
     const full = personalNavKeys({ variant: "professional", isSalesPersona: false });
-    expect(full.length).toBe(8);
+    expect(full.length).toBe(9);
     expect(personalMobileNavKeys(full)).toEqual(["home", "jobs", "myWork", "network", "profile"]);
   });
 

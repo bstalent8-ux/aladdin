@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { mapPortfolioError } from "@/server/actions/error-mapping";
+import { isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import {
   createAssetReadUrl,
   createAssetUploadTicket,
@@ -84,6 +85,7 @@ export async function startPortfolioUpload(input: {
   const valid = validateAssetFile("portfolio", { type: input.contentType, size: input.size });
   if (!valid.ok) return { ok: false, code: valid.code };
   if (!input.title.trim()) return { ok: false, code: "portfolio.errors.titleRequired" };
+  if (!isWithinDescriptionLimit(input.description)) return { ok: false, code: "portfolio.errors.descriptionTooLong" };
 
   const { data, error } = await rpc("portfolio_item_create", {
     p_title: input.title,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY,
   formatCompactMoney,
+  formatCompactMoneyFine,
   formatCount,
   formatDate,
   formatDateTime,
@@ -187,5 +188,22 @@ describe("technical identifiers — the exception", () => {
   it("shows the dash for an absent identifier, like every other formatter", () => {
     expect(formatIdentifier(null)).toBe(EMPTY);
     expect(formatIdentifier("")).toBe(EMPTY);
+  });
+});
+
+describe("formatCompactMoneyFine", () => {
+  it("keeps one decimal in Arabic so 148,700 is not shown as 149 thousand", () => {
+    const out = formatCompactMoneyFine(148_700, "ar");
+    expect(out).toContain("١٤٨٫٧");
+    expect(out).toContain("ألف");
+    expect(out).not.toMatch(WESTERN);
+  });
+  it("handles millions, small values and empties", () => {
+    expect(formatCompactMoneyFine(1_250_000, "ar")).toContain("مليون");
+    expect(formatCompactMoneyFine(950, "ar")).toContain("ج.م");
+    expect(formatCompactMoneyFine(null, "ar")).toBe(formatCompactMoney(null, "ar"));
+  });
+  it("delegates English to the standard compact format", () => {
+    expect(formatCompactMoneyFine(148_700, "en")).toBe(formatCompactMoney(148_700, "en"));
   });
 });

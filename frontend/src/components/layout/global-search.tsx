@@ -39,6 +39,7 @@ import {
   CommandIcon,
   EnterKeyIcon,
   XIcon,
+  TagIcon,
 } from "@/components/ui/icons";
 
 /**
@@ -74,6 +75,7 @@ const NAV_ICONS: Record<NavKey, ComponentType<{ size?: number }>> = {
   purchaseRequests: ShoppingBagIcon,
   offers: InboxIcon,
   orders: ClipboardIcon,
+  productOffers: TagIcon,
   catalog: SearchIcon,
   saved: BookmarkIcon,
   suppliers: TruckIcon,
@@ -105,6 +107,7 @@ const NAV_HREFS: Record<NavKey, string> = {
   purchaseRequests: "/b2b/rfqs",
   offers: "/b2b/quotations",
   orders: "/b2b/orders",
+  productOffers: "/b2b/offers",
   catalog: "/b2b/catalog",
   saved: "/b2b/saved",
   suppliers: "/b2b/suppliers",

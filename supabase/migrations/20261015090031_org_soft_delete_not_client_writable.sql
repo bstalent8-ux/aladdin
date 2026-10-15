@@ -1,0 +1,13 @@
+-- ===========================================================================
+-- organizations.deleted_at is not client-writable
+--
+-- The one-open-application rule and the "first organization approved" rule count only
+-- organizations that are not soft-deleted. An owner who could set `deleted_at` on a pending
+-- application could drop it out of the count, open another, and later restore the first - ending
+-- with two open applications. Today the UPDATE is refused only incidentally (the SELECT policy
+-- rejects the resulting row, which carries `deleted_at`); a security rule must not depend on that
+-- side effect. The column privilege is removed so the refusal is explicit and permanent.
+-- Abandoning an application has its own RPC (organization_application_abandon), which keeps the
+-- history; platform tooling that soft-deletes runs as a privileged role and is unaffected.
+-- ===========================================================================
+revoke update (deleted_at) on public.organizations from authenticated, anon;

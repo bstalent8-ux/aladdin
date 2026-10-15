@@ -35,6 +35,17 @@ update auth.users set email_confirmed_at = now() where email_confirmed_at is nul
 \set sara    '70000004-0000-4000-8000-000000000004'
 \set orgC    '9c000000-cccc-4ccc-8ccc-000000000001'
 \set branchC 'b0000001-0000-4000-8000-000000000001'
+-- A VERIFIED organization's names change only through an identity change request (M3), so the
+-- normalization / length assertions below run against a disposable organization that is not yet
+-- approved. Hana holds org.manage on it.
+\set orgU    '9c000000-cccc-4ccc-8ccc-0000000000f1'
+
+insert into public.organizations (id, name, org_type, status, is_verified, created_by)
+  values (:'orgU'::uuid, 'Unapproved Test Org', 'showroom_dealer', 'pending_verification', false, :'hana'::uuid);
+with m as (insert into public.memberships (user_id, organization_id, status, accepted_at)
+             values (:'hana'::uuid, :'orgU'::uuid, 'active', now()) returning id)
+insert into public.membership_capabilities (membership_id, capability_key)
+  select m.id, 'org.manage' from m;
 
 -- A disposable suspended membership for Sara on Cairo Ceramics — granted
 -- org.manage anyway, so the assertions below prove `status = 'active'` is
@@ -75,11 +86,11 @@ select is(
 
 -- Whitespace-only input normalizes to null, not to an empty string.
 select lives_ok(
-  format('select public.organization_update_i18n(%L, %L, %L, %L)', :'orgC', '   ', 'Cairo Ceramics Showroom', 'Africa/Cairo'),
+  format('select public.organization_update_i18n(%L, %L, %L, %L)', :'orgU', '   ', null, 'Africa/Cairo'),
   'whitespace-only name_ar is accepted (normalizes rather than failing validation)'
 );
 select is(
-  (select name_ar from public.organizations where id = :'orgC'::uuid),
+  (select name_ar from public.organizations where id = :'orgU'::uuid),
   null, 'and it landed as null, not as three spaces'
 );
 
@@ -118,7 +129,7 @@ reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"70000001-0000-4000-8000-000000000001","role":"authenticated"}';
 select throws_ok(
-  format('select public.organization_update_i18n(%L, %L, %L, %L)', :'orgC', repeat('a', 121), null, null),
+  format('select public.organization_update_i18n(%L, %L, %L, %L)', :'orgU', repeat('a', 121), null, null),
   '23514', null, 'a 121-char name_ar is rejected by the existing length constraint'
 );
 select throws_ok(

@@ -775,3 +775,23 @@ export const MoreHorizontalIcon = (p: IconProps) => (
     <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
   </Svg>
 );
+
+export const TagIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 12.2V4.5A1.5 1.5 0 0 1 4.5 3h7.7a1.5 1.5 0 0 1 1.06.44l7.3 7.3a1.5 1.5 0 0 1 0 2.12l-7.7 7.7a1.5 1.5 0 0 1-2.12 0l-7.3-7.3A1.5 1.5 0 0 1 3 12.2Z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Svg>
+);
+
+
+export const PauseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 5v14M16 5v14" />
+  </Svg>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M20 11a8 8 0 0 0-14.3-4.5L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.5l1.7-2M20 20v-4.5h-4.5" />
+  </Svg>
+);

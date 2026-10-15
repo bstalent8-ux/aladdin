@@ -167,28 +167,18 @@ select throws_ok($$ select public.organization_activities_set('aaaaaaaa-aaaa-4aa
   array['building_and_finishing_supplies_retailer']) $$, '22023', null, 'and a Supplier may not take Mawan');
 
 -- ===========================================================================
--- 7. Wholesaler -> Supplier remap (the migration's own two statements, replayed
---    over fresh wholesaler fixtures, since seeds run after migrations)
+-- 7. Wholesaler is a SUPPLIER subtype, not an account type
 -- ===========================================================================
 reset role;
-select is((select count(*)::int from public.organizations where org_type = 'wholesaler'), 0,
-  'no organization is still typed wholesaler after migrations + seed');
-insert into public.organizations (id, name, org_type, created_by) values
-  ('59000000-0000-4000-8000-0000000000f1', 'P59 Wholesale One', 'wholesaler', '11111111-1111-4111-8111-111111111111'),
-  ('59000000-0000-4000-8000-0000000000f2', 'P59 Wholesale Two', 'wholesaler', '11111111-1111-4111-8111-111111111111');
-insert into public.organization_activities (organization_id, activity_id)
-select o.id, a.id from public.organizations o
-  join public.activities a on a.organization_type = 'supplier' and a.key = 'wholesaler'
- where o.org_type = 'wholesaler'
-on conflict do nothing;
-update public.organizations set org_type = 'supplier' where org_type = 'wholesaler';
-select is((select count(*)::int from public.organizations
-            where id in ('59000000-0000-4000-8000-0000000000f1', '59000000-0000-4000-8000-0000000000f2')
-              and org_type = 'supplier'), 2, 'every remapped wholesaler becomes a supplier');
-select is((select count(*)::int from public.organization_activities oa join public.activities a on a.id = oa.activity_id
-            where a.key = 'wholesaler'
-              and oa.organization_id in ('59000000-0000-4000-8000-0000000000f1', '59000000-0000-4000-8000-0000000000f2')),
-  2, 'with exactly one wholesaler activity row per migrated organization');
+select is((select count(*)::int from public.organizations where org_type::text = 'wholesaler'), 0,
+  'no organization is typed wholesaler');
+select is((select count(*)::int from unnest(enum_range(null::public.organization_type)) e where e::text = 'wholesaler'), 0,
+  'wholesaler is no longer an organization type at all');
+select cmp_ok((select count(*)::int from public.organization_activities oa
+                 join public.activities a on a.id = oa.activity_id
+                 join public.organizations o on o.id = oa.organization_id
+                where a.key = 'wholesaler' and a.organization_type = 'supplier' and o.org_type = 'supplier'),
+  '>=', 1, 'a wholesaler is a supplier organization carrying the wholesaler subtype');
 
 select * from finish();
 rollback;

@@ -37,7 +37,7 @@ export async function searchShowrooms(query: string): Promise<ShowroomResult[]> 
   }));
 }
 
-/** The active branches of one showroom, so a salesperson can say where they work. */
+/** The publicly VERIFIED branches of one showroom (internal branches are never listed), so a salesperson can say where they work. */
 export async function showroomBranches(organizationId: string): Promise<ShowroomBranch[]> {
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("showroom_branches", { p_org_id: organizationId });

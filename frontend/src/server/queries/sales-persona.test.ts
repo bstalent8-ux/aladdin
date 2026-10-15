@@ -70,7 +70,7 @@ describe("isSalesPersona", () => {
   });
 
   it("rejects every other personal persona", () => {
-    for (const persona of ["engineer", "interior_designer", "contractor", "end_consumer", "trainer", "trainee"]) {
+    for (const persona of ["engineer", "contractor", "end_consumer"]) {
       expect(isSalesPersona(persona, null)).toBe(false);
     }
   });

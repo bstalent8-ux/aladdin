@@ -14,7 +14,9 @@ import { sanitizeSearchTerm } from "@/server/queries/sales";
 
 type DB = SupabaseClient<Database>;
 
-export type CatalogRow = Database["public"]["Views"]["catalog_published_products"]["Row"];
+/** Table-function results are typed non-null by the generator although optional columns do come back null. */
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+export type CatalogRow = Nullable<Database["public"]["Functions"]["catalog_products"]["Returns"][number]>;
 export type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 export type RfqRow = Database["public"]["Tables"]["rfqs"]["Row"];
 export type RfqListRow = Database["public"]["Views"]["rfq_list"]["Row"];
@@ -30,29 +32,75 @@ export type QuotationStatus = NonNullable<QuotationListRow["status"]>;
 const LIST_LIMIT = 100;
 
 // ---- Catalog (cross-tenant, published only) --------------------------------
-export type CatalogFilters = { search?: string; category?: ProductCategory; supplierOrgId?: string };
+export type CatalogFilters = {
+  search?: string;
+  /** Legacy broad category (production /b2b catalog). */
+  category?: ProductCategory;
+  /** Canonical taxonomy code (showroom catalog); products without one are simply not matched. */
+  categoryCode?: string;
+  supplierOrgId?: string;
+  /**
+   * Exclude this organization's own products. Browse is for discovering OTHER
+   * organizations' products; an organization's own live in My Products. Applied in the
+   * query itself (never by hiding cards in the client).
+   */
+  excludeOrgId?: string;
+  limit?: number;
+};
 
-export async function listCatalog(supabase: DB, f: CatalogFilters = {}): Promise<CatalogRow[]> {
+/**
+ * Every cross-organization product read goes through the workspace-aware reader: the audience
+ * is derived in the database from `viewerOrgId` (the ACTIVE workspace, whose membership the
+ * database verifies) or, with `null`, from the caller's personal persona. Never a union.
+ */
+function catalogQuery(supabase: DB, viewerOrgId: string | null, f: CatalogFilters, countExact: boolean) {
   let q = supabase
-    .from("catalog_published_products")
-    .select("*")
+    .rpc("catalog_products", { p_org_id: viewerOrgId ?? undefined }, countExact ? { count: "exact" } : undefined)
+    // A TOTAL order (id breaks ties between products published in the same instant), so
+    // offset batches neither repeat nor skip a row.
     .order("published_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .order("id", { ascending: false });
   if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.supplierOrgId) q = q.eq("organization_id", f.supplierOrgId);
+  if (f.excludeOrgId) q = q.neq("organization_id", f.excludeOrgId);
   if (f.search && f.search.trim()) {
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
   }
-  const { data, error } = await q;
+  return q;
+}
+
+export async function listCatalog(supabase: DB, viewerOrgId: string | null, f: CatalogFilters = {}): Promise<CatalogRow[]> {
+  const { data, error } = await catalogQuery(supabase, viewerOrgId, f, false).limit(f.limit ?? LIST_LIMIT);
   if (error) throw error;
   return data ?? [];
 }
 
-export async function getCatalogProduct(supabase: DB, id: string): Promise<CatalogRow | null> {
+/** One bounded batch of the catalog (`offset`/`limit`, a real range read) and the full matching total. */
+export async function listCatalogPage(
+  supabase: DB,
+  viewerOrgId: string | null,
+  f: Omit<CatalogFilters, "limit">,
+  offset: number,
+  limit: number,
+): Promise<{ rows: CatalogRow[]; total: number }> {
+  const { data, error, count } = await catalogQuery(supabase, viewerOrgId, f, true).range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
+}
+
+/** Which of these products the organization has saved — only the visible batch is asked about. */
+export async function savedAmong(supabase: DB, orgId: string, productIds: readonly string[]): Promise<Set<string>> {
+  if (productIds.length === 0) return new Set();
+  const { data, error } = await supabase.from("saved_products").select("product_id").eq("organization_id", orgId).in("product_id", [...productIds]);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.product_id));
+}
+
+export async function getCatalogProduct(supabase: DB, viewerOrgId: string | null, id: string): Promise<CatalogRow | null> {
   const { data, error } = await supabase
-    .from("catalog_published_products")
-    .select("*")
+    .rpc("catalog_products", { p_org_id: viewerOrgId ?? undefined })
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -60,27 +108,62 @@ export async function getCatalogProduct(supabase: DB, id: string): Promise<Catal
 }
 
 // ---- Own-organization products (management) --------------------------------
-export async function listOwnProducts(
-  supabase: DB,
-  orgId: string,
-  f: { search?: string; status?: "draft" | "published"; category?: ProductCategory } = {},
-): Promise<ProductRow[]> {
+export type OwnProductFilters = {
+    search?: string;
+    status?: "draft" | "published";
+    category?: ProductCategory;
+    /** Canonical taxonomy code, or "unclassified" for historical products that have none. */
+    categoryCode?: string;
+    /**
+     * Archived products are retired: production callers never see them (the default).
+     * `include` / `only` serve the showroom's management page.
+     */
+    archived?: "exclude" | "include" | "only";
+    /** Default: most recently updated first (what production lists have always done). */
+    sort?: "updated" | "newest" | "name";
+};
+
+function ownProductsQuery(supabase: DB, orgId: string, f: OwnProductFilters, countExact: boolean) {
+  const sort = f.sort ?? "updated";
   let q = supabase
     .from("products")
-    .select("*")
+    .select("*", countExact ? { count: "exact" } : undefined)
     .eq("organization_id", orgId)
     .is("deleted_at", null)
-    .order("updated_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .order(sort === "name" ? "name" : sort === "newest" ? "created_at" : "updated_at", { ascending: sort === "name" })
+    // id makes the order TOTAL, so offset batches neither repeat nor skip a row.
+    .order("id", { ascending: true });
+  const archived = f.archived ?? "exclude";
+  if (archived === "exclude") q = q.is("archived_at", null);
+  if (archived === "only") q = q.not("archived_at", "is", null);
   if (f.status) q = q.eq("status", f.status);
   if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode === "unclassified") q = q.is("category_code", null);
+  else if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
   if (f.search && f.search.trim()) {
     const term = sanitizeSearchTerm(f.search);
     if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
   }
-  const { data, error } = await q;
+  return q;
+}
+
+export async function listOwnProducts(supabase: DB, orgId: string, f: OwnProductFilters = {}): Promise<ProductRow[]> {
+  const { data, error } = await ownProductsQuery(supabase, orgId, f, false).limit(LIST_LIMIT);
   if (error) throw error;
   return data ?? [];
+}
+
+/** One bounded batch of the management list and the full matching total (the summary counts stay separate). */
+export async function listOwnProductsPage(
+  supabase: DB,
+  orgId: string,
+  f: OwnProductFilters,
+  offset: number,
+  limit: number,
+): Promise<{ rows: ProductRow[]; total: number }> {
+  const { data, error, count } = await ownProductsQuery(supabase, orgId, f, true).range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
 }
 
 /**
@@ -99,16 +182,59 @@ export async function listOwnProducts(
 export async function ownProductCounts(
   supabase: DB,
   orgId: string,
-): Promise<{ total: number; published: number; draft: number }> {
+): Promise<{ total: number; published: number; draft: number; archived: number }> {
   const { data, error } = await supabase
     .from("products")
-    .select("status")
+    .select("status, archived_at")
     .eq("organization_id", orgId)
     .is("deleted_at", null);
   if (error) throw error;
   const rows = data ?? [];
-  const published = rows.filter((r) => r.status === "published").length;
-  return { total: rows.length, published, draft: rows.length - published };
+  // Archived products are retired: they count only as `archived`, never as a draft.
+  const archived = rows.filter((r) => r.archived_at !== null).length;
+  const live = rows.filter((r) => r.archived_at === null);
+  const published = live.filter((r) => r.status === "published").length;
+  return { total: live.length, published, draft: live.length - published, archived };
+}
+
+/**
+ * One product OWNED by the organization (any lifecycle state). Filtering by the
+ * organization as well as the id is what keeps another tenant's published product
+ * — which RLS lets every authenticated user read — from ever opening in a
+ * management screen.
+ */
+export async function getOwnProduct(supabase: DB, orgId: string, id: string): Promise<ProductRow | null> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .eq("organization_id", orgId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** The target audience codes the OWNER chose for a product (RLS: members of the owning organization only). */
+export async function getProductAudiences(supabase: DB, productId: string): Promise<string[]> {
+  const { data, error } = await supabase.from("product_audiences").select("audience").eq("product_id", productId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.audience);
+}
+
+/**
+ * The owning organization's PRIVATE regular prices, keyed by product id. They live in
+ * `product_prices` (RLS: members of the owning organization only), never on the
+ * publicly readable `products` row; a product with no price has no entry.
+ */
+export async function listProductPrices(supabase: DB, productIds: readonly string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  for (const batch of batches(productIds)) {
+    const { data, error } = await supabase.from("product_prices").select("product_id, base_price").in("product_id", batch);
+    if (error) throw error;
+    for (const r of data ?? []) out.set(r.product_id, Number(r.base_price));
+  }
+  return out;
 }
 
 export type ProductDemand = { requests: number };
@@ -570,7 +696,7 @@ export async function listQuotationItems(
 }
 
 // ---- Saved products (organization shortlist) -------------------------------
-export type SavedProductRow = Database["public"]["Views"]["saved_product_list"]["Row"];
+export type SavedProductRow = Nullable<Database["public"]["Functions"]["saved_products_for"]["Returns"][number]>;
 
 /**
  * The calling organization's shortlist. RLS scopes rows to the caller's org, and
@@ -583,8 +709,7 @@ export async function listSavedProducts(
   f: { category?: ProductCategory } = {},
 ): Promise<SavedProductRow[]> {
   let q = supabase
-    .from("saved_product_list")
-    .select("*")
+    .rpc("saved_products_for", { p_org_id: orgId })
     .eq("organization_id", orgId)
     .order("saved_at", { ascending: false })
     .limit(LIST_LIMIT);
@@ -594,6 +719,51 @@ export async function listSavedProducts(
   return data ?? [];
 }
 
+export type SavedFilters = { category?: ProductCategory; categoryCode?: string; search?: string };
+
+/** One bounded batch of the shortlist and the full matching total. */
+export async function listSavedProductsPage(
+  supabase: DB,
+  orgId: string,
+  f: SavedFilters,
+  offset: number,
+  limit: number,
+): Promise<{ rows: SavedProductRow[]; total: number }> {
+  let q = supabase
+    .rpc("saved_products_for", { p_org_id: orgId }, { count: "exact" })
+    .eq("organization_id", orgId)
+    .order("saved_at", { ascending: false })
+    .order("product_id", { ascending: false });
+  if (f.category) q = q.eq("category", f.category);
+  if (f.categoryCode) q = q.eq("category_code", f.categoryCode);
+  const term = f.search ? sanitizeSearchTerm(f.search) : "";
+  if (term) q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
+  const { data, error, count } = await q.range(offset, offset + limit - 1);
+  if (error) throw error;
+  return { rows: data ?? [], total: count ?? 0 };
+}
+
+/** Full catalog rows for a known set of ids (a batch the caller already bounded), in the order asked for. */
+export async function listCatalogByIds(supabase: DB, viewerOrgId: string | null, ids: readonly string[]): Promise<CatalogRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.rpc("catalog_products", { p_org_id: viewerOrgId ?? undefined }).in("id", [...ids]);
+  if (error) throw error;
+  const byId = new Map((data ?? []).map((r) => [r.id, r]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
+  });
+}
+
+/** Category -> how many shortlisted products, for the tabs (one narrow column read, tallied here). */
+export async function savedCategoryCounts(supabase: DB, orgId: string): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc("saved_products_for", { p_org_id: orgId }).select("category").eq("organization_id", orgId);
+  if (error) throw error;
+  const out = new Map<string, number>();
+  for (const r of data ?? []) if (r.category) out.set(r.category, (out.get(r.category) ?? 0) + 1);
+  return out;
+}
+
 /**
  * How many products are on the shortlist. The shortlist view joins through to the
  * published catalog, so counting it via the list query meant materializing every
@@ -601,8 +771,7 @@ export async function listSavedProducts(
  */
 export async function countSavedProducts(supabase: DB, orgId: string): Promise<number> {
   const { count, error } = await supabase
-    .from("saved_product_list")
-    .select("*", { count: "exact", head: true })
+    .rpc("saved_products_for", { p_org_id: orgId }, { count: "exact", head: true })
     .eq("organization_id", orgId);
   if (error) throw error;
   return count ?? 0;

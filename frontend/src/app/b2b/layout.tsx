@@ -13,6 +13,7 @@ import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { NoOrgNotice } from "@/components/layout/no-org-notice";
 import { orgBilingualNames } from "@/server/queries/organization-i18n";
 import { resolveBilingualText } from "@/lib/i18n/bilingual";
+import { ShowroomFrame } from "@/features/showroom-shell/frame";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,13 @@ export default async function B2BLayout({ children }: { children: ReactNode }) {
   // No workspace and no Personal home. If this person registered to create a business that does not exist yet, creating it
   // is mandatory - send them to it rather than parking them on the "no workspace" notice.
   if (!workspace.active && (await loadMandatoryBusinessSetup()).required) redirect(MANDATORY_BUSINESS_SETUP_PATH);
+
+  // A Showroom works inside the approved Showroom Suite V2 frame; the finished modules under /b2b keep their
+  // routes, data and permissions and are simply rendered inside that one shell. Supplier, Manufacturer, Importer
+  // and the other account types keep their current workspace until their own interfaces are approved.
+  if (workspace.active && workspace.active.orgType === "showroom_dealer") {
+    return <ShowroomFrame>{children}</ShowroomFrame>;
+  }
 
   // The header's org/branch chips need the SAME Arabic/English preference the
   // rest of the workspace already applies (`resolveBilingualText`) — until

@@ -6,6 +6,7 @@ import { getServerSupabase } from "@/lib/supabase/server";
 import * as commerce from "@/server/actions/commerce";
 import { mapCommerceError, isStaleVersion } from "@/server/actions/error-mapping";
 import type { Database } from "@/types/database.types";
+import { parseAudienceCodes } from "@/features/showroom-shell/products/product-audiences";
 
 /**
  * Server Actions the commerce forms bind to. They translate FormData → the typed
@@ -55,6 +56,9 @@ export async function createProductAction(_p: FormState, fd: FormData): Promise<
   if (!unit) fieldErrors.unit = "commerce.validation.unitRequired";
   if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors };
 
+  const audiences = parseAudienceCodes(fd.getAll("audience"));
+  if (!audiences.ok) return { ok: false, fieldErrors: { audiences: "showroomProducts.errors.invalid" } };
+
   const supabase = await getServerSupabase();
   let newId: string;
   try {
@@ -71,6 +75,10 @@ export async function createProductAction(_p: FormState, fd: FormData): Promise<
   } catch (e) {
     return { ok: false, code: mapCommerceError(e) };
   }
+  // The new product is a private draft; its audiences are saved right after (the database re-validates them).
+  if (audiences.codes.length > 0) {
+    await supabase.rpc("product_audiences_set", { p_product_id: newId, p_audiences: audiences.codes });
+  }
   revalidatePath("/b2b/products");
   redirect(`/b2b/products/${newId}?created=1`);
 }
@@ -85,7 +93,17 @@ export async function updateProductAction(_p: FormState, fd: FormData): Promise<
   const sku = optionalPatch(fd, "sku");
   const brand = optionalPatch(fd, "brand");
   const desc = optionalPatch(fd, "shortDescription");
+  const audiences = parseAudienceCodes(fd.getAll("audience"));
+  if (!audiences.ok) return { ok: false, fieldErrors: { audiences: "showroomProducts.errors.invalid" } };
   const supabase = await getServerSupabase();
+  // Audiences first: a published product cannot lose its last audience, and that refusal must stop the save.
+  const audienceResult = await supabase.rpc("product_audiences_set", { p_product_id: id, p_audiences: audiences.codes });
+  if (audienceResult.error) {
+    const refused = (audienceResult.error.message ?? "").toLowerCase().includes("at least one audience");
+    return refused
+      ? { ok: false, fieldErrors: { audiences: "showroomProducts.audience.required" } }
+      : { ok: false, code: mapCommerceError(audienceResult.error) };
+  }
   try {
     await commerce.updateProduct(supabase, id, version, {
       name,
@@ -117,6 +135,9 @@ export async function toggleProductPublishAction(_p: FormState, fd: FormData): P
     await commerce.setProductPublished(supabase, id, publish, version);
   } catch (e) {
     if (isStaleVersion(e)) return { ok: false, code: "commerce.errors.conflict" };
+    if (((e as { message?: string })?.message ?? "").toLowerCase().includes("at least one audience")) {
+      return { ok: false, code: "showroomProducts.audience.required" };
+    }
     return { ok: false, code: mapCommerceError(e) };
   }
   revalidatePath(`/b2b/products/${id}`);

@@ -494,7 +494,7 @@ update public.users set primary_account_type = null, status = 'active'
 update public.users set primary_account_type = 'installer_technician', status = 'active'
   where id in ('71000006-0000-4000-8000-000000000006','71000007-0000-4000-8000-000000000007',
                '71000008-0000-4000-8000-000000000008','71000009-0000-4000-8000-000000000009');
-update public.users set primary_account_type = 'interior_designer', status = 'active'
+update public.users set primary_account_type = 'engineer', status = 'active'
   where id = '71000010-0000-4000-8000-000000000010';
 update public.users set primary_account_type = 'engineer', status = 'active'
   where id = '71000011-0000-4000-8000-000000000011';
@@ -1239,3 +1239,11 @@ alter table public.quotations enable trigger showroom_quotation_sell_complete;
 alter table public.orders enable trigger trg_zz_showroom_order_sell_complete;
 alter table public.branches enable trigger showroom_live_address_required;
 commit;
+
+-- Product audiences (Milestone B): seeded published products are targeted at all eight
+-- audiences, exactly like the migration backfill of pre-existing published products.
+insert into public.product_audiences (product_id, audience)
+select p.id, t.code
+  from public.products p cross join public.product_audience_types t
+ where p.status = 'published'
+on conflict do nothing;

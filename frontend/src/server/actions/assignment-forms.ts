@@ -34,7 +34,7 @@ import type { FormState } from "@/server/actions/job-forms";
  *
  * NOTHING IS OPTIMISTIC. No action reports a new state before the database has
  * returned one, and the version each write carries is the one the caller last
- * read — a stale one comes back as `40001` and is shown as a conflict, not
+ * read — a stale one comes back as `VC001` and is shown as a conflict, not
  * silently retried with a fresher number.
  */
 

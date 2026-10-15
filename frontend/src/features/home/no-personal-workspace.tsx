@@ -32,6 +32,12 @@ export function NoPersonalWorkspace() {
             {t("workspace.addBusiness")}
           </Button>
         </Link>
+        {/* An application under review is not a workspace, but its owner can always track it. */}
+        <Link href="/business/applications" data-testid="no-workspace-applications">
+          <Button type="button" variant="outline">
+            {t("orgApplications.title")}
+          </Button>
+        </Link>
         {/* The person's own identity needs no workspace — /settings/profile. */}
         <Link href="/settings/profile" data-testid="no-workspace-edit-profile">
           <Button type="button" variant="outline">

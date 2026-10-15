@@ -1,7 +1,8 @@
 import { getPageContext } from "@/server/queries/page-context";
 import { BookmarkIcon } from "@/components/ui/icons";
 import { getMessages } from "@/lib/i18n/translate";
-import { listSavedProducts, type ProductCategory } from "@/server/queries/commerce";
+import { listSavedProductsPage, savedCategoryCounts, type ProductCategory } from "@/server/queries/commerce";
+import { PAGE_BATCH } from "@/lib/pagination/batches";
 import { PRODUCT_CATEGORIES } from "@/features/commerce/constants";
 import { PageHeader } from "@/components/ui/workspace-layout";
 import { TabLinks } from "@/components/ui/stat-tiles";
@@ -28,19 +29,24 @@ export default async function SavedProductsPage({
   const m = getMessages(locale);
   const sp = await searchParams;
 
-  const all = await listSavedProducts(supabase, org.organizationId);
   const category = PRODUCT_CATEGORIES.includes(sp.category as ProductCategory)
     ? (sp.category as ProductCategory)
     : "";
-  const rows = category ? all.filter((r) => r.category === category) : all;
-
-  const present = PRODUCT_CATEGORIES.filter((c) => all.some((r) => r.category === c));
+  // First batch only; "Show more" reads the next. The tabs' counts cover the WHOLE shortlist.
+  const [{ rows, total }, byCategory] = await Promise.all([
+    listSavedProductsPage(supabase, org.organizationId, { category: category || undefined }, 0, PAGE_BATCH),
+    savedCategoryCounts(supabase, org.organizationId),
+  ]);
+  const all = [...byCategory.values()].reduce((n, c) => n + c, 0);
+  const present = PRODUCT_CATEGORIES.filter((c) => (byCategory.get(c) ?? 0) > 0);
+  // Un-saving re-renders this page with fresh rows: the list restarts from them (new key).
+  const listKey = `${category}|${rows.map((r) => r.product_id).join(",")}`;
   const canRequestQuote =
     org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
 
   return (
     <div className="flex flex-col gap-lg pb-16 tablet:pb-0">
-      <PageHeader locale={locale} Icon={BookmarkIcon} title={m.saved.title} subtitle={m.saved.subtitle} count={all.length} />
+      <PageHeader locale={locale} Icon={BookmarkIcon} title={m.saved.title} subtitle={m.saved.subtitle} count={all} />
 
       {present.length > 1 ? (
         <TabLinks
@@ -50,17 +56,17 @@ export default async function SavedProductsPage({
           current={category}
           label={m.saved.title}
           tabs={[
-            { value: "", label: m.saved.allCategories, count: all.length },
+            { value: "", label: m.saved.allCategories, count: all },
             ...present.map((c) => ({
               value: c,
               label: m.commerce.categories[c],
-              count: all.filter((r) => r.category === c).length,
+              count: byCategory.get(c) ?? 0,
             })),
           ]}
         />
       ) : null}
 
-      <SavedGrid rows={rows} orgId={org.organizationId} m={m} canRequestQuote={canRequestQuote} />
+      <SavedGrid key={listKey} rows={rows} total={total} category={category} orgId={org.organizationId} canRequestQuote={canRequestQuote} />
     </div>
   );
 }

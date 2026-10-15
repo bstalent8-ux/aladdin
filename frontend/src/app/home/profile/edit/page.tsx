@@ -20,12 +20,9 @@ type PersonaType = Database["public"]["Enums"]["persona_type"];
 const PERSONAS: readonly PersonaType[] = [
   "end_consumer",
   "engineer",
-  "interior_designer",
   "installer_technician",
   "contractor",
   "sales",
-  "trainer",
-  "trainee",
 ];
 function asPersona(value: string | null | undefined): PersonaType | null {
   return value && (PERSONAS as readonly string[]).includes(value) ? (value as PersonaType) : null;

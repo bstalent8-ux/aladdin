@@ -26,6 +26,8 @@ import type { FormState } from "@/server/actions/sales-forms";
 export function ConfirmDialog({
   trigger,
   triggerVariant = "danger",
+  triggerIcon,
+  triggerClassName,
   title,
   body,
   confirmLabel,
@@ -38,6 +40,9 @@ export function ConfirmDialog({
 }: {
   trigger: string;
   triggerVariant?: "danger" | "ghost" | "outline" | "accent";
+  /** Optional icon beside the trigger label, and extra classes for the trigger button (sizing in a button row). */
+  triggerIcon?: ReactNode;
+  triggerClassName?: string;
   title: string;
   body?: string;
   confirmLabel: string;
@@ -124,7 +129,8 @@ export function ConfirmDialog({
 
   return (
     <>
-      <Button ref={triggerRef} type="button" variant={triggerVariant} onClick={() => setOpen(true)}>
+      <Button ref={triggerRef} type="button" variant={triggerVariant} className={triggerClassName} onClick={() => setOpen(true)}>
+        {triggerIcon}
         {trigger}
       </Button>
 
