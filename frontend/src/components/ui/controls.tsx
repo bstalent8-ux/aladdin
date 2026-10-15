@@ -301,6 +301,7 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
    * for its proportions.
    */
   size?: "field" | "compact";
+  "data-testid"?: string;
 };
 
 /** The text of an <option>'s children (strings / numbers / arrays of them), as a native option would show it. */
@@ -418,7 +419,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       options={options}
       emptyIsPlaceholder
       buttonRef={buttonRef}
-      testId={testId as string | undefined}
+      testId={testId}
       buttonClassName={cn(selectSize[size], className)}
       onChange={(value) => {
         const native = nativeRef.current;
@@ -427,6 +428,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         native.dispatchEvent(new Event("change", { bubbles: true }));
       }}
     >
+      {/* eslint-disable-next-line no-restricted-syntax -- the shared Select's ONE hidden native form-value carrier */}
       <select
         {...rest}
         ref={setRefs}

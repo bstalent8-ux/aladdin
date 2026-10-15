@@ -59,16 +59,17 @@ export async function saveOfferAction(_prev: OfferFormState, fd: FormData): Prom
   if (!parsed.ok) return { ok: false, fieldErrors: parsed.fieldErrors };
   const v = parsed.value;
 
+  // The SQL parameters without a DEFAULT accept NULL (an optional description/price/date); the generated types cannot say so.
   const { data, error } = await supabase.rpc("own_offer_save", {
     p_org_id: orgId,
-    p_offer_id: offerId ?? null,
-    p_expected_version: version ?? null,
+    p_offer_id: (offerId ?? null) as string,
+    p_expected_version: (version ?? null) as number,
     p_title: v.title,
-    p_description: v.description,
-    p_total_price: v.totalPrice,
-    p_reference_price: v.referencePrice,
-    p_starts_at: v.startsAt,
-    p_ends_at: v.endsAt,
+    p_description: v.description as string,
+    p_total_price: v.totalPrice as number,
+    p_reference_price: v.referencePrice as number,
+    p_starts_at: v.startsAt as string,
+    p_ends_at: v.endsAt as string,
     p_items: v.items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
     p_audiences: v.audiences,
   });
