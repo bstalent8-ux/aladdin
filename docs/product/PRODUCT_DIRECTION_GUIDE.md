@@ -471,3 +471,11 @@ Newest first. Every product-direction change gets an entry: date, what changed, 
 
 ## Related files
 [`mvp-scope.md`](./mvp-scope.md) · [`design-idea.md`](./design-idea.md) · [`client-brief.md`](./client-brief.md) · [`../architecture/ARCHITECTURE_GUIDE.md`](../architecture/ARCHITECTURE_GUIDE.md) · [`../architecture/overview.md`](../architecture/overview.md) · [`../../UI-UX/UI_UX_SYSTEM_GUIDE.md`](../../UI-UX/UI_UX_SYSTEM_GUIDE.md) · [`../decisions/ADR-0001-approved-architecture.md`](../decisions/ADR-0001-approved-architecture.md) · [`../../AGENTS.md`](../../AGENTS.md)
+
+
+## Approved Showroom onboarding refinement — 2026-10-14
+
+Product-owner review explicitly requires showroom entity phone, optional email and one existing showroom activity in Step 1. Governorate and city/area are mandatory in Step 2. Subsequent review makes the detailed address optional during onboarding (max 250 words), tracked later in showroom account completion; short description max 250 characters. Initial creation never grants approval or verifies contacts. Scope and rationale: [implementation report](../frontend/showroom-business-onboarding.md). **Change history:** 2026-10-14, explicit product-owner instructions and browser review comments.
+
+## Approved Showroom rollout change — 2026-10-14
+Owner approved detailed address optional during onboarding, mandatory before approval/activation/new selling. Existing approved active missing-address showrooms retain captured published products and order operations only; new publication requires completion. No automatic deactivation/unpublication. Mark profile incomplete, record narrowly scoped historical exceptions and close on completion. Staging impact is not production evidence. See ADR-0015 and docs/frontend/showroom-business-onboarding.md; no deployment authorized.

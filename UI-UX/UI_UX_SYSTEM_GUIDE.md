@@ -368,3 +368,11 @@ Newest first.
 
 ## Related files
 [`AGENTS.md`](./AGENTS.md) · [`../docs/product/PRODUCT_DIRECTION_GUIDE.md`](../docs/product/PRODUCT_DIRECTION_GUIDE.md) · [`../docs/architecture/ARCHITECTURE_GUIDE.md`](../docs/architecture/ARCHITECTURE_GUIDE.md) · [`../AGENTS.md`](../AGENTS.md)
+
+
+## Approved Showroom onboarding review — 2026-10-14
+
+BusinessFlow keeps the shared wizard and controls, with separate business-information / showroom-contact sections. Use existing Readex (font-sans) and text-display-ar for business step headings, preserving Arabic joining with zero tracking and sufficient line-height. Location: governorate + city/area required, detailed address optional with 250-word counter. Description: 250-character counter. Address completion links to the existing branch editor. [Verification and screenshots](../docs/frontend/showroom-business-onboarding.md).
+
+## Approved Showroom review — 2026-10-14
+Authentication/onboarding UI approved with 2026 derived brand assets, vertically centered country control, exact password helper “يجب أن تتكون كلمة المرور من 10 أحرف على الأقل”, description250characters and optional onboarding address250words. Address helper explains activation requirement; existing business-profile completion item links to authorized branch settings. Functional RTL controls and original references/screenshots are retained; no screenshot-as-interface or duplicate preview routes.

@@ -1,4 +1,67 @@
+## 2026-10-15 — PR84 definitive functional acceptance passed
+
+Exact committed8be67ba6: isolated GitHub functional run38697762123PASS24/24(0fail,0skip,58.7s), application CI38697762134and fullDB38697762167SUCCESS. All110versions/sixfeatureversions/old+v2RPCs verified; own runner teardown succeeded. Artifacts contain migration hashes and six desktop/mobile screenshots. No uncommitted CAPTCHA files included. Harness corrections preserve last-admin guards, use Node24 and settled action/UI assertions plus counter11; no product code/security weakening, no skipped tests/retries.
+
+Effective live alias and production target both dpl_6F4cLptBtEtR5LwF7mQAneigsc83/projectaladdin-staging/Node24/mainc7963c9. Supabase URLSensitiveSecret cannot be read back; Production and Preview share the configured entry, effective ref/isolation unconfirmed. Protected kkpkg as potentiallylive, read-only0/6versions/old9+submit1/no v2. No hosted mutations/settings/deploy. Full environment map and release gate document exact blockers, staging prerequisites, backup/rollback and beta restrictions; owner has not accepted account-throttle gap. Original14/external7 remain untouched. Local Docker control/API unavailable; no global/shared restart or cleanup. PR staysDraft, do notmerge/deploy/removeworktree. Documentation follow-up changes no tested application/harness.
+## 2026-10-15 — PR84 isolated CI functional acceptance fallback
+
+Read-only local diagnostics: Docker version/ps and API65521 timeout; frontend3342HTTP200. Host CPU100%, free RAM~3.3GiB/31.9GiB, disk D free~444GiB. Backend log tail contains repeated context-deadline failures; exact VM root cause unconfirmed. No Docker/global/shared restart, resets or volume deletion. Prior4failed browser cases remain unclassified pending reliable CI reproduction; do not claim functional acceptance.
+
+Added PR84-only GitHub Actions job checking out exact PR head, pinned CLI temporary stack/aladdin_pr84_ci/API65521, complete migration reset only ephemeral runner, six versions/old+v2 contracts, synthetic desktop/mobile journeys, sanitized logs/screenshots and own-stack cleanup. No uncommitted CAPTCHA files enter checkout. Harness now chooses approved local/CI container, bounded Docker calls, fresh fixture phones, correct3342theme cookie; expanded journey requires activity/phone/location and saved-identity edit. No tests skipped or product checks weakened. Native hosted CAPTCHA/settings unchanged. Existing workflows untouched. Production/staging gate still blocked until functional CI passes and database identities/isolation/coordination are confirmed.
+## 2026-10-14 — PR84 functional release priority and approved isolated acceptance
+
+Owner approved Compose aladdin_pr84_acceptance (fresh keys, independent internal/ingress networks and database/storage volumes), API65521/app3342 in the existing worktree. Replayed110migrations/three synthetic seeds; all6feature versions recorded, old9argument RPC plus v2=13 coexist. Focused DB90–94:167/167pass. Task-owned spec lint and frontend TypeScript pass. App source/config unchanged from4e5bfdbd; external7 and original14 hashes preserved.
+
+Acceptance remains blocked: initial gateway port issue corrected on only the own API; intermediate7desktop cases passed including real registration/login, app throttle and Installer signup. Final launcher corrected Tailwind cwd/fresh independent cache. Final functional attempt3pass/4fail/17not completed when local API stalled and Docker version/inspect/exec timed out; own E2E stopped, no Docker/shared restart. No current-head full journey acceptance claimed. Independent read-only screenshots/checks recorded separately. Own3342 kept running; resource cleanup requires approval. No staging/production deployment, hosted setting/schema mutation, merge or worktree removal. PR84stillDraft/current CI green. Conditional beta/public gates and production prerequisites in docs/security/showroom-functional-release-readiness.md; production Supabase ref remains unconfirmed. Native CAPTCHA coordination and aggregate-account protection remain unresolved.
 # Agent Work Log
+
+## 2026-10-14 — PR84 final local read-only acceptance and Free decision proposal
+
+Scope: current head4e5bfdbd remains Draft; owner required proof of exclusive runtime ownership before mutation tests and explicit approval before another local stack. No migration, reset, restart, service termination, hosted configuration change, merge/deploy, commit or push in this review. Seven external CAPTCHA paths remain hash-identical and unstaged.
+
+Read-only evidence: preview3341/Auth63321/PostgREST63321 HTTP200; six showroom containers healthy/responding, projectaladdin_showroom_auth with this worktree label and own DBvolume. Ledger records onlysecurity085731of6; originalsave13args and no save_v2/submit_v2. Current application invokesv2. PriorcleanDBhasv2butnohistoryledger/sharescontainer. Dedicatedports do not prove ownership; activeClaudeprocesses and captcha_app_iso stack64331/64332underClaude185fc8db...found. No request was sent to an unidentified session.
+
+Executed read-only browser checks: desktop/mobile sign-in/up4passed/0failed, no overflow/pageerrors, correctlogo/password fields. All non-GETrequests blocked, no fixtures/bucket deletion/form submissions. Screenshots/results D:/projects/pr84-current-head-ui/. Full functional browser journeys not executed. GitHub finalheadCI/RLS remaingreen, earlier3847DBtests twice/9058paritycases not recast as browser acceptance.
+
+VercelMCP403; authorizedCLI proved livecustomdomain maps to Vercelprojectaladdin-staging/productiontarget. ProductionSupabaseURLvalue not returned; publicauthbundlesnoURL, so productionref/config/impact stillunconfirmed. AccessibleSupabase staging/R2acceptance not relabeledproduction. FreshstagingSELECTs:0featureversions,2address-missingactiveverifiedshowrooms/6publishedproducts/3orders/0verificationrows. No PII or secrets printed.
+
+Deliverable: [Free rollout and isolation proposal](../security/showroom-auth-free-rollout-proposal.md), Proposedonly. Clarifies native/token150per5min/IPincludespassword/refresh vs otherrequestbucket30; appbudgets15minsignin10phone30IP/signup5phone10IP; single-verifier/separatetokens; safealert/log/costgates; explicitlackaggregatecrossIPguarantee. ProposednewComposealaddin_pr84_acceptance, loopback65521/65522/65524/app3342, ownvolumes/network/currentworktree andindependentNextoutputs, no creation untilapproval. Stopforownerdecision and CAPTCHAhand-off/productionreference; strictselfhostGoTrueingressproof remainsunimplemented.
+
+# 2026-10-14 — PR #84 independent blocker fixes under concurrent CAPTCHA work
+
+Final acceptance addendum: corrected0c348382 GitHub CI passed. Supabase92files/3847tests passed twice after clean resets;9058countryparitycases/245countries/hashmatch/0mismatches; threeconcurrency checks passed. Frontend2864passed13skipped/build/typecheck/lint; backend/docs/policy passed. Spec review0new findings. Standards generator overwrite finding fixed with exclusive creation and print-only mode; executed EEXIST/unchanged-file/exact-output verification passed. Final follow-up limited to generator safety/ADR and verified reports. Provider account-budget architecture remains unapproved; local Docker runtime and parallel CAPTCHA browser journeys remain separate limitations. External sevenpath hashes preserved, explicit stageddiff reviewed, samefeaturebranch/PRDraft, no merge/deploy/restart/cleanup.
+
+Purpose: resolve additive migration compatibility, authoritative business-phone validation and expired/revoked historical seller authorization while retaining Draft status and no paid/hosted authentication changes.
+
+Safety: inventoried existing worktrees and tracked/untracked changes read-only. Unexpected CAPTCHA/environment/E2E changes are externally owned; seven paths are hashed outside the repository and excluded from edits/staging. Only the already owned business validation/actions/types, pending migrations, database regressions, CI parity step and task documentation are changed. No global staging, resets, stashes, branch creation, service restarts or original-directory edits.
+
+Implementation: retain deployed nine-argument save and submit; add v2 RPC names. Generate 245 private country plans from existing pinned max metadata; apply canonical E.164/number-type checks at database write boundary. Separate current legacy approval from optional-address exception; test expiry/revocation/suspension without unpublishing products. ADR-0016 records provenance and maintenance.
+
+Executed validation: migration-policy zero failures/exemptions; typecheck passed; focused Vitest three files59passed/0failed. All migrations/seeds replayed into a new empty local acceptance database. Full DB CLI timed out; Docker control API500 prevents completion and parity rerun. Earlier 9,058-case parity identified transport-limit differences; application/expected cases now explicitly reject >15digits, acceptance rerun remains required. Full old-head GitHub results are historical, not new-head acceptance.
+
+Read-only hosted review: staging Free, native CAPTCHA off, no hooks, signups/signins30/5min/IP, refresh150/5min/IP, token verification30/5min/IP, forwarding off. Acceptance dashboard required login and remains unverified. Separate security options report covers direct origins, distributed attacks, costs and identity migration; no approved lower-cost provider-level guarantee yet. Pending: fresh CI full DB/parity, any failures, task-only browser acceptance after concurrency/runtime resolution, architectural decision. PR remains Draft; no merge/deploy/cleanup.
+
+
+## 2026-10-14 — Final Showroom security and approved legacy rollout
+
+**Purpose/current decision:** UI approved; owner authorized commit/push/draft PR, preserving original checkout. Address optional onboarding, mandatory approval/activation/new selling; captured old products/orders continue for historical approved businesses. [ADR-0015](../decisions/ADR-0015-showroom-address-selling-rollout.md).
+
+**Scope/implementation:** Existing shared Installer/Showroom auth, canonical routes and transactional business wizard extended; four forward-only local migrations, private auditable historical exceptions and server/DB selling guards. Original14baseline hashes unchanged; no additional worktree, no hosted writes, no merge/deployment.
+
+**Verification:** pnpm typecheck passed; pnpm lint0errors/1pre-existing warning; Vitest full2793pass/13skip and finalfocused232pass; nextbuild passed; Chromium Playwright24pass/0fail; sequential local pgTAP90/91/92 116pass. Earlier fullDB90files3794pass; latest fullDB90files3615executed21failed in6files with aborted plans due retained browser fixtures/seed-only assumptions, not concealed or fixed by audit deletion. Native-auth account-quota diagnostic failed coverage (HTTP400 reached credential verification after app quota exhausted). All original reference PNG hashes match. Local preview3341 retained; API63321/DB63322 only. Relative documentation links checked during packaging.
+
+**Consequences/deferred:** Draft PR blocked for merge/deployment by native Supabase per-account quota gap; connected organization Free cannot use paid password verification hook without separate decision. Hosted policy and production legacy impact unverified. Staging2affectedshowrooms/6products IDs in feature report. Full seed-only DB suite needs pristine disposable acceptance environment. Contacts unverified; vector brand master/OAuth/recovery deferred. [Report](../frontend/showroom-business-onboarding.md).
+
+## 2026-10-14 — Showroom onboarding review updates
+
+**Purpose/current decision:** Product owner extended the authorized Showroom task to business wizard Steps 1–2, then made the detailed address optional (250 words) and description max 250 characters.
+
+**Implementation/scope:** Extended the existing draft RPCs, existing activity catalogue/assignments, organization contacts and primary-branch address; reused country-specific phone validation and existing branch/profile-completion UI. No new authentication/onboarding implementation or production changes.
+
+**Verification:** tsc --noEmit and scoped ESLint passed; focused frontend 149 tests passed; full local Supabase suite 89 files / 3761 assertions passed. Desktop/mobile browser navigation and screenshots verified; no overflow. Original 14 baseline files unchanged.
+
+**Consequences/deferred:** Unverified contacts never change login identifiers. Organization approval remains pending_verification. UI feedback and final PR packaging pending; local dev server stays on 3341, dedicated database API 63321. [Full report](../frontend/showroom-business-onboarding.md).
+
 
 ## Session — 2026-10-10: migration-first staging deployment safety
 
@@ -6503,3 +6566,8 @@ compose, that a filtered queue really is filtered, and that every chip's `href` 
 being driven — rather than the latency of a synthetic click. 5/5, no retries, twice consecutively.
 
 Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
+
+### Final independent review addendum — 2026-10-14
+Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.
+
+Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](https://github.com/hmohamed080/aladdin/pull/84) verified OPEN/DRAFT targeting main. Additional journey rerun aborted due stalled Docker, not counted as pass; final non-mutating contrast/layout2/2passed and typecheckpassed. Preview3341HTTP200, localAPI63321; original14hashesunchanged. External untracked frontend/e2e/auth-captcha.spec.ts appeared and remains excluded/preserved. No merge/deployment/worktree cleanup. Native quota and direct contact metadata remain merge blockers.

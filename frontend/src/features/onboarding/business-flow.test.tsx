@@ -45,6 +45,8 @@ const emptyAnswers: BusinessAnswers = {
 
 const names = (overrides: Partial<BusinessAnswers> = {}): BusinessAnswers => ({
   ...emptyAnswers,
+  governorate: "cairo", city: "maadi", detailedAddress: "10 Test Street",
+  contactPhone: "+201012345678", activityType: "decor_showroom",
   displayName: "Al-Noor Supply",
   legalName: "Al-Noor Supply Trading LLC",
   ...overrides,
@@ -121,6 +123,8 @@ describe("BusinessFlow — identity gates", () => {
     renderWithI18n(<BusinessFlow answers={emptyAnswers} presetOrgType="showroom_dealer" draftId="draft-1" />, "en");
 
     fillNames("Cairo Ceramics", "Cairo Ceramics Trading LLC");
+    fireEvent.change(screen.getByLabelText(en.onboarding.business.identity.activityLabel), { target: { value: "decor_showroom" } });
+    fireEvent.change(screen.getByLabelText(en.onboarding.business.identity.phoneLabel), { target: { value: "01012345678" } });
     await act(async () => {
       fireEvent.click(continueBtn());
     });
@@ -197,8 +201,9 @@ describe("BusinessFlow — review summary", () => {
 
 describe("BusinessFlow — location step", () => {
   /** Resume at the location step: a fully-answered draft opens on review, so go back to the location row. */
-  async function atLocation(answers: BusinessAnswers = names(), locale: "en" | "ar" = "en") {
+  async function atLocation(answers: BusinessAnswers = names({ governorate: null, city: null }), locale: "en" | "ar" = "en") {
     renderWithI18n(<BusinessFlow answers={answers} presetOrgType="supplier" draftId="draft-1" />, locale);
+    if (screen.queryByRole("heading", {name: locale === "en" ? en.onboarding.business.location.title : ar.onboarding.business.location.title})) return;
     const loc = locale === "en" ? en.onboarding.business.review.location : ar.onboarding.business.review.location;
     const row = screen.getByText(loc).closest("div")!.parentElement!;
     await act(async () => {
@@ -242,9 +247,9 @@ describe("BusinessFlow — location step", () => {
     expect(continueBtn()).toBeDisabled();
   });
 
-  it("a chosen governorate blocks Continue until a city is chosen; an unset location stays allowed", async () => {
+  it("governorate and city are mandatory before Continue", async () => {
     await atLocation();
-    expect(continueBtn()).toBeEnabled(); // no governorate: the location is optional
+    expect(continueBtn()).toBeDisabled(); // location is required
     fireEvent.change(gov(), { target: { value: "giza" } });
     expect(continueBtn()).toBeDisabled();
     fireEvent.change(city(), { target: { value: "dokki" } });
@@ -288,7 +293,7 @@ describe("BusinessFlow — location step", () => {
   });
 
   it("resumes a saved custom city in the Other state with its text", async () => {
-    await atLocation(names({ governorate: "dakahlia", cityCustomName: "Kafr Test" }));
+    await atLocation(names({ governorate: "dakahlia", city: null, cityCustomName: "Kafr Test" }));
     expect(gov().value).toBe("dakahlia");
     expect(city().value).toBe("__other__");
     expect(screen.getByLabelText(en.onboarding.business.location.customCityLabel)).toHaveValue("Kafr Test");

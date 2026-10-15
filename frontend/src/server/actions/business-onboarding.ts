@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { businessDetailsSchema, showroomIdentityError, validBusinessPhone } from "@/lib/onboarding/business-details";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { loadBusinessCreationAccess } from "@/server/queries/business-creation-access";
 import { loadMandatoryBusinessSetup } from "@/server/queries/business-setup";
@@ -16,8 +17,8 @@ import type { Database } from "@/types/database.types";
  * Business creation writers. Thin, shape-only validators over the trusted
  * security-definer RPCs — the verified-caller gate, the required-field check, the
  * transactional organization + owner-membership + primary-branch creation, and the
- * idempotency guarantee all live in the database (`business_draft_save` /
- * `business_draft_submit` → app.organization_create_owned).
+ * idempotency guarantee all live in the database (`business_draft_save_v2` /
+ * `business_draft_submit_v2` → app.organization_create_owned).
  *
  * The DRAFT ID is the thread that makes this safe. It is the resume handle and the
  * idempotency key: submitting the same draft twice returns the same organization,
@@ -33,12 +34,13 @@ export type BusinessActionState = { ok: boolean; code?: string; draftId?: string
 type OrgType = Database["public"]["Enums"]["organization_type"];
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-const businessSchema = z.object({
+const businessSchema = businessDetailsSchema.extend({
+  step: z.enum(["identity", "location"]).optional(),
   draftId: z.string().uuid().nullish(),
   legalName: z.string().trim().max(120).nullish(),
   displayName: z.string().trim().max(120).nullish(),
   orgType: z.enum(BUSINESS_ORG_TYPES).nullish(),
-  description: z.string().trim().max(1000).nullish(),
+  description: z.string().trim().max(250).nullish(),
   governorate: z.string().trim().max(80).nullish(),
   city: z.string().trim().max(80).nullish(),
   /** The city typed through "Other"; mutually exclusive with `city`. */
@@ -46,6 +48,11 @@ const businessSchema = z.object({
   primaryBranchName: z.string().trim().max(120).nullish(),
 });
 export type BusinessInput = z.input<typeof businessSchema>;
+
+function validationError(error: z.ZodError): string {
+ const field = error.issues[0]?.path[0];
+ return field === "description" ? "onboarding.error.descriptionTooLong" : field === "detailedAddress" ? "onboarding.error.addressTooLong" : field === "contactEmail" ? "onboarding.error.contactInvalid" : "onboarding.error.saveFailed";
+}
 
 function notEntitled(error: { code?: string }): boolean {
   return error.code === "42501";
@@ -67,8 +74,9 @@ function legalNameMissing(legalName: string | null | undefined): boolean {
  */
 export async function saveBusiness(input: BusinessInput): Promise<BusinessActionState> {
   const parsed = businessSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: "onboarding.error.saveFailed" };
+  if (!parsed.success) return { ok: false, code: validationError(parsed.error) };
   const v = parsed.data;
+  if (v.contactPhone && !validBusinessPhone(v.contactPhone)) return { ok: false, code: "onboarding.error.showroomPhoneRequired" };
 
   // The same entitlement the page applies — a direct post to this action must not
   // be a way around it. (No RLS change: the database rules are untouched.)
@@ -79,6 +87,10 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
   // either. Everyone else (an owner adding another business) chooses freely, as before.
   const mandatory = await loadMandatoryBusinessSetup();
   const orgType = mandatory.required ? mandatory.orgType : v.orgType;
+  if (v.step === "identity" && (v.displayName?.trim().length ?? 0) < 2) return { ok: false, code: "onboarding.error.businessNameRequired" };
+  if (v.step === "identity" && legalNameMissing(v.legalName)) return { ok: false, code: "onboarding.error.legalNameRequired" };
+  if (orgType === "showroom_dealer" && v.step === "identity") { const error = showroomIdentityError(v); if (error) return { ok: false, code: error }; }
+  if (v.step === "location" && (!v.governorate || !(v.city || v.cityCustomName))) return { ok: false, code: "onboarding.error.locationRequired" };
 
   // Governorate / city / custom city must be canonical (catalogue governorate, a city of THAT governorate, or a custom city).
   // A draft may leave the location unset or stop at a governorate; submit requires the city (see `submitBusiness`).
@@ -86,7 +98,11 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
   if (!location.ok) return { ok: false, code: "onboarding.error.locationInvalid" };
 
   const supabase = await getServerSupabase();
-  const { data, error } = await supabase.rpc("business_draft_save", {
+  const { data, error } = await supabase.rpc("business_draft_save_v2", {
+    p_contact_phone: v.contactPhone ?? undefined,
+    p_contact_email: input.contactEmail == null ? undefined : v.contactEmail ?? "",
+    p_activity_type: v.activityType ?? undefined,
+    p_detailed_address: v.detailedAddress ?? undefined,
     p_draft_id: v.draftId ?? undefined,
     p_legal_name: v.legalName ?? undefined,
     p_display_name: v.displayName ?? undefined,
@@ -116,11 +132,15 @@ export async function saveBusiness(input: BusinessInput): Promise<BusinessAction
 export async function submitBusiness(input: BusinessInput): Promise<BusinessActionState> {
   // Both names are required to COMPLETE a business (the database enforces the same; this is the early, specific message).
   const parsed = businessSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: "onboarding.error.saveFailed" };
+  if (!parsed.success) return { ok: false, code: validationError(parsed.error) };
   // Not entitled: say so before talking about missing fields.
   if (!(await loadBusinessCreationAccess()).allowed) return { ok: false, code: "onboarding.error.businessNotAllowed" };
   if (!(parsed.data.displayName ?? "").trim()) return { ok: false, code: "onboarding.error.businessNameRequired" };
   if (legalNameMissing(parsed.data.legalName)) return { ok: false, code: "onboarding.error.legalNameRequired" };
+  const mandatory = await loadMandatoryBusinessSetup();
+  const orgType = mandatory.required ? mandatory.orgType : parsed.data.orgType;
+  if (orgType === "showroom_dealer") { const error = showroomIdentityError(parsed.data); if (error) return { ok: false, code: error }; }
+  if (!parsed.data.governorate || !(parsed.data.city || parsed.data.cityCustomName)) return { ok: false, code: "onboarding.error.locationRequired" };
   const complete = validateBusinessLocation(parsed.data, { complete: true });
   if (!complete.ok) {
     return { ok: false, code: complete.code === "cityRequired" ? "onboarding.error.cityRequired" : "onboarding.error.locationInvalid" };
@@ -130,7 +150,7 @@ export async function submitBusiness(input: BusinessInput): Promise<BusinessActi
   if (!saved.ok) return saved;
 
   const supabase = await getServerSupabase();
-  const { data: orgId, error } = await supabase.rpc("business_draft_submit", {
+  const { data: orgId, error } = await supabase.rpc("business_draft_submit_v2", {
     p_draft_id: input.draftId ?? saved.draftId ?? undefined,
   });
   if (error) {

@@ -7,6 +7,7 @@ import { verifyEmailOtp, requestEmailOtp, type AuthState } from "@/server/action
 import { AuthCard } from "@/features/auth/auth-card";
 import { Input, LabeledField, SubmitButton, ResendButton } from "@/components/ui/controls";
 import { OtpInput } from "@/components/ui/otp-input";
+import { TurnstileWidget } from "@/features/auth-password-preview/turnstile-widget";
 
 const initial: AuthState = { ok: false };
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -90,6 +91,10 @@ export function VerifyForm({ next }: { next: string }) {
         )}
         <form action={dispatchResend}>
           <input type="hidden" name="email" value={email} />
+          <TurnstileWidget action="otp-resend" appearance="interaction-only" resetKey={resendState} />
+          {resendState.code && !resendState.ok ? (
+            <p role="alert" className="pb-sm text-label text-danger">{t(resendState.code)}</p>
+          ) : null}
           <ResendButton cooldown={cooldown} />
         </form>
       </div>

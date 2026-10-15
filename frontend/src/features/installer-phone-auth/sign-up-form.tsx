@@ -136,7 +136,10 @@ export function CraftsmanSignUpForm() {
         ) : null}
       </div>
 
-      <TurnstileWidget resetKey={state} />
+      {/* Token A: judged by Aladdin before the privileged account creation. Token B:
+          forwarded to GoTrue for the sign-in that follows. Each is validated exactly once. */}
+      <TurnstileWidget name="captchaToken" action="phone-sign-up" resetKey={state} />
+      <TurnstileWidget name="captchaSessionToken" action="phone-sign-up-session" appearance="interaction-only" resetKey={state} />
       {errors.captcha ? (
         <p role="alert" className="text-label text-danger">
           {t(errors.captcha)}

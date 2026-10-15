@@ -19,7 +19,12 @@ vi.mock("@/server/queries/landing", () => ({
   resolveActiveLanding,
 }));
 
-import { requestEmailOtp, verifyEmailOtp } from "./auth";
+import { requestEmailOtp, requestSignUpOtp, verifyEmailOtp } from "./auth";
+
+/** A form carrying the one Turnstile token GoTrue judges (forwarded, never Siteverified). */
+function withToken(entries: Record<string, string>): FormData {
+  return fd({ captchaToken: "otp-token", ...entries });
+}
 
 function fd(entries: Record<string, string>): FormData {
   const f = new FormData();
@@ -42,13 +47,13 @@ describe("requestEmailOtp", () => {
 
   it("sends a code for a known pilot email as SIGN IN — never implicit sign-up", async () => {
     signInWithOtp.mockResolvedValueOnce({ error: null });
-    const res = await requestEmailOtp({ ok: false }, fd({ email: "a-owner@example.test" }));
+    const res = await requestEmailOtp({ ok: false }, withToken({ email: "a-owner@example.test" }));
     expect(res.ok).toBe(true);
     expect(res.code).toBe("auth.info.codeSent");
     // The boundary: shouldCreateUser is false, so an unknown email can't register.
     expect(signInWithOtp).toHaveBeenCalledWith({
       email: "a-owner@example.test",
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, captchaToken: "otp-token" },
     });
   });
 
@@ -56,18 +61,18 @@ describe("requestEmailOtp", () => {
     // GoTrue refuses the send (signups disabled); we must show the SAME
     // "code sent" response and never register the identity.
     signInWithOtp.mockResolvedValueOnce({ error: { code: "otp_disabled", message: "Signups not allowed for otp" } });
-    const res = await requestEmailOtp({ ok: false }, fd({ email: "stranger@example.test" }));
+    const res = await requestEmailOtp({ ok: false }, withToken({ email: "stranger@example.test" }));
     expect(res.ok).toBe(true);
     expect(res.code).toBe("auth.info.codeSent");
     expect(signInWithOtp).toHaveBeenCalledWith({
       email: "stranger@example.test",
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, captchaToken: "otp-token" },
     });
   });
 
   it("never passes shouldCreateUser:true (sign in cannot become sign up)", async () => {
     signInWithOtp.mockResolvedValue({ error: null });
-    await requestEmailOtp({ ok: false }, fd({ email: "a-owner@example.test" }));
+    await requestEmailOtp({ ok: false }, withToken({ email: "a-owner@example.test" }));
     for (const call of signInWithOtp.mock.calls) {
       expect(call[0]?.options?.shouldCreateUser).toBe(false);
     }
@@ -75,16 +80,64 @@ describe("requestEmailOtp", () => {
 
   it("surfaces a genuine transient send failure", async () => {
     signInWithOtp.mockResolvedValueOnce({ error: { message: "smtp timeout" } });
-    const res = await requestEmailOtp({ ok: false }, fd({ email: "a-owner@example.test" }));
+    const res = await requestEmailOtp({ ok: false }, withToken({ email: "a-owner@example.test" }));
     expect(res.ok).toBe(false);
     expect(res.code).toBe("auth.error.sendFailed");
   });
 
   it("distinguishes a send-side rate limit (GoTrue's documented over_email_send_rate_limit)", async () => {
     signInWithOtp.mockResolvedValueOnce({ error: { code: "over_email_send_rate_limit", message: "email rate limit exceeded" } });
-    const res = await requestEmailOtp({ ok: false }, fd({ email: "a-owner@example.test" }));
+    const res = await requestEmailOtp({ ok: false }, withToken({ email: "a-owner@example.test" }));
     expect(res.ok).toBe(false);
     expect(res.code).toBe("auth.error.rateLimited");
+  });
+});
+
+describe("CAPTCHA on OTP sends (GoTrue validates the forwarded token)", () => {
+  it("refuses a sign-in send without a token before GoTrue is called", async () => {
+    const res = await requestEmailOtp({ ok: false }, fd({ email: "a-owner@example.test" }));
+    expect(res).toMatchObject({ ok: false, code: "auth.error.captchaRequired" });
+    expect(signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("maps a token GoTrue rejects to captchaRejected - never to 'code sent' and never to an account signal", async () => {
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed (timeout-or-duplicate)" } });
+    const res = await requestEmailOtp({ ok: false }, withToken({ email: "stranger@example.test" }));
+    expect(res).toMatchObject({ ok: false, code: "auth.error.captchaRejected" });
+    expect(JSON.stringify(res)).not.toMatch(/timeout-or-duplicate|disallowed/);
+  });
+
+  it("an unknown and a known email answer identically once the token passed", async () => {
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "otp_disabled", message: "Signups not allowed for otp" } });
+    const unknown = await requestEmailOtp({ ok: false }, withToken({ email: "stranger@example.test" }));
+    signInWithOtp.mockResolvedValueOnce({ error: null });
+    const known = await requestEmailOtp({ ok: false }, withToken({ email: "a-owner@example.test" }));
+    expect({ ok: unknown.ok, code: unknown.code }).toEqual({ ok: known.ok, code: known.code });
+  });
+
+  it("the legacy sign-up send is gated the same way and still forwards shouldCreateUser:true only with a token", async () => {
+    const consent = { consent_terms: "on", consent_privacy: "on", consent_pilot: "on" };
+    const refused = await requestSignUpOtp({ ok: false }, fd({ email: "new@example.test", ...consent }));
+    expect(refused).toMatchObject({ ok: false, code: "auth.error.captchaRequired" });
+    expect(signInWithOtp).not.toHaveBeenCalled();
+
+    signInWithOtp.mockResolvedValueOnce({ error: null });
+    const sent = await requestSignUpOtp({ ok: false }, withToken({ email: "new@example.test", ...consent }));
+    expect(sent.ok).toBe(true);
+    expect(signInWithOtp).toHaveBeenCalledWith({ email: "new@example.test", options: { shouldCreateUser: true, captchaToken: "otp-token" } });
+
+    signInWithOtp.mockResolvedValueOnce({ error: { code: "captcha_failed" } });
+    expect(await requestSignUpOtp({ ok: false }, withToken({ email: "new@example.test", ...consent }))).toMatchObject({
+      ok: false,
+      code: "auth.error.captchaRejected",
+    });
+  });
+
+  it("verifying a code needs no token (GoTrue does not CAPTCHA-gate verify)", async () => {
+    verifyOtp.mockResolvedValueOnce({ error: { code: "otp_expired" } });
+    const res = await verifyEmailOtp({ ok: false }, fd({ email: "a-owner@example.test", token: "123456" }));
+    expect(res.code).not.toMatch(/captcha/);
+    expect(verifyOtp).toHaveBeenCalled();
   });
 });
 

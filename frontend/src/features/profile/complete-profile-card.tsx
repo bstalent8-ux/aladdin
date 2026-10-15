@@ -34,6 +34,7 @@ export const ITEM_HREF: Record<ProfileCompletionItem, string> = {
   years_experience: "/home/profile/edit",
   activities: "/home/profile/edit",
   bio: "/home/profile/edit",
+  organization_address: "/b2b/settings",
   organization_activities: "/b2b/settings",
   organization_setup: "/business/new",
 };

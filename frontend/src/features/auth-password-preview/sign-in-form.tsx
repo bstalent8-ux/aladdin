@@ -7,12 +7,16 @@ import { passwordSignIn, type PasswordAuthState } from "@/server/actions/auth-pa
 import { AuthCard } from "@/features/auth/auth-card";
 import { Input, LabeledField, SubmitButton } from "@/components/ui/controls";
 import { PasswordInput } from "./password-input";
+import { TurnstileWidget } from "./turnstile-widget";
 
 const initial: PasswordAuthState = { ok: false };
 
 const GENERIC_ERROR_CODES = new Set([
   "authPasswordPreview.error.invalidCredentials",
   "authPasswordPreview.error.rateLimited",
+  "authPasswordPreview.error.captchaRequired",
+  "authPasswordPreview.error.captchaRejected",
+  "authPasswordPreview.error.captchaUnavailable",
 ]);
 
 /**
@@ -57,6 +61,7 @@ export function PasswordSignInForm({
               {t("auth.installerPhoneSignIn")}
             </Link>
           </p>
+          <p><Link href={`/showroom/sign-in?next=${encodeURIComponent(next)}`} className="text-fg-muted hover:text-fg hover:underline">{t("showroomAuth.phoneSignIn")}</Link></p>
         </div>
       }
     >
@@ -84,6 +89,10 @@ export function PasswordSignInForm({
         <LabeledField label={t("authPasswordPreview.passwordLabel")} htmlFor="password">
           <PasswordInput id="password" name="password" autoComplete="current-password" required aria-invalid={Boolean(state.code) || undefined} />
         </LabeledField>
+
+        {/* GoTrue protects the password grant with CAPTCHA: an interaction-only
+            challenge (shown only if Cloudflare needs the person to act). */}
+        <TurnstileWidget name="captchaToken" action="sign-in" appearance="interaction-only" resetKey={state} />
 
         <SubmitButton className="w-full" pendingLabel={t("authPasswordPreview.signIn.submitting")}>
           {t("authPasswordPreview.signIn.submit")}

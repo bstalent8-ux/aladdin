@@ -54,8 +54,10 @@ const isolatedResetPasswordForEmail = vi.fn();
 const isolatedSetSession = vi.fn();
 const isolatedUpdateUser = vi.fn();
 const isolatedSignOut = vi.fn();
+const isolatedSignInWithPassword = vi.fn();
 const isolatedClient = {
   auth: {
+    signInWithPassword: isolatedSignInWithPassword,
     verifyOtp: isolatedVerifyOtp,
     resetPasswordForEmail: isolatedResetPasswordForEmail,
     setSession: isolatedSetSession,
@@ -281,12 +283,13 @@ describe("requestPasswordSignUp (Architecture B — signUp() sets the password a
       consented({ email: "new-person@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
     );
     expect(res.ok).toBe(true);
-    // The token is verified by the APP, never forwarded to Supabase Auth.
+    // The token is judged by GoTrue (forwarded), never spent on the app's own Siteverify.
     expect(signUp).toHaveBeenCalledWith({
       email: "new-person@example.test",
       password: GOOD_PASSWORD,
-      options: { data: { display_name: "Mona Adel", locale: "ar" } },
+      options: { data: { display_name: "Mona Adel", locale: "ar" }, captchaToken: "test-captcha-token" },
     });
+    expect(siteverifyCalls()).toHaveLength(0);
     // Never the passwordless OTP endpoint — Architecture B never calls it.
     expect(signInWithOtp).not.toHaveBeenCalled();
   });
@@ -301,55 +304,48 @@ describe("requestPasswordSignUp (Architecture B — signUp() sets the password a
     expect(siteverifyCalls()).toHaveLength(0);
   });
 
-  it("verifies the token with Cloudflare Siteverify (POST, secret + response) BEFORE signUp", async () => {
+  it("forwards the token to GoTrue for validation and never spends it on Siteverify (a token is single-use)", async () => {
     signUp.mockResolvedValueOnce({ error: null });
     await requestPasswordSignUp(
       { ok: false },
       consented({ email: "new-person@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
     );
-    const calls = siteverifyCalls();
-    expect(calls).toHaveLength(1);
-    const init = calls[0]![1] as RequestInit;
-    expect(init.method).toBe("POST");
-    const body = new URLSearchParams(String(init.body));
-    expect(body.get("secret")).toBe("test-turnstile-secret");
-    expect(body.get("response")).toBe("test-captcha-token");
-    expect(fetchMock.mock.invocationCallOrder[0]!).toBeLessThan(signUp.mock.invocationCallOrder[0]!);
+    expect(signUp).toHaveBeenCalledTimes(1);
+    expect((signUp.mock.calls[0]![0] as { options: { captchaToken: string } }).options.captchaToken).toBe("test-captcha-token");
+    expect(siteverifyCalls()).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["a fake/invalid token (success:false)", () => siteverifyReplies({ success: false, "error-codes": ["invalid-input-response"] })],
-    ["a replayed token (timeout-or-duplicate)", () => siteverifyReplies({ success: false, "error-codes": ["timeout-or-duplicate"] })],
-    ["a truthy-but-not-true success", () => siteverifyReplies({ success: "true" })],
-    ["a malformed response", () => fetchMock.mockImplementation(async () => new Response("<html>", { status: 200 }))],
-    ["a non-2xx response", () => siteverifyReplies({ success: true }, 500)],
-    ["a network failure", () => fetchMock.mockRejectedValue(new TypeError("fetch failed"))],
-    ["a timeout", () => fetchMock.mockRejectedValue(new DOMException("aborted", "TimeoutError"))],
-  ])("fails closed on %s — neutral captchaRejected, signUp never runs, no Cloudflare detail leaks", async (_label, arrange) => {
-    arrange();
+    ["a rejected token", "captcha protection: request disallowed (invalid-input-response)"],
+    ["a replayed or expired token", "captcha protection: request disallowed (timeout-or-duplicate)"],
+    ["a token GoTrue never received", "captcha protection: request disallowed (no captcha_token found)"],
+  ])("maps GoTrue's captcha_failed for %s to the neutral captchaRejected - no detail leaks, nothing is staged", async (_label, message) => {
+    signUp.mockResolvedValueOnce({ error: { code: "captcha_failed", message, status: 400 } });
     const res = await requestPasswordSignUp(
       { ok: false },
       consented({ email: "person@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
     );
     expect(res.ok).toBe(false);
     expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
-    expect(JSON.stringify(res)).not.toMatch(/invalid-input|timeout-or-duplicate|test-turnstile-secret/);
-    expect(signUp).not.toHaveBeenCalled();
+    expect(JSON.stringify(res)).not.toMatch(/invalid-input|timeout-or-duplicate|captcha_token|disallowed/);
     expect(savePendingRegistration).not.toHaveBeenCalled();
   });
 
-  it("fails closed outside local dev when no TURNSTILE_SECRET_KEY is configured — Cloudflare is never even called", async () => {
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    vi.stubEnv("NEXT_PUBLIC_APP_ENV", "staging");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
-    const res = await requestPasswordSignUp(
+  it("a captcha failure is never confused with an existing account (no enumeration signal either way)", async () => {
+    signUp.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed", status: 400 } });
+    const failed = await requestPasswordSignUp(
       { ok: false },
-      consented({ email: "person@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
+      consented({ email: "already-has-account@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
     );
-    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
-    expect(siteverifyCalls()).toHaveLength(0);
-    expect(signUp).not.toHaveBeenCalled();
+    signUp.mockResolvedValueOnce({ error: { code: "user_already_exists" } });
+    const exists = await requestPasswordSignUp(
+      { ok: false },
+      consented({ email: "already-has-account@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD }),
+    );
+    expect(failed.code).toBe("authPasswordPreview.error.captchaRejected");
+    expect(exists.ok).toBe(true);
+    expect(exists.code).toBe("authPasswordPreview.info.codeSent");
   });
 
   it("a genuine unexpected failure surfaces the generic sendFailed code, never a distinguishing one", async () => {
@@ -482,10 +478,12 @@ describe("requestPasswordSignUp — username pre-flight BEFORE signUp() (no Auth
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it("runs only after the CAPTCHA gate — a rejected token never reaches the DB", async () => {
-    siteverifyReplies({ success: false });
-    const res = await submit();
-    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
+  it("runs only after the CAPTCHA gate - a request with no token never reaches the DB", async () => {
+    const res = await requestPasswordSignUp(
+      { ok: false },
+      consented({ email: "person@example.test", password: GOOD_PASSWORD, confirmPassword: GOOD_PASSWORD, captchaToken: "" }),
+    );
+    expect(res.code).toBe("authPasswordPreview.error.captchaRequired");
     expect(rpc).not.toHaveBeenCalledWith("username_available", expect.anything());
   });
 });
@@ -571,7 +569,7 @@ describe("requestPasswordSignUp — Full Name (profile data, server-authoritativ
     signUp.mockResolvedValueOnce({ error: null, data: { user: { id: "u-new" } } });
     await submit("  منى عادل  ");
     const call = signUp.mock.calls[0]![0] as { options: { data: Record<string, unknown> } } & Record<string, unknown>;
-    expect(call.options).toEqual({ data: { display_name: "منى عادل", locale: "en" } });
+    expect(call.options).toEqual({ data: { display_name: "منى عادل", locale: "en" }, captchaToken: "test-captcha-token" });
     expect(JSON.stringify(call)).not.toContain("app_metadata");
   });
 
@@ -689,8 +687,9 @@ describe("resendPasswordSignUpCode — never re-submits the password, never re-r
     expect(resend).toHaveBeenCalledWith({
       type: "signup",
       email: "person@example.test",
+      options: { captchaToken: "test-captcha-token" },
     });
-    expect(siteverifyCalls()).toHaveLength(1);
+    expect(siteverifyCalls()).toHaveLength(0);
     // Never signUp() again — resend must not re-create the account or re-set the password.
     expect(signUp).not.toHaveBeenCalled();
   });
@@ -701,11 +700,11 @@ describe("resendPasswordSignUpCode — never re-submits the password, never re-r
     expect(resend).not.toHaveBeenCalled();
   });
 
-  it("refuses a token Siteverify rejects — no email is resent", async () => {
-    siteverifyReplies({ success: false });
+  it("maps a token GoTrue rejects to the neutral captchaRejected - no email is resent, no enumeration signal", async () => {
+    resend.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed (timeout-or-duplicate)" } });
     const res = await resendPasswordSignUpCode({ ok: false }, withCaptcha({ email: "person@example.test" }));
     expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
-    expect(resend).not.toHaveBeenCalled();
+    expect(JSON.stringify(res)).not.toMatch(/timeout-or-duplicate|disallowed/);
   });
 
   it("preserves rate-limit surfacing", async () => {
@@ -785,7 +784,7 @@ describe("passwordSignIn", () => {
     rpc.mockResolvedValueOnce({ data: "active_personal" });
     resolveActiveLanding.mockResolvedValueOnce("/b2b");
     await expect(
-      passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: GOOD_PASSWORD, next: "/b2b" })),
+      passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: GOOD_PASSWORD, next: "/b2b" })),
     ).rejects.toThrow("REDIRECT:/b2b");
   });
 
@@ -796,7 +795,7 @@ describe("passwordSignIn", () => {
       rpc.mockResolvedValueOnce({ data: "access_ready" });
       resolveActiveLanding.mockResolvedValueOnce("/onboarding/business");
       await expect(
-        passwordSignIn({ ok: false }, fd({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next })),
+        passwordSignIn({ ok: false }, withCaptcha({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next })),
       ).rejects.toThrow("REDIRECT:/onboarding/business");
     }
   });
@@ -806,28 +805,28 @@ describe("passwordSignIn", () => {
     rpc.mockResolvedValueOnce({ data: "active_personal" });
     resolveActiveLanding.mockResolvedValueOnce("/b2b");
     await expect(
-      passwordSignIn({ ok: false }, fd({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next: "/home" })),
+      passwordSignIn({ ok: false }, withCaptcha({ email: "showroom-founder@example.test", password: GOOD_PASSWORD, next: "/home" })),
     ).rejects.toThrow("REDIRECT:/b2b");
   });
 
   it("invalid credentials and an unknown account return the SAME generic message (anti-enumeration)", async () => {
     signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
-    const wrong = await passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: "wrong-one-here-too" }));
+    const wrong = await passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: "wrong-one-here-too" }));
     signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
-    const unknown = await passwordSignIn({ ok: false }, fd({ email: "never-registered@example.test", password: GOOD_PASSWORD }));
+    const unknown = await passwordSignIn({ ok: false }, withCaptcha({ email: "never-registered@example.test", password: GOOD_PASSWORD }));
     expect(wrong.code).toBe(unknown.code);
     expect(wrong.code).toBe("authPasswordPreview.error.invalidCredentials");
   });
 
   it("an interrupted-registration account (email confirmed, never got a password) fails generically at sign-in too", async () => {
     signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
-    const res = await passwordSignIn({ ok: false }, fd({ email: "mid-registration@example.test", password: GOOD_PASSWORD }));
+    const res = await passwordSignIn({ ok: false }, withCaptcha({ email: "mid-registration@example.test", password: GOOD_PASSWORD }));
     expect(res.code).toBe("authPasswordPreview.error.invalidCredentials");
   });
 
   it("distinguishes a genuine rate limit", async () => {
     signInWithPassword.mockResolvedValueOnce({ error: { status: 429 } });
-    const res = await passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: GOOD_PASSWORD }));
+    const res = await passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: GOOD_PASSWORD }));
     expect(res.code).toBe("authPasswordPreview.error.rateLimited");
   });
 
@@ -836,30 +835,36 @@ describe("passwordSignIn", () => {
     rpc.mockResolvedValueOnce({ data: "active_personal" });
     resolveActiveLanding.mockResolvedValueOnce("/b2b");
     await expect(
-      passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: GOOD_PASSWORD, next: "https://evil.example" })),
+      passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: GOOD_PASSWORD, next: "https://evil.example" })),
     ).rejects.toThrow("REDIRECT:/b2b");
   });
 
-  it("signs in with NO captcha token — no Turnstile, no Siteverify, nothing but email + password", async () => {
+  it("forwards the token to GoTrue (single validation) and never calls Siteverify", async () => {
     signInWithPassword.mockResolvedValueOnce({ error: null });
     rpc.mockResolvedValueOnce({ data: "active_personal" });
     resolveActiveLanding.mockResolvedValueOnce("/b2b");
     await expect(
-      passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: GOOD_PASSWORD })),
+      passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: GOOD_PASSWORD })),
     ).rejects.toThrow("REDIRECT:/b2b");
-    expect(signInWithPassword).toHaveBeenCalledWith({ email: "a-owner@example.test", password: GOOD_PASSWORD });
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: "a-owner@example.test",
+      password: GOOD_PASSWORD,
+      options: { captchaToken: "test-captcha-token" },
+    });
     expect(siteverifyCalls()).toHaveLength(0);
   });
 
-  it("ignores any captchaToken a client still submits — it is neither verified nor forwarded", async () => {
-    signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
-    const res = await passwordSignIn(
-      { ok: false },
-      fd({ email: "a-owner@example.test", password: GOOD_PASSWORD, captchaToken: "stray-token" }),
-    );
-    expect(signInWithPassword).toHaveBeenCalledWith({ email: "a-owner@example.test", password: GOOD_PASSWORD });
-    expect(siteverifyCalls()).toHaveLength(0);
-    expect(res.code).toBe("authPasswordPreview.error.invalidCredentials");
+  it("refuses without a captcha token - GoTrue is never called", async () => {
+    const res = await passwordSignIn({ ok: false }, fd({ email: "a-owner@example.test", password: GOOD_PASSWORD }));
+    expect(res.code).toBe("authPasswordPreview.error.captchaRequired");
+    expect(signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("maps GoTrue's captcha_failed to the neutral captchaRejected, not to invalidCredentials", async () => {
+    signInWithPassword.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed (timeout-or-duplicate)" } });
+    const res = await passwordSignIn({ ok: false }, withCaptcha({ email: "a-owner@example.test", password: GOOD_PASSWORD }));
+    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
+    expect(JSON.stringify(res)).not.toMatch(/timeout-or-duplicate|disallowed/);
   });
 });
 
@@ -894,6 +899,7 @@ describe("Forgot Password — Screen 1: requestRecoveryCode (ISOLATED client —
     await expect(requestRecoveryCode({ ok: false }, withCaptcha({ email: "a-owner@example.test" }))).rejects.toThrow();
     expect(isolatedResetPasswordForEmail).toHaveBeenCalledWith("a-owner@example.test", {
       redirectTo: "http://127.0.0.1:3000/auth/forgot-password/reset",
+      captchaToken: "test-captcha-token",
     });
   });
 
@@ -903,31 +909,32 @@ describe("Forgot Password — Screen 1: requestRecoveryCode (ISOLATED client —
     expect(isolatedResetPasswordForEmail).not.toHaveBeenCalled();
   });
 
-  it("uses the SAME Siteverify gate: a rejected token never requests a recovery email", async () => {
-    siteverifyReplies({ success: false, "error-codes": ["invalid-input-response"] });
+  it("maps a token GoTrue rejects to the neutral captchaRejected - no cookie, no redirect", async () => {
+    isolatedResetPasswordForEmail.mockResolvedValueOnce({
+      error: { code: "captcha_failed", message: "captcha protection: request disallowed (invalid-input-response)" },
+    });
     const res = await requestRecoveryCode({ ok: false }, withCaptcha({ email: "a-owner@example.test" }));
     expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
-    expect(isolatedResetPasswordForEmail).not.toHaveBeenCalled();
+    expect(JSON.stringify(res)).not.toMatch(/invalid-input|disallowed/);
     expect(cookieStore.has("pwr_email")).toBe(false);
   });
 
-  it("fails closed when Siteverify is unreachable", async () => {
-    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    const res = await requestRecoveryCode({ ok: false }, withCaptcha({ email: "a-owner@example.test" }));
-    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
-    expect(isolatedResetPasswordForEmail).not.toHaveBeenCalled();
-  });
-
-  it("verifies the token with Siteverify before calling Supabase", async () => {
+  it("forwards the token to GoTrue and never spends it on Siteverify (single validation)", async () => {
     isolatedResetPasswordForEmail.mockResolvedValueOnce({ error: null });
     await expect(requestRecoveryCode({ ok: false }, withCaptcha({ email: "a-owner@example.test" }))).rejects.toThrow();
-    expect(siteverifyCalls()).toHaveLength(1);
-    expect(new URLSearchParams(String((siteverifyCalls()[0]![1] as RequestInit).body)).get("response")).toBe("test-captcha-token");
+    expect(siteverifyCalls()).toHaveLength(0);
+    expect(isolatedResetPasswordForEmail).toHaveBeenCalledWith(
+      "a-owner@example.test",
+      expect.objectContaining({ captchaToken: "test-captcha-token" }),
+    );
   });
 });
 
-describe("No dependency on Supabase's global CAPTCHA", () => {
-  it("supabase/config.toml keeps [auth.captcha] disabled (no active section)", async () => {
+describe("Shared local Supabase config", () => {
+  // GoTrue CAPTCHA is enabled per environment (local isolated stacks via their own config,
+  // hosted via the dashboard) - NEVER by this shared, committed config.toml, which other
+  // workstreams' running dev stacks load. See docs/frontend/auth-captcha.md.
+  it("the committed supabase/config.toml leaves [auth.captcha] unset (no active section)", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const config = fs.readFileSync(path.resolve(process.cwd(), "..", "supabase", "config.toml"), "utf8");
@@ -984,13 +991,30 @@ describe("Forgot Password — Screen 2: recoveryFlowEmail / verifyRecoveryCode /
   it("resend re-sends to the cookie-sourced email without exposing it to the client", async () => {
     cookieStore.set("pwr_email", "a-owner@example.test");
     isolatedResetPasswordForEmail.mockResolvedValueOnce({ error: null });
-    const res = await resendRecoveryCode({ ok: false }, fd({}));
+    const res = await resendRecoveryCode({ ok: false }, withCaptcha());
     expect(res.ok).toBe(true);
-    expect(isolatedResetPasswordForEmail).toHaveBeenCalledWith("a-owner@example.test", expect.any(Object));
+    expect(isolatedResetPasswordForEmail).toHaveBeenCalledWith(
+      "a-owner@example.test",
+      expect.objectContaining({ captchaToken: "test-captcha-token" }),
+    );
+  });
+
+  it("resend refuses without a captcha token - nothing is sent", async () => {
+    cookieStore.set("pwr_email", "a-owner@example.test");
+    const res = await resendRecoveryCode({ ok: false }, fd({}));
+    expect(res.code).toBe("authPasswordPreview.error.captchaRequired");
+    expect(isolatedResetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("resend maps a token GoTrue rejects to the neutral captchaRejected", async () => {
+    cookieStore.set("pwr_email", "a-owner@example.test");
+    isolatedResetPasswordForEmail.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed" } });
+    const res = await resendRecoveryCode({ ok: false }, withCaptcha());
+    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
   });
 
   it("resend refuses without recovery state", async () => {
-    const res = await resendRecoveryCode({ ok: false }, fd({}));
+    const res = await resendRecoveryCode({ ok: false }, withCaptcha());
     expect(res.code).toBe("authPasswordPreview.error.recoveryStateMissing");
   });
 });
@@ -1160,17 +1184,17 @@ describe("Existing-passwordless-user migration", () => {
 describe("Authenticated changePassword", () => {
   it("requires the current password to be supplied", async () => {
     getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
-    const res = await changePassword({ ok: false }, fd({ newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }));
+    const res = await changePassword({ ok: false }, withCaptcha({ newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }));
     expect(res.code).toBe("authPasswordPreview.error.currentPasswordRequired");
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
 
   it("re-verifies the CURRENT password via signInWithPassword — an existing session alone is not enough", async () => {
     getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
-    signInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
+    isolatedSignInWithPassword.mockResolvedValueOnce({ error: { message: "Invalid login credentials" } });
     const res = await changePassword(
       { ok: false },
-      fd({ currentPassword: "wrong-current-password", newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }),
+      withCaptcha({ currentPassword: "wrong-current-password", newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }),
     );
     expect(res.code).toBe("authPasswordPreview.error.currentPasswordWrong");
     expect(updateUser).not.toHaveBeenCalled();
@@ -1178,10 +1202,10 @@ describe("Authenticated changePassword", () => {
 
   it("rejects a new password identical to the current one", async () => {
     getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
-    signInWithPassword.mockResolvedValueOnce({ error: null });
+    isolatedSignInWithPassword.mockResolvedValueOnce({ error: null });
     const res = await changePassword(
       { ok: false },
-      fd({ currentPassword: GOOD_PASSWORD, newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }),
+      withCaptcha({ currentPassword: GOOD_PASSWORD, newPassword: GOOD_PASSWORD, confirmNewPassword: GOOD_PASSWORD }),
     );
     expect(res.code).toBe("authPasswordPreview.error.samePassword");
     expect(updateUser).not.toHaveBeenCalled();
@@ -1189,16 +1213,56 @@ describe("Authenticated changePassword", () => {
 
   it("on success: updates the password and signs out every OTHER session, keeping this one (already-set account — no authoritative-flag write needed)", async () => {
     getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
-    signInWithPassword.mockResolvedValueOnce({ error: null });
+    isolatedSignInWithPassword.mockResolvedValueOnce({ error: null });
     updateUser.mockResolvedValueOnce({ error: null });
     const newPw = "a-completely-different-passphrase";
     const res = await changePassword(
       { ok: false },
-      fd({ currentPassword: GOOD_PASSWORD, newPassword: newPw, confirmNewPassword: newPw }),
+      withCaptcha({ currentPassword: GOOD_PASSWORD, newPassword: newPw, confirmNewPassword: newPw }),
     );
     expect(res.ok).toBe(true);
     expect(signOut).toHaveBeenCalledWith({ scope: "others" });
     expect(markPasswordAttachedAuthoritatively).not.toHaveBeenCalled();
+  });
+
+  it("checks the current password on an ISOLATED client with the forwarded token - the caller's own session is never replaced", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
+    isolatedSignInWithPassword.mockResolvedValueOnce({ error: null });
+    updateUser.mockResolvedValueOnce({ error: null });
+    const newPw = "a-completely-different-passphrase";
+    await changePassword({ ok: false }, withCaptcha({ currentPassword: GOOD_PASSWORD, newPassword: newPw, confirmNewPassword: newPw }));
+    expect(isolatedSignInWithPassword).toHaveBeenCalledWith({
+      email: "a-owner@example.test",
+      password: GOOD_PASSWORD,
+      options: { captchaToken: "test-captcha-token" },
+    });
+    // The cookie-backed client NEVER performs the password grant (it would mint and store a new session).
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    // ...and the throwaway session the check created is revoked, on the isolated client only.
+    expect(isolatedSignOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(siteverifyCalls()).toHaveLength(0);
+  });
+
+  it("refuses without a captcha token - the password is never checked or changed", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
+    const res = await changePassword(
+      { ok: false },
+      fd({ currentPassword: GOOD_PASSWORD, newPassword: "a-completely-different-passphrase", confirmNewPassword: "a-completely-different-passphrase" }),
+    );
+    expect(res.code).toBe("authPasswordPreview.error.captchaRequired");
+    expect(isolatedSignInWithPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("maps a token GoTrue rejects to captchaRejected - not 'wrong password' - and changes nothing", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { email: "a-owner@example.test" } } });
+    isolatedSignInWithPassword.mockResolvedValueOnce({ error: { code: "captcha_failed", message: "captcha protection: request disallowed (timeout-or-duplicate)" } });
+    const res = await changePassword(
+      { ok: false },
+      withCaptcha({ currentPassword: GOOD_PASSWORD, newPassword: "a-completely-different-passphrase", confirmNewPassword: "a-completely-different-passphrase" }),
+    );
+    expect(res.code).toBe("authPasswordPreview.error.captchaRejected");
+    expect(updateUser).not.toHaveBeenCalled();
   });
 });
 
@@ -1246,9 +1310,10 @@ describe("Installer phone + password accounts never enter the email migration / 
     getUser.mockResolvedValueOnce({ data: { user: phoneUser } });
     rpc.mockResolvedValueOnce({ data: "access_ready", error: null });
     await expect(
-      changePassword({ ok: false }, fd({ currentPassword: GOOD_PASSWORD, newPassword: "another-long-passphrase", confirmNewPassword: "another-long-passphrase" })),
+      changePassword({ ok: false }, withCaptcha({ currentPassword: GOOD_PASSWORD, newPassword: "another-long-passphrase", confirmNewPassword: "another-long-passphrase" })),
     ).rejects.toThrow("REDIRECT:/home/settings");
     expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(isolatedSignInWithPassword).not.toHaveBeenCalled();
     expect(updateUser).not.toHaveBeenCalled();
   });
 

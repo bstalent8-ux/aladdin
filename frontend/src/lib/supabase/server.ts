@@ -37,6 +37,7 @@ export const getServerSupabase = cache(async function getServerSupabase(): Promi
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      cookieOptions: { secure: env.NEXT_PUBLIC_APP_ENV !== "local", sameSite: "lax", path: "/" },
       cookies: {
         getAll() {
           return cookieStore.getAll();

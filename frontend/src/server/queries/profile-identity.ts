@@ -73,6 +73,7 @@ export const PROFILE_COMPLETION_ITEMS = [
   "years_experience",
   "activities",
   "bio",
+  "organization_address",
   "organization_activities",
   "organization_setup",
 ] as const;
