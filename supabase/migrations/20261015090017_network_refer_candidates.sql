@@ -195,7 +195,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'network_candidate.approved',
   'network_candidate.rejected',
   'network_candidate.cancelled'
-));
+)) not valid;
 
 -- ---------------------------------------------------------------------------
 -- 2. network_candidates

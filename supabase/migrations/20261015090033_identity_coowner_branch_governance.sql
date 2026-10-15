@@ -163,7 +163,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'branch.verified',
   'branch.deactivated',
   'branch.reactivated'
-));
+)) not valid;
 
 -- 1. verification constraints -------------------------------------------------------------------
 alter table public.verifications drop constraint ck_verifications_type_matches_subject;

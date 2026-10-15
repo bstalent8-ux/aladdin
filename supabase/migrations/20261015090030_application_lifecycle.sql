@@ -170,7 +170,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'purchase_request_response.unshortlisted',
   'organization.application_submitted',
   'organization.application_abandoned'
-));
+)) not valid;
 
 -- onboarding intent may name a contractor company
 alter table public.onboarding_progress drop constraint ck_onboarding_progress_registerable_type;

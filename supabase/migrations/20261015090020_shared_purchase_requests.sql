@@ -89,7 +89,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'purchase_request.image_added', 'purchase_request.image_removed',
   'purchase_request_response.submitted', 'purchase_request_response.withdrawn',
   'purchase_request_response.shortlisted', 'purchase_request_response.unshortlisted'
-));
+)) not valid;
 
 -- ===========================================================================
 -- 2. Tables

@@ -88,7 +88,7 @@ begin
   select pg_get_constraintdef(c.oid) into v_def from pg_constraint c where c.conname = 'ck_audit_action_known';
   alter table public.audit_log drop constraint ck_audit_action_known;
   execute 'alter table public.audit_log add constraint ck_audit_action_known '
-    || regexp_replace(v_def, '\]\)\)\)$', ', ''organization.description_changed''::text])))');
+    || regexp_replace(v_def, '\]\)\)\)( NOT VALID)?$', ', ''organization.description_changed''::text])))\1');
 end $$;
 
 create or replace function public.organization_description_set(p_org_id uuid, p_description text)

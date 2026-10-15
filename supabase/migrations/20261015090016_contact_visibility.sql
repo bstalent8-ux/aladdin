@@ -139,7 +139,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   -- Phase 6+7 Milestone A
   'organization.contact_set',
   'profile.contact_visibility_set'
-));
+)) not valid;
 
 -- ---------------------------------------------------------------------------
 -- 4. Owner write paths

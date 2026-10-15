@@ -205,7 +205,7 @@ async function multiOrgUser(): Promise<void> {
   const ensure = async (name: string, type: string, approved: boolean) => {
     let found = (await list()).find((a) => a.name === name);
     if (!found) {
-      await ok(user.rpc("business_draft_save", { p_display_name: name, p_org_type: type }), "draft_save");
+      await ok(user.rpc("business_draft_save", { p_display_name: name, p_legal_name: `${name} LLC`, p_org_type: type }), "draft_save");
       const org = (await ok(user.rpc("business_draft_submit", { p_draft_id: null }), "draft_submit")) as string;
       await ok(user.rpc("organization_application_submit", { p_org_id: org }), "application_submit");
       found = (await list()).find((a) => a.name === name)!;

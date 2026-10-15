@@ -103,7 +103,7 @@ begin
   select pg_get_constraintdef(c.oid) into v_def from pg_constraint c where c.conname = 'ck_audit_action_known';
   alter table public.audit_log drop constraint ck_audit_action_known;
   execute 'alter table public.audit_log add constraint ck_audit_action_known '
-    || regexp_replace(v_def, '\]\)\)\)$', ', ''organization.image_set''::text, ''organization.image_removed''::text])))');
+    || regexp_replace(v_def, '\]\)\)\)( NOT VALID)?$', ', ''organization.image_set''::text, ''organization.image_removed''::text])))\1');
 end $$;
 
 -- RPCs -----------------------------------------------------------------------------------------------------

@@ -163,7 +163,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'branch.deactivated',
   'branch.reactivated',
   'branch.verification_revoked'
-));
+)) not valid;
 
 -- 1. public branch listing ---------------------------------------------------------------------
 drop function public.showroom_branches(uuid);

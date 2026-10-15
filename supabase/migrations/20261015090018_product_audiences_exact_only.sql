@@ -119,7 +119,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'network_candidate.cancelled',
   -- Milestone B
   'product.audiences_set'
-));
+)) not valid;
 
 -- ===========================================================================
 -- 3. Audience derivation (the ONE rule)

@@ -187,7 +187,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'product.image_added', 'product.image_removed', 'product.image_reordered',
   -- Product Offers
   'offer.created', 'offer.updated', 'offer.published', 'offer.paused', 'offer.resumed', 'offer.archived'
-));
+)) not valid;
 
 -- ===========================================================================
 -- 4. The one eligibility rule

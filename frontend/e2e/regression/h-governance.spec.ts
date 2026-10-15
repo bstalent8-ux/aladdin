@@ -46,7 +46,7 @@ test.beforeAll(async () => {
   createSyntheticUser(SALES, "end_consumer");
   createSyntheticUser(OUTSIDER, "end_consumer");
   const owner = await signedInClient(OWNER);
-  expect((await owner.rpc("business_draft_save", { p_display_name: ORG, p_org_type: "showroom_dealer" })).error).toBeNull();
+  expect((await owner.rpc("business_draft_save", { p_display_name: ORG, p_legal_name: `${ORG} LLC`, p_org_type: "showroom_dealer" })).error).toBeNull();
   const created = await owner.rpc("business_draft_submit", { p_draft_id: null });
   expect(created.error, created.error?.message).toBeNull();
   orgId = created.data as string;

@@ -167,7 +167,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'publisher.suspended',
   'publisher.revoked',
   'publisher.reinstated'
-));
+)) not valid;
 
 -- 1. platform flags (the rollout gate) ----------------------------------------------------------
 create table public.platform_flags (

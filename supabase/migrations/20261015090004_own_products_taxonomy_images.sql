@@ -175,7 +175,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   -- Own Products
   'product.archived', 'product.restored',
   'product.image_added', 'product.image_removed', 'product.image_reordered'
-));
+)) not valid;
 
 -- ===========================================================================
 -- 5. product_images

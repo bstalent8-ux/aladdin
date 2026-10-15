@@ -181,7 +181,7 @@ alter table public.audit_log add constraint ck_audit_action_known check (action 
   'purchase_request_response.shortlisted',
   'purchase_request_response.unshortlisted',
   'organization.application_submitted'
-));
+)) not valid;
 
 -- ---------------------------------------------------------------------------
 -- 2. The single operational predicate

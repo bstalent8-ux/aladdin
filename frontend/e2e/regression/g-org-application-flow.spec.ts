@@ -25,6 +25,8 @@ async function applyThroughUi(page: Page, name: string) {
     await page.waitForURL(/model=organization/);
   }
   await page.getByLabel(/^business name$/i).fill(name);
+  // main's registration rule: the legal / registered name is required to continue.
+  await page.getByLabel(/^legal \/ registered name/i).fill(`${name} LLC`);
   await page.getByRole("button", { name: /^continue$/i }).click();
   // Type step: an Engineering Office is the Engineer business type.
   await page.getByText("Engineer", { exact: true }).first().click();

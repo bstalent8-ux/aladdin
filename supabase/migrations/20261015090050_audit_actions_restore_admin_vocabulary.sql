@@ -19,14 +19,20 @@ declare
 begin
   select pg_get_constraintdef(c.oid) into v_def from pg_constraint c
    where c.conname = 'ck_audit_action_known' and c.conrelid = 'public.audit_log'::regclass;
-  if v_def is null or v_def !~ '\]\)\)\)$' then
+  if v_def is null or v_def !~ '\]\)\)\)( NOT VALID)?$' then
     raise exception 'ck_audit_action_known has an unexpected shape: %', coalesce(v_def, '<missing>');
   end if;
   select coalesce(array_agg(a order by a), '{}') into v_missing
     from unnest(v_add) a where position('''' || a || '''::text' in v_def) = 0;
-  if cardinality(v_missing) = 0 then return; end if;
-  alter table public.audit_log drop constraint ck_audit_action_known;
-  execute 'alter table public.audit_log add constraint ck_audit_action_known '
-    || regexp_replace(v_def, '\]\)\)\)$',
-         (select ', ' || string_agg('''' || a || '''::text', ', ') || '])))' from unnest(v_missing) a));
+  if cardinality(v_missing) > 0 then
+    alter table public.audit_log drop constraint ck_audit_action_known;
+    execute 'alter table public.audit_log add constraint ck_audit_action_known '
+      || regexp_replace(v_def, '\]\)\)\)( NOT VALID)?$',
+           (select ', ' || string_agg('''' || a || '''::text', ', ') || '])))' from unnest(v_missing) a) || ' NOT VALID');
+  end if;
 end $$;
+
+-- The earlier rewrites in this release were added NOT VALID (new rows checked, existing rows not re-scanned mid-chain, because
+-- production audit rows may carry actions a literal list from an older branch does not name). Now that the vocabulary is complete,
+-- validate once: this fails loudly (and rolls back) if ANY existing audit row still has an unknown action.
+alter table public.audit_log validate constraint ck_audit_action_known;
