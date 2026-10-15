@@ -100,9 +100,9 @@ select is((select count(*)::int from public.audit_log where action = 'organizati
 -- 5. registration: the draft description reaches the organization --------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = :'u5';
-select throws_ok($q$select public.business_draft_save(p_display_name => 'Reg Co', p_org_type => 'supplier', p_description => repeat('x', 251))$q$,
+select throws_ok($q$select public.business_draft_save(p_legal_name => 'Reg Co LLC', p_display_name => 'Reg Co', p_org_type => 'supplier', p_description => repeat('x', 251))$q$,
   '22023', null, 'D-19: the registration draft rejects 251 characters instead of truncating');
-select lives_ok($q$select public.business_draft_save(p_display_name => 'Reg Co', p_org_type => 'supplier', p_description => repeat('ي', 250))$q$,
+select lives_ok($q$select public.business_draft_save(p_legal_name => 'Reg Co LLC', p_display_name => 'Reg Co', p_org_type => 'supplier', p_description => repeat('ي', 250))$q$,
   'D-20: the registration draft accepts 250 characters');
 insert into _ids select 'regOrg', public.business_draft_submit(null)::text;
 reset role;

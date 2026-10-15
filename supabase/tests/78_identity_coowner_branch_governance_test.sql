@@ -250,7 +250,7 @@ select is(app.can_create_or_complete_business('78000003-0000-4000-8000-000000000
 
 set local role authenticated;
 set local request.jwt.claims = :'u2';
-select isnt(public.business_draft_save(p_display_name => 'Bravo Showroom', p_org_type => 'showroom_dealer'), null,
+select isnt(public.business_draft_save(p_legal_name => 'Bravo Showroom LLC', p_display_name => 'Bravo Showroom', p_org_type => 'showroom_dealer'), null,
   'C19: the verified co-owner opens their own application');
 insert into _ids select 'bravo', public.business_draft_submit(
   (select id from public.business_creation_drafts where user_id = '78000002-0000-4000-8000-000000000078' and completed_at is null));
@@ -259,7 +259,7 @@ select is((select status::text from public.organizations where id = (select id f
 select is(app.org_product_audience((select id from _ids where k = 'bravo')), null, 'C21: and has no business audience or capabilities');
 select is((select created_by from public.organizations where id = (select id from _ids where k = 'bravo')),
   '78000002-0000-4000-8000-000000000078'::uuid, 'C22: it belongs to the co-owner, not to the founder');
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Charlie', p_org_type => 'supplier') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Charlie LLC', p_display_name => 'Charlie', p_org_type => 'supplier') $$,
   '42501', 'an organization application is not available right now', 'C23: the one-open-application limit still applies to co-owners');
 select is(public.my_organization_application_slot(), 'additional_pending', 'C24: the slot reads additional_pending');
 
@@ -474,9 +474,9 @@ select is(app.can_create_or_complete_business('78000005-0000-4000-8000-000000000
   'D14: their unverified colleague with the same capability is not');
 set local role authenticated;
 set local request.jwt.claims = :'u4';
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Sneaky Contracting', p_org_type => 'contractor_company') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Sneaky Contracting LLC', p_display_name => 'Sneaky Contracting', p_org_type => 'contractor_company') $$,
   '42501', 'this organization type cannot be self-assigned', 'D15: eligibility does not unlock a Contractor Organization');
-select isnt(public.business_draft_save(p_display_name => 'Gamma Showroom', p_org_type => 'showroom_dealer'), null,
+select isnt(public.business_draft_save(p_legal_name => 'Gamma Showroom LLC', p_display_name => 'Gamma Showroom', p_org_type => 'showroom_dealer'), null,
   'D16: it does let them apply for an organization type they may request');
 insert into _ids select 'gamma', public.business_draft_submit(
   (select id from public.business_creation_drafts where user_id = '78000004-0000-4000-8000-000000000078' and completed_at is null));

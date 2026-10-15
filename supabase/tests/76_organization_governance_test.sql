@@ -49,7 +49,7 @@ set local role authenticated;
 set local request.jwt.claims = :'eng';
 
 select isnt(public.business_draft_save(
-  p_display_name => 'Nile Design Office', p_org_type => 'design_office',
+  p_legal_name => 'Nile Design Office LLC', p_display_name => 'Nile Design Office', p_org_type => 'design_office',
   p_primary_branch_name => 'Maadi'), null, 'A1: a signed-in engineer opens the first organization application');
 
 create temp table _o1 as
@@ -107,7 +107,7 @@ select is((select count(*)::int from public.audit_log
 -- ===========================================================================
 set local role authenticated;
 set local request.jwt.claims = :'eng';
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Second', p_org_type => 'importer') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Second LLC', p_display_name => 'Second', p_org_type => 'importer') $$,
   '42501', 'an organization application is not available right now',
   'C1: a second application is refused while the first is pending review');
 
@@ -125,7 +125,7 @@ select is((select application_status from public.my_organization_applications()
   'needs_changes', 'D3: the owner sees needs_changes');
 select is((select reason from public.my_organization_applications() where organization_id = (select id from _o1)),
   'Please add the licence number.', 'D4: with the reviewer''s reason');
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Second', p_org_type => 'importer') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Second LLC', p_display_name => 'Second', p_org_type => 'importer') $$,
   '42501', 'an organization application is not available right now',
   'D5: a second application is still refused while changes are requested');
 select is(public.organization_application_submit((select id from _o1)), (select id from _a1),
@@ -159,7 +159,7 @@ select is(app.can_publish_catalog((select id from _o1)), true, 'E2: and may publ
 select is((select application_status from public.my_organization_applications()
             where organization_id = (select id from _o1)), 'approved', 'E3: its application reads approved');
 
-select isnt(public.business_draft_save(p_display_name => 'Nile Import', p_org_type => 'importer'), null,
+select isnt(public.business_draft_save(p_legal_name => 'Nile Import LLC', p_display_name => 'Nile Import', p_org_type => 'importer'), null,
   'E4: once the first is approved a second application may be opened');
 create temp table _o2 as
 select public.business_draft_submit(
@@ -193,7 +193,7 @@ select throws_ok(format($q$update public.verifications set status = 'approved' w
   '42501', null, 'F5: a client cannot write verification decisions directly');
 select throws_ok(format($q$select public.review_approve(%L, false)$q$, (select id from _a1)),
   '42501', null, 'F6: a non-admin cannot approve an application');
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Sneaky', p_org_type => 'contractor_company') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Sneaky LLC', p_display_name => 'Sneaky', p_org_type => 'contractor_company') $$,
   '42501', 'this organization type cannot be self-assigned',
   'F7: a non-Contractor cannot apply for a contractor company');
 select throws_ok(format($q$select public.organization_application_submit(%L)$q$, (select id from _o1)),
@@ -203,10 +203,10 @@ select throws_ok(format($q$select public.organization_application_submit(%L)$q$,
 -- G. Contractor: individual persona -> contractor company, audience only once approved
 -- ===========================================================================
 set local request.jwt.claims = :'con';
-select throws_ok($$ select public.business_draft_save(p_display_name => 'Cheat', p_org_type => 'showroom_dealer') $$,
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'Cheat LLC', p_display_name => 'Cheat', p_org_type => 'showroom_dealer') $$,
   '42501', 'a Contractor applies for a contractor organization',
   'G1: the Contractor persona cannot open any other kind of business');
-select isnt(public.business_draft_save(p_display_name => 'Horizon Contracting', p_org_type => 'contractor_company'), null,
+select isnt(public.business_draft_save(p_legal_name => 'Horizon Contracting LLC', p_display_name => 'Horizon Contracting', p_org_type => 'contractor_company'), null,
   'G2: a Contractor can apply for a contractor company');
 create temp table _o3 as
 select public.business_draft_submit(
