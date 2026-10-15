@@ -29,6 +29,7 @@ if (phase === 'configure') {
     .replace(/^shadow_port = 54320$/m, 'shadow_port = 65520');
   writeFileSync(configFile, config);
   requireOwnConfig();
+  writeFileSync(process.env.GITHUB_ENV, `SHOWROOM_ACCEPTANCE_ENV_FILE=${process.env.SHOWROOM_ACCEPTANCE_ENV_FILE}\n`, { flag: 'a' });
   writeFileSync(`${output}/candidate.json`, JSON.stringify({ head, source: 'exact committed PR head; no developer working-tree files', configOnlyRunnerOverride: true }, null, 2));
 } else if (phase === 'verify') {
   requireOwnConfig();

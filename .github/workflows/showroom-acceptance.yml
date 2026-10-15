@@ -19,7 +19,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       SHOWROOM_ACCEPTANCE_CONTAINER: supabase_db_aladdin_pr84_ci
-      SHOWROOM_ACCEPTANCE_ENV_FILE: ${{ runner.temp }}/showroom-acceptance.env
       SHOWROOM_ACCEPTANCE_SCREENSHOT_DIR: ${{ github.workspace }}/.artifacts/showroom/screenshots
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +37,7 @@ jobs:
       - name: Record exact candidate and configure runner-only stack
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          SHOWROOM_ACCEPTANCE_ENV_FILE: ${{ runner.temp }}/showroom-acceptance.env
         run: node scripts/showroom-acceptance-ci.mjs configure
       - name: Start isolated Supabase and replay complete history
         run: |

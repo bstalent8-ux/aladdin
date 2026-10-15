@@ -157,7 +157,7 @@ test("real registration creates only intent and an unverified phone", async ({ p
     await expect(page.getByText("يوجد حساب مسجل بالفعل بهذا الرقم")).toBeVisible();
     void info;
 });
-test("generic invalid login, route guards and cross-account denial", async ({ page }, info) => {
+test("generic invalid login, route guards and cross-account denial", async ({ page }) => {
     const phone = "+20106" + String(Date.now()).slice(-7);
     await createPhoneAccount("installer", phone);
     await page.goto("/showroom/sign-in");
