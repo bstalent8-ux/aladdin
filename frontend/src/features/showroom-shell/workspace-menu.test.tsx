@@ -18,7 +18,7 @@ describe("workspace switcher terminology", () => {
     fireEvent.click(screen.getByRole("button", { name: ar.workspace.switch }));
     const add = screen.getByRole("menuitem", { name: "طلب إضافة مؤسسة جديدة" });
     const mine = screen.getByRole("menuitem", { name: "مؤسساتي وطلباتي" });
-    expect(add.getAttribute("href")).toBe("/preview/showroom-suite-v2/add-business");
+    expect(add.getAttribute("href")).toBe("/showroom/add-business");
     expect(mine.getAttribute("href")).toBe("/business/applications");
     expect(screen.queryByText("إضافة نشاط تجاري")).toBeNull();
     expect(screen.queryByText("طلبات المؤسسات")).toBeNull();

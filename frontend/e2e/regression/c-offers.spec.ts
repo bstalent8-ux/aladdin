@@ -8,7 +8,7 @@ import { expectImagesLoaded, guardConsole, open, prefs } from "./util";
  * The supplier's published offer targets Showrooms only: a Showroom sees it (with a real signed
  * image); an organization of another type does not, proven against the database interface itself.
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 test.describe.configure({ mode: "serial" });
 
 const AUDIENCE_GROUPS = ["Showroom", "Supplier", "Manufacturer", "Importer", "Contractor", "Engineer", "Craftsman", "End customer"];

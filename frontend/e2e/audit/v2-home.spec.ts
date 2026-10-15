@@ -5,7 +5,7 @@ import { prefs } from "../regression/util";
 import { capture, DESK_EN_L, DESK_AR_D, MOB_AR_D, MOB_EN_L } from "./audit-util";
 
 /** Showroom V2 release evidence: Home in the four standard combinations. One persona (hana) with real buyer + seller data. */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const P = "Showroom/Dealer (hana, buyer + seller data)";
 
 test("V2-1 Home renders every reference section from real data", async ({ page, request }) => {

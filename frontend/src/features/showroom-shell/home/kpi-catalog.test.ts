@@ -92,7 +92,7 @@ describe("KPI destinations", () => {
     ["customer_quotes_sent", "/b2b/quotations?view=sent&period=30d"],
     ["total_sales", "/b2b/reports?view=sales&period=30d"],
     ["projects", "/b2b/projects?status=active"],
-    ["saved_products", "/preview/showroom-suite-v2/saved"],
+    ["saved_products", "/showroom/saved"],
   ] as const)("%s opens %s", (key, href) => {
     expect(showroomKpiHref(entry(key), period)).toBe(href);
   });

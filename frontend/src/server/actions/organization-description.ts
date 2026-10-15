@@ -13,7 +13,7 @@ export type OrganizationDescriptionResult =
   | { ok: true; value: string | null }
   | { ok: false; code: "tooLong" | "forbidden" | "failed" };
 
-const SETTINGS_PATHS = ["/preview/showroom-suite-v2/settings", "/b2b/settings"] as const;
+const SETTINGS_PATHS = ["/showroom/settings", "/b2b/settings"] as const;
 
 export async function saveOrganizationDescriptionAction(orgId: string, raw: string): Promise<OrganizationDescriptionResult> {
   const checked = checkDescription(raw);

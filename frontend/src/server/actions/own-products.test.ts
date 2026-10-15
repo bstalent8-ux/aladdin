@@ -85,7 +85,7 @@ describe("price, colors and description reach the database through the one RPC p
 
 describe("createOwnProductAction", () => {
   it("sends the validated, normalized product to the create RPC and lands on its edit page", async () => {
-    await expect(createOwnProductAction({ ok: false }, fd(good))).rejects.toThrow(`NEXT_REDIRECT:/preview/showroom-suite-v2/my-products/${PRODUCT}/edit?created=1`);
+    await expect(createOwnProductAction({ ok: false }, fd(good))).rejects.toThrow(`NEXT_REDIRECT:/showroom/my-products/${PRODUCT}/edit?created=1`);
     expect(state.rpc).toHaveBeenCalledWith("own_product_create", {
       p_org_id: ORG,
       p_name: "Matt Emulsion 18L",
@@ -97,7 +97,7 @@ describe("createOwnProductAction", () => {
       p_weight_kg: 3.5,
     });
     const paths = state.revalidate.mock.calls.map((c) => c[0]);
-    expect(paths).toEqual(expect.arrayContaining(["/preview/showroom-suite-v2/my-products", "/preview/showroom-suite-v2/catalog", "/b2b/products"]));
+    expect(paths).toEqual(expect.arrayContaining(["/showroom/my-products", "/showroom/catalog", "/b2b/products"]));
   });
 
   it("answers invalid input with field errors and never calls the database", async () => {

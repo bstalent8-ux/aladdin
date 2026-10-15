@@ -158,8 +158,8 @@ export function ShowroomTopbar({
             role="menu"
             className="absolute end-0 top-[calc(100%+8px)] z-popover w-52 overflow-hidden rounded-md border bg-surface py-1 shadow-lg"
           >
-            <MenuLink href="/preview/showroom-suite-v2/settings" icon={UserIcon} label={locale === "ar" ? "ملفي الشخصي" : "My profile"} />
-                <MenuLink href="/preview/showroom-suite-v2/settings" icon={SettingsIcon} label={locale === "ar" ? "الإعدادات" : "Settings"} />
+            <MenuLink href="/showroom/settings" icon={UserIcon} label={locale === "ar" ? "ملفي الشخصي" : "My profile"} />
+                <MenuLink href="/showroom/settings" icon={SettingsIcon} label={locale === "ar" ? "الإعدادات" : "Settings"} />
                 <div className="my-1 border-t" />
                 <form action={signOut}><MenuRow icon={LogOutIcon} label={locale === "ar" ? "تسجيل خروج" : "Sign out"} tone="danger" submit testId="profile-sign-out" /></form>
           </div>

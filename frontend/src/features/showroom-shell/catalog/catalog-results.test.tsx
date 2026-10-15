@@ -102,7 +102,7 @@ describe("showroom catalog results", () => {
   it("opens the suite's own product detail, not the production catalog shell", () => {
     renderResults();
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("/preview/showroom-suite-v2/catalog/p1");
+    expect(hrefs).toContain("/showroom/catalog/p1");
     expect(hrefs.some((h) => h?.startsWith("/b2b"))).toBe(false);
   });
 
@@ -133,7 +133,7 @@ describe("showroom catalog results", () => {
     expect(within(r).getByText("Cairo Ceramics Showroom")).toBeTruthy();
     expect(within(r).getByText("Square meter")).toBeTruthy();
     expect(within(r).getByRole("button", { name: "Save product" })).toBeTruthy();
-    expect(within(r).getByRole("link", { name: "View details" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/catalog/p1");
+    expect(within(r).getByRole("link", { name: "View details" }).getAttribute("href")).toBe("/showroom/catalog/p1");
   });
 
   it.each(["grid", "list"] as const)("reflects saved state per product in %s mode and keeps the control outside links", (initialView) => {

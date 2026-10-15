@@ -15,7 +15,7 @@ test.describe.configure({ mode: "serial" });
 const run = Date.now().toString(36);
 const PRO = `reg-ind-${run}@example.test`;
 const PRODUCT = `Ind Tile ${run}`;
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",

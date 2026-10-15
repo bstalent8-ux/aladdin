@@ -6,7 +6,7 @@ import { capture, DESK_EN_L, MOB_AR_D, DESK_AR_D } from "./audit-util";
 
 /** Existing Showroom commerce evidence (what M4b must extend). One persona, hana: buyer AND seller data. */
 const AREA = "existing-showroom-commerce" as const;
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const q = (s: string) => psql(s).trim();
 
 test("S-1 Showroom suite (preview shell) and /b2b commerce screens", async ({ page, request }) => {

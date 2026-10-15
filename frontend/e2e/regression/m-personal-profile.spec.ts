@@ -7,7 +7,7 @@ import { prefs } from "./util";
  * BATCH M (B3-C) - personal profile saves inside the Showroom V2 shell.
  *
  * Subject: a STAFF member of the Showroom (so the personal account, the internal colleague identity and the public
- * Showroom identity are three different things on screen). Route: /preview/showroom-suite-v2/settings?section=account,
+ * Showroom identity are three different things on screen). Route: /showroom/settings?section=account,
  * which renders the shared IdentityCard (display name, phone, photo). Each save goes through its single-purpose RPC.
  * Username has no editor in this shell (it is chosen at registration), so it is verified at the RPC. The personal bio
  * has no editor outside the professional profile, so it is reported as not reachable here.
@@ -15,7 +15,7 @@ import { prefs } from "./util";
 const q = (s: string) => psql(s).trim();
 const OWNER = IDENTITIES.showroom;
 const RUN = Date.now().toString(36);
-const ACCOUNT = "/preview/showroom-suite-v2/settings?section=account";
+const ACCOUNT = "/showroom/settings?section=account";
 const orgId = () => q(`select m.organization_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = '${OWNER}' limit 1`);
 const orgFingerprint = () =>
   q(`select md5(row(name, name_ar, name_en, description, org_type, is_verified, slug, updated_at)::text) from public.organizations where id = '${orgId()}'`);

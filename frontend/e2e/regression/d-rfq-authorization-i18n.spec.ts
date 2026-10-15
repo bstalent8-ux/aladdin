@@ -9,7 +9,7 @@ import { dirOf, guardConsole, open, prefs } from "./util";
  * Showroom cannot reach another organization's edit pages; the Showroom suite is closed to a
  * workspace that is not a Showroom.
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 test.describe.configure({ mode: "serial" });
 
 const orgIdByName = (name: string) => psql(`select id from public.organizations where name = '${name.replace(/'/g, "''")}' limit 1`).trim();
@@ -73,7 +73,7 @@ test.describe("browser", () => {
     await signIn(page, request, IDENTITIES.consumer, /\/(home|b2b)(\/|$)/);
     await page.goto(`${SUITE}/catalog`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("load");
-    expect(page.url()).not.toContain("/preview/showroom-suite-v2/catalog");
+    expect(page.url()).not.toContain("/showroom/catalog");
     await expect(page.getByText(REG.productName)).toHaveCount(0);
   });
 

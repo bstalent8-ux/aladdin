@@ -6,7 +6,7 @@ import { capture, type Combo } from "./audit-util";
 import { expectNoHorizontalOverflow } from "../regression/util";
 
 /** Reference alignment evidence. SHOT_ROOT_NAME=v2-reference-alignment. */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const P = "Showroom/Dealer (hana, buyer + seller data)";
 const AR_L: Combo = { locale: "ar", theme: "light", w: 1440, h: 900 };
 const EN_L: Combo = { locale: "en", theme: "light", w: 1440, h: 900 };

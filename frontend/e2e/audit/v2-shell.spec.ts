@@ -4,7 +4,7 @@ import { prefs } from "../regression/util";
 import { capture, DESK_EN_L, MOB_AR_D } from "./audit-util";
 
 /** Showroom V2 release evidence: the converged shell (finished /b2b modules inside the V2 frame) and Settings. SHOT_ROOT_NAME=v2-release. */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const P = "Showroom/Dealer (hana, buyer + seller data)";
 
 test("V2-2 finished modules render inside the V2 shell and highlight their own entry", async ({ page, request }) => {
@@ -34,11 +34,11 @@ test("V2-2 finished modules render inside the V2 shell and highlight their own e
   }
   // /b2b itself lands on the V2 Home
   await page.goto("/b2b");
-  await expect(page).toHaveURL(/showroom-suite-v2\/home/);
+  await expect(page).toHaveURL(/\/showroom\/home/);
   // no visible sidebar entry leads to a placeholder
   const hrefs = await page.locator("[data-preview-sidebar] nav a").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href")));
   expect(hrefs.length).toBeGreaterThan(10);
-  expect(hrefs.some((h) => h === "/preview/showroom-suite-v2/purchase-requests")).toBe(false);
+  expect(hrefs.some((h) => h === "/showroom/purchase-requests")).toBe(false);
   expect(errors).toEqual([]);
 });
 

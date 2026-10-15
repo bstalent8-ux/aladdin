@@ -10,7 +10,7 @@ export default async function ShowroomModule({ params }: { params: Promise<{ pag
   const item = SHOWROOM_GROUPS.flatMap((group) => group.items).find((entry) => entry.id === page);
   if (!item || !canNavigate(item, org.capabilities)) notFound();
   // Earlier preview links to a module that now lives at its finished route keep working.
-  if (!item.hidden && item.href !== `/preview/showroom-suite-v2/${item.id}`) redirect(item.href);
+  if (!item.hidden && item.href !== `/showroom/${item.id}`) redirect(item.href);
   const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return <section className="rounded-lg border bg-surface p-6">
     <h1 className="text-title font-semibold text-fg">{item.label[locale]}</h1>

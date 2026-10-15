@@ -17,7 +17,7 @@ const RUN = Date.now().toString(36);
 const EMAIL = `reg-first-${RUN}@example.test`;
 const USERNAME = `regfirst${RUN}`;
 const SHOWROOM = `Nile Tiles ${RUN}`;
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const uid = () => q(`select id from auth.users where email = '${EMAIL}'`);
 /** A cold `next dev` compile of a wizard route can exceed the default 60 s navigation timeout. */
 async function openSlow(page: Page, route: string) {

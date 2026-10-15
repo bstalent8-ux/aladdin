@@ -2,7 +2,7 @@ import { HomeIcon, ClipboardIcon, StorefrontIcon, UserIcon, UsersIcon, Briefcase
 import type { InstallerNavItem } from "@/features/installer-dashboard-preview/installer-nav";
 import { NAV_CAPS } from "@/lib/nav/modules";
 
-export const SHOWROOM_ROOT = "/preview/showroom-suite-v2";
+export const SHOWROOM_ROOT = "/showroom";
 /** The completed commerce modules that still live under /b2b; the Showroom shell now frames them (see b2b/layout). */
 const LEGACY = "/b2b";
 

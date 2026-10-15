@@ -12,7 +12,7 @@ const run = Date.now().toString(36);
 const PRO = `aud-pro-${run}@example.test`;
 const ENG = `aud-eng-${run}@example.test`;
 const PRODUCT = `Aud Pro Tile ${run}`;
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const q = (s: string) => psql(s).trim();
 const setGate = (on: boolean) => psql(`update public.platform_flags set enabled = ${on} where key = 'independent_commerce'`);
 let publisherId = "";

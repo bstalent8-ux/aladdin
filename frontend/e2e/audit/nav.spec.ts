@@ -42,7 +42,7 @@ test("nav contractor (independent, no org)", async ({ page, request }) => {
   await persona(page, request, "independent-contractor", PRO, ["/home", "/home/settings", "/home/profile"]);
 });
 test("nav showroom owner", async ({ page, request }) => {
-  await persona(page, request, "showroom-owner-hana", IDENTITIES.showroom, ["/b2b", "/b2b/settings", "/preview/showroom-suite-v2/home"]);
+  await persona(page, request, "showroom-owner-hana", IDENTITIES.showroom, ["/b2b", "/b2b/settings", "/showroom/home"]);
 });
 test("nav supplier owner", async ({ page, request }) => {
   await persona(page, request, "supplier-owner-rania", IDENTITIES.distributor, ["/b2b"]);

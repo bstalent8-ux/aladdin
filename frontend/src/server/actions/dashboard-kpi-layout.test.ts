@@ -24,7 +24,7 @@ describe("dashboard KPI layout actions are surface-scoped", () => {
       p_card_order: ["total_sales"],
       p_surface: "showroom_suite",
     });
-    expect(state.revalidate).toHaveBeenCalledWith("/preview/showroom-suite-v2/home");
+    expect(state.revalidate).toHaveBeenCalledWith("/showroom/home");
     expect(state.revalidate).not.toHaveBeenCalledWith("/b2b");
   });
 

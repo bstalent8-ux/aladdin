@@ -6,7 +6,7 @@ import { appendRoute } from "./audit-util";
 
 /** Route health sweep: status, redirect target, console errors, overflow, direction. No screenshots. */
 const q = (s: string) => psql(s).trim();
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 
 async function visit(page: Page, persona: string, route: string, vp: "desk-en" | "mob-ar") {
   const errors: string[] = [];

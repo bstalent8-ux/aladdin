@@ -129,7 +129,7 @@ test.describe("version conflicts", () => {
     await prefs(page, { locale: "en" });
     await signIn(page, request, IDENTITIES.showroom);
     const id = q(`select id from public.products where sku = '${REG.ownCode}'`);
-    await page.goto(`/preview/showroom-suite-v2/my-products/${id}/edit`);
+    await page.goto(`/showroom/my-products/${id}/edit`);
     await page.waitForLoadState("networkidle");
     await expect(page.locator("#name")).toHaveValue(REG.ownName);
 

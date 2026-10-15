@@ -7,7 +7,7 @@ import { capture, DESK_EN_L, MOB_AR_D } from "./audit-util";
 
 /** Settings corrections: no Business Language / Timezone / address, a business image, stable technical slug. SHOT_ROOT_NAME=v2-reference-alignment. */
 test.describe.configure({ mode: "serial" });
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const q = (s: string) => psql(s).trim();
 const HANA_ORG = `(select id from public.organizations where name = 'Cairo Ceramics Showroom')`;
 const OBJECTS = `select count(*) from storage.objects where bucket_id = 'organization-images' and name like (select id::text from public.organizations where name = 'Cairo Ceramics Showroom') || '/%'`;

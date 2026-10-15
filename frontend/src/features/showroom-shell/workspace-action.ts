@@ -21,6 +21,6 @@ export async function selectShowroomWorkspace(value: string): Promise<{ error: b
   const store = await cookies();
   store.set(ORG_COOKIE, id.data, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   store.delete(BRANCH_COOKIE);
-  revalidatePath("/preview/showroom-suite-v2", "layout");
-  redirect("/preview/showroom-suite-v2/home");
+  revalidatePath("/showroom", "layout");
+  redirect("/showroom/home");
 }

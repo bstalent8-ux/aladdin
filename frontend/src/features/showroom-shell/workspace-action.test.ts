@@ -29,7 +29,7 @@ describe("showroom switch authority", () => {
   });
   it.each(["showroom_dealer", "supplier", "manufacturer", "importer", "design_office"])("switches an actual %s membership and clears branch context", async (orgType) => {
     state.entries = [{ kind: "business", organizationId: id, name: "Business", orgType, relationship: "member" }];
-    await expect(selectShowroomWorkspace(id)).rejects.toThrow("redirect:/preview/showroom-suite-v2/home");
+    await expect(selectShowroomWorkspace(id)).rejects.toThrow("redirect:/showroom/home");
     expect(state.set).toHaveBeenCalledWith("aladdin-org", id, expect.objectContaining({ path: "/", sameSite: "lax" }));
     expect(state.remove).toHaveBeenCalledWith("aladdin-branch");
   });

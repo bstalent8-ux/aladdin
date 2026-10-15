@@ -36,9 +36,9 @@ describe("toggleSavedProductAction", () => {
         "/b2b/saved",
         "/b2b/catalog",
         "/b2b/catalog/p1",
-        "/preview/showroom-suite-v2/catalog",
-        "/preview/showroom-suite-v2/catalog/p1",
-        "/preview/showroom-suite-v2/home",
+        "/showroom/catalog",
+        "/showroom/catalog/p1",
+        "/showroom/home",
       ]),
     );
   });

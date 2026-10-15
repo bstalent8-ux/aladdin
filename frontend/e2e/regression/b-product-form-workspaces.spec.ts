@@ -9,7 +9,7 @@ import { expectImagesLoaded, guardConsole, open, prefs } from "./util";
  * multi-organization engineer (two APPROVED organizations + one PENDING application) exercises
  * workspace switching and proves a pending application is never a workspace in the browser either.
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 test.describe.configure({ mode: "serial" });
 
 const AUDIENCE_LABELS = ["Showroom", "Supplier", "Manufacturer", "Importer", "Contractor", "Engineer", "Craftsman", "End customer"];

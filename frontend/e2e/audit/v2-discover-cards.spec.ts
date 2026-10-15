@@ -6,7 +6,7 @@ import { prefs, expectNoHorizontalOverflow } from "../regression/util";
 /** Product Discovery cards on Showroom Home: own bordered card, equal heights, bottom-aligned action, terracotta hover. */
 test.describe.configure({ mode: "serial" });
 const SHOTS = path.resolve(process.cwd(), "../docs/frontend/screenshots/v2-reference-alignment/v2-release");
-const HOME = "/preview/showroom-suite-v2/home";
+const HOME = "/showroom/home";
 
 async function openHome(page: Page, locale: "ar" | "en", theme: "light" | "dark", w: number, h: number) {
   await prefs(page, { locale, theme });

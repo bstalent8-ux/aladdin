@@ -66,7 +66,7 @@ test.beforeAll(async () => {
 
 /** A Showroom's Settings is the sectioned V2 page. Wait for hydration so an early click is not lost in dev builds. */
 async function openSettings(page: import("@playwright/test").Page, section: string) {
-  await open(page, `/preview/showroom-suite-v2/settings?section=${section}`);
+  await open(page, `/showroom/settings?section=${section}`);
   await page.waitForLoadState("networkidle");
 }
 

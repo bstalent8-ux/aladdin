@@ -9,7 +9,7 @@ import { expectImagesLoaded, guardConsole, open, prefs } from "./util";
  * Verifies real authorization (the supplier's published product is visible to a Showroom), a
  * successful signed image, and the page interactions - not just that a screen renders.
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 
 test.describe.configure({ mode: "serial" });
 

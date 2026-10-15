@@ -12,7 +12,7 @@ import { ORGANIZATION_IMAGE_BUCKET } from "@/lib/storage/organization-image-asse
 export type OrganizationImageTicket = { ok: true; key: string } | { ok: false; code: string };
 export type OrganizationImageResult = { ok: true } | { ok: false; code: string };
 
-const SETTINGS_PATHS = ["/preview/showroom-suite-v2/settings", "/b2b/settings"] as const;
+const SETTINGS_PATHS = ["/showroom/settings", "/b2b/settings"] as const;
 const refresh = () => SETTINGS_PATHS.forEach((path) => revalidatePath(path));
 
 /** Step 1 - the pending metadata row and the server-generated key the browser must upload to. */

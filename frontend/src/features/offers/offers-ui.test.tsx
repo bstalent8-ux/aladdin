@@ -352,7 +352,7 @@ describe("My offers (management)", () => {
   it("shows the empty state with a create link, not fake cards", () => {
     mount([]);
     expect(screen.getByText("No offers yet")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Create offer" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/my-offers/new");
+    expect(screen.getByRole("link", { name: "Create offer" }).getAttribute("href")).toBe("/showroom/my-offers/new");
   });
 });
 

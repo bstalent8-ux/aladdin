@@ -139,7 +139,7 @@ describe("OwnProductsResults", () => {
   it("links each card to its editor and to its photos", () => {
     results();
     const [active] = screen.getAllByTestId("my-products-card");
-    expect(within(active!).getByRole("link", { name: "Manage photos" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/my-products/a/edit#product-photos");
+    expect(within(active!).getByRole("link", { name: "Manage photos" }).getAttribute("href")).toBe("/showroom/my-products/a/edit#product-photos");
   });
 
   it("shows colors, size and weight when the product has them — and nothing it does not have", () => {
@@ -160,7 +160,7 @@ describe("OwnProductsResults", () => {
   it("does not offer Edit on an archived product (it must be restored first)", () => {
     results();
     const [active, , archived] = screen.getAllByTestId("my-products-card");
-    expect(within(active!).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/preview/showroom-suite-v2/my-products/a/edit");
+    expect(within(active!).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/showroom/my-products/a/edit");
     expect(within(archived!).queryByRole("link", { name: "Edit" })).toBeNull();
   });
 
@@ -571,7 +571,7 @@ describe("Create product with photos in one flow", () => {
     fill(container);
     stage(png("first.png"), png("second.png"));
     fireEvent.submit(screen.getByTestId("product-form"));
-    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/showroom/my-products/p-new/edit?created=1"));
     expect(actions.requestUpload).toHaveBeenCalledTimes(2);
     const uploaded = actions.upload.mock.calls.map((c) => (c as unknown as [string, File])[1].name);
     expect(uploaded).toEqual(["first.png", "second.png"]);
@@ -599,7 +599,7 @@ describe("Create product with photos in one flow", () => {
     fill(container);
     stage(png("a.png"));
     fireEvent.submit(screen.getByTestId("product-form"));
-    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1&photos=partial"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/showroom/my-products/p-new/edit?created=1&photos=partial"));
   });
 
   it("creates without photos just as before", async () => {
@@ -607,7 +607,7 @@ describe("Create product with photos in one flow", () => {
     const { container } = wrap(<ProductForm orgId="org-1" />);
     fill(container);
     fireEvent.submit(screen.getByTestId("product-form"));
-    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/preview/showroom-suite-v2/my-products/p-new/edit?created=1"));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/showroom/my-products/p-new/edit?created=1"));
     expect(actions.requestUpload).not.toHaveBeenCalled();
   });
 });

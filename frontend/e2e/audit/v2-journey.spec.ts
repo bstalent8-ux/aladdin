@@ -10,7 +10,7 @@ import { capture, DESK_EN_L, MOB_AR_D } from "./audit-util";
  * SHOT_ROOT_NAME=v2-release.
  */
 test.describe.configure({ mode: "serial" });
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const q = (s: string) => psql(s).trim();
 const TITLE = `V2 journey RFQ ${Date.now().toString(36)}`;
 let rfqId = "";

@@ -9,7 +9,7 @@ import { isShowroomBusinessType } from "./workspace-model";
 // Both layout and leaf pages call this; cached only within the server request.
 export const requireShowroomContext = cache(async () => {
   const state = await getRegistrationState();
-  if (state === "unverified") redirect("/auth/sign-in?next=%2Fpreview%2Fshowroom-suite-v2%2Fhome");
+  if (state === "unverified") redirect("/auth/sign-in?next=%2Fshowroom%2Fhome");
   if (!hasAppAccess(state)) redirect("/onboarding");
   const supabase = await getServerSupabase();
   const workspace = await loadWorkspaceContext(supabase);

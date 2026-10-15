@@ -9,7 +9,7 @@ import { expectImagesLoaded, expectNoHorizontalOverflow, guardConsole, open, pre
  * image decoded, and the RENDERED background actually matches the requested theme (measured from
  * computed colour, not from a class name).
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const WIDTHS = [430, 390] as const;
 const THEMES = ["light", "dark"] as const;
 const SHOWROOM_PAGES = [`${SUITE}/home`, `${SUITE}/catalog`, `${SUITE}/my-products`, `${SUITE}/offers`] as const;

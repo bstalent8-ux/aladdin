@@ -8,7 +8,7 @@ import { guardConsole, open, prefs } from "./util";
  * membership that justified it is revoked. Verified against the real Storage and RPC interfaces as
  * real signed-in users; the only privileged step is the administrator-side membership change.
  */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const ALL_AUDIENCES = ["showroom_dealer", "supplier", "manufacturer", "importer", "contractor", "engineer", "installer_technician", "end_consumer"];
 test.describe.configure({ mode: "serial" });
 

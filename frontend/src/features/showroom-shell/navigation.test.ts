@@ -49,7 +49,7 @@ describe("no placeholder in primary navigation", () => {
     expect(activeShowroomItem("/b2b/rfqs", "view=received", visible)?.id).toBe("customer-rfqs");
     expect(activeShowroomItem("/b2b/quotations", "", visible)?.id).toBe("quotes-received");
     expect(activeShowroomItem("/b2b/quotations", "view=sent", visible)?.id).toBe("customer-quotes");
-    expect(activeShowroomItem("/preview/showroom-suite-v2/my-products/new", "", visible)?.id).toBe("my-products");
+    expect(activeShowroomItem("/showroom/my-products/new", "", visible)?.id).toBe("my-products");
     expect(activeShowroomItem("/nowhere", "", visible)).toBeNull();
   });
 });

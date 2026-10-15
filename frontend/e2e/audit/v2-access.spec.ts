@@ -5,7 +5,7 @@ import { prefs } from "../regression/util";
 import { capture, DESK_EN_L, MOB_AR_D } from "./audit-util";
 
 /** Showroom V2 release evidence: staff scope, cross-tenant denial and pending-organization exclusion. SHOT_ROOT_NAME=v2-release. */
-const SUITE = "/preview/showroom-suite-v2";
+const SUITE = "/showroom";
 const q = (s: string) => psql(s).trim();
 
 test("V2-5 staff member (sales.read/write only): scoped Home, scoped sidebar, read-only Settings", async ({ page, request }) => {
