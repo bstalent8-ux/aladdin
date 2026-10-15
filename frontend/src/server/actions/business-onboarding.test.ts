@@ -23,15 +23,15 @@ describe("business draft writers — the same entitlement as the page", () => {
   it.each(["showroom_dealer", "supplier", "manufacturer", "importer", "design_office"] as const)("saves canonical %s through the existing RPC", async (orgType) => {
     state.allowed = true;
     expect(await saveBusiness({ displayName: "Activity", orgType })).toEqual({ ok: true, draftId: "draft-1" });
-    expect(state.rpc).toHaveBeenCalledWith("business_draft_save", expect.objectContaining({ p_org_type: orgType }));
+    expect(state.rpc).toHaveBeenCalledWith("business_draft_save_v2", expect.objectContaining({ p_org_type: orgType }));
   });
 
   it("submits design_office through the canonical draft and membership-creation RPC", async () => {
     state.allowed = true;
     state.rpc.mockResolvedValueOnce({ data: "draft-1", error: null }).mockResolvedValueOnce({ data: "org-1", error: null });
-    await submitBusiness({ displayName: "Engineering", legalName: "Engineering Consultants LLC", orgType: "design_office" });
-    expect(state.rpc).toHaveBeenNthCalledWith(1, "business_draft_save", expect.objectContaining({ p_org_type: "design_office" }));
-    expect(state.rpc).toHaveBeenNthCalledWith(2, "business_draft_submit", { p_draft_id: "draft-1" });
+    await submitBusiness({ displayName: "Engineering", legalName: "Engineering Consultants LLC", orgType: "design_office", governorate: "cairo", city: "nasr-city" });
+    expect(state.rpc).toHaveBeenNthCalledWith(1, "business_draft_save_v2", expect.objectContaining({ p_org_type: "design_office" }));
+    expect(state.rpc).toHaveBeenNthCalledWith(2, "business_draft_submit_v2", { p_draft_id: "draft-1" });
   });
 
   it("still denies design_office for an ineligible caller", async () => {

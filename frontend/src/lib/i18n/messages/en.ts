@@ -1719,7 +1719,6 @@ export const en = {
       legalNameRequired: "Enter the legal / registered name of your business to continue.",
       cityRequired: "Choose a city, or choose Other and enter the city name.",
       locationInvalid: "That location isn't valid. Choose the governorate and city again.",
-      descriptionTooLong: "The description can be at most 250 characters. Please shorten it.",
     },
     consumer: {
       step: { intent: "Project", interests: "Interests", location: "Location", budget: "Budget", review: "Review" },

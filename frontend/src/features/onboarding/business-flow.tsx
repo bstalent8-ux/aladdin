@@ -5,7 +5,7 @@ import { PhoneField } from "@/components/ui/phone-field";
 import { splitE164 } from "@/lib/contact/phone";
 import { SHOWROOM_ACTIVITIES, showroomIdentityError, businessAddressSchema, businessAddressWords, businessDetailsSchema, type SHOWROOM_ACTIVITIES_TYPE } from "@/lib/onboarding/business-details";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Select, LabeledField } from "@/components/ui/controls";
+import { Input, Select, Textarea, LabeledField } from "@/components/ui/controls";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
 import { DESCRIPTION_MAX_CHARS, isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import { InlineError } from "@/components/ui/primitives";

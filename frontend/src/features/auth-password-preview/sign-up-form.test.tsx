@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
-import { chooseOption, readOptions, selectValue } from "@/test/select-menu";
 import { PasswordSignUpForm } from "./sign-up-form";
 import { ar } from "@/lib/i18n/messages/ar";
 import { en } from "@/lib/i18n/messages/en";
@@ -71,7 +70,7 @@ describe("PasswordSignUpForm", () => {
     expect(name.maxLength).toBe(80);
 
     const form = name.closest("form")!;
-    const order = Array.from(form.querySelectorAll("input:not([type=hidden]):not([type=checkbox]), input[type=hidden][name=accountType]")).map(
+    const order = Array.from(form.querySelectorAll("input:not([type=hidden]):not([type=checkbox]), select")).map(
       (el) => (el as HTMLInputElement).name,
     );
     expect(order).toEqual(["displayName", "email", "username", "accountType", "password", "confirmPassword"]);
@@ -80,13 +79,12 @@ describe("PasswordSignUpForm", () => {
 
   it("offers account types in ONE dropdown: placeholder first, active types selectable, Coming Soon visible but disabled", () => {
     renderWithI18n(<PasswordSignUpForm />);
-    const select = screen.getByLabelText(ar.authPasswordPreview.accountTypeLabel) as HTMLElement;
-    // The styled dropdown (not the browser's native popup); it still submits as "accountType".
-    expect(select.tagName).toBe("BUTTON");
-    expect(select.closest("form")!.querySelector('input[name="accountType"]')).not.toBeNull();
-    expect(selectValue(select)).toBe("");
+    const select = screen.getByLabelText(ar.authPasswordPreview.accountTypeLabel) as HTMLSelectElement;
+    expect(select.tagName).toBe("SELECT");
+    expect(select.name).toBe("accountType");
+    expect(select.value).toBe("");
 
-    const options = readOptions(select).map((o) => ({ ...o, textContent: o.label }));
+    const options = Array.from(select.options);
     expect(options[0]!.value).toBe("");
     expect(options[0]!.textContent).toBe("اختر نوع الحساب");
     expect(options[0]!.disabled).toBe(true);
@@ -105,8 +103,8 @@ describe("PasswordSignUpForm", () => {
     }
     expect(options.find((o) => o.value === "contractor")!.textContent).toBe("المقاول — قريبًا");
 
-    chooseOption(select, "installer_technician");
-    expect(selectValue(select)).toBe("installer_technician");
+    fireEvent.change(select, { target: { value: "installer_technician" } });
+    expect(select.value).toBe("installer_technician");
     expect(screen.getByText(ar.onboarding.accountType.types.installer_technicianDesc)).toBeInTheDocument();
   });
 
@@ -114,8 +112,8 @@ describe("PasswordSignUpForm", () => {
     renderWithI18n(<PasswordSignUpForm />, "en");
     const name = screen.getByLabelText("Full name") as HTMLInputElement;
     expect(name.placeholder).toBe("Enter your full name");
-    const select = screen.getByLabelText(en.authPasswordPreview.accountTypeLabel) as HTMLElement;
-    const texts = readOptions(select).map((o) => o.label);
+    const select = screen.getByLabelText(en.authPasswordPreview.accountTypeLabel) as HTMLSelectElement;
+    const texts = Array.from(select.options).map((o) => o.textContent ?? "");
     expect(texts[0]).toBe("Choose an account type");
     expect(texts.find((t) => t.startsWith(en.onboarding.accountType.types.contractor))).toBe(
       `${en.onboarding.accountType.types.contractor} — Coming soon`,

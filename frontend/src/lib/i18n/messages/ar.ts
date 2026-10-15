@@ -1652,7 +1652,6 @@ export const ar: Messages = {
       legalNameRequired: "أدخل الاسم القانوني / الرسمي لنشاطك التجاري للمتابعة.",
       cityRequired: "اختر مدينة، أو اختر أخرى واكتب اسم المدينة.",
       locationInvalid: "هذا الموقع غير صالح. اختر المحافظة والمدينة مرة أخرى.",
-      descriptionTooLong: "الحد الأقصى للوصف ٢٥٠ حرفًا. يرجى اختصاره.",
     },
     consumer: {
       step: { intent: "المشروع", interests: "الاهتمامات", location: "الموقع", budget: "الميزانية", review: "المراجعة" },
