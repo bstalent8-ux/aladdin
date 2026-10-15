@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { AttrValue, PublicAttribute, PublicProduct } from "@/server/queries/marketplace-public";
+import type { AttrValue, PublicAttribute, PublicProduct } from "./public-contract";
 import type { Locale } from "../marketplace-types";
 import { fmtEgp, fmtNum, liveCopy } from "./live-copy";
 import styles from "../marketplace.module.css";
@@ -38,6 +38,13 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
     [product.images, variant?.sku],
   );
   const [index, setIndex] = useState(0);
+  // a variant button names only what tells the variants apart (e.g. colour), not values they all share
+  const distinguishing = useMemo(() => {
+    const keys = new Set(product.variants.flatMap((v) => v.attributes.map((a) => a.key)));
+    return new Set(
+      [...keys].filter((k) => new Set(product.variants.map((v) => JSON.stringify(v.attributes.find((a) => a.key === k)?.value ?? null))).size > 1),
+    );
+  }, [product.variants]);
   const current = images[Math.min(index, images.length - 1)];
   const title = label(product, locale);
   const description = (locale === "ar" ? product.description_ar : product.description_en) || product.description_ar || product.description_en;
@@ -110,7 +117,7 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
                         setIndex(0);
                       }}
                     >
-                      {v.attributes.length ? v.attributes.map((a) => valueText(a, locale)).join(" · ") : v.sku}
+                      {v.attributes.filter((a) => distinguishing.has(a.key)).map((a) => valueText(a, locale)).join(" · ") || v.sku}
                     </button>
                   </li>
                 ))}
@@ -126,8 +133,8 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
               <p className={styles.sku}>
                 {t.taxNote} · {t.unit}: {tr(`marketplaceSeller.unit.${variant.selling_unit}`)}
               </p>
-              <p className={styles.sku} dir="ltr">
-                {t.sku}: {variant.sku}
+              <p className={styles.sku}>
+                {t.sku}: <bdi dir="ltr">{variant.sku}</bdi>
               </p>
               <p className={`${styles.stock} ${variant.purchasable ? styles.stockIn : styles.stockOut}`}>
                 {variant.purchasable ? t.inStock : t.outOfStock}

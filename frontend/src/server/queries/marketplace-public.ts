@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getServerSupabase } from "@/lib/supabase/server";
+import { PUBLIC_PAGE_SIZE, type Facets, type PublicPage, type PublicProduct, type PublicSort } from "@/features/marketplace/live/public-contract";
 
 /**
  * Public Marketplace reads (Migration 09). Each RPC is granted to anon and
@@ -9,78 +10,7 @@ import { getServerSupabase } from "@/lib/supabase/server";
  * is verified. These loaders add nothing to that gate — they shape the JSON.
  */
 
-export type PublicCard = {
-  slug: string;
-  name_ar: string;
-  name_en: string;
-  brand: string | null;
-  product_type_key: string;
-  product_type_name_ar: string;
-  product_type_name_en: string;
-  category_key: string;
-  category_name_ar: string;
-  category_name_en: string;
-  seller_name: string;
-  from_price_egp: number | null;
-  in_stock: boolean;
-  variant_count: number;
-  image_id: string | null;
-};
-
-export type PublicPage = { total: number; limit: number; offset: number; items: PublicCard[] };
-
-export type FacetType = { key: string; name_ar: string; name_en: string; count: number };
-export type FacetCategory = FacetType & { types: FacetType[] };
-
-export type AttrValue =
-  | { key: string; name_ar: string; name_en: string; swatch_hex: string | null }
-  | number
-  | boolean
-  | string
-  | null;
-
-export type PublicAttribute = {
-  key: string;
-  name_ar: string;
-  name_en: string;
-  data_type: string;
-  unit_kind: string | null;
-  unit_ar: string | null;
-  unit_en: string | null;
-  value: AttrValue;
-};
-
-export type PublicVariant = {
-  sku: string;
-  selling_unit: string;
-  price_egp: number;
-  purchasable: boolean;
-  attributes: PublicAttribute[];
-};
-
-export type PublicProduct = {
-  slug: string;
-  name_ar: string;
-  name_en: string;
-  description_ar: string | null;
-  description_en: string | null;
-  brand: string | null;
-  product_type_key: string;
-  product_type_name_ar: string;
-  product_type_name_en: string;
-  category_key: string;
-  category_name_ar: string;
-  category_name_en: string;
-  seller_name: string;
-  cover_image_id: string | null;
-  attributes: PublicAttribute[];
-  variants: PublicVariant[];
-  images: { image_id: string; is_primary: boolean; alt_text_ar: string | null; alt_text_en: string | null; variant_sku: string | null }[];
-};
-
-export const PUBLIC_PAGE_SIZE = 24;
-export const PUBLIC_SORTS = ["newest", "price_asc", "price_desc"] as const;
-export type PublicSort = (typeof PUBLIC_SORTS)[number];
+export * from "@/features/marketplace/live/public-contract";
 
 export async function loadPublicCatalogPage(params: {
   category?: string | null;
@@ -88,6 +18,11 @@ export async function loadPublicCatalogPage(params: {
   query?: string | null;
   sort: PublicSort;
   page: number;
+  priceMin?: number | null;
+  priceMax?: number | null;
+  inStock?: boolean;
+  /** attribute key → option keys */
+  attrs?: Record<string, string[]>;
 }): Promise<PublicPage | null> {
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("marketplace_public_catalog_page", {
@@ -97,20 +32,33 @@ export async function loadPublicCatalogPage(params: {
     p_sort: params.sort,
     p_limit: PUBLIC_PAGE_SIZE,
     p_offset: (Math.max(1, params.page) - 1) * PUBLIC_PAGE_SIZE,
+    p_price_min: params.priceMin ?? undefined,
+    p_price_max: params.priceMax ?? undefined,
+    p_in_stock: params.inStock ?? false,
+    p_attrs: params.attrs && Object.keys(params.attrs).length ? params.attrs : undefined,
   });
   if (error || !data) return null;
   return data as unknown as PublicPage;
 }
 
-export async function loadPublicFacets(): Promise<FacetCategory[]> {
+export async function loadPublicFacets(type?: string | null): Promise<Facets> {
   const supabase = await getServerSupabase();
-  const { data, error } = await supabase.rpc("marketplace_public_facets");
-  if (error || !data) return [];
-  return ((data as unknown as { categories: FacetCategory[] }).categories ?? []).map((c) => ({
-    ...c,
-    count: Number(c.count),
-    types: (c.types ?? []).map((t) => ({ ...t, count: Number(t.count) })),
-  }));
+  const { data, error } = await supabase.rpc("marketplace_public_facets", { p_type: type || undefined });
+  const empty: Facets = { categories: [], price: { min: null, max: null }, filters: [] };
+  if (error || !data) return empty;
+  const raw = data as unknown as Facets;
+  return {
+    categories: (raw.categories ?? []).map((c) => ({
+      ...c,
+      count: Number(c.count),
+      types: (c.types ?? []).map((t) => ({ ...t, count: Number(t.count) })),
+    })),
+    price: {
+      min: raw.price?.min === null || raw.price?.min === undefined ? null : Number(raw.price.min),
+      max: raw.price?.max === null || raw.price?.max === undefined ? null : Number(raw.price.max),
+    },
+    filters: (raw.filters ?? []).map((f) => ({ ...f, options: (f.options ?? []).map((o) => ({ ...o, count: Number(o.count) })) })),
+  };
 }
 
 export async function loadPublicProduct(slug: string): Promise<PublicProduct | null> {

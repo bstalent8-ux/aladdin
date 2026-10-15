@@ -25,7 +25,7 @@ const TYPE_COVERS: Partial<Record<TypeKey, string>> = {
   posters: "/preview/landing/marketplace/type-posters.webp",
   paints: "/preview/landing/marketplace/type-paints.webp",
 };
-const typeImage = (type: TypeKey) => TYPE_COVERS[type] ?? previewProducts.find((p) => p.type === type)?.images[0];
+export const typeImage = (type: TypeKey) => TYPE_COVERS[type] ?? previewProducts.find((p) => p.type === type)?.images[0];
 
 export function MarketplaceHero({ q, locale, dir, onSearch }: { q: string; locale: Locale; dir: "rtl" | "ltr"; onSearch: (q: string) => void }) {
   const t = marketplaceCopy[locale];
