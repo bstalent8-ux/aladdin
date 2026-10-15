@@ -6,19 +6,10 @@ import { useI18n } from "@/lib/i18n/context";
 import { Button, Select } from "@/components/ui/controls";
 import { UploadIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import {
-  confirmImageUploadAction,
-  finishPendingImageRemovalsAction,
-  removeImageAction,
-  requestImageUploadAction,
-  updateImagesAction,
-} from "@/server/actions/marketplace-seller";
-import { errorKey, MARKETPLACE_IMAGE_BUCKET } from "./errors";
+import { finishPendingImageRemovalsAction, removeImageAction, updateImagesAction } from "@/server/actions/marketplace-seller";
+import { errorKey } from "./errors";
+import { ACCEPTED_IMAGE_TYPES, uploadProductImages } from "./image-upload";
 import type { SellerProductImage } from "@/server/queries/marketplace-seller-catalog";
-
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 5 * 1024 * 1024;
 
 type Arranged = SellerProductImage;
 
@@ -61,37 +52,9 @@ export function ImagesPanel({
 
   const upload = async (files: FileList | File[]) => {
     setMessage(null);
-    const supabase = createBrowserSupabaseClient();
-    for (const file of Array.from(files)) {
-      if (!ACCEPTED.includes(file.type)) {
-        setMessage({ tone: "error", text: `${file.name}: ${t(errorKey("image_type_invalid"))}` });
-        continue;
-      }
-      if (file.size > MAX_BYTES) {
-        setMessage({ tone: "error", text: `${file.name}: ${t(errorKey("file_too_large"))}` });
-        continue;
-      }
-      setBusy(file.name);
-      const ticket = await requestImageUploadAction(productId, file.type);
-      if (!ticket.ok) {
-        setMessage({ tone: "error", text: t(errorKey(ticket.code)) });
-        break;
-      }
-      const { error } = await supabase.storage
-        .from(MARKETPLACE_IMAGE_BUCKET)
-        .upload(ticket.objectKey, file, { contentType: file.type, upsert: false, cacheControl: "300" });
-      if (error) {
-        setMessage({ tone: "error", text: `${file.name}: ${t(errorKey("upload_failed"))}` });
-        await removeImageAction(ticket.imageId);
-        continue;
-      }
-      const confirmed = await confirmImageUploadAction(ticket.imageId);
-      if (!confirmed.ok) {
-        setMessage({ tone: "error", text: `${file.name}: ${t(errorKey(confirmed.code))}` });
-        continue;
-      }
-    }
-    setBusy(null);
+    const failures = await uploadProductImages(productId, Array.from(files), setBusy);
+    const first = failures[0];
+    if (first) setMessage({ tone: "error", text: `${first.name}: ${t(errorKey(first.code))}` });
     setDirty(false);
     router.refresh();
   };
@@ -180,7 +143,7 @@ export function ImagesPanel({
         <input
           ref={inputRef}
           type="file"
-          accept={ACCEPTED.join(",")}
+          accept={ACCEPTED_IMAGE_TYPES.join(",")}
           multiple
           className="sr-only"
           onChange={(e) => {

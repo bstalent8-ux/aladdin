@@ -16,6 +16,8 @@ import {
 import type { SellerProductDetail } from "@/server/queries/marketplace-seller-catalog";
 import { AttributeInput } from "./attribute-input";
 import { ImagesPanel } from "./images-panel";
+import { QueuedImages } from "./queued-images";
+import { uploadProductImages } from "./image-upload";
 import { AddStockAtMain, QuantityStepper } from "./stock-editor";
 import { blockerParts, errorKey } from "./errors";
 import {
@@ -123,6 +125,9 @@ export function ProductForm({
   const [blockers, setBlockers] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [action, setAction] = useState<"save" | "return" | "check" | "publish" | null>(null);
+  /** New product only: images picked before the first save, uploaded right after it. */
+  const [queued, setQueued] = useState<File[]>([]);
+  const [uploadingQueued, setUploadingQueued] = useState<{ done: number; total: number } | null>(null);
 
   const set = <K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const setVariant = (uid: string, patch: Partial<VariantDraft>) =>
@@ -175,12 +180,24 @@ export function ProductForm({
           }
         }
       }
-      if (andReturn) {
+      // Images picked before the product existed: upload them now that it does.
+      let imageFailures = 0;
+      if (!editing && queued.length) {
+        setUploadingQueued({ done: 0, total: queued.length });
+        let done = 0;
+        const failures = await uploadProductImages(r.id, queued, (name) => {
+          if (name === null) return;
+          setUploadingQueued({ done: done++, total: queued.length });
+        });
+        imageFailures = failures.length;
+        setUploadingQueued(null);
+      }
+      if (andReturn && !imageFailures) {
         router.push(LIST);
         return;
       }
       if (!editing) {
-        router.replace(`${LIST}/${r.id}/edit?created=1`);
+        router.replace(`${LIST}/${r.id}/edit?created=1${imageFailures ? `&imagesFailed=${imageFailures}` : ""}`);
         return;
       }
       setOk(t("marketplaceSeller.saved"));
@@ -430,9 +447,14 @@ export function ProductForm({
         {product ? (
           <ImagesPanel productId={product.id} images={product.images} pendingRemovals={product.pendingRemovals.length} variants={savedVariants} />
         ) : (
-          <p className="rounded-md border border-dashed px-md py-lg text-center text-body text-fg-muted">
-            {t("marketplaceSeller.image.saveFirst")}
-          </p>
+          <>
+            <QueuedImages files={queued} onChange={setQueued} disabled={pending} />
+            {uploadingQueued ? (
+              <p role="status" className="text-label text-fg-secondary">
+                {t("marketplaceSeller.image.uploadingQueued", { done: uploadingQueued.done, total: uploadingQueued.total })}
+              </p>
+            ) : null}
+          </>
         )}
       </Section>
 

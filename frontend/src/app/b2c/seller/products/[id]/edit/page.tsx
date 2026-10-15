@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatCount } from "@/lib/ui/format";
 import { getMessages } from "@/lib/i18n/translate";
 import { PageHeader } from "@/components/ui/workspace-layout";
 import { StorefrontIcon } from "@/components/ui/icons";
@@ -20,7 +21,7 @@ export default async function EditMarketplaceProductPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; imagesFailed?: string }>;
 }) {
   const { supabase, org, locale } = await requireApprovedSeller();
   const { id } = await params;
@@ -40,6 +41,11 @@ export default async function EditMarketplaceProductPage({
         title={t.editTitle}
         subtitle={`${locale === "ar" ? product.nameAr : product.nameEn} · ${t.status[product.status]}`}
       />
+      {Number(sp.imagesFailed) > 0 ? (
+        <p role="alert" className="rounded-md border border-warning/40 bg-warning/10 px-md py-sm text-label text-fg-secondary">
+          {t.image.queuedFailed.replace("{count}", formatCount(Math.min(99, Number(sp.imagesFailed)), locale))}
+        </p>
+      ) : null}
       <ProductForm
         key={product.id}
         organizationId={org.organizationId}
