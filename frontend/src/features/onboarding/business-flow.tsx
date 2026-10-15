@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Textarea, Select, LabeledField } from "@/components/ui/controls";
+import { Input, Select, LabeledField } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import { InlineError } from "@/components/ui/primitives";
 import { WizardShell, WizardProgress, ChoiceCard, FlowActions, SavedHint } from "@/features/onboarding/wizard";
 import { saveBusiness, submitBusiness, type BusinessInput } from "@/server/actions/business-onboarding";
 import type { BusinessAnswers } from "@/server/queries/onboarding";
-import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, type BusinessOrgType } from "@/lib/onboarding/account-types";
+import { APPLICATION_ORG_TYPES, applicationOrgTypeFrom, type ApplicationOrgType } from "@/lib/onboarding/account-types";
 import { GOVERNORATE_OPTIONS, type LocationOption } from "@/lib/installer/location-data";
 import { businessCitiesOf, CUSTOM_CITY_MAX, CUSTOM_CITY_MIN } from "@/lib/location/business-location";
 
@@ -38,7 +40,7 @@ const OTHER_VALUE = "__other__";
 type BState = {
   legalName: string;
   displayName: string;
-  orgType: BusinessOrgType | null;
+  orgType: ApplicationOrgType | null;
   description: string;
   governorate: string | null;
   /** A catalogue city key of `governorate`, or null. */
@@ -53,10 +55,13 @@ export function BusinessFlow({
   answers,
   presetOrgType,
   draftId: initialDraftId,
+  typeChoices = APPLICATION_ORG_TYPES.filter((k) => k !== "contractor_company"),
 }: {
   answers: BusinessAnswers;
-  presetOrgType: BusinessOrgType | null;
+  presetOrgType: ApplicationOrgType | null;
   draftId: string | null;
+  /** The org types this applicant may apply for (a Contractor: only a contractor organization). */
+  typeChoices?: readonly ApplicationOrgType[];
 }) {
   const { t, locale } = useI18n();
   const [pending, start] = useTransition();
@@ -65,7 +70,7 @@ export function BusinessFlow({
   const [state, setState] = useState<BState>({
     legalName: answers.legalName ?? "",
     displayName: answers.displayName ?? "",
-    orgType: businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType,
+    orgType: applicationOrgTypeFrom(answers.orgType) ?? presetOrgType,
     description: answers.description ?? "",
     governorate: answers.governorate,
     city: answers.city,
@@ -77,13 +82,15 @@ export function BusinessFlow({
 
   // The type step exists only when the type is still unknown. A person who chose
   // "Showroom" to sign up is never asked what kind of business they are building.
-  const typePreselected = Boolean(businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType);
+  const typePreselected = Boolean(applicationOrgTypeFrom(answers.orgType) ?? presetOrgType);
   const steps: Step[] = typePreselected
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
 
-  // BOTH names are required to leave the identity step: the business (trading) name and the legal / registered name.
-  const identityDone = (s: BState) => s.displayName.trim().length > 0 && s.legalName.trim().length >= 2;
+  // BOTH names are required to leave the identity step (the business trading name and the legal / registered name), and the
+  // description must stay inside its limit (Showroom application model).
+  const identityDone = (s: BState) =>
+    s.displayName.trim().length > 0 && s.legalName.trim().length >= 2 && isWithinDescriptionLimit(s.description);
   // The location is optional as a whole, but once a governorate is chosen it needs a city (or Other + a typed city).
   const locationDone = (s: BState) =>
     !s.governorate ||
@@ -192,13 +199,18 @@ export function BusinessFlow({
             />
           </LabeledField>
           <LabeledField label={t("onboarding.business.identity.descriptionLabel")} htmlFor="bdesc" optional={t("common.optional")}>
-            <Textarea
+            <CountedTextarea
               id="bdesc"
               value={state.description}
-              maxLength={1000}
+              max={DESCRIPTION_MAX_CHARS}
+              unitLabel={t("showroomSettings.description.chars")}
+              counterTestId="business-description-count"
               placeholder={t("onboarding.business.identity.descriptionPlaceholder")}
               onChange={(e) => set({ description: e.target.value })}
             />
+            {isWithinDescriptionLimit(state.description) ? null : (
+              <p role="alert" className="mt-1 text-label text-danger">{t("onboarding.error.descriptionTooLong")}</p>
+            )}
           </LabeledField>
         </div>
       ) : null}
@@ -206,7 +218,7 @@ export function BusinessFlow({
       {current === "type" ? (
         <LabeledField label={t("onboarding.business.type.label")} htmlFor="btype">
           <div id="btype" className="grid gap-2.5 tablet:grid-cols-2">
-            {BUSINESS_ORG_TYPES.map((k) => (
+            {typeChoices.map((k) => (
               <ChoiceCard
                 key={k}
                 selected={state.orgType === k}

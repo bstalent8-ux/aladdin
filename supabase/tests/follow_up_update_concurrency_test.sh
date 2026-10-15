@@ -4,7 +4,7 @@ set -euo pipefail
 # Real two-session proof that follow-up edits are optimistic-locked on `version`
 # and cannot lose an update. T1 edits the open follow-up (v1->v2) and holds the
 # FOR UPDATE lock ~3s; T2 enters update_follow_up with expected_version=1, blocks
-# on the lock, then re-reads the committed (bumped) version and fails with 40001 —
+# on the lock, then re-reads the committed (bumped) version and fails with VC001 —
 # so only T1's edit applies. The single-session pgTAP test cannot prove this.
 
 db_container="$(docker ps --filter 'name=supabase_db_aladdin' --format '{{.Names}}' | head -n 1)"
@@ -88,4 +88,4 @@ if [[ "${final}" != "2|T1 Title" ]]; then
   echo "expected final version|title = 2|T1 Title (only T1 applied), got ${final}" >&2; exit 1
 fi
 
-echo "follow-up-update concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (40001); final=${final} (no lost update)"
+echo "follow-up-update concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (VC001); final=${final} (no lost update)"

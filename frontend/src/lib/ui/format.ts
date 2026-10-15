@@ -161,6 +161,22 @@ export function formatCompactMoney(
   }).format(n);
 }
 
+/**
+ * Like `formatCompactMoney`, but Arabic keeps one decimal ("148.7 thousand"), because CLDR's Arabic compact
+ * pattern rounds to whole thousands - a dashboard figure of 148,700 would read as 149 thousand. English already
+ * keeps one decimal, so it is delegated unchanged.
+ */
+export function formatCompactMoneyFine(value: number | string | null | undefined, locale: Locale): string {
+  const n = toNumber(value);
+  if (n === null) return EMPTY;
+  if (locale !== "ar") return formatCompactMoney(n, locale);
+  const abs = Math.abs(n);
+  const one = (x: number) => numberFormat(locale, { maximumFractionDigits: 1 }).format(x);
+  if (abs >= 1_000_000) return `${one(n / 1_000_000)} مليون ج.م`;
+  if (abs >= 1_000) return `${one(n / 1_000)} ألف ج.م`;
+  return `${one(n)} ج.م`;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Percentages                                                                */
 /* ------------------------------------------------------------------------- */

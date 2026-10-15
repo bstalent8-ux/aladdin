@@ -14,7 +14,7 @@ export function mapSalesError(error: unknown): string {
   const msg = (e.message ?? "").toLowerCase();
 
   if (code === "23505" || msg.includes("phone already exists")) return "states.duplicatePhone";
-  if (code === "40001" || msg.includes("modified concurrently")) return "leads.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "leads.conflict";
   if (msg.includes("only an open follow-up")) return "states.followUpNotOpen";
   if (msg.includes("a reason is required when marking")) return "leads.lostReasonRequired";
   if (msg.includes("branch not in caller scope") || msg.includes("another tenant"))
@@ -37,7 +37,8 @@ export function mapCommerceError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "commerce.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "commerce.errors.conflict";
+  if (code === "22023" && msg.includes("description")) return "commerce.errors.descriptionTooLong";
   if (msg.includes("live quotation already exists")) return "commerce.errors.quotationExists";
   if (msg.includes("at least one item")) return "commerce.errors.rfqNeedsItem";
   if (msg.includes("price every line") || msg.includes("every line must have a price"))
@@ -62,7 +63,7 @@ export function mapExecutionError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "execution.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "execution.errors.conflict";
   if (msg.includes("order already exists for this quotation")) return "execution.errors.orderExists";
   if (msg.includes("project already exists for this order")) return "execution.errors.projectExists";
   if (msg.includes("only be created from an accepted quotation"))
@@ -96,7 +97,7 @@ export function mapJobError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
   if (msg.includes("must be verified to publish")) return "jobs.errors.unverified";
   if (msg.includes("cancel its assignment first")) return "jobs.errors.awardedCancel";
   if (msg.includes("offer and trade")) return "jobs.errors.offerLocked";
@@ -136,10 +137,42 @@ export function mapOrgI18nError(error: unknown): string {
   return "states.genericRetry";
 }
 
+/**
+ * Organization identity / branch / co-owner governance writers. The database decides everything;
+ * this only turns the stable `hint` it raises (or the SQLSTATE) into a translation key.
+ */
+const GOVERNANCE_HINTS: Record<string, string> = {
+  change_pending: "governance.errors.changePending",
+  no_changes: "governance.errors.nothingToChange",
+  invalid_name: "governance.errors.invalidName",
+  invalid_slug: "governance.errors.invalidSlug",
+  slug_taken: "governance.errors.slugTaken",
+  not_verified: "governance.errors.notVerified",
+  not_active: "governance.errors.notVerified",
+  org_not_approved: "governance.errors.orgNotApproved",
+  duplicate_branch_name: "governance.errors.duplicateBranch",
+  address_required: "governance.errors.addressRequired",
+  last_active_branch: "governance.errors.lastBranch",
+  branch_inactive: "governance.errors.branchInactive",
+  already_primary_owner: "governance.errors.alreadyOwner",
+  already_verified: "governance.errors.alreadyOwner",
+  awaiting_decision: "governance.errors.awaiting",
+};
+
+export function mapGovernanceError(error: unknown): string {
+  const e = (error ?? {}) as PgLikeError & { hint?: string | null };
+  const byHint = e.hint ? GOVERNANCE_HINTS[e.hint] : undefined;
+  if (byHint) return byHint;
+  if (e.code === "23505") return "governance.errors.duplicateBranch";
+  if (e.code === "42501") return "governance.errors.denied";
+  if ((e.message ?? "").toLowerCase().includes("not found")) return "settings.errors.notFound";
+  return "states.genericRetry";
+}
+
 /** True when the error means "the record moved under me" (caller should refresh). */
 export function isStaleVersion(error: unknown): boolean {
   const e = (error ?? {}) as PgLikeError;
-  return e.code === "40001" || (e.message ?? "").toLowerCase().includes("modified concurrently");
+  return e.code === "VC001" || e.code === "40001" || (e.message ?? "").toLowerCase().includes("modified concurrently");
 }
 
 /**
@@ -169,7 +202,7 @@ export function mapApplicationError(error: unknown): string {
   if (msg.includes("only the applicant")) return "jobs.installerErrors.notYours";
   if (msg.includes("cannot be accepted") || msg.includes("cannot be rejected"))
     return "jobs.installerErrors.alreadyDecided";
-  if (code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently")) return "jobs.errors.conflict";
   if (code === "42501") return "jobs.errors.denied";
   return "states.genericRetry";
 }
@@ -196,7 +229,7 @@ export function mapAssignmentError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
-  if (code === "40001" || msg.includes("modified concurrently"))
+  if (code === "VC001" || code === "40001" || msg.includes("modified concurrently"))
     return "work.errors.conflict";
   if (msg.includes("only the assigned installer may start"))
     return "work.errors.notYoursToStart";
@@ -277,6 +310,7 @@ export function mapPortfolioError(error: unknown): string {
   const code = e.code ?? "";
   const msg = (e.message ?? "").toLowerCase();
 
+  if (code === "22023" && msg.includes("description")) return "portfolio.errors.descriptionTooLong";
   if (msg.includes("professional persona is required"))
     return "portfolio.errors.notProfessional";
   if (msg.includes("unfinished item cannot be published"))

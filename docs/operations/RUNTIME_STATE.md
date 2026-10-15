@@ -1,5 +1,13 @@
 # Runtime State
 
+## Isolated showroom full-stack continuation — 2026-10-06
+
+- Worktree `D:/projects/aladdin-wt-showroom-fullstack-v2`, branch `feature/showroom-fullstack-v2`, base `origin/main` at `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`.
+- Phase 0 audit only; application code, routes, migrations and production behavior unchanged. [Audit and continuation plan](../frontend/showroom-fullstack-v2.md).
+- Git main includes installer production foundation PR 71 and workspace-switch correction PR 72. The older PR 70 status below is historical, not the current local Git state; remote deployment was not checked.
+- Existing dirty showroom preview remains untouched in its original worktree. No showroom files ported yet. Next: Phase 1 authenticated isolated shell and workspace adapter, then phases 2–10.
+- Port 3023 unavailable during discovery. Docker has multiple other active project stacks; none reset/stopped. Isolated DB runtime still to be configured. No push, PR, deployment or hosted DB action.
+
 ## Current continuation — 2026-10-05: installer UI final polish on PR #70
 
 - Installer UI final polish is on **PR #70** (`feature/installer-ui-final-polish` → `main`), PR head `b696ac38f095769456f6afefe2bca9f087d7c908`. It is open and not yet merged.

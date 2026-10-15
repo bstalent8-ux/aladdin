@@ -73,578 +73,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_cases: {
-        Row: {
-          contact_email: string | null
-          contact_name: string | null
-          contact_phone: string | null
-          created_at: string
-          created_by: string
-          details: string
-          id: string
-          organization_id: string | null
-          subject_type: string
-          title: string
-          user_id: string | null
-        }
-        Insert: {
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          created_at?: string
-          created_by: string
-          details: string
-          id?: string
-          organization_id?: string | null
-          subject_type: string
-          title: string
-          user_id?: string | null
-        }
-        Update: {
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          created_at?: string
-          created_by?: string
-          details?: string
-          id?: string
-          organization_id?: string | null
-          subject_type?: string
-          title?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_cases_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_cases_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_cases_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_follow_ups: {
-        Row: {
-          action_type: Database["public"]["Enums"]["admin_follow_up_type"]
-          assigned_to: string | null
-          completed_at: string | null
-          completed_by: string | null
-          due_at: string | null
-          id: string
-          logged_at: string
-          logged_by: string
-          organization_id: string | null
-          outcome: string
-          subject_type: string
-          user_id: string | null
-        }
-        Insert: {
-          action_type: Database["public"]["Enums"]["admin_follow_up_type"]
-          assigned_to?: string | null
-          completed_at?: string | null
-          completed_by?: string | null
-          due_at?: string | null
-          id?: string
-          logged_at?: string
-          logged_by: string
-          organization_id?: string | null
-          outcome: string
-          subject_type: string
-          user_id?: string | null
-        }
-        Update: {
-          action_type?: Database["public"]["Enums"]["admin_follow_up_type"]
-          assigned_to?: string | null
-          completed_at?: string | null
-          completed_by?: string | null
-          due_at?: string | null
-          id?: string
-          logged_at?: string
-          logged_by?: string
-          organization_id?: string | null
-          outcome?: string
-          subject_type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_follow_ups_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_follow_ups_completed_by_fkey"
-            columns: ["completed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_follow_ups_logged_by_fkey"
-            columns: ["logged_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_follow_ups_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_follow_ups_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_notes: {
-        Row: {
-          author_id: string
-          body: string
-          created_at: string
-          id: string
-          organization_id: string | null
-          subject_type: string
-          user_id: string | null
-        }
-        Insert: {
-          author_id: string
-          body: string
-          created_at?: string
-          id?: string
-          organization_id?: string | null
-          subject_type: string
-          user_id?: string | null
-        }
-        Update: {
-          author_id?: string
-          body?: string
-          created_at?: string
-          id?: string
-          organization_id?: string | null
-          subject_type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_notes_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_notes_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_notes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_permissions: {
-        Row: {
-          action: string
-          created_at: string
-          description: string
-          is_active: boolean
-          is_system: boolean
-          key: string
-          resource: string
-          sort_order: number
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          description: string
-          is_active?: boolean
-          is_system?: boolean
-          key: string
-          resource: string
-          sort_order: number
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          description?: string
-          is_active?: boolean
-          is_system?: boolean
-          key?: string
-          resource?: string
-          sort_order?: number
-        }
-        Relationships: []
-      }
-      admin_role_assignments: {
-        Row: {
-          assigned_by: string | null
-          created_at: string
-          deactivated_at: string | null
-          deactivated_by: string | null
-          deactivation_kind:
-            | Database["public"]["Enums"]["admin_deactivation_kind"]
-            | null
-          id: string
-          is_active: boolean
-          legacy_grant_id: string | null
-          role_id: string
-          scope_branch_id: string | null
-          scope_organization_id: string | null
-          scope_type: Database["public"]["Enums"]["admin_scope_type"]
-          scope_user_id: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          assigned_by?: string | null
-          created_at?: string
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          deactivation_kind?:
-            | Database["public"]["Enums"]["admin_deactivation_kind"]
-            | null
-          id?: string
-          is_active?: boolean
-          legacy_grant_id?: string | null
-          role_id: string
-          scope_branch_id?: string | null
-          scope_organization_id?: string | null
-          scope_type?: Database["public"]["Enums"]["admin_scope_type"]
-          scope_user_id?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          assigned_by?: string | null
-          created_at?: string
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          deactivation_kind?:
-            | Database["public"]["Enums"]["admin_deactivation_kind"]
-            | null
-          id?: string
-          is_active?: boolean
-          legacy_grant_id?: string | null
-          role_id?: string
-          scope_branch_id?: string | null
-          scope_organization_id?: string | null
-          scope_type?: Database["public"]["Enums"]["admin_scope_type"]
-          scope_user_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_role_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_deactivated_by_fkey"
-            columns: ["deactivated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_legacy_grant_id_fkey"
-            columns: ["legacy_grant_id"]
-            isOneToOne: true
-            referencedRelation: "platform_role_grants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "admin_roles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_scope_branch_id_fkey"
-            columns: ["scope_branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_scope_organization_id_fkey"
-            columns: ["scope_organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_scope_user_id_fkey"
-            columns: ["scope_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_assignments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_role_permissions: {
-        Row: {
-          created_at: string
-          granted_by: string | null
-          is_locked: boolean
-          permission_key: string
-          role_id: string
-        }
-        Insert: {
-          created_at?: string
-          granted_by?: string | null
-          is_locked?: boolean
-          permission_key: string
-          role_id: string
-        }
-        Update: {
-          created_at?: string
-          granted_by?: string | null
-          is_locked?: boolean
-          permission_key?: string
-          role_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_role_permissions_granted_by_fkey"
-            columns: ["granted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_role_permissions_permission_key_fkey"
-            columns: ["permission_key"]
-            isOneToOne: false
-            referencedRelation: "admin_permissions"
-            referencedColumns: ["key"]
-          },
-          {
-            foreignKeyName: "admin_role_permissions_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "admin_roles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_roles: {
-        Row: {
-          archived_at: string | null
-          created_at: string
-          created_by: string | null
-          description: string
-          id: string
-          is_system: boolean
-          key: string
-          name: string
-          rank: number
-          scope_type: Database["public"]["Enums"]["admin_scope_type"]
-          status: Database["public"]["Enums"]["admin_role_status"]
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          archived_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          id?: string
-          is_system?: boolean
-          key: string
-          name: string
-          rank: number
-          scope_type?: Database["public"]["Enums"]["admin_scope_type"]
-          status?: Database["public"]["Enums"]["admin_role_status"]
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          archived_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          id?: string
-          is_system?: boolean
-          key?: string
-          name?: string
-          rank?: number
-          scope_type?: Database["public"]["Enums"]["admin_scope_type"]
-          status?: Database["public"]["Enums"]["admin_role_status"]
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_roles_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_roles_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_suspensions: {
-        Row: {
-          id: string
-          organization_id: string | null
-          previous_status: string
-          reason: string
-          restore_reason: string | null
-          restored_at: string | null
-          restored_by: string | null
-          subject_type: string
-          suspended_at: string
-          suspended_by: string
-          user_id: string | null
-        }
-        Insert: {
-          id?: string
-          organization_id?: string | null
-          previous_status: string
-          reason: string
-          restore_reason?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-          subject_type: string
-          suspended_at?: string
-          suspended_by: string
-          user_id?: string | null
-        }
-        Update: {
-          id?: string
-          organization_id?: string | null
-          previous_status?: string
-          reason?: string
-          restore_reason?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-          subject_type?: string
-          suspended_at?: string
-          suspended_by?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_suspensions_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_suspensions_restored_by_fkey"
-            columns: ["restored_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_suspensions_suspended_by_fkey"
-            columns: ["suspended_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_suspensions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assignment_contacts: {
-        Row: {
-          assignment_id: string
-          contact_name: string | null
-          created_at: string
-          email: string | null
-          organization_id: string
-          phone_e164: string | null
-          source: string
-        }
-        Insert: {
-          assignment_id: string
-          contact_name?: string | null
-          created_at?: string
-          email?: string | null
-          organization_id: string
-          phone_e164?: string | null
-          source: string
-        }
-        Update: {
-          assignment_id?: string
-          contact_name?: string | null
-          created_at?: string
-          email?: string | null
-          organization_id?: string
-          phone_e164?: string | null
-          source?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assignment_contacts_assignment_id_fkey"
-            columns: ["assignment_id"]
-            isOneToOne: true
-            referencedRelation: "job_assignments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assignment_contacts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       audit_log: {
         Row: {
           action: string
@@ -738,11 +166,8 @@ export type Database = {
         Row: {
           address_ar: string | null
           address_en: string | null
-          city_custom_name: string | null
-          city_key: string | null
           created_at: string
           deleted_at: string | null
-          governorate_key: string | null
           id: string
           is_active: boolean
           locality_id: string | null
@@ -756,11 +181,8 @@ export type Database = {
         Insert: {
           address_ar?: string | null
           address_en?: string | null
-          city_custom_name?: string | null
-          city_key?: string | null
           created_at?: string
           deleted_at?: string | null
-          governorate_key?: string | null
           id?: string
           is_active?: boolean
           locality_id?: string | null
@@ -774,11 +196,8 @@ export type Database = {
         Update: {
           address_ar?: string | null
           address_en?: string | null
-          city_custom_name?: string | null
-          city_key?: string | null
           created_at?: string
           deleted_at?: string | null
-          governorate_key?: string | null
           id?: string
           is_active?: boolean
           locality_id?: string | null
@@ -802,7 +221,6 @@ export type Database = {
       business_creation_drafts: {
         Row: {
           city: string | null
-          city_custom_name: string | null
           completed_at: string | null
           created_at: string
           description: string | null
@@ -818,7 +236,6 @@ export type Database = {
         }
         Insert: {
           city?: string | null
-          city_custom_name?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -834,7 +251,6 @@ export type Database = {
         }
         Update: {
           city?: string | null
-          city_custom_name?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -1199,6 +615,7 @@ export type Database = {
           id: string
           membership_id: string | null
           organization_id: string
+          surface: string
           updated_at: string
           updated_by: string
         }
@@ -1207,6 +624,7 @@ export type Database = {
           id?: string
           membership_id?: string | null
           organization_id: string
+          surface?: string
           updated_at?: string
           updated_by: string
         }
@@ -1215,6 +633,7 @@ export type Database = {
           id?: string
           membership_id?: string | null
           organization_id?: string
+          surface?: string
           updated_at?: string
           updated_by?: string
         }
@@ -1735,45 +1154,9 @@ export type Database = {
           },
         ]
       }
-      job_work_contacts: {
-        Row: {
-          contact_email: string | null
-          contact_name: string | null
-          contact_phone_e164: string | null
-          created_at: string
-          job_id: string
-          updated_at: string
-        }
-        Insert: {
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone_e164?: string | null
-          created_at?: string
-          job_id: string
-          updated_at?: string
-        }
-        Update: {
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone_e164?: string | null
-          created_at?: string
-          job_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_work_contacts_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: true
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       jobs: {
         Row: {
           city: string | null
-          city_key: string | null
           closed_at: string | null
           created_at: string
           created_by: string
@@ -1781,14 +1164,12 @@ export type Database = {
           ends_by: string | null
           expected_duration_days: number | null
           governorate: string | null
-          governorate_key: string | null
           id: string
           offered_amount: number
           offered_currency: string
           poster_branch_id: string | null
           poster_org_id: string
           published_at: string | null
-          required_specialty_id: string | null
           site_address: string | null
           starts_on: string | null
           status: Database["public"]["Enums"]["job_status"]
@@ -1799,7 +1180,6 @@ export type Database = {
         }
         Insert: {
           city?: string | null
-          city_key?: string | null
           closed_at?: string | null
           created_at?: string
           created_by: string
@@ -1807,14 +1187,12 @@ export type Database = {
           ends_by?: string | null
           expected_duration_days?: number | null
           governorate?: string | null
-          governorate_key?: string | null
           id?: string
           offered_amount: number
           offered_currency?: string
           poster_branch_id?: string | null
           poster_org_id: string
           published_at?: string | null
-          required_specialty_id?: string | null
           site_address?: string | null
           starts_on?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1825,7 +1203,6 @@ export type Database = {
         }
         Update: {
           city?: string | null
-          city_key?: string | null
           closed_at?: string | null
           created_at?: string
           created_by?: string
@@ -1833,14 +1210,12 @@ export type Database = {
           ends_by?: string | null
           expected_duration_days?: number | null
           governorate?: string | null
-          governorate_key?: string | null
           id?: string
           offered_amount?: number
           offered_currency?: string
           poster_branch_id?: string | null
           poster_org_id?: string
           published_at?: string | null
-          required_specialty_id?: string | null
           site_address?: string | null
           starts_on?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1856,13 +1231,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "branches"
             referencedColumns: ["organization_id", "id"]
-          },
-          {
-            foreignKeyName: "fk_jobs_required_specialty"
-            columns: ["trade_id", "required_specialty_id"]
-            isOneToOne: false
-            referencedRelation: "trade_specialties"
-            referencedColumns: ["trade_id", "id"]
           },
           {
             foreignKeyName: "jobs_created_by_fkey"
@@ -2627,61 +1995,6 @@ export type Database = {
           },
         ]
       }
-      organization_duplicate_resolutions: {
-        Row: {
-          canonical_org_id: string
-          duplicate_org_id: string
-          id: string
-          provenance: Json
-          reason: string
-          resolution: string
-          resolved_at: string
-          resolved_by: string
-        }
-        Insert: {
-          canonical_org_id: string
-          duplicate_org_id: string
-          id?: string
-          provenance: Json
-          reason: string
-          resolution: string
-          resolved_at?: string
-          resolved_by: string
-        }
-        Update: {
-          canonical_org_id?: string
-          duplicate_org_id?: string
-          id?: string
-          provenance?: Json
-          reason?: string
-          resolution?: string
-          resolved_at?: string
-          resolved_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organization_duplicate_resolutions_canonical_org_id_fkey"
-            columns: ["canonical_org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organization_duplicate_resolutions_duplicate_org_id_fkey"
-            columns: ["duplicate_org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organization_duplicate_resolutions_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organization_invitations: {
         Row: {
           accepted_at: string | null
@@ -2934,9 +2247,9 @@ export type Database = {
           created_at: string
           created_by: string
           deleted_at: string | null
+          description: string | null
           id: string
           is_verified: boolean
-          legal_name: string | null
           locality_id: string | null
           logo_media_id: string | null
           name: string
@@ -2955,9 +2268,9 @@ export type Database = {
           created_at?: string
           created_by: string
           deleted_at?: string | null
+          description?: string | null
           id?: string
           is_verified?: boolean
-          legal_name?: string | null
           locality_id?: string | null
           logo_media_id?: string | null
           name: string
@@ -2976,9 +2289,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          description?: string | null
           id?: string
           is_verified?: boolean
-          legal_name?: string | null
           locality_id?: string | null
           logo_media_id?: string | null
           name?: string
@@ -3173,10 +2486,259 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          code: string
+          created_at: string
+          is_active: boolean
+          label_ar: string
+          label_en: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          is_active?: boolean
+          label_ar: string
+          label_en: string
+          sort_order: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          is_active?: boolean
+          label_ar?: string
+          label_en?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          created_by: string
+          id: string
+          object_key: string
+          organization_id: string
+          product_id: string
+          slot: number
+          state: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          created_by: string
+          id?: string
+          object_key: string
+          organization_id: string
+          product_id: string
+          slot: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          object_key?: string
+          organization_id?: string
+          product_id?: string
+          slot?: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_product_images_product"
+            columns: ["organization_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_published_products"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_product_images_product"
+            columns: ["organization_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "product_images_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_audience_types: {
+        Row: {
+          code: string
+          feed_ready: boolean
+          kind: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          feed_ready?: boolean
+          kind: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          feed_ready?: boolean
+          kind?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_offer_audiences: {
+        Row: {
+          audience: string
+          offer_id: string
+        }
+        Insert: {
+          audience: string
+          offer_id: string
+        }
+        Update: {
+          audience?: string
+          offer_id?: string
+        }
+        Relationships: []
+      }
+      product_offer_items: {
+        Row: {
+          offer_id: string
+          organization_id: string
+          position: number
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          offer_id: string
+          organization_id: string
+          position?: number
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          offer_id?: string
+          organization_id?: string
+          position?: number
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: []
+      }
+      product_offers: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          description: string | null
+          ends_at: string
+          id: string
+          organization_id: string
+          published_at: string | null
+          reference_price: number | null
+          starts_at: string
+          status: Database["public"]["Enums"]["offer_status"]
+          title: string
+          total_price: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          organization_id: string
+          published_at?: string | null
+          reference_price?: number | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          title: string
+          total_price: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          organization_id?: string
+          published_at?: string | null
+          reference_price?: number | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          title?: string
+          total_price?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      product_prices: {
+        Row: {
+          base_price: number
+          created_at: string
+          organization_id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_price: number
+          created_at?: string
+          organization_id: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          organization_id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_prices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          archived_at: string | null
           brand: string | null
           category: Database["public"]["Enums"]["product_category"]
+          category_code: string | null
+          code_normalized: string | null
+          colors: string[]
+          color_items: Json
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -3185,16 +2747,24 @@ export type Database = {
           name: string
           organization_id: string
           published_at: string | null
+          publisher_id: string
           short_description: string | null
+          size_label: string | null
           sku: string | null
           status: Database["public"]["Enums"]["product_status"]
           unit: Database["public"]["Enums"]["product_unit"]
           updated_at: string
           version: number
+          weight_kg: number | null
         }
         Insert: {
+          archived_at?: string | null
           brand?: string | null
           category: Database["public"]["Enums"]["product_category"]
+          category_code?: string | null
+          code_normalized?: string | null
+          colors?: string[]
+          color_items?: Json
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -3203,16 +2773,24 @@ export type Database = {
           name: string
           organization_id: string
           published_at?: string | null
+          publisher_id?: string
           short_description?: string | null
+          size_label?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           unit: Database["public"]["Enums"]["product_unit"]
           updated_at?: string
           version?: number
+          weight_kg?: number | null
         }
         Update: {
+          archived_at?: string | null
           brand?: string | null
           category?: Database["public"]["Enums"]["product_category"]
+          category_code?: string | null
+          code_normalized?: string | null
+          colors?: string[]
+          color_items?: Json
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -3221,14 +2799,24 @@ export type Database = {
           name?: string
           organization_id?: string
           published_at?: string | null
+          publisher_id?: string
           short_description?: string | null
+          size_label?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"]
           unit?: Database["public"]["Enums"]["product_unit"]
           updated_at?: string
           version?: number
+          weight_kg?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "products_created_by_fkey"
             columns: ["created_by"]
@@ -3919,39 +3507,6 @@ export type Database = {
           },
         ]
       }
-      saved_jobs: {
-        Row: {
-          created_at: string
-          job_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          job_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          job_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_jobs_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_jobs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       saved_products: {
         Row: {
           created_at: string
@@ -4001,82 +3556,6 @@ export type Database = {
             columns: ["saved_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      saved_searches: {
-        Row: {
-          created_at: string
-          filters: Json
-          id: string
-          name: string
-          scope: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          filters?: Json
-          id?: string
-          name: string
-          scope: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          filters?: Json
-          id?: string
-          name?: string
-          scope?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_searches_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trade_specialties: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          key: string
-          sort_order: number
-          trade_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          key: string
-          sort_order?: number
-          trade_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          key?: string
-          sort_order?: number
-          trade_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trade_specialties_trade_id_fkey"
-            columns: ["trade_id"]
-            isOneToOne: false
-            referencedRelation: "trades"
             referencedColumns: ["id"]
           },
         ]
@@ -4134,122 +3613,6 @@ export type Database = {
           },
           {
             foreignKeyName: "user_activities_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_availability_windows: {
-        Row: {
-          available_from: string
-          available_to: string | null
-          created_at: string
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          available_from: string
-          available_to?: string | null
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          available_from?: string
-          available_to?: string | null
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_availability_windows_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_service_areas: {
-        Row: {
-          city_key: string | null
-          created_at: string
-          governorate_key: string
-          id: string
-          is_primary: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          city_key?: string | null
-          created_at?: string
-          governorate_key: string
-          id?: string
-          is_primary?: boolean
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          city_key?: string | null
-          created_at?: string
-          governorate_key?: string
-          id?: string
-          is_primary?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_service_areas_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_trade_specialties: {
-        Row: {
-          created_at: string
-          specialty_id: string
-          trade_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          specialty_id: string
-          trade_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          specialty_id?: string
-          trade_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_user_trade_specialties_specialty"
-            columns: ["trade_id", "specialty_id"]
-            isOneToOne: false
-            referencedRelation: "trade_specialties"
-            referencedColumns: ["trade_id", "id"]
-          },
-          {
-            foreignKeyName: "fk_user_trade_specialties_user_trade"
-            columns: ["user_id", "trade_id"]
-            isOneToOne: false
-            referencedRelation: "user_trades"
-            referencedColumns: ["user_id", "trade_id"]
-          },
-          {
-            foreignKeyName: "user_trade_specialties_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -4449,33 +3812,664 @@ export type Database = {
           },
         ]
       }
-    }
-    Views: {
-      catalog_published_products: {
+      network_candidates: {
         Row: {
-          brand: string | null
-          category: Database["public"]["Enums"]["product_category"] | null
-          id: string | null
-          image_ref: string | null
-          name: string | null
-          organization_id: string | null
-          published_at: string | null
-          short_description: string | null
-          sku: string | null
-          supplier_name: string | null
-          supplier_slug: string | null
-          supplier_verified: boolean | null
-          unit: Database["public"]["Enums"]["product_unit"] | null
+          business_type: string | null
+          candidate_kind: string
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          contact_whatsapp: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          display_name: string
+          governorate: string | null
+          id: string
+          note: string | null
+          status: string
+          submitted_by: string
+          submitted_by_org_id: string
+          trade_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_type?: string | null
+          candidate_kind: string
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          display_name: string
+          governorate?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          submitted_by: string
+          submitted_by_org_id: string
+          trade_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_type?: string | null
+          candidate_kind?: string
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          display_name?: string
+          governorate?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          submitted_by?: string
+          submitted_by_org_id?: string
+          trade_key?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "products_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: "network_candidates_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_org_id_fkey"
+            columns: ["submitted_by_org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "network_candidates_trade_key_fkey"
+            columns: ["trade_key"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["key"]
+          },
         ]
+      }
+      organization_contacts: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          organization_id: string
+          phone_e164: string | null
+          show_email: boolean
+          show_phone: boolean
+          show_whatsapp: boolean
+          updated_at: string
+          updated_by: string | null
+          whatsapp_e164: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          organization_id: string
+          phone_e164?: string | null
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_e164?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          organization_id?: string
+          phone_e164?: string | null
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp_e164?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_contacts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_contact_visibility: {
+        Row: {
+          show_email: boolean
+          show_phone: boolean
+          show_whatsapp: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          show_email?: boolean
+          show_phone?: boolean
+          show_whatsapp?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_contact_visibility_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_audience_types: {
+        Row: {
+          code: string
+          kind: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          kind: string
+          sort_order: number
+        }
+        Update: {
+          code?: string
+          kind?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      product_audiences: {
+        Row: {
+          audience: string
+          created_at: string
+          product_id: string
+        }
+        Insert: {
+          audience: string
+          created_at?: string
+          product_id: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_audiences_audience_fkey"
+            columns: ["audience"]
+            isOneToOne: false
+            referencedRelation: "product_audience_types"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "product_audiences_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_image_grants: {
+        Row: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string | null
+        }
+        Insert: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id?: string | null
+        }
+        Update: {
+          expires_at?: string
+          object_key?: string
+          user_id?: string
+          workspace_org_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_image_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_requests: {
+        Row: {
+          cancelled_at: string | null
+          closed_at: string | null
+          created_at: string
+          id: string
+          needed_by: string | null
+          notes: string | null
+          published_at: string | null
+          requester_audience: string
+          requester_org_id: string | null
+          requester_user_id: string
+          share_with_showrooms: boolean
+          status: Database["public"]["Enums"]["purchase_request_status"]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          needed_by?: string | null
+          notes?: string | null
+          published_at?: string | null
+          requester_audience: string
+          requester_org_id?: string | null
+          requester_user_id: string
+          share_with_showrooms?: boolean
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          needed_by?: string | null
+          notes?: string | null
+          published_at?: string | null
+          requester_audience?: string
+          requester_org_id?: string | null
+          requester_user_id?: string
+          share_with_showrooms?: boolean
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_requester_audience_fkey"
+            columns: ["requester_audience"]
+            isOneToOne: false
+            referencedRelation: "product_audience_types"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "purchase_requests_requester_org_id_fkey"
+            columns: ["requester_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_items: {
+        Row: {
+          category_code: string
+          code: string | null
+          color_items: Json
+          created_at: string
+          id: string
+          name: string
+          position: number
+          quantity: number
+          request_id: string
+          specs: string | null
+          unit: Database["public"]["Enums"]["product_unit"]
+          updated_at: string
+        }
+        Insert: {
+          category_code: string
+          code?: string | null
+          color_items?: Json
+          created_at?: string
+          id?: string
+          name: string
+          position: number
+          quantity: number
+          request_id: string
+          specs?: string | null
+          unit: Database["public"]["Enums"]["product_unit"]
+          updated_at?: string
+        }
+        Update: {
+          category_code?: string
+          code?: string | null
+          color_items?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          quantity?: number
+          request_id?: string
+          specs?: string | null
+          unit?: Database["public"]["Enums"]["product_unit"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_items_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "purchase_request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          created_by: string
+          id: string
+          item_id: string
+          object_key: string
+          owner_scope: string
+          request_id: string
+          slot: number
+          state: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          created_by: string
+          id?: string
+          item_id: string
+          object_key: string
+          owner_scope: string
+          request_id: string
+          slot: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          item_id?: string
+          object_key?: string
+          owner_scope?: string
+          request_id?: string
+          slot?: number
+          state?: Database["public"]["Enums"]["professional_asset_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pri_img_item"
+            columns: ["request_id", "item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_items"
+            referencedColumns: ["request_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_request_images_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_responses: {
+        Row: {
+          coverage: string
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          request_id: string
+          responder_org_id: string
+          shortlisted: boolean
+          shortlisted_at: string | null
+          shortlisted_by: string | null
+          status: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by: string
+          total: number
+          updated_at: string
+          valid_until: string | null
+          version: number
+        }
+        Insert: {
+          coverage: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id: string
+          responder_org_id: string
+          shortlisted?: boolean
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by: string
+          total: number
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+        }
+        Update: {
+          coverage?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id?: string
+          responder_org_id?: string
+          shortlisted?: boolean
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_response_status"]
+          submitted_by?: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_responder_org_id_fkey"
+            columns: ["responder_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_shortlisted_by_fkey"
+            columns: ["shortlisted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_responses_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_response_items: {
+        Row: {
+          id: string
+          line_total: number | null
+          note: string | null
+          offered_quantity: number
+          request_item_id: string
+          requested_quantity: number
+          response_id: string
+          unit: Database["public"]["Enums"]["product_unit"]
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          line_total?: number | null
+          note?: string | null
+          offered_quantity: number
+          request_item_id: string
+          requested_quantity: number
+          response_id: string
+          unit: Database["public"]["Enums"]["product_unit"]
+          unit_price: number
+        }
+        Update: {
+          id?: string
+          line_total?: number | null
+          note?: string | null
+          offered_quantity?: number
+          request_item_id?: string
+          requested_quantity?: number
+          response_id?: string
+          unit?: Database["public"]["Enums"]["product_unit"]
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_response_items_request_item_id_fkey"
+            columns: ["request_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_request_response_items_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_image_grants: {
+        Row: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string
+        }
+        Insert: {
+          expires_at: string
+          object_key: string
+          user_id: string
+          workspace_org_id: string
+        }
+        Update: {
+          expires_at?: string
+          object_key?: string
+          user_id?: string
+          workspace_org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_image_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      own_product_offer_links: {
+        Row: {
+          offer_id: string | null
+          organization_id: string | null
+          phase: string | null
+          product_id: string | null
+          quantity: number | null
+        }
+        Relationships: []
+      }
+      own_product_offers: {
+        Row: {
+          archived_at: string | null
+          audiences: string[] | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          ends_at: string | null
+          id: string | null
+          invalid_item_count: number | null
+          item_count: number | null
+          organization_id: string | null
+          phase: string | null
+          published_at: string | null
+          reference_price: number | null
+          search_text: string | null
+          starts_at: string | null
+          status: Database["public"]["Enums"]["offer_status"] | null
+          title: string | null
+          total_price: number | null
+          total_quantity: number | null
+          updated_at: string | null
+          version: number | null
+        }
+        Relationships: []
       }
       job_applicants: {
         Row: {
@@ -4502,16 +4496,6 @@ export type Database = {
           job_id: string | null
           trade_is_active: boolean | null
           trade_key: string | null
-        }
-        Relationships: []
-      }
-      my_assignment_contacts: {
-        Row: {
-          assignment_id: string | null
-          contact_name: string | null
-          email: string | null
-          org_name: string | null
-          phone: string | null
         }
         Relationships: []
       }
@@ -5514,74 +5498,85 @@ export type Database = {
           },
         ]
       }
-      saved_job_opportunities: {
+      my_network_candidates: {
         Row: {
-          job_id: string | null
-          saved_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_jobs_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      saved_product_list: {
-        Row: {
-          brand: string | null
-          category: Database["public"]["Enums"]["product_category"] | null
-          image_ref: string | null
-          name: string | null
+          business_type: string | null
+          candidate_kind: string | null
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          contact_whatsapp: string | null
+          created_at: string | null
+          decided_at: string | null
+          decision_reason: string | null
+          display_name: string | null
+          governorate: string | null
+          id: string | null
           note: string | null
-          organization_id: string | null
-          product_id: string | null
-          saved_at: string | null
-          saved_by: string | null
-          short_description: string | null
-          sku: string | null
-          supplier_name: string | null
-          supplier_org_id: string | null
-          supplier_verified: boolean | null
-          unit: Database["public"]["Enums"]["product_unit"] | null
+          status: string | null
+          submitted_by: string | null
+          submitted_by_org_id: string | null
+          trade_key: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          candidate_kind?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision_reason?: string | null
+          display_name?: string | null
+          governorate?: string | null
+          id?: string | null
+          note?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          submitted_by_org_id?: string | null
+          trade_key?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          candidate_kind?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision_reason?: string | null
+          display_name?: string | null
+          governorate?: string | null
+          id?: string | null
+          note?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          submitted_by_org_id?: string | null
+          trade_key?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "products_organization_id_fkey"
-            columns: ["supplier_org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "catalog_published_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_products_saved_by_fkey"
-            columns: ["saved_by"]
+            foreignKeyName: "network_candidates_submitted_by_fkey"
+            columns: ["submitted_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_submitted_by_org_id_fkey"
+            columns: ["submitted_by_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_candidates_trade_key_fkey"
+            columns: ["trade_key"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["key"]
           },
         ]
       }
@@ -5621,193 +5616,6 @@ export type Database = {
         }
         Returns: string
       }
-      admin_assignment_change_scope: {
-        Args: { p_assignment_id: string; p_reason?: string; p_scope_id: string }
-        Returns: undefined
-      }
-      admin_case_create: {
-        Args: {
-          p_contact_email?: string
-          p_contact_name?: string
-          p_contact_phone?: string
-          p_details: string
-          p_subject_id: string
-          p_subject_type: string
-          p_title: string
-        }
-        Returns: string
-      }
-      admin_cases_list: {
-        Args: { p_subject_id: string; p_subject_type: string }
-        Returns: Json
-      }
-      admin_entity_timeline: {
-        Args: { p_subject_id: string; p_subject_type: string }
-        Returns: Json
-      }
-      admin_follow_up_assignees: { Args: never; Returns: Json }
-      admin_follow_up_complete: {
-        Args: { p_follow_up_id: string }
-        Returns: Json
-      }
-      admin_follow_up_log: {
-        Args: {
-          p_action_type: Database["public"]["Enums"]["admin_follow_up_type"]
-          p_assigned_to?: string
-          p_due_at?: string
-          p_outcome: string
-          p_subject_id: string
-          p_subject_type: string
-        }
-        Returns: string
-      }
-      admin_follow_ups_list: {
-        Args: { p_subject_id: string; p_subject_type: string }
-        Returns: Json
-      }
-      admin_my_access: { Args: never; Returns: Json }
-      admin_network_referrals_list: {
-        Args: { p_pending_only?: boolean }
-        Returns: {
-          city: string
-          created_at: string
-          decided_at: string
-          decision_reason: string
-          display_name: string
-          governorate: string
-          id: string
-          match_count: number
-          match_id: string
-          match_name: string
-          note: string
-          organization_id: string
-          organization_name: string
-          phone: string
-          referred_by: string
-          referrer_email: string
-          referrer_name: string
-          referrer_persona: Database["public"]["Enums"]["persona_type"]
-          status: Database["public"]["Enums"]["network_referral_status"]
-        }[]
-      }
-      admin_note_add: {
-        Args: { p_body: string; p_subject_id: string; p_subject_type: string }
-        Returns: string
-      }
-      admin_notes_list: {
-        Args: { p_subject_id: string; p_subject_type: string }
-        Returns: Json
-      }
-      admin_organization_detail: {
-        Args: { p_organization_id: string }
-        Returns: Json
-      }
-      admin_organization_dismiss_duplicate: {
-        Args: {
-          p_organization_id: string
-          p_other_org_id: string
-          p_reason: string
-        }
-        Returns: Json
-      }
-      admin_organization_duplicates: {
-        Args: { p_organization_id: string }
-        Returns: Json
-      }
-      admin_organization_link_duplicate: {
-        Args: {
-          p_canonical_org_id: string
-          p_duplicate_org_id: string
-          p_reason: string
-        }
-        Returns: Json
-      }
-      admin_organization_restore: {
-        Args: { p_organization_id: string; p_reason?: string }
-        Returns: Json
-      }
-      admin_organization_suspend: {
-        Args: { p_organization_id: string; p_reason: string }
-        Returns: Json
-      }
-      admin_organizations_list: {
-        Args: {
-          p_org_type?: Database["public"]["Enums"]["organization_type"]
-          p_page?: number
-          p_page_size?: number
-          p_search?: string
-          p_sort?: string
-          p_status?: string
-        }
-        Returns: Json
-      }
-      admin_rbac_permissions: {
-        Args: never
-        Returns: {
-          action: string
-          description: string
-          key: string
-          resource: string
-          sort_order: number
-        }[]
-      }
-      admin_rbac_roles: {
-        Args: never
-        Returns: {
-          created_at: string
-          description: string
-          id: string
-          is_system: boolean
-          key: string
-          locked_permissions: string[]
-          name: string
-          permissions: string[]
-          rank: number
-          scope_type: Database["public"]["Enums"]["admin_scope_type"]
-          staff_count: number
-          status: Database["public"]["Enums"]["admin_role_status"]
-          updated_at: string
-        }[]
-      }
-      admin_rbac_staff: {
-        Args: never
-        Returns: {
-          account_status: Database["public"]["Enums"]["user_status"]
-          assignments: Json
-          display_name: string
-          email: string
-          first_assigned_at: string
-          is_active: boolean
-          last_sign_in_at: string
-          user_id: string
-        }[]
-      }
-      admin_role_create: {
-        Args: {
-          p_description: string
-          p_name: string
-          p_permissions: string[]
-          p_rank: number
-          p_reason?: string
-          p_scope_type: Database["public"]["Enums"]["admin_scope_type"]
-        }
-        Returns: string
-      }
-      admin_role_set_archived: {
-        Args: { p_archived: boolean; p_reason?: string; p_role_id: string }
-        Returns: undefined
-      }
-      admin_role_update: {
-        Args: {
-          p_description: string
-          p_name: string
-          p_permissions: string[]
-          p_rank: number
-          p_reason?: string
-          p_role_id: string
-        }
-        Returns: undefined
-      }
       admin_showroom_referrals_list: {
         Args: { p_pending_only?: boolean }
         Returns: {
@@ -5834,58 +5642,12 @@ export type Database = {
           status: Database["public"]["Enums"]["referral_status"]
         }[]
       }
-      admin_staff_assign_role: {
-        Args: {
-          p_reason?: string
-          p_role_id: string
-          p_scope_id?: string
-          p_scope_type?: Database["public"]["Enums"]["admin_scope_type"]
-          p_user_id: string
-        }
-        Returns: string
-      }
-      admin_staff_change_role: {
-        Args: { p_reason?: string; p_role_id: string; p_user_id: string }
-        Returns: string
-      }
-      admin_staff_set_disabled: {
-        Args: { p_disabled: boolean; p_reason?: string; p_user_id: string }
-        Returns: undefined
-      }
-      admin_staff_unassign: {
-        Args: { p_assignment_id: string; p_reason?: string }
-        Returns: undefined
-      }
-      admin_subject_suspension: {
-        Args: { p_subject_id: string; p_subject_type: string }
-        Returns: Json
-      }
-      admin_user_detail: { Args: { p_user_id: string }; Returns: Json }
-      admin_user_restore: {
-        Args: { p_reason?: string; p_user_id: string }
-        Returns: Json
-      }
-      admin_user_suspend: {
-        Args: { p_reason: string; p_user_id: string }
-        Returns: Json
-      }
-      admin_users_list: {
-        Args: {
-          p_account_type?: Database["public"]["Enums"]["persona_type"]
-          p_governorate?: string
-          p_page?: number
-          p_page_size?: number
-          p_search?: string
-          p_sort?: string
-          p_status?: string
-          p_verification?: string
-        }
-        Returns: Json
-      }
       apply_account_upgrade: {
         Args: { p_verification_id: string }
         Returns: undefined
       }
+      organization_application_abandon: { Args: { p_org_id: string }; Returns: undefined }
+      organization_application_submit: { Args: { p_org_id: string }; Returns: string }
       apply_organization_verification: {
         Args: { p_verification_id: string }
         Returns: undefined
@@ -5925,7 +5687,6 @@ export type Database = {
       business_draft_save: {
         Args: {
           p_city?: string
-          p_city_custom_name?: string
           p_description?: string
           p_display_name?: string
           p_draft_id?: string
@@ -5951,7 +5712,6 @@ export type Database = {
         Returns: undefined
       }
       business_submit: { Args: never; Returns: string }
-      caller_has_service_location: { Args: never; Returns: boolean }
       cancel_follow_up: { Args: { p_follow_up_id: string }; Returns: undefined }
       cancel_order: { Args: { p_order_id: string }; Returns: undefined }
       cancel_rfq: { Args: { p_rfq_id: string }; Returns: undefined }
@@ -6075,17 +5835,18 @@ export type Database = {
         Returns: string
       }
       dashboard_kpi_layout_reset_personal: {
-        Args: { p_org_id: string }
+        Args: { p_org_id: string; p_surface?: string }
         Returns: undefined
       }
       dashboard_kpi_layout_reset_team_default: {
-        Args: { p_org_id: string }
+        Args: { p_org_id: string; p_surface?: string }
         Returns: undefined
       }
       dashboard_kpi_layout_set_personal: {
         Args: {
           p_card_order: Database["public"]["Enums"]["dashboard_kpi_card_key"][]
           p_org_id: string
+          p_surface?: string
         }
         Returns: undefined
       }
@@ -6093,6 +5854,7 @@ export type Database = {
         Args: {
           p_card_order: Database["public"]["Enums"]["dashboard_kpi_card_key"][]
           p_org_id: string
+          p_surface?: string
         }
         Returns: undefined
       }
@@ -6203,103 +5965,18 @@ export type Database = {
         Args: {
           p_branch_id?: string
           p_city?: string
-          p_city_key?: string
           p_description?: string
           p_ends_by?: string
           p_expected_duration_days?: number
           p_governorate?: string
-          p_governorate_key?: string
           p_offered_amount: number
           p_org_id: string
-          p_required_specialty_id?: string
           p_site_address?: string
           p_starts_on?: string
           p_title: string
           p_trade_key: string
         }
         Returns: string
-      }
-      job_matches: {
-        Args: { p_job_ids: string[] }
-        Returns: {
-          availability_points: number
-          availability_reason: string
-          job_id: string
-          location_points: number
-          location_reason: string
-          overall_percent: number
-          specialty_points: number
-          specialty_reason: string
-          trade_points: number
-          trade_reason: string
-        }[]
-      }
-      job_opportunities_page: {
-        Args: {
-          p_after_amount?: number
-          p_after_id?: string
-          p_after_published_at?: string
-          p_after_tier?: number
-          p_applied?: boolean
-          p_city_key?: string
-          p_governorate_key?: string
-          p_limit?: number
-          p_max_amount?: number
-          p_max_duration?: number
-          p_min_amount?: number
-          p_min_duration?: number
-          p_saved?: boolean
-          p_search?: string
-          p_sort?: string
-          p_trade_keys?: string[]
-        }
-        Returns: {
-          availability_points: number
-          availability_reason: string
-          city: string
-          city_key: string
-          description: string
-          ends_by: string
-          expected_duration_days: number
-          governorate: string
-          governorate_key: string
-          has_applied: boolean
-          id: string
-          is_saved: boolean
-          location_points: number
-          location_reason: string
-          offered_amount: number
-          offered_currency: string
-          overall_percent: number
-          poster_org_id: string
-          poster_org_name: string
-          proximity_tier: number
-          published_at: string
-          required_specialty_key: string
-          skill_rank: number
-          specialty_points: number
-          specialty_reason: string
-          starts_on: string
-          title: string
-          trade_key: string
-          trade_points: number
-          trade_reason: string
-        }[]
-      }
-      job_opportunities_total: {
-        Args: {
-          p_applied?: boolean
-          p_city_key?: string
-          p_governorate_key?: string
-          p_max_amount?: number
-          p_max_duration?: number
-          p_min_amount?: number
-          p_min_duration?: number
-          p_saved?: boolean
-          p_search?: string
-          p_trade_keys?: string[]
-        }
-        Returns: number
       }
       job_progress_add: {
         Args: {
@@ -6322,36 +5999,22 @@ export type Database = {
         Args: { p_assignment_id: string; p_comment?: string; p_rating: number }
         Returns: string
       }
-      job_save: { Args: { p_job_id: string }; Returns: undefined }
-      job_unsave: { Args: { p_job_id: string }; Returns: undefined }
       job_update: {
         Args: {
           p_city?: string
-          p_city_key?: string
           p_description?: string
           p_ends_by?: string
           p_expected_duration_days?: number
           p_expected_version: number
           p_governorate?: string
-          p_governorate_key?: string
           p_job_id: string
           p_offered_amount: number
-          p_required_specialty_id?: string
           p_site_address?: string
           p_starts_on?: string
           p_title: string
           p_trade_key: string
         }
         Returns: number
-      }
-      job_work_contact_set: {
-        Args: {
-          p_contact_name: string
-          p_email: string
-          p_job_id: string
-          p_phone_e164: string
-        }
-        Returns: undefined
       }
       mark_all_notifications_read: {
         Args: { p_org_id?: string }
@@ -6386,7 +6049,6 @@ export type Database = {
         Args: { p_membership_id: string }
         Returns: undefined
       }
-      my_account_status: { Args: never; Returns: Json }
       my_profile_completion: { Args: never; Returns: Json }
       my_registration_state: { Args: never; Returns: string }
       my_showroom_affiliations: {
@@ -6423,70 +6085,25 @@ export type Database = {
           status: Database["public"]["Enums"]["referral_status"]
         }[]
       }
-      my_work_companies: {
+      my_organization_application_slot: { Args: never; Returns: string }
+      my_organization_applications: {
         Args: never
         Returns: {
-          company: string
-        }[]
-      }
-      my_work_counts: {
-        Args: never
-        Returns: {
-          assignment_count: number
-          status: Database["public"]["Enums"]["job_assignment_status"]
-        }[]
-      }
-      my_work_page: {
-        Args: {
-          p_after_id?: string
-          p_after_key?: string
-          p_after_key2?: string
-          p_company?: string
-          p_contact?: string
-          p_from?: string
-          p_limit?: number
-          p_search?: string
-          p_sort?: string
-          p_states?: string[]
-          p_to?: string
-        }
-        Returns: {
-          agreed_amount: number
-          agreed_currency: string
-          application_id: string
-          cancellation_reason: string
-          cancelled_at: string
-          city: string
-          completed_at: string
-          contact_email: string
-          contact_name: string
-          contact_phone: string
-          created_at: string
-          ends_by: string
-          expected_duration_days: number
-          governorate: string
-          id: string
-          job_description: string
-          job_id: string
-          job_status: Database["public"]["Enums"]["job_status"]
-          job_title: string
-          last_progress_at: string
-          latest_progress_percent: number
-          poster_org_name: string
-          published_at: string
-          site_address: string
-          started_at: string
-          starts_on: string
-          status: Database["public"]["Enums"]["job_assignment_status"]
-          total_count: number
-          trade_is_active: boolean
-          trade_key: string
-          version: number
+          application_status: string
+          can_abandon: boolean
+          can_submit: boolean
+          decided_at: string
+          name: string
+          org_type: Database["public"]["Enums"]["organization_type"]
+          organization_id: string
+          reason: string
+          submitted_at: string
         }[]
       }
       my_workspaces: {
         Args: never
         Returns: {
+          is_approved: boolean
           kind: string
           name: string
           org_type: Database["public"]["Enums"]["organization_type"]
@@ -6496,14 +6113,7 @@ export type Database = {
         }[]
       }
       network_referral_approve: {
-        Args: {
-          p_city?: string
-          p_city_custom_name?: string
-          p_governorate?: string
-          p_legal_name?: string
-          p_link_organization_id?: string
-          p_referral_id: string
-        }
+        Args: { p_link_organization_id?: string; p_referral_id: string }
         Returns: string
       }
       network_referral_cancel: {
@@ -6598,6 +6208,93 @@ export type Database = {
         }
         Returns: undefined
       }
+      offer_detail: {
+        Args: { p_offer_id: string; p_org_id?: string }
+        Returns: Json
+      }
+      offers_feed: {
+        Args: { p_limit?: number; p_org_id?: string }
+        Returns: Json
+      }
+      offers_feed_page: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_offset?: number
+          p_org_id?: string
+          p_period?: string
+          p_saved_only?: boolean
+          p_search?: string
+          p_seller_type?: string
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      offer_set_saved: {
+        Args: { p_offer_id: string; p_org_id?: string; p_saved: boolean }
+        Returns: boolean
+      }
+      own_offer_save: {
+        Args: {
+          p_audiences: string[]
+          p_description: string | null
+          p_ends_at: string
+          p_expected_version: number | null
+          p_items: Json
+          p_offer_id: string | null
+          p_org_id: string
+          p_reference_price: number | null
+          p_starts_at: string
+          p_title: string
+          p_total_price: number
+        }
+        Returns: Json
+      }
+      own_offer_set_status: {
+        Args: { p_action: string; p_expected_version: number; p_offer_id: string }
+        Returns: number
+      }
+      own_product_create: {
+        Args: {
+          p_base_price?: number
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_color_items?: Json
+          p_description?: string
+          p_name: string
+          p_org_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: string
+      }
+      own_product_set_archived: {
+        Args: {
+          p_archived: boolean
+          p_expected_version: number
+          p_product_id: string
+        }
+        Returns: number
+      }
+      own_product_update: {
+        Args: {
+          p_base_price?: number
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_color_items?: Json
+          p_description?: string
+          p_expected_version: number
+          p_name: string
+          p_product_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: number
+      }
       pending_registration_consume: {
         Args: never
         Returns: {
@@ -6641,6 +6338,19 @@ export type Database = {
       portfolio_item_update: {
         Args: { p_description: string; p_item_id: string; p_title: string }
         Returns: undefined
+      }
+      product_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      product_image_remove: { Args: { p_image_id: string }; Returns: string }
+      product_image_reorder: {
+        Args: { p_image_ids: string[]; p_product_id: string }
+        Returns: undefined
+      }
+      product_image_request_upload: {
+        Args: { p_content_type: string; p_product_id: string }
+        Returns: string
       }
       profile_set_display_name: {
         Args: { p_display_name: string }
@@ -6710,15 +6420,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      saved_search_create: {
-        Args: { p_filters: Json; p_name: string; p_scope: string }
-        Returns: string
-      }
-      saved_search_delete: { Args: { p_id: string }; Returns: undefined }
-      saved_search_update: {
-        Args: { p_filters?: Json; p_id: string; p_name?: string }
-        Returns: undefined
-      }
       send_message: {
         Args: { p_body: string; p_conversation_id: string }
         Returns: string
@@ -6767,6 +6468,188 @@ export type Database = {
           name: string
         }[]
       }
+      independent_publisher_request: {
+        Args: { p_note?: string }
+        Returns: string
+      }
+      my_independent_publisher: {
+        Args: never
+        Returns: {
+          can_request: boolean
+          display_name: string | null
+          eligible_kind: string | null
+          publisher_id: string | null
+          reason: string | null
+          request_status: string | null
+          status: string | null
+        }[]
+      }
+      publisher_product_create: {
+        Args: {
+          p_base_price?: number
+          p_brand?: string
+          p_category_code: string
+          p_code: string
+          p_color_items?: Json
+          p_description?: string
+          p_name: string
+          p_publisher_id: string
+          p_size_label?: string
+          p_unit: Database["public"]["Enums"]["product_unit"]
+          p_weight_kg?: number
+        }
+        Returns: string
+      }
+      publisher_offer_save: {
+        Args: {
+          p_audiences: string[]
+          p_description: string
+          p_ends_at: string
+          p_expected_version: number
+          p_items: Json
+          p_offer_id: string
+          p_publisher_id: string
+          p_reference_price: number
+          p_starts_at: string
+          p_title: string
+          p_total_price: number
+        }
+        Returns: Json
+      }
+      publisher_suspend: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
+      publisher_revoke: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
+      publisher_reinstate: {
+        Args: { p_publisher_id: string; p_reason: string }
+        Returns: undefined
+      }
+      branch_verification_revoke: {
+        Args: { p_branch_id: string; p_reason: string }
+        Returns: undefined
+      }
+      review_context: {
+        Args: { p_verification_id: string }
+        Returns: Json
+      }
+      branch_create: {
+        Args: {
+          p_address_ar?: string
+          p_address_en?: string
+          p_locality_id?: string
+          p_name: string
+          p_name_ar?: string
+          p_name_en?: string
+          p_org_id: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
+      branch_set_active: {
+        Args: { p_active: boolean; p_branch_id: string }
+        Returns: undefined
+      }
+      branch_set_locality: {
+        Args: { p_branch_id: string; p_locality_id: string }
+        Returns: undefined
+      }
+      branch_verification_request: {
+        Args: { p_branch_id: string }
+        Returns: string
+      }
+      my_branches: {
+        Args: { p_org_id: string }
+        Returns: {
+          address_ar: string | null
+          address_en: string | null
+          has_unreviewed_changes: boolean
+          id: string
+          is_active: boolean
+          locality_id: string | null
+          location_verified: boolean
+          name: string
+          name_ar: string | null
+          name_en: string | null
+          review_reason: string | null
+          review_status: string
+          timezone: string | null
+          verified_at: string | null
+        }[]
+      }
+      my_co_owner_state: {
+        Args: never
+        Returns: {
+          can_request: boolean
+          name: string
+          organization_id: string
+          reason: string | null
+          relationship: string
+          request_id: string | null
+          request_status: string | null
+        }[]
+      }
+      org_co_owner_request: {
+        Args: { p_note?: string; p_org_id: string }
+        Returns: string
+      }
+      org_co_owner_revoke: {
+        Args: { p_org_id: string; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
+      organization_identity_change_request: {
+        Args: {
+          p_name?: string
+          p_name_ar?: string
+          p_name_en?: string
+          p_org_id: string
+          p_slug?: string
+        }
+        Returns: string
+      }
+      organization_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      organization_image_current: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
+      organization_description_set: {
+        Args: { p_description: string; p_org_id: string }
+        Returns: string
+      }
+      organization_image_remove: {
+        Args: { p_org_id: string }
+        Returns: string
+      }
+      organization_image_request_upload: {
+        Args: { p_content_type: string; p_org_id: string }
+        Returns: string
+      }
+      organization_identity_change_withdraw: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
+      organization_identity_state: {
+        Args: { p_org_id: string }
+        Returns: {
+          decided_at: string | null
+          locked: boolean
+          name: string
+          name_ar: string | null
+          name_en: string | null
+          proposed: Json | null
+          reason: string | null
+          request_id: string | null
+          request_status: string | null
+          requested_at: string | null
+          slug: string | null
+        }[]
+      }
       showroom_directory_search: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -6779,6 +6662,15 @@ export type Database = {
           primary_locale: string
           slug: string
         }[]
+      }
+      showroom_home_metrics: {
+        Args: {
+          p_from: string
+          p_org_id: string
+          p_timezone?: string
+          p_to: string
+        }
+        Returns: Json
       }
       showroom_join_request_cancel: {
         Args: { p_request_id: string }
@@ -6793,14 +6685,7 @@ export type Database = {
         Returns: string
       }
       showroom_referral_approve: {
-        Args: {
-          p_city?: string
-          p_city_custom_name?: string
-          p_governorate?: string
-          p_legal_name?: string
-          p_link_organization_id?: string
-          p_referral_id: string
-        }
+        Args: { p_link_organization_id?: string; p_referral_id: string }
         Returns: string
       }
       showroom_referral_reject: {
@@ -6935,40 +6820,225 @@ export type Database = {
         Args: { p_activity_keys: string[] }
         Returns: undefined
       }
-      user_service_areas_set: {
-        Args: { p_areas?: Json; p_primary_governorate_key: string }
-        Returns: undefined
-      }
-      user_trade_specialties_set: {
-        Args: { p_specialty_ids: string[] }
-        Returns: undefined
-      }
       user_trades_set: {
         Args: { p_primary_key?: string; p_trade_keys: string[] }
         Returns: undefined
       }
       username_available: { Args: { p_username: string }; Returns: boolean }
+      business_contact: {
+        Args: { p_organization_id: string; p_viewer_org_id: string }
+        Returns: {
+          email: string
+          phone: string
+          whatsapp: string
+        }[]
+      }
+      craftsman_contact: {
+        Args: { p_profile_id: string; p_viewer_org_id: string }
+        Returns: {
+          email: string
+          phone: string
+          whatsapp: string
+        }[]
+      }
+      network_candidate_create: {
+        Args: {
+          p_business_type?: string
+          p_city?: string
+          p_display_name: string
+          p_email?: string
+          p_governorate?: string
+          p_kind: string
+          p_note?: string
+          p_org_id: string
+          p_phone?: string
+          p_trade_key?: string
+          p_whatsapp?: string
+        }
+        Returns: string
+      }
+      network_candidate_cancel: {
+        Args: { p_candidate_id: string }
+        Returns: undefined
+      }
+      network_candidate_approve: {
+        Args: { p_candidate_id: string; p_note?: string }
+        Returns: undefined
+      }
+      network_candidate_reject: {
+        Args: { p_candidate_id: string; p_reason: string }
+        Returns: undefined
+      }
+      organization_contact_set: {
+        Args: {
+          p_contact_email: string
+          p_org_id: string
+          p_phone_e164: string
+          p_show_email: boolean
+          p_show_phone: boolean
+          p_show_whatsapp: boolean
+          p_whatsapp_e164: string
+        }
+        Returns: undefined
+      }
+      profile_contact_visibility_set: {
+        Args: {
+          p_show_email: boolean
+          p_show_phone: boolean
+          p_show_whatsapp: boolean
+        }
+        Returns: undefined
+      }
+      catalog_products: {
+        Args: { p_org_id?: string }
+        Returns: {
+          brand: string
+          category: Database["public"]["Enums"]["product_category"]
+          category_code: string
+          color_items: Json
+          colors: string[]
+          id: string
+          image_ref: string
+          name: string
+          organization_id: string
+          primary_image_key: string
+          published_at: string
+          short_description: string
+          size_label: string
+          sku: string
+          supplier_name: string
+          supplier_slug: string
+          supplier_verified: boolean
+          unit: Database["public"]["Enums"]["product_unit"]
+          weight_kg: number
+        }[]
+      }
+      saved_products_for: {
+        Args: { p_org_id: string }
+        Returns: {
+          brand: string
+          category: Database["public"]["Enums"]["product_category"]
+          category_code: string
+          image_ref: string
+          name: string
+          note: string
+          organization_id: string
+          product_id: string
+          saved_at: string
+          saved_by: string
+          short_description: string
+          sku: string
+          supplier_name: string
+          supplier_org_id: string
+          supplier_verified: boolean
+          unit: Database["public"]["Enums"]["product_unit"]
+        }[]
+      }
+      catalog_product_images: {
+        Args: { p_org_id: string; p_product_ids: string[] }
+        Returns: {
+          id: string
+          object_key: string
+          product_id: string
+          slot: number
+        }[]
+      }
+      product_audiences_set: {
+        Args: { p_audiences: string[]; p_product_id: string }
+        Returns: undefined
+      }
+      product_image_access_grant: {
+        Args: { p_keys: string[]; p_org_id: string }
+        Returns: string[]
+      }
+      purchase_request_save: {
+        Args: {
+          p_expected_version: number
+          p_items: Json
+          p_needed_by: string
+          p_notes: string
+          p_org_id: string
+          p_request_id: string
+          p_share_with_showrooms: boolean
+          p_title: string
+        }
+        Returns: string
+      }
+      purchase_request_publish: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_close: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_cancel: {
+        Args: { p_expected_version: number; p_request_id: string }
+        Returns: number
+      }
+      purchase_request_image_request_upload: {
+        Args: { p_content_type: string; p_item_id: string }
+        Returns: string
+      }
+      purchase_request_image_confirm_upload: {
+        Args: { p_object_key: string }
+        Returns: string
+      }
+      purchase_request_image_remove: {
+        Args: { p_image_id: string }
+        Returns: string
+      }
+      request_image_access_grant: {
+        Args: { p_keys: string[]; p_org_id: string }
+        Returns: string[]
+      }
+      purchase_requests_discover: {
+        Args: { p_org_id: string }
+        Returns: {
+          category_codes: string[]
+          id: string
+          item_count: number
+          my_response_id: string
+          my_response_status: string
+          needed_by: string
+          notes: string
+          published_at: string
+          requester_audience: string
+          requester_name: string
+          requester_org_id: string
+          requester_verified: boolean
+          title: string
+        }[]
+      }
+      purchase_request_detail: {
+        Args: { p_org_id: string; p_request_id: string }
+        Returns: Json
+      }
+      purchase_request_responses_for_requester: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      purchase_request_response_save: {
+        Args: {
+          p_items: Json
+          p_note: string
+          p_org_id: string
+          p_request_id: string
+          p_valid_until: string
+        }
+        Returns: string
+      }
+      purchase_request_response_withdraw: {
+        Args: { p_response_id: string }
+        Returns: undefined
+      }
+      purchase_request_response_shortlist: {
+        Args: { p_response_id: string; p_shortlisted: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_audience_kind: "organization_type" | "persona_type"
-      admin_deactivation_kind:
-        | "unassigned"
-        | "role_changed"
-        | "staff_disabled"
-        | "legacy_revoked"
-      admin_follow_up_type:
-        | "call"
-        | "whatsapp"
-        | "email"
-        | "verification_follow_up"
-        | "other"
-      admin_role_status: "active" | "archived"
-      admin_scope_type:
-        | "platform"
-        | "organization"
-        | "branch"
-        | "department"
-        | "user"
       affiliation_request_status:
         | "pending"
         | "approved"
@@ -6987,6 +7057,13 @@ export type Database = {
         | "total_purchases"
         | "projects"
         | "saved_products"
+        | "completed_orders"
+        | "orders_awaiting_execution"
+        | "rfqs_sent"
+        | "quotes_received"
+        | "customer_rfqs_received"
+        | "customer_quotes_sent"
+        | "total_sales"
       follow_up_status: "open" | "completed" | "cancelled"
       invitation_status: "pending" | "accepted" | "revoked" | "expired"
       job_application_status:
@@ -7016,6 +7093,7 @@ export type Database = {
       membership_status: "invited" | "active" | "suspended" | "revoked"
       network_referral_origin: "known_organization" | "new_showroom"
       network_referral_status: "pending" | "joined" | "cancelled"
+      offer_status: "draft" | "published" | "paused" | "archived"
       onboarding_track: "consumer" | "professional" | "business"
       order_status: "confirmed" | "in_progress" | "completed" | "cancelled"
       org_status:
@@ -7029,18 +7107,14 @@ export type Database = {
         | "supplier"
         | "manufacturer"
         | "importer"
-        | "wholesaler"
         | "contractor_company"
         | "design_office"
       persona_type:
         | "end_consumer"
         | "engineer"
-        | "interior_designer"
         | "installer_technician"
         | "contractor"
         | "sales"
-        | "trainer"
-        | "trainee"
       platform_role: "support" | "moderator" | "administrator"
       portfolio_visibility: "private" | "public"
       product_category:
@@ -7065,6 +7139,9 @@ export type Database = {
         | "roll"
         | "bag"
         | "pack"
+        | "gallon"
+        | "pail"
+        | "sheet"
       professional_asset_state: "pending" | "ready" | "deleted"
       project_status: "planned" | "active" | "completed"
       public_profile_status: "hidden" | "listed"
@@ -7100,8 +7177,18 @@ export type Database = {
         | "rejected"
         | "needs_more_info"
         | "expired"
+        | "cancelled"
       verification_subject: "user" | "organization"
-      verification_type: "identity" | "professional" | "organization"
+      verification_type:
+        | "identity"
+        | "professional"
+        | "organization"
+        | "organization_identity"
+        | "co_owner"
+        | "branch_location"
+        | "independent_publisher"
+      purchase_request_status: "draft" | "published" | "closed" | "cancelled"
+      purchase_response_status: "submitted" | "withdrawn"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7117,12 +7204,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7146,11 +7233,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7171,11 +7258,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7196,11 +7283,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7213,11 +7300,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7233,27 +7320,6 @@ export const Constants = {
   public: {
     Enums: {
       activity_audience_kind: ["organization_type", "persona_type"],
-      admin_deactivation_kind: [
-        "unassigned",
-        "role_changed",
-        "staff_disabled",
-        "legacy_revoked",
-      ],
-      admin_follow_up_type: [
-        "call",
-        "whatsapp",
-        "email",
-        "verification_follow_up",
-        "other",
-      ],
-      admin_role_status: ["active", "archived"],
-      admin_scope_type: [
-        "platform",
-        "organization",
-        "branch",
-        "department",
-        "user",
-      ],
       affiliation_request_status: [
         "pending",
         "approved",
@@ -7273,6 +7339,13 @@ export const Constants = {
         "total_purchases",
         "projects",
         "saved_products",
+        "completed_orders",
+        "orders_awaiting_execution",
+        "rfqs_sent",
+        "quotes_received",
+        "customer_rfqs_received",
+        "customer_quotes_sent",
+        "total_sales",
       ],
       follow_up_status: ["open", "completed", "cancelled"],
       invitation_status: ["pending", "accepted", "revoked", "expired"],
@@ -7307,6 +7380,7 @@ export const Constants = {
       membership_status: ["invited", "active", "suspended", "revoked"],
       network_referral_origin: ["known_organization", "new_showroom"],
       network_referral_status: ["pending", "joined", "cancelled"],
+      offer_status: ["draft", "published", "paused", "archived"],
       onboarding_track: ["consumer", "professional", "business"],
       order_status: ["confirmed", "in_progress", "completed", "cancelled"],
       org_status: [
@@ -7321,19 +7395,15 @@ export const Constants = {
         "supplier",
         "manufacturer",
         "importer",
-        "wholesaler",
         "contractor_company",
         "design_office",
       ],
       persona_type: [
         "end_consumer",
         "engineer",
-        "interior_designer",
         "installer_technician",
         "contractor",
         "sales",
-        "trainer",
-        "trainee",
       ],
       platform_role: ["support", "moderator", "administrator"],
       portfolio_visibility: ["private", "public"],
@@ -7360,6 +7430,9 @@ export const Constants = {
         "roll",
         "bag",
         "pack",
+        "gallon",
+        "pail",
+        "sheet",
       ],
       professional_asset_state: ["pending", "ready", "deleted"],
       project_status: ["planned", "active", "completed"],
@@ -7399,9 +7472,18 @@ export const Constants = {
         "rejected",
         "needs_more_info",
         "expired",
+        "cancelled",
       ],
       verification_subject: ["user", "organization"],
-      verification_type: ["identity", "professional", "organization"],
+      verification_type: [
+        "identity",
+        "professional",
+        "organization",
+        "organization_identity",
+        "co_owner",
+        "branch_location",
+        "independent_publisher",
+      ],
     },
   },
 } as const

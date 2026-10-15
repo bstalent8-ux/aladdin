@@ -33,17 +33,11 @@ select is(
       and not coalesce(c.reloptions::text[] @> array['security_invoker=true'], false)),
   0, 'no SECURITY DEFINER view remains in the exposed public schema (Advisor rule 0010)');
 
-select ok(
-  (select c.reloptions::text[] @> array['security_invoker=true']
-     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relname = 'catalog_published_products'),
-  'catalog_published_products is now a security_invoker view');
+select ok(to_regclass('public.catalog_published_products') is null,
+  'the cross-tenant catalog view is gone: products are read through the workspace-aware reader');
 
-select ok(
-  (select c.reloptions::text[] @> array['security_invoker=true']
-     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relname = 'saved_product_list'),
-  'the dependent saved_product_list view survived the rebuild as security_invoker');
+select ok(to_regclass('public.saved_product_list') is null,
+  'the saved-products view is gone: the shortlist is read through its workspace-aware reader');
 
 -- ===== B. The replacement helper is constrained =============================
 select is(
@@ -70,26 +64,28 @@ select ok(
   has_function_privilege('authenticated', 'app._catalog_supplier_identity()', 'execute'),
   'authenticated holds EXECUTE on the helper');
 
--- The view still projects EXACTLY the approved 13 columns — no private org
--- column (created_by / status / deleted_at / timestamps) crept in via the
--- rebuild, and none of the original columns was dropped.
+-- The view still projects EXACTLY the approved columns — no private org
+-- column (created_by / status / deleted_at / archived_at / timestamps) crept in via
+-- a rebuild, and none of the original columns was dropped. The five trailing
+-- columns are public product attributes added additively by Own Products
+-- (20261015090004): canonical category, colors, weight, size and the primary image key.
 select set_eq(
-  $$ select a.attname::text
-       from pg_attribute a
-      where a.attrelid = 'public.catalog_published_products'::regclass
-        and a.attnum > 0 and not a.attisdropped $$,
+  $$ select n from (select unnest(p.proargnames) n, unnest(p.proargmodes) m
+                      from pg_proc p where p.oid = 'public.catalog_products(uuid)'::regprocedure) x
+      where m = 't' $$,
   $$ values ('id'),('organization_id'),('supplier_name'),('supplier_verified'),
             ('supplier_slug'),('name'),('sku'),('category'),('brand'),
-            ('short_description'),('unit'),('image_ref'),('published_at') $$,
-  'the catalog view projects exactly the 13 approved columns (no private org data)');
+            ('short_description'),('unit'),('image_ref'),('published_at'),
+            ('category_code'),('colors'),('weight_kg'),('size_label'),('primary_image_key'),('color_items') $$,
+  'the reader returns exactly the 19 approved columns (no private org data, no price)');
 
--- ===== C. Relation grants stay least-privilege ==============================
+-- ===== C. Reader grants stay least-privilege ================================
 select ok(
-  not has_table_privilege('anon', 'public.catalog_published_products', 'select'),
-  'anon cannot read the catalog view');
+  not has_function_privilege('anon', 'public.catalog_products(uuid)', 'execute'),
+  'anon cannot call the catalog reader');
 select ok(
-  has_table_privilege('authenticated', 'public.catalog_published_products', 'select'),
-  'authenticated can read the catalog view');
+  has_function_privilege('authenticated', 'public.catalog_products(uuid)', 'execute'),
+  'authenticated can call the catalog reader');
 
 -- ===== D. The catalog still works ACROSS tenants ============================
 set local role authenticated;
@@ -110,6 +106,7 @@ grant select on _hids to authenticated;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select public.product_audiences_set((select p_pub from _hids), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select lives_ok(
   $$ select public.set_product_published((select p_pub from _hids), true, (select p_pub_v from _hids)) $$,
   'supplier owner publishes the product');
@@ -118,16 +115,16 @@ select lives_ok(
 -- definer view this worked by bypassing RLS; it must still work now.
 set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}';
 select is(
-  (select count(*)::int from public.catalog_published_products where id = (select p_pub from _hids)),
+  (select count(*)::int from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_pub from _hids)),
   1, 'a cross-tenant caller still sees another org''s PUBLISHED product');
 select is(
-  (select supplier_name from public.catalog_published_products where id = (select p_pub from _hids)),
+  (select supplier_name from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_pub from _hids)),
   'Nile Finishing Supplies',
   'the supplier identity still resolves cross-tenant (the only thing definer rights bought)');
 
 -- ===== E. Nothing private leaked ===========================================
 select is(
-  (select count(*)::int from public.catalog_published_products where id = (select p_draft from _hids)),
+  (select count(*)::int from public.catalog_products('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') where id = (select p_draft from _hids)),
   0, 'a draft product never appears in the catalog');
 
 -- A caller with no membership anywhere sees the published catalog but still

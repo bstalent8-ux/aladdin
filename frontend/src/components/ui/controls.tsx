@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type FormEvent,
   type InputHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -125,9 +126,16 @@ export function SubmitButton({
   className,
   disabled = false,
   "aria-label": ariaLabel,
+  name,
+  value,
+  "data-testid": testId,
 }: {
   children: ReactNode;
   pendingLabel?: string;
+  /** Submitted with the form when THIS button is the one pressed (e.g. "save draft" vs "publish"). */
+  name?: string;
+  value?: string;
+  "data-testid"?: string;
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
   className?: string;
@@ -146,12 +154,15 @@ export function SubmitButton({
   return (
     <Button
       type="submit"
+      name={name}
+      value={value}
       variant={variant}
       size={size}
       disabled={pending || disabled}
       aria-busy={pending}
       aria-label={ariaLabel}
       className={className}
+      data-testid={testId}
     >
       {pending ? (
         <>
@@ -233,15 +244,36 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+/**
+ * `dir="auto"` picks a text field's direction from what is typed (an Arabic name right-to-left, a Latin SKU
+ * left-to-right) — but an EMPTY auto field resolves to LTR, so in an Arabic page its placeholder and caret would
+ * start at the LEFT. These fields therefore inherit the page direction while empty and switch to `auto` only once
+ * there is text, so a placeholder always starts at the logical start of the field.
+ */
+function useAutoDir(dir: string | undefined, value: unknown, defaultValue: unknown, onInput?: (e: FormEvent<never>) => void) {
+  const [empty, setEmpty] = useState(() => String(value ?? defaultValue ?? "") === "");
+  if (dir !== "auto") return { dir, onInput };
+  const isEmpty = value !== undefined ? String(value ?? "") === "" : empty;
+  return {
+    dir: isEmpty ? undefined : ("auto" as const),
+    onInput: (e: FormEvent<never>) => {
+      setEmpty((e.target as HTMLInputElement | HTMLTextAreaElement).value === "");
+      onInput?.(e);
+    },
+  };
+}
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...rest }, ref) {
-    return <input ref={ref} className={cn(fieldBase, "min-h-11", className)} {...rest} />;
+  function Input({ className, dir, onInput, ...rest }, ref) {
+    const auto = useAutoDir(dir, rest.value, rest.defaultValue, onInput as never);
+    return <input ref={ref} className={cn(fieldBase, "min-h-11 text-start", className)} {...rest} dir={auto.dir} onInput={auto.onInput as never} />;
   },
 );
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  function Textarea({ className, ...rest }, ref) {
-    return <textarea ref={ref} className={cn(fieldBase, "min-h-24 leading-relaxed", className)} {...rest} />;
+  function Textarea({ className, dir, onInput, ...rest }, ref) {
+    const auto = useAutoDir(dir, rest.value, rest.defaultValue, onInput as never);
+    return <textarea ref={ref} className={cn(fieldBase, "min-h-24 leading-relaxed text-start", className)} {...rest} dir={auto.dir} onInput={auto.onInput as never} />;
   },
 );
 
@@ -268,7 +300,7 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
    * can want it, and `size` is the name every other control in this file uses
    * for its proportions.
    */
-  size?: keyof typeof selectSize;
+  size?: "field" | "compact";
 };
 
 /** The text of an <option>'s children (strings / numbers / arrays of them), as a native option would show it. */
@@ -420,7 +452,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       </select>
     </ListboxSelect>
   );
-});
+}
 
 /** Accessible labelled field wrapper with optional error/hint text. */
 export function LabeledField({

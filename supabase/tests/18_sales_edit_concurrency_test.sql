@@ -41,7 +41,7 @@ set local request.jwt.claims = '{"sub":"22222222-2222-4222-8222-222222222222","r
 -- updated_at does not change between two edits in THIS single-transaction test;
 -- the true stale-after-commit serialization is proven by
 -- customer_update_concurrency_test.sh. Here we prove the precondition LOGIC: the
--- correct token succeeds and any mismatched token is rejected with 40001.
+-- correct token succeeds and any mismatched token is rejected with VC001.
 select lives_ok(
   $$ select public.update_customer((select cust_id from _e),
        p_expected_updated_at => (select cust_u0 from _e), p_display_name => 'Cust T1') $$,
@@ -49,7 +49,7 @@ select lives_ok(
 select throws_ok(
   $$ select public.update_customer((select cust_id from _e),
        p_expected_updated_at => (select cust_u0 from _e) - interval '1 hour', p_display_name => 'Cust STALE') $$,
-  '40001', null, 'a mismatched expected updated_at is rejected (40001)');
+  'VC001', null, 'a mismatched expected updated_at is rejected (VC001)');
 select is(
   (select display_name from public.customers where id=(select cust_id from _e)),
   'Cust T1', 'the rejected (stale-token) edit did not overwrite the newer value');
@@ -84,7 +84,7 @@ select lives_ok(
   'update_follow_up with the correct expected version succeeds (v1->v2)');
 select throws_ok(
   $$ select public.update_follow_up((select fu_id from _e), p_expected_version => 1, p_title => 'FU STALE') $$,
-  '40001', null, 'a stale expected version is rejected (40001)');
+  'VC001', null, 'a stale expected version is rejected (VC001)');
 select is(
   (select title from public.follow_up_tasks where id=(select fu_id from _e)),
   'FU T1', 'the stale follow-up edit did not overwrite the newer title');
@@ -101,7 +101,7 @@ select is(
 select throws_ok(
   $$ select public.reassign_follow_up((select fu_id from _e),
        'e1111111-eeee-4eee-8eee-eeeeeeeeeee1', 1) $$,
-  '40001', null, 'a stale expected version is rejected on reassignment (40001)');
+  'VC001', null, 'a stale expected version is rejected on reassignment (VC001)');
 
 reset role;
 select * from finish();

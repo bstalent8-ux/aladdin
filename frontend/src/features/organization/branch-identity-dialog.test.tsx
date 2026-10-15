@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
+import { selectValue } from "@/test/select-menu";
 import { BranchIdentityDialog } from "./branch-identity-dialog";
 import { ar } from "@/lib/i18n/messages/ar";
 

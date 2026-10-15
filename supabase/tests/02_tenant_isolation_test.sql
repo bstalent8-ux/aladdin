@@ -37,9 +37,10 @@ select lives_ok(
   $$ update public.organizations set name = 'HACKED' where id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' $$,
   'A-owner update attempt on Org B executes without error (RLS scopes it out)');
 
--- Positive control: A-owner CAN update its own Org A.
+-- Positive control: A-owner CAN update its own Org A (an ordinary field - a verified organization's
+-- NAME changes only through Admin review since M3; see test 78).
 select lives_ok(
-  $$ update public.organizations set name = 'Nile Finishing Supplies v2' where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' $$,
+  $$ update public.organizations set primary_locale = 'ar' where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' $$,
   'A-owner can update its own Org A');
 
 -- A-owner cannot INSERT into Org B (WITH CHECK fails → RLS error).
@@ -60,8 +61,8 @@ select is(
   (select name from public.organizations where id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
   'Delta Interiors Studio', 'Org B name is unchanged after A-owner update attempt');
 select is(
-  (select name from public.organizations where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
-  'Nile Finishing Supplies v2', 'Org A name was updated by its own owner');
+  (select primary_locale from public.organizations where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  'ar', 'Org A was updated by its own owner');
 
 -- Symmetric check: B-owner cannot read Org A's private branches/memberships.
 set local role authenticated;

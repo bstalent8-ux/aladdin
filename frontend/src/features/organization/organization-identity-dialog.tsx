@@ -1,13 +1,12 @@
 "use client";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { LabeledField, Input, Select } from "@/components/ui/controls";
-import { TIMEZONE_OPTIONS } from "@/lib/workspace/timezone-options";
+import { LabeledField, Input } from "@/components/ui/controls";
 import { updateOrganizationI18nAction } from "@/server/actions/organization-i18n";
 import type { Messages } from "@/lib/i18n/messages/en";
 
 /**
- * Edit dialog for the organization's own bilingual trading name + timezone —
+ * Edit dialog for the organization's own bilingual trading name —
  * the RPC write path `organization_update_i18n` adds. Lives on the existing
  * `/b2b/settings` Business card rather than a new page: that card is the
  * organization's own settled home in this product's IA, and its own doc
@@ -20,12 +19,15 @@ export function OrganizationIdentityDialog({
   nameAr,
   nameEn,
   timezone,
+  locked = false,
 }: {
   m: Messages;
   orgId: string;
   nameAr: string | null;
   nameEn: string | null;
   timezone: string | null;
+  /** A verified name is read-only here: it changes through a review request instead. */
+  locked?: boolean;
 }) {
   return (
     <ConfirmDialog
@@ -38,30 +40,19 @@ export function OrganizationIdentityDialog({
     >
       <input type="hidden" name="orgId" value={orgId} />
       <p className="text-body text-fg-secondary">{m.settings.editOrgHelp}</p>
+      {locked ? <p className="text-label text-fg-muted">{m.governance.identity.lockedHint}</p> : null}
 
       <LabeledField label={m.settings.field.nameAr} htmlFor="org-name-ar" optional={m.common.optional}>
-        <Input id="org-name-ar" name="nameAr" defaultValue={nameAr ?? ""} dir="rtl" maxLength={120} />
+        <Input id="org-name-ar" name="nameAr" defaultValue={nameAr ?? ""} dir="rtl" maxLength={120} readOnly={locked} />
       </LabeledField>
 
       <LabeledField label={m.settings.field.nameEn} htmlFor="org-name-en" optional={m.common.optional}>
-        <Input id="org-name-en" name="nameEn" defaultValue={nameEn ?? ""} dir="ltr" maxLength={120} />
+        <Input id="org-name-en" name="nameEn" defaultValue={nameEn ?? ""} dir="ltr" maxLength={120} readOnly={locked} />
       </LabeledField>
 
-      <LabeledField
-        label={m.settings.field.timezone}
-        htmlFor="org-timezone"
-        hint={m.settings.timezoneHint}
-        optional={m.common.optional}
-      >
-        <Select id="org-timezone" name="timezone" defaultValue={timezone ?? ""}>
-          <option value="">{m.settings.timezoneUnset}</option>
-          {TIMEZONE_OPTIONS.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz}
-            </option>
-          ))}
-        </Select>
-      </LabeledField>
+      {/* The organization's timezone is not edited here: it keeps its current value (the RPC would otherwise clear it)
+          and every calendar calculation continues to use it. */}
+      <input type="hidden" name="timezone" value={timezone ?? ""} />
     </ConfirmDialog>
   );
 }

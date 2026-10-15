@@ -1,5 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import type { Messages } from "@/lib/i18n/messages/en";
+import { useCallback } from "react";
+import { useI18n } from "@/lib/i18n/context";
+import { Pager } from "@/components/ui/pager";
+import { type PagedLoad } from "@/lib/pagination/batches";
+import { usePagedList } from "@/lib/pagination/use-paged-list";
+import { loadSavedBatchAction } from "@/server/actions/saved-feed";
 import { Card, Badge, StatePanel } from "@/components/ui/primitives";
 import { BookmarkIcon, BadgeCheckIcon } from "@/components/ui/icons";
 import { SaveProductButton } from "@/features/commerce/save-product-button";
@@ -18,29 +25,46 @@ import type { SavedProductRow } from "@/server/queries/commerce";
  * shortlist that looked like a different kind of object would make the buyer
  * re-learn the layout on the second screen of the same task.
  */
+type SavedCard = SavedProductRow & { id: string; product_id: string };
+const toCard = (r: SavedProductRow): SavedCard[] => (r.product_id ? [{ ...r, id: r.product_id, product_id: r.product_id }] : []);
+
 export function SavedGrid({
   rows,
+  total,
+  category,
   orgId,
-  m,
   canRequestQuote,
 }: {
+  /** The FIRST batch (server-rendered); further batches are bounded server reads. */
   rows: SavedProductRow[];
+  /** Everything the current category tab matches. */
+  total: number;
+  category: string;
   orgId: string;
-  m: Messages;
   canRequestQuote: boolean;
 }) {
-  if (rows.length === 0) {
+  const { t } = useI18n();
+  const load = useCallback<PagedLoad<SavedCard>>(
+    async (offset) => {
+      const res = await loadSavedBatchAction(category, offset);
+      return res.ok ? { items: res.rows.flatMap(toCard), total: res.total } : null;
+    },
+    [category],
+  );
+  const list = usePagedList(rows.flatMap(toCard), total, load);
+
+  if (list.items.length === 0) {
     return (
       <StatePanel
         icon={<BookmarkIcon size={22} />}
-        title={m.saved.emptyTitle}
-        body={m.saved.emptyBody}
+        title={t("saved.emptyTitle")}
+        body={t("saved.emptyBody")}
         action={
           <Link
             href="/b2b/catalog"
             className="inline-flex min-h-9 items-center rounded-sm bg-accent-solid px-md py-1.5 text-label font-medium text-on-accent hover:opacity-90"
           >
-            {m.saved.browse}
+            {t("saved.browse")}
           </Link>
         }
       />
@@ -48,15 +72,16 @@ export function SavedGrid({
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-md tablet:grid-cols-2 desktop:grid-cols-3">
-      {rows.map((p) => (
+    <div className="flex flex-col gap-md">
+      <ul className="grid grid-cols-1 gap-md tablet:grid-cols-2 desktop:grid-cols-3" data-testid="saved-grid">
+      {list.items.map((p) => (
         <li key={p.product_id}>
           <Card className="flex h-full flex-col gap-sm">
             <div className="relative">
               <ProductMedia src={p.image_ref} alt={p.name ?? ""} />
               {p.category ? (
                 <span className="absolute start-2 top-2">
-                  <Badge tone="neutral">{m.commerce.categories[p.category]}</Badge>
+                  <Badge tone="neutral">{t(`commerce.categories.${p.category}`)}</Badge>
                 </span>
               ) : null}
               {p.product_id ? (
@@ -87,23 +112,25 @@ export function SavedGrid({
               <span className="inline-flex min-w-0 items-center gap-1 text-fg-secondary">
                 <span className="truncate">{p.supplier_name}</span>
                 {p.supplier_verified ? (
-                  <span className="shrink-0 text-success" title={m.directory.verified}>
+                  <span className="shrink-0 text-success" title={t("directory.verified")}>
                     <BadgeCheckIcon size={13} />
                   </span>
                 ) : null}
               </span>
-              {canRequestQuote ? (
+              {canRequestQuote && p.supplier_org_id ? (
                 <Link
                   href={`/b2b/rfqs/new?product=${p.product_id}`}
                   className="shrink-0 font-medium text-accent hover:underline"
                 >
-                  {m.saved.requestQuote}
+                  {t("saved.requestQuote")}
                 </Link>
               ) : null}
             </div>
           </Card>
         </li>
       ))}
-    </ul>
+      </ul>
+      <Pager shown={list.items.length} total={list.total} loading={list.loading} failed={list.failed} onMore={() => void list.more()} onLess={list.less} testId="saved" />
+    </div>
   );
 }

@@ -174,7 +174,7 @@ describe("ProfessionalHome", () => {
   });
 
   it("does not offer Add a business to a persona that is not entitled to create one", () => {
-    for (const accountType of ["sales", "installer_technician", "contractor", "trainee"] as const) {
+    for (const accountType of ["sales", "installer_technician", "end_consumer"] as const) {
       const { container } = renderWithI18n(<ProfessionalHome {...baseProps} data={data({ accountType })} />, "en");
       expect(container.querySelector('a[href="/business/new"]'), accountType).toBeNull();
     }

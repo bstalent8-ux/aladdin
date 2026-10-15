@@ -10,7 +10,7 @@ vi.mock("@/server/actions/organization-i18n", () => ({
 }));
 
 describe("OrganizationIdentityDialog", () => {
-  it("opens on the Edit trigger and shows labelled AR/EN name fields + timezone, pre-filled", () => {
+  it("opens on the Edit trigger and shows labelled AR/EN name fields, pre-filled, and no timezone or language control", () => {
     renderWithI18n(
       <OrganizationIdentityDialog
         m={ar}
@@ -28,10 +28,13 @@ describe("OrganizationIdentityDialog", () => {
 
     const nameAr = screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement;
     const nameEn = screen.getByLabelText(ar.settings.field.nameEn, { exact: false }) as HTMLInputElement;
-    const timezone = screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLSelectElement;
     expect(nameAr.value).toBe("معرض سيراميك القاهرة");
     expect(nameEn.value).toBe("Cairo Ceramics Showroom");
-    expect(timezone.value).toBe("Africa/Cairo");
+    // The timezone is not a visible control any more, but the existing value travels with the form so saving the
+    // names can never clear it (and calendar calculations keep using it).
+    expect(screen.queryByLabelText(ar.settings.field.timezone, { exact: false })).toBeNull();
+    expect(screen.queryByLabelText(ar.settings.field.language, { exact: false })).toBeNull();
+    expect((dialog.querySelector('input[name="timezone"]') as HTMLInputElement).value).toBe("Africa/Cairo");
 
     // The hidden field the server action keys its update on.
     expect((dialog.querySelector('input[name="orgId"]') as HTMLInputElement).value).toBe("org-1");

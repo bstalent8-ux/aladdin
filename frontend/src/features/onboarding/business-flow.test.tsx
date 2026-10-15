@@ -61,7 +61,16 @@ const fillNames = (display = "Al-Noor Supply", legal = "Al-Noor Supply Trading L
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("BusinessFlow — identity gates", () => {
+describe("BusinessFlow — acceptance gates", () => {
+  it("offers Engineer as design_office in the existing add-business flow", async () => {
+    renderWithI18n(<BusinessFlow answers={emptyAnswers} presetOrgType={null} draftId={null} />, "en");
+    fireEvent.change(screen.getByLabelText(en.onboarding.business.identity.displayNameLabel), { target: { value: "Engineering" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: en.onboarding.continue })); });
+    fireEvent.click(screen.getByRole("button", { name: /Engineer/ }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: en.onboarding.continue })); });
+    expect(saveBusiness).toHaveBeenLastCalledWith(expect.objectContaining({ orgType: "design_office", draftId: "draft-1" }));
+  });
+
   it("gates Continue on BOTH the business name and the legal name, then persists and advances", async () => {
     renderWithI18n(<BusinessFlow answers={emptyAnswers} presetOrgType={null} draftId={null} />, "en");
 

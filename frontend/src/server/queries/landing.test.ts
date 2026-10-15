@@ -27,6 +27,7 @@ type Row = {
   persona: string | null;
   org_type: string | null;
   relationship: string | null;
+  is_approved: boolean;
 };
 
 const personal: Row = {
@@ -36,6 +37,7 @@ const personal: Row = {
   persona: "engineer",
   org_type: null,
   relationship: null,
+  is_approved: true,
 };
 const business = (id: string, name: string): Row => ({
   kind: "business",
@@ -44,7 +46,10 @@ const business = (id: string, name: string): Row => ({
   persona: null,
   org_type: "showroom_dealer",
   relationship: "owner",
+  is_approved: true,
 });
+// An organization still under review: an application, never a workspace.
+const pendingBusiness = (id: string, name: string): Row => ({ ...business(id, name), is_approved: false });
 
 function clientWithWorkspaces(rows: Row[]) {
   const rpc = vi.fn(async () => ({ data: rows, error: null }));
@@ -74,6 +79,22 @@ describe("resolveActiveLanding", () => {
     // No personal entry at all: the person has no personal persona.
     const { client } = clientWithWorkspaces([business("org-1", "Cairo Ceramics")]);
 
+    await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
+  });
+
+  it("never lands in, or selects, a business that is still pending approval", async () => {
+    cookieValue.current = "org-pending";
+    const { client } = clientWithWorkspaces([pendingBusiness("org-pending", "Under Review")]);
+    // A pending-only identity has no workspace: /home explains the state instead of /b2b.
+    await expect(resolveActiveLanding(client)).resolves.toBe("/home");
+  });
+
+  it("an explicit selection of a pending business falls back to the approved one", async () => {
+    cookieValue.current = "org-pending";
+    const { client } = clientWithWorkspaces([
+      pendingBusiness("org-pending", "Under Review"),
+      business("org-ok", "Cairo Ceramics"),
+    ]);
     await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
   });
 

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
+import { chooseOption, readOptions, selectValue } from "@/test/select-menu";
+
+const labels = (trigger: HTMLElement) => readOptions(trigger).map((o) => o.label);
 import { ar } from "@/lib/i18n/messages/ar";
 
 /**
@@ -55,7 +58,7 @@ describe("CustomerOwnershipForm — assignee dropdown reflects resolved teammate
       />,
     );
     openDialog();
-    const select = (await screen.findByLabelText(ar.customers.assignee)) as HTMLSelectElement;
+    const select = (await screen.findByLabelText(ar.customers.assignee)) as HTMLElement;
     // The regression this guards: the select's ACTUAL value is the current
     // assignee's id, because a real <option> exists for it — not the first
     // option ("Unassigned") a browser falls back to when no option matches.
@@ -136,7 +139,7 @@ describe("CustomerOwnershipForm — branch-reactive candidates never strand or s
     const assigneeSelect = screen.getByLabelText(ar.customers.assignee) as HTMLSelectElement;
     expect(within(assigneeSelect).queryByRole("option", { name: "Hana Mansour", hidden: true })).not.toBeInTheDocument();
 
-    fireEvent.change(branchSelect, { target: { value: ZAYED } });
+    chooseOption(branchSelect, ZAYED);
 
     expect(within(assigneeSelect).getByRole("option", { name: "Hana Mansour", hidden: true })).toBeInTheDocument();
     expect(within(assigneeSelect).queryByRole("option", { name: "Youssef Amin", hidden: true })).not.toBeInTheDocument();
@@ -161,14 +164,14 @@ describe("CustomerOwnershipForm — branch-reactive candidates never strand or s
       />,
     );
     openDialog();
-    const branchSelect = (await screen.findByLabelText(ar.customers.branch)) as HTMLSelectElement;
-    const assigneeSelect = screen.getByLabelText(ar.customers.assignee) as HTMLSelectElement;
+    const branchSelect = (await screen.findByLabelText(ar.customers.branch)) as HTMLElement;
+    const assigneeSelect = screen.getByLabelText(ar.customers.assignee) as HTMLElement;
 
-    fireEvent.change(branchSelect, { target: { value: ZAYED } });
+    chooseOption(branchSelect, ZAYED);
 
     // Never silently falls back to the first option ("Unassigned") or to
     // Sheikh Zayed's real candidate (Hana) — Youssef stays the actual value.
-    expect(assigneeSelect.value).toBe(YOUSSEF);
+    expect(selectValue(assigneeSelect)).toBe(YOUSSEF);
     expect(screen.getByText(ar.states.assigneeBranch)).toBeInTheDocument();
     // And the confirm button is blocked while the stale selection stands.
     expect(screen.getByRole("button", { name: ar.common.saveChanges })).toBeDisabled();

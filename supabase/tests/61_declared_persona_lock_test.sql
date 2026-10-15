@@ -72,8 +72,8 @@ select throws_ok(
 select throws_ok(
   $$ select public.individual_save_professional(
        'interior_designer'::public.persona_type, 'Designer now', 1::smallint, null, 'changed bio') $$,
-  '42501', 'the account type cannot be changed here',
-  'switching to the retired interior_designer persona is refused');
+  '22P02', null,
+  'the retired interior_designer persona no longer exists as a value');
 reset role;
 select is((select prof_concrete_type::text from public.individual_onboarding where user_id = '61000000-0000-4000-8000-000000000001'),
   'installer_technician', 'the declared persona is unchanged after every refused switch');

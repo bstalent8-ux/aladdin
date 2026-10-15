@@ -123,17 +123,42 @@ export async function waitForCaptchaToken(page: Page): Promise<void> {
  * (localized) label. Coming Soon options are disabled and cannot be picked.
  */
 export async function selectAccountType(page: Page, label: RegExp = /craftsmen|الصنايعية/i): Promise<void> {
-  const select = page.locator('select[name="accountType"]');
-  const value = await select.locator("option").evaluateAll(
-    (options, source) => {
-      const re = new RegExp(source.pattern, source.flags);
-      const match = (options as HTMLOptionElement[]).find((o) => !o.disabled && o.value && re.test(o.textContent ?? ""));
-      return match?.value ?? null;
-    },
-    { pattern: label.source, flags: label.flags },
+  // The sign-up control is the design-system listbox (role=combobox); older builds used a native <select>.
+  const native = page.locator('select[name="accountType"]');
+  if (await native.count()) {
+    const value = await native.locator("option").evaluateAll(
+      (options, source) => {
+        const re = new RegExp(source.pattern, source.flags);
+        const match = (options as HTMLOptionElement[]).find((o) => !o.disabled && o.value && re.test(o.textContent ?? ""));
+        return match?.value ?? null;
+      },
+      { pattern: label.source, flags: label.flags },
+    );
+    if (!value) throw new Error(`No selectable account type matches ${label}`);
+    await native.selectOption(value);
+    return;
+  }
+  await page.getByRole("combobox", { name: /how will you use aladdin|كيف ستستخدم/i }).click();
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+  const all = await options.evaluateAll((els) =>
+    els.map((el) => ({ text: (el.textContent ?? "").trim(), disabled: el.getAttribute("aria-disabled") === "true" || el.hasAttribute("data-disabled") })),
   );
-  if (!value) throw new Error(`No selectable account type matches ${label}`);
-  await select.selectOption(value);
+  const index = all.findIndex((o) => !o.disabled && label.test(o.text));
+  if (index < 0) throw new Error(`No selectable account type matches ${label}`);
+  await options.nth(index).click();
+}
+
+/** Every account type offered by the sign-up control, with its Coming Soon (disabled) state. Leaves the list closed. */
+export async function accountTypeOptions(page: Page): Promise<Array<{ text: string; disabled: boolean }>> {
+  await page.getByRole("combobox", { name: /how will you use aladdin|كيف ستستخدم/i }).click();
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+  const all = await options.evaluateAll((els) =>
+    els.map((el) => ({ text: (el.textContent ?? "").trim(), disabled: el.getAttribute("aria-disabled") === "true" || el.hasAttribute("data-disabled") })),
+  );
+  await page.keyboard.press("Escape");
+  return all;
 }
 
 /**

@@ -48,6 +48,7 @@ create temp table _p as select id as pid, version as pv from public.products whe
 grant select on _p to authenticated, service_role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select public.product_audiences_set((select pid from _p), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select public.set_product_published((select pid from _p), true, (select pv from _p));
 
 -- ===========================================================================
@@ -470,7 +471,7 @@ select public.add_rfq_item((select rid from _r6), (select pid from _p), 2);
 -- A stale expected_version aborts the whole transition.
 select throws_ok(
   $$ select public.submit_rfq((select rid from _r6), 999) $$,
-  '40001', null, 'a concurrent-modification guard still aborts submit_rfq');
+  'VC001', null, 'a concurrent-modification guard still aborts submit_rfq');
 
 reset role;
 set local request.jwt.claims = '';
@@ -487,24 +488,38 @@ select is(
 -- The actor is a PLATFORM reviewer, never a member of the org under review, so
 -- the notice addresses the organization being verified via org.manage.
 -- ===========================================================================
+-- One OPEN organization application per organization (uq_verifications_open_per_org), so the
+-- three decisions are applied to three applications in sequence, not three at once.
 insert into public.verifications
   (id, subject_type, organization_id, verification_type, status, reviewer_id)
 values
   ('99999999-0000-4000-8000-00000000000a', 'organization',
    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
-   '55555555-5555-4555-8555-555555555555'),
-  ('99999999-0000-4000-8000-00000000000b', 'organization',
-   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
-   '55555555-5555-4555-8555-555555555555'),
-  ('99999999-0000-4000-8000-00000000000c', 'organization',
-   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
    '55555555-5555-4555-8555-555555555555');
-
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_approve('99999999-0000-4000-8000-00000000000a', false);
+reset role;
+insert into public.verifications
+  (id, subject_type, organization_id, verification_type, status, reviewer_id)
+values
+  ('99999999-0000-4000-8000-00000000000b', 'organization',
+   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
+   '55555555-5555-4555-8555-555555555555');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_reject('99999999-0000-4000-8000-00000000000b', 'Trade licence is illegible.');
+reset role;
+insert into public.verifications
+  (id, subject_type, organization_id, verification_type, status, reviewer_id)
+values
+  ('99999999-0000-4000-8000-00000000000c', 'organization',
+   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'organization', 'under_review',
+   '55555555-5555-4555-8555-555555555555');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555","role":"authenticated"}';
 select public.review_request_changes('99999999-0000-4000-8000-00000000000c', 'Please re-upload page 2.');
+reset role;
 reset role;
 set local request.jwt.claims = '';
 
