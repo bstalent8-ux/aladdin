@@ -58,8 +58,8 @@ select is(
   (select array_agg(key order by sort_order) from public.marketplace_product_types where is_active),
   array['wallpaper', 'wood_alternative', 'marble_alternative', 'sheeboard', 'cornice', 'corner_trim',
          'wall_panel', 'skirting', 'interior_door', 'armored_door', 'vinyl_flooring', 'spc_flooring',
-         'curtain', 'poster', 'paint'],
-  'B2. exactly the fifteen approved product types, in the approved order');
+         'hdf_flooring', 'curtain', 'poster', 'paint'],
+  'B2. exactly the sixteen approved product types, in the approved order (HDF from Migration 11)');
 select is(
   (select c.key from public.marketplace_product_types t join public.marketplace_categories c on c.id = t.category_id
    where t.key = 'cornice'),
@@ -136,8 +136,8 @@ insert into public.marketplace_attribute_definitions (key, name_ar, name_en, dat
 set local role anon;
 select is((select count(*)::int from public.marketplace_categories), 7,
   'C1. anon reads the seven ACTIVE categories and not the retired fixture');
-select is((select count(*)::int from public.marketplace_product_types), 15,
-  'C2. anon reads the fifteen types; a type under an inactive category is withheld');
+select is((select count(*)::int from public.marketplace_product_types), 16,
+  'C2. anon reads the sixteen types; a type under an inactive category is withheld');
 select is((select count(*)::int from public.marketplace_attribute_definitions where key = 'retired_field_fixture'), 0,
   'C3. anon does not see an inactive field definition');
 select ok((select count(*)::int from public.marketplace_product_type_attributes) > 0,
@@ -167,8 +167,8 @@ select throws_ok($$ update public.marketplace_attribute_definitions set is_activ
 select throws_ok($$ insert into public.marketplace_product_type_attributes (product_type_id, attribute_id, level)
                     select t.id, d.id, 'product' from public.marketplace_product_types t, public.marketplace_attribute_definitions d limit 1 $$,
   '42501', null, 'D6. an ordinary signed-in user cannot map a field to a type');
-select is((select count(*)::int from public.marketplace_product_types), 15,
-  'D7. a signed-in non-staff user sees the same fifteen active types');
+select is((select count(*)::int from public.marketplace_product_types), 16,
+  'D7. a signed-in non-staff user sees the same sixteen active types');
 reset role;
 
 select is(

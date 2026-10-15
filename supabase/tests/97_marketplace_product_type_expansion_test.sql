@@ -33,25 +33,25 @@ select is(
   (select array_agg(key order by sort_order) from public.marketplace_product_types where is_active),
   array['wallpaper', 'wood_alternative', 'marble_alternative', 'sheeboard', 'cornice', 'corner_trim',
         'wall_panel', 'skirting', 'interior_door', 'armored_door', 'vinyl_flooring', 'spc_flooring',
-        'curtain', 'poster', 'paint'],
-  'A1. the fifteen approved product types, in the approved order');
+        'hdf_flooring', 'curtain', 'poster', 'paint'],
+  'A1. the approved product types, in the approved order (HDF added by Migration 11)');
 select is(
   (select array_agg(name_ar order by sort_order) from public.marketplace_product_types where is_active),
   array['ورق حائط', 'بديل خشب', 'بديل رخام', 'شيبورد', 'كرانيش', 'زوايا', 'بانوهات', 'وزرة',
-        'أبواب داخلية', 'أبواب مصفحة', 'أرضيات فينيل', 'أرضيات SPC', 'ستائر', 'بوسترات', 'دهانات'],
+        'أبواب داخلية', 'أبواب مصفحة', 'أرضيات فينيل', 'أرضيات SPC', 'أرضيات HDF', 'ستائر', 'بوسترات', 'دهانات'],
   'A2. ...with their Arabic names');
 select is(
   (select array_agg(c.key || ':' || t.key order by t.sort_order) from public.marketplace_product_types t
    join public.marketplace_categories c on c.id = t.category_id where t.sort_order >= 70),
   array['wall_coverings_panels:wall_panel', 'cornices_mouldings:skirting', 'doors:interior_door', 'doors:armored_door',
-        'flooring:vinyl_flooring', 'flooring:spc_flooring', 'window_treatments:curtain',
+        'flooring:vinyl_flooring', 'flooring:spc_flooring', 'flooring:hdf_flooring', 'window_treatments:curtain',
         'wall_coverings_panels:poster', 'paints_coatings:paint'],
   'A3. each new type sits under the right category');
 select is((select count(*)::int from public.marketplace_categories where key in ('doors', 'flooring', 'window_treatments', 'paints_coatings') and is_active), 4,
   'A4. the four new categories are active');
 select is((select count(*)::int from public.marketplace_product_types where is_active and (char_length(btrim(name_en)) = 0 or char_length(btrim(name_ar)) = 0)), 0,
   'A5. every type has both names');
-select is((select count(*)::int from public.marketplace_product_types), 15, 'A6. no extra / duplicate type rows');
+select is((select count(*)::int from public.marketplace_product_types), 16, 'A6. no extra / duplicate type rows (15 + HDF from Migration 11)');
 
 -- ===========================================================================
 -- B. Schema sanity for the nine new types
@@ -99,7 +99,7 @@ select is((select count(*)::int from public.marketplace_attribute_options o
 -- C. Security unchanged
 -- ===========================================================================
 set local role anon;
-select is((select count(*)::int from public.marketplace_product_types), 15, 'C1. anon reads all fifteen types');
+select is((select count(*)::int from public.marketplace_product_types), 16, 'C1. anon reads all sixteen types (HDF added by Migration 11)');
 select is((select count(*)::int from public.marketplace_categories), 7, 'C2. ...and the seven categories');
 select ok((select count(*)::int from public.marketplace_product_type_attributes a
            join public.marketplace_product_types t on t.id = a.product_type_id where t.key = 'paint') > 0,
