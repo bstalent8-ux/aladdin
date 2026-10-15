@@ -41,8 +41,8 @@ jobs:
         run: node scripts/showroom-acceptance-ci.mjs configure
       - name: Start isolated Supabase and replay complete history
         run: |
-          pnpm exec supabase start --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor
-          pnpm exec supabase db reset
+          pnpm exec supabase start --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/showroom-stack.log" 2>&1
+          pnpm exec supabase db reset >> "$RUNNER_TEMP/showroom-stack.log" 2>&1
           pnpm exec supabase status -o json > "$RUNNER_TEMP/showroom-status.json"
           node scripts/showroom-acceptance-ci.mjs verify
       - name: Build exact candidate application

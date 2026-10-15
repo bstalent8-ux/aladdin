@@ -13,6 +13,9 @@ const local = z.object({ NEXT_PUBLIC_SUPABASE_URL: z.literal("http://127.0.0.1:6
 const admin = createClient(local.NEXT_PUBLIC_SUPABASE_URL, local.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const password = "green-tiles-on-roof";
 const createdUsers: string[] = [];
+// Real admin guards must stay enabled. Keep synthetic reviewer role records
+// until this disposable stack is destroyed; revoke their Auth access instead.
+const reviewerFixtures = new Set<string>();
 const screenshotDir = resolve(process.env.SHOWROOM_ACCEPTANCE_SCREENSHOT_DIR ?? "../docs/frontend/screenshots/showroom-auth");
 const acceptanceContainer = process.env.GITHUB_ACTIONS === "true"
     ? "supabase_db_aladdin_pr84_ci" : "supabase_db_aladdin_pr84_acceptance";
@@ -53,6 +56,10 @@ test.beforeEach(async ({ page }) => {
     await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js*", route => route.fulfill({ contentType: "application/javascript", body: 'window.turnstile={render:function(el,options){setTimeout(function(){options.callback("XXXX.DUMMY.TOKEN.XXXX")},0);return "local-test"},remove:function(){}};' }));
 });
 test.afterAll(async () => { for (const id of createdUsers) {
+    if (reviewerFixtures.has(id)) {
+      expect((await admin.auth.admin.updateUserById(id, { ban_duration: "876000h" })).error).toBeNull();
+      continue;
+    }
     const removed = await admin.auth.admin.deleteUser(id);
     if (removed.error) {
       // Business/audit history may retain creator references. Quarantine ONLY
@@ -182,10 +189,19 @@ test("real per-account throttle stops repeated credential attempts", async ({ pa
         await page.locator('#password').fill("wrong-password");
         const completed = page.waitForResponse(response => response.url().endsWith("/showroom/sign-in") && response.request().method() === "POST");
         await page.getByRole("button", { name: "تسجيل الدخول", exact: false }).click();
-        await (await completed).finished();
+        // RSC can keep a response stream open after the action result is applied.
+        // Assert the HTTP response, settled form and cleared password instead.
+        expect([200, 429]).toContain((await completed).status());
         await expect(page.locator('form[aria-busy="false"]')).toBeVisible();
+        await expect(page.locator('#password')).toHaveValue("");
+        await expect(page.getByText(i < 10
+            ? "رقم الهاتف أو كلمة المرور غير صحيحة. تحقق منهما وحاول مجددًا."
+            : "محاولات كثيرة جدًا. انتظر لحظة وحاول مجددًا.")).toBeVisible();
     }
     await expect(page.getByText("محاولات كثيرة جدًا. انتظر لحظة وحاول مجددًا.")).toBeVisible();
+    const { execFileSync } = await import("node:child_process");
+    const attempts = execFileSync("docker", ["exec", acceptanceContainer, "psql", "-U", "postgres", "-d", "postgres", "-tA", "-c", "select max(attempts) from app.phone_auth_attempts where action='sign-in' and subject='phone'"], { encoding: "utf8", timeout: 30000 }).trim();
+    expect(attempts).toBe("11");
 });
 test("transport cap rejects direct oversized requests", async ({ request }) => {
     const oversized = await request.post("/showroom/sign-in", { data: "x".repeat(70000), headers: { "content-type": "application/x-www-form-urlencoded" } });
@@ -296,7 +312,7 @@ test("complete showroom journey: optional address, admin activation and seller a
  const product=await caller.rpc("create_product",{p_org_id:orgId,p_name:"Local product draft",p_category:"finishing",p_unit:"piece"});expect(product.error).toBeNull();const productId=z.string().uuid().parse(product.data);
  expect((await caller.rpc("set_product_published",{p_product_id:productId,p_published:true,p_expected_version:1})).error?.code).toBe("42501");
  const adminEmail="reviewer-"+randomUUID()+"@example.test";
- const reviewerUser=await admin.auth.admin.createUser({email:adminEmail,password,email_confirm:true});expect(reviewerUser.error).toBeNull();const reviewerId=z.string().uuid().parse(reviewerUser.data.user?.id);createdUsers.push(reviewerId);
+ const reviewerUser=await admin.auth.admin.createUser({email:adminEmail,password,email_confirm:true});expect(reviewerUser.error).toBeNull();const reviewerId=z.string().uuid().parse(reviewerUser.data.user?.id);createdUsers.push(reviewerId);reviewerFixtures.add(reviewerId);
  sql("update public.users set status='active' where id='"+reviewerId+"'; insert into public.admin_role_assignments(user_id,role_id) select '"+reviewerId+"',id from public.admin_roles where key='super_admin';");
  const reviewer=createClient(local.NEXT_PUBLIC_SUPABASE_URL,local.NEXT_PUBLIC_SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});expect((await reviewer.auth.signInWithPassword({email:adminEmail,password})).error).toBeNull();
  const verificationId=randomUUID();sql("insert into public.verifications(id,subject_type,organization_id,verification_type,status,submitted_at) values('"+verificationId+"','organization','"+orgId+"','organization','submitted',now());");
@@ -311,6 +327,6 @@ test("complete showroom journey: optional address, admin activation and seller a
  expect((await caller.rpc("set_product_published",{p_product_id:productId,p_published:true,p_expected_version:1})).error).toBeNull();
  expect((await admin.from("organizations").select("status,is_verified").eq("id",orgId).single()).data).toEqual({status:"active",is_verified:true});
  expect((await admin.from("profiles").select("phone_e164").eq("user_id",uid).single()).data?.phone_e164).toBe(phone);
- await reviewer.auth.signOut();sql("delete from public.admin_role_assignments where user_id='"+reviewerId+"';");
+ await reviewer.auth.signOut();
  await page.screenshot({path:resolve(screenshotDir,"business-settings-"+info.project.name+".png"),fullPage:true});
 });

@@ -15,7 +15,9 @@ const configFile = 'supabase/config.toml';
 const requireOwnConfig = () => {
   if (!readFileSync(configFile, 'utf8').includes('project_id = "aladdin_pr84_ci"')) throw new Error('Refuse non-acceptance project');
 };
-const redact = text => text.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-jwt]');
+const redact = text => text.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-jwt]')
+  .replace(/sb_(secret|publishable)_[A-Za-z0-9_-]+/g, '[redacted-local-key]')
+  .replace(/postgres(?:ql)?:\/\/[^\s]+/g, '[redacted-local-db-url]');
 const phase = process.argv[2];
 if (phase === 'configure') {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -60,6 +62,8 @@ if (phase === 'configure') {
   writeFileSync(`${output}/migrations.json`, JSON.stringify({ recorded: versions.length, missing, feature, contracts, files: files.map(name => ({ name, sha256: createHash('sha256').update(readFileSync('supabase/migrations/' + name)).digest('hex') })) }, null, 2));
 } else if (phase === 'diagnostics') {
   requireOwnConfig();
+  const startup = resolve(process.env.RUNNER_TEMP, 'showroom-stack.log');
+  if (existsSync(startup)) writeFileSync(`${output}/stack.log`, redact(readFileSync(startup, 'utf8')));
   const inventory = spawnSync('docker', ['ps', '-a', '--format', '{{.Names}}'], { encoding: 'utf8', timeout: 10000 });
   for (const name of (inventory.stdout || '').split('\n').filter(name => /^supabase_[a-z_]+_aladdin_pr84_ci$/.test(name))) {
     const logs = spawnSync('docker', ['logs', '--tail', '150', name], { encoding: 'utf8', timeout: 10000 });
