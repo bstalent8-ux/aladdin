@@ -35,6 +35,7 @@ select set_config('request.jwt.claims','{"sub":"55555555-5555-4555-8555-55555555
 select lives_ok($$select public.review_approve('92a00001-0000-4000-8000-000000000092',false)$$,'C: authorized approval accepted after completion');
 select lives_ok($$select public.apply_organization_verification('92a00001-0000-4000-8000-000000000092')$$,'C: approved complete showroom activates');
 select set_config('request.jwt.claims','{"sub":"92000001-0000-4000-8000-000000000092","role":"authenticated"}',true);
+select lives_ok(format('select public.product_audiences_set(%L, array[''supplier''])',current_setting('test.product')),'C: audience chosen (Showroom publishing requires one)');
 select lives_ok(format('select public.set_product_published(%L,true,1)',current_setting('test.product')),'C: activated approved showroom publishes');
 select throws_ok(format('select public.branch_update_i18n(%L,null,null,%L,null,null)',(select primary_branch_id from public.memberships where organization_id=current_setting('test.org')::uuid),'   '),'22023',null,'active showroom cannot remove its address');
 reset role;
@@ -63,7 +64,7 @@ alter table public.orders enable trigger trg_zz_showroom_order_sell_complete;
 insert into app.showroom_legacy_orders(order_id,organization_id) values('92f00001-0000-4000-8000-000000000092','92b00001-0000-4000-8000-000000000092');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"92000002-0000-4000-8000-000000000092","role":"authenticated"}',true);
-select is((select count(*)::int from public.catalog_published_products where id='92c00001-0000-4000-8000-000000000092'),1,'legacy product remains visible to other accounts');
+select ok(app.showroom_listing_visible('92b00001-0000-4000-8000-000000000092','92c00001-0000-4000-8000-000000000092'),'legacy product remains visible to other accounts (the rule every catalog read path now enforces)');
 select throws_ok($$select public.branch_update_i18n('92b00002-0000-4000-8000-000000000092',null,null,'Cross tenant attack',null,null)$$,'22023',null,'cross-tenant address changes denied');
 select set_config('request.jwt.claims','{"sub":"92000003-0000-4000-8000-000000000092","role":"authenticated"}',true);
 select ok((public.my_profile_completion()->'missing') ? 'organization_address','affected legacy seller marked for profile completion');
@@ -77,6 +78,7 @@ select is((select status::text from public.rfqs where id='92d00003-0000-4000-800
 select lives_ok($$select public.decide_quotation('92e00003-0000-4000-8000-000000000092',false,1)$$,'requester may still reject an ineligible supplier quotation');
 select set_config('request.jwt.claims','{"sub":"92000003-0000-4000-8000-000000000092","role":"authenticated"}',true);
 select lives_ok($$select public.branch_update_i18n('92b00002-0000-4000-8000-000000000092',null,null,'10 Legacy Showroom Street',null,null)$$,'legacy owner remedies address via existing editor');
+select lives_ok(format('select public.product_audiences_set(%L, array[''supplier''])',current_setting('test.legacy_product')),'legacy: audience chosen (Showroom publishing requires one)');
 select lives_ok(format('select public.set_product_published(%L,true,1)',current_setting('test.legacy_product')),'legacy new publishing enabled after remediation');
 select throws_ok($$select public.branch_update_i18n('92b00002-0000-4000-8000-000000000092',null,null,' ',null,null)$$,'22023',null,'closed legacy exception cannot be reopened by clearing address');
 reset role;
