@@ -4,18 +4,24 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-const localEnv = Object.fromEntries(readFileSync(resolve(".env.local"), "utf8").split(/\r?\n/).filter(line => line.includes("=")).map(line => { const at = line.indexOf("="); return [line.slice(0, at), line.slice(at + 1)]; }));
-if (localEnv.NEXT_PUBLIC_SUPABASE_URL !== "http://127.0.0.1:63321")
-    throw Error("Showroom E2E requires its dedicated local stack on 63321");
-const local = z.object({ NEXT_PUBLIC_SUPABASE_URL: z.literal("http://127.0.0.1:63321"), SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1) }).parse(localEnv);
+const acceptanceEnvFile = process.env.SHOWROOM_ACCEPTANCE_ENV_FILE;
+if (!acceptanceEnvFile) throw Error("Provide the approved isolated acceptance environment file; shared .env.local is never used");
+const localEnv = Object.fromEntries(readFileSync(acceptanceEnvFile, "utf8").split(/\r?\n/).filter(line => line.includes("=")).map(line => { const at = line.indexOf("="); return [line.slice(0, at), line.slice(at + 1)]; }));
+if (localEnv.NEXT_PUBLIC_SUPABASE_URL !== "http://127.0.0.1:65521")
+    throw Error("Showroom E2E requires its dedicated local stack on 65521");
+const local = z.object({ NEXT_PUBLIC_SUPABASE_URL: z.literal("http://127.0.0.1:65521"), SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1) }).parse(localEnv);
 const admin = createClient(local.NEXT_PUBLIC_SUPABASE_URL, local.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const password = "green-tiles-on-roof";
 const createdUsers: string[] = [];
-const screenshotDir = resolve("../docs/frontend/screenshots/showroom-auth");
+const screenshotDir = resolve(process.env.SHOWROOM_ACCEPTANCE_SCREENSHOT_DIR ?? "../docs/frontend/screenshots/showroom-auth");
+const acceptanceContainer = process.env.GITHUB_ACTIONS === "true"
+    ? "supabase_db_aladdin_pr84_ci" : "supabase_db_aladdin_pr84_acceptance";
+if (process.env.SHOWROOM_ACCEPTANCE_CONTAINER && process.env.SHOWROOM_ACCEPTANCE_CONTAINER !== acceptanceContainer)
+    throw Error("Refuse an unapproved acceptance database container");
 mkdirSync(screenshotDir, { recursive: true });
 async function clearLocalBuckets() {
     const { execFileSync } = await import("node:child_process");
-    execFileSync("docker", ["exec", "supabase_db_aladdin_showroom_auth", "psql", "-U", "postgres", "-d", "postgres", "-c", "delete from app.phone_auth_attempts"], { stdio: "pipe" });
+    execFileSync("docker", ["exec", acceptanceContainer, "psql", "-U", "postgres", "-d", "postgres", "-c", "delete from app.phone_auth_attempts"], { stdio: "pipe", timeout: 30000 });
 }
 async function createPhoneAccount(kind: "showroom" | "installer", phone: string) {
     const email = "p" + phone.replace("+", "") + "@craftsman-login.aladdin.invalid";
@@ -55,7 +61,7 @@ test.afterAll(async () => { for (const id of createdUsers) {
       expect(banned.error).toBeNull();
       const {execFileSync}=await import("node:child_process");
       const fixtureId=z.string().uuid().parse(id);
-      execFileSync("docker",["exec","supabase_db_aladdin_showroom_auth","psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c","update public.users set status='deactivated' where id='"+fixtureId+"'; update public.organizations set status='archived',deleted_at=now() where created_by='"+fixtureId+"';"],{stdio:"pipe"});
+      execFileSync("docker",["exec",acceptanceContainer,"psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c","update public.users set status='deactivated' where id='"+fixtureId+"'; update public.organizations set status='archived',deleted_at=now() where created_by='"+fixtureId+"';"],{stdio:"pipe",timeout:30000});
     }
 } });
 test("desktop/mobile layout, accessible controls and source assets", async ({ page }, info) => {
@@ -152,7 +158,7 @@ test("real registration creates only intent and an unverified phone", async ({ p
     void info;
 });
 test("generic invalid login, route guards and cross-account denial", async ({ page }, info) => {
-    const phone = info.project.name === "desktop" ? "+201093817701" : "+201093817702";
+    const phone = "+20106" + String(Date.now()).slice(-7);
     await createPhoneAccount("installer", phone);
     await page.goto("/showroom/sign-in");
     await page.locator('input[name="phone"]').fill("0" + phone.slice(3));
@@ -202,7 +208,7 @@ test("real Installer signup remains compatible", async ({ page }) => {
 
 test("real registration failure rolls back audited identity and can be retried", async ({page}) => {
   const {execFileSync} = await import("node:child_process");
-  const sql = (statement:string) => execFileSync("docker", ["exec","supabase_db_aladdin_showroom_auth","psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c",statement],{stdio:"pipe"});
+  const sql = (statement:string) => execFileSync("docker", ["exec",acceptanceContainer,"psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c",statement],{stdio:"pipe",timeout:30000});
   const phone = "+20107" + String(Date.now()).slice(-7);
   const alias = "p"+phone.slice(1)+"@craftsman-login.aladdin.invalid";
   sql("create or replace function app.showroom_test_phone_failure() returns trigger language plpgsql as $$ begin raise exception 'isolated test failure' using errcode='22023'; end; $$; create trigger showroom_test_phone_failure before update of phone_e164 on public.profiles for each row when (new.phone_e164='"+phone+"') execute function app.showroom_test_phone_failure();");
@@ -228,7 +234,7 @@ test("real registration failure rolls back audited identity and can be retried",
 });
 
 test("dark theme and keyboard controls retain the same functionality", async ({page,context}) => {
-  await context.addCookies([{name:"aladdin-theme",value:"dark",url:"http://127.0.0.1:3340"}]);
+  await context.addCookies([{name:"aladdin-theme",value:"dark",url:"http://127.0.0.1:3342"}]);
   await page.goto("/showroom/sign-in");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.keyboard.press("Tab"); await expect(page.locator('button[aria-haspopup="listbox"]')).toBeFocused();
@@ -247,7 +253,7 @@ test("local provider enforces the 72 UTF-8 byte contract and stores bcrypt", asy
  expect(created.error).toBeNull();createdUsers.push(created.data.user!.id);
  const caller=createClient(local.NEXT_PUBLIC_SUPABASE_URL,local.NEXT_PUBLIC_SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
  expect((await caller.auth.signInWithPassword({email:created.data.user!.email!,password:value})).error).toBeNull();
- const algorithm=execFileSync("docker",["exec","supabase_db_aladdin_showroom_auth","psql","-U","postgres","-d","postgres","-tA","-c","select case when left(encrypted_password,2)='$2' then 'bcrypt' else 'other' end from auth.users where id='"+created.data.user!.id+"'"],{encoding:"utf8"}).trim();
+ const algorithm=execFileSync("docker",["exec",acceptanceContainer,"psql","-U","postgres","-d","postgres","-tA","-c","select case when left(encrypted_password,2)='$2' then 'bcrypt' else 'other' end from auth.users where id='"+created.data.user!.id+"'"],{encoding:"utf8",timeout:30000}).trim();
  expect(algorithm).toBe("bcrypt"); await caller.auth.signOut();
 });
 
@@ -256,7 +262,7 @@ test("complete showroom journey: optional address, admin activation and seller a
  test.setTimeout(120000);
  const {execFileSync}=await import("node:child_process");
  const {randomUUID}=await import("node:crypto");
- const sql=(statement:string)=>execFileSync("docker",["exec","supabase_db_aladdin_showroom_auth","psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c",statement],{stdio:"pipe"});
+ const sql=(statement:string)=>execFileSync("docker",["exec",acceptanceContainer,"psql","-U","postgres","-d","postgres","-v","ON_ERROR_STOP=1","-c",statement],{stdio:"pipe",timeout:30000});
  const national="0108"+String(Date.now()).slice(-7), phone="+20"+national.slice(1);
  await page.goto("/showroom/sign-up");
  await page.locator('#name').fill("Local Business Journey");
@@ -265,8 +271,21 @@ test("complete showroom journey: optional address, admin activation and seller a
  await page.locator('input[type="checkbox"]').check();await expect(page.locator('input[name="captchaToken"]')).not.toHaveValue("");
  await page.getByRole("button",{name:"إنشاء حساب",exact:false}).click();await expect(page).toHaveURL(/\/onboarding\/business/);
  const profile=await admin.from("profiles").select("user_id").eq("phone_e164",phone).single();expect(profile.error).toBeNull();const uid=z.string().uuid().parse(profile.data!.user_id);createdUsers.push(uid);
- await page.locator('#bname').fill("معرض الاختبار المحلي");await page.locator('#blegal').fill("شركة الاختبار المحلية");await page.locator('#bactivity').selectOption("paint_showroom");await page.locator('#bphone').fill("01012345678");await page.locator('#bemail').fill(" Contact@Example.test ");
- await page.getByRole("button",{name:"متابعة",exact:true}).click();await expect(page.locator('#bgov')).toBeVisible();await page.reload();await page.locator('#bgov').selectOption("cairo");await page.locator('#bcity').selectOption("maadi");await expect(page.locator('#baddress')).toHaveValue("");
+ await page.locator('#bname').fill("معرض الاختبار المحلي");await page.locator('#blegal').fill("شركة الاختبار المحلية");
+ await expect(page.getByRole("button",{name:"متابعة",exact:true})).toBeDisabled();
+ await page.locator('#bactivity').selectOption("paint_showroom");
+ await expect(page.getByRole("button",{name:"متابعة",exact:true})).toBeDisabled();
+ await page.locator('#bphone').fill("01012345678");await page.locator('#bemail').fill(" Contact@Example.test ");
+ await page.getByRole("button",{name:"متابعة",exact:true}).click();await expect(page.locator('#bgov')).toBeVisible();await page.reload();
+ await page.getByRole("button",{name:"رجوع",exact:true}).click();
+ await expect(page.locator('#bname')).toHaveValue("معرض الاختبار المحلي");
+ await expect(page.locator('#bactivity')).toHaveValue("paint_showroom");
+ await page.locator('#bname').fill("معرض الاختبار المعدل");
+ await page.getByRole("button",{name:"متابعة",exact:true}).click();
+ await expect(page.getByRole("button",{name:"متابعة",exact:true})).toBeDisabled();
+ await page.locator('#bgov').selectOption("cairo");
+ await expect(page.getByRole("button",{name:"متابعة",exact:true})).toBeDisabled();
+ await page.locator('#bcity').selectOption("maadi");await expect(page.locator('#baddress')).toHaveValue("");
  await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"إنشاء النشاط التجاري",exact:true}).click();await expect(page).toHaveURL(/\/b2b$/);
  const owned=await admin.from("organizations").select("id,status,is_verified,contact_phone,contact_email").eq("created_by",uid).single();expect(owned.error).toBeNull();const orgId=z.string().uuid().parse(owned.data!.id);expect(owned.data).toMatchObject({status:"pending_verification",is_verified:false,contact_phone:"+201012345678",contact_email:"contact@example.test"});
  const branch=await admin.from("branches").select("id,address_ar,governorate_key,city_key").eq("organization_id",orgId).single();expect(branch.data).toMatchObject({address_ar:null,governorate_key:"cairo",city_key:"maadi"});

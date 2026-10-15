@@ -1,4 +1,26 @@
+## 2026-10-15 — PR84 isolated CI functional acceptance fallback
+
+Read-only local diagnostics: Docker version/ps and API65521 timeout; frontend3342HTTP200. Host CPU100%, free RAM~3.3GiB/31.9GiB, disk D free~444GiB. Backend log tail contains repeated context-deadline failures; exact VM root cause unconfirmed. No Docker/global/shared restart, resets or volume deletion. Prior4failed browser cases remain unclassified pending reliable CI reproduction; do not claim functional acceptance.
+
+Added PR84-only GitHub Actions job checking out exact PR head, pinned CLI temporary stack/aladdin_pr84_ci/API65521, complete migration reset only ephemeral runner, six versions/old+v2 contracts, synthetic desktop/mobile journeys, sanitized logs/screenshots and own-stack cleanup. No uncommitted CAPTCHA files enter checkout. Harness now chooses approved local/CI container, bounded Docker calls, fresh fixture phones, correct3342theme cookie; expanded journey requires activity/phone/location and saved-identity edit. No tests skipped or product checks weakened. Native hosted CAPTCHA/settings unchanged. Existing workflows untouched. Production/staging gate still blocked until functional CI passes and database identities/isolation/coordination are confirmed.
+## 2026-10-14 — PR84 functional release priority and approved isolated acceptance
+
+Owner approved Compose aladdin_pr84_acceptance (fresh keys, independent internal/ingress networks and database/storage volumes), API65521/app3342 in the existing worktree. Replayed110migrations/three synthetic seeds; all6feature versions recorded, old9argument RPC plus v2=13 coexist. Focused DB90–94:167/167pass. Task-owned spec lint and frontend TypeScript pass. App source/config unchanged from4e5bfdbd; external7 and original14 hashes preserved.
+
+Acceptance remains blocked: initial gateway port issue corrected on only the own API; intermediate7desktop cases passed including real registration/login, app throttle and Installer signup. Final launcher corrected Tailwind cwd/fresh independent cache. Final functional attempt3pass/4fail/17not completed when local API stalled and Docker version/inspect/exec timed out; own E2E stopped, no Docker/shared restart. No current-head full journey acceptance claimed. Independent read-only screenshots/checks recorded separately. Own3342 kept running; resource cleanup requires approval. No staging/production deployment, hosted setting/schema mutation, merge or worktree removal. PR84stillDraft/current CI green. Conditional beta/public gates and production prerequisites in docs/security/showroom-functional-release-readiness.md; production Supabase ref remains unconfirmed. Native CAPTCHA coordination and aggregate-account protection remain unresolved.
 # Agent Work Log
+
+## 2026-10-14 — PR84 final local read-only acceptance and Free decision proposal
+
+Scope: current head4e5bfdbd remains Draft; owner required proof of exclusive runtime ownership before mutation tests and explicit approval before another local stack. No migration, reset, restart, service termination, hosted configuration change, merge/deploy, commit or push in this review. Seven external CAPTCHA paths remain hash-identical and unstaged.
+
+Read-only evidence: preview3341/Auth63321/PostgREST63321 HTTP200; six showroom containers healthy/responding, projectaladdin_showroom_auth with this worktree label and own DBvolume. Ledger records onlysecurity085731of6; originalsave13args and no save_v2/submit_v2. Current application invokesv2. PriorcleanDBhasv2butnohistoryledger/sharescontainer. Dedicatedports do not prove ownership; activeClaudeprocesses and captcha_app_iso stack64331/64332underClaude185fc8db...found. No request was sent to an unidentified session.
+
+Executed read-only browser checks: desktop/mobile sign-in/up4passed/0failed, no overflow/pageerrors, correctlogo/password fields. All non-GETrequests blocked, no fixtures/bucket deletion/form submissions. Screenshots/results D:/projects/pr84-current-head-ui/. Full functional browser journeys not executed. GitHub finalheadCI/RLS remaingreen, earlier3847DBtests twice/9058paritycases not recast as browser acceptance.
+
+VercelMCP403; authorizedCLI proved livecustomdomain maps to Vercelprojectaladdin-staging/productiontarget. ProductionSupabaseURLvalue not returned; publicauthbundlesnoURL, so productionref/config/impact stillunconfirmed. AccessibleSupabase staging/R2acceptance not relabeledproduction. FreshstagingSELECTs:0featureversions,2address-missingactiveverifiedshowrooms/6publishedproducts/3orders/0verificationrows. No PII or secrets printed.
+
+Deliverable: [Free rollout and isolation proposal](../security/showroom-auth-free-rollout-proposal.md), Proposedonly. Clarifies native/token150per5min/IPincludespassword/refresh vs otherrequestbucket30; appbudgets15minsignin10phone30IP/signup5phone10IP; single-verifier/separatetokens; safealert/log/costgates; explicitlackaggregatecrossIPguarantee. ProposednewComposealaddin_pr84_acceptance, loopback65521/65522/65524/app3342, ownvolumes/network/currentworktree andindependentNextoutputs, no creation untilapproval. Stopforownerdecision and CAPTCHAhand-off/productionreference; strictselfhostGoTrueingressproof remainsunimplemented.
 
 # 2026-10-14 — PR #84 independent blocker fixes under concurrent CAPTCHA work
 
