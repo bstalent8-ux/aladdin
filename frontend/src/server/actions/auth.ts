@@ -9,6 +9,7 @@ import { sanitizeNext } from "@/server/auth/next";
 import { resolveActiveLanding } from "@/server/queries/landing";
 import { hasAppAccess, type RegistrationState } from "@/server/queries/registration";
 import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
+import { captchaTokenFrom, isCaptchaFailure } from "@/server/auth/captcha";
 
 /**
  * Passwordless Email-OTP account access (Supabase Auth). Two steps: request a
@@ -83,12 +84,20 @@ export async function requestEmailOtp(_prev: AuthState, formData: FormData): Pro
   const parsed = emailSchema.safeParse(formData.get("email"));
   if (!parsed.success) return { ok: false, code: "auth.error.invalidEmail" };
 
+  // GoTrue protects every OTP send with CAPTCHA when `[auth.captcha]` is on:
+  // the token is forwarded for GoTrue to judge (never also verified here).
+  const captchaToken = captchaTokenFrom(formData);
+  if (!captchaToken) return { ok: false, code: "auth.error.captchaRequired", email: parsed.data };
+
   const supabase = await getServerSupabase();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
-    options: { shouldCreateUser: false },
+    options: { shouldCreateUser: false, captchaToken },
   });
   if (error) {
+    if (isCaptchaFailure(error as { code?: string; message?: string })) {
+      return { ok: false, code: "auth.error.captchaRejected", email: parsed.data };
+    }
     // Unknown identity → indistinguishable "code sent" response (no enumeration,
     // no implicit sign-up). Only genuine transient failures surface an error.
     if (isUnknownIdentityError(error as { code?: string; message?: string })) {
@@ -153,12 +162,18 @@ export async function requestSignUpOtp(_prev: AuthState, formData: FormData): Pr
   const consented = CONSENT_TYPES.every((t) => formData.get(`consent_${t}`) === "on");
   if (!consented) return { ok: false, code: "auth.error.consentRequired", email: parsed.data };
 
+  const captchaToken = captchaTokenFrom(formData);
+  if (!captchaToken) return { ok: false, code: "auth.error.captchaRequired", email: parsed.data };
+
   const supabase = await getServerSupabase();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
-    options: { shouldCreateUser: true },
+    options: { shouldCreateUser: true, captchaToken },
   });
   if (error) {
+    if (isCaptchaFailure(error as { code?: string; message?: string })) {
+      return { ok: false, code: "auth.error.captchaRejected", email: parsed.data };
+    }
     if (isSendRateLimitError(error as { code?: string })) {
       return { ok: false, code: "auth.error.rateLimited", email: parsed.data };
     }
@@ -211,5 +226,7 @@ export async function signOut(): Promise<void> {
     data: { user },
   } = await supabase.auth.getUser();
   await supabase.auth.signOut();
-  redirect(isCraftsmanLoginAlias(user?.email) ? "/installer/sign-in" : "/auth/sign-in");
+  // Registration source selects an entry page only; it never grants authority.
+  const phoneEntry = user?.app_metadata?.registration_source === "temporary_showroom_password_flow" ? "/showroom/sign-in" : "/installer/sign-in";
+  redirect(isCraftsmanLoginAlias(user?.email) ? phoneEntry : "/auth/sign-in");
 }

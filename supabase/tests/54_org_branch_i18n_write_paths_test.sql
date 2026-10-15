@@ -161,7 +161,7 @@ select is(
 select lives_ok(
   format(
     'select public.branch_update_i18n(%L, %L, %L, %L, %L, %L)',
-    :'branchC', '  ', 'Nasr City Showroom', null, null, 'Africa/Cairo'
+    :'branchC', '  ', 'Nasr City Showroom', 'مدينة نصر', 'Nasr City, Cairo', 'Africa/Cairo'
   ),
   'whitespace-only branch name_ar is accepted'
 );
@@ -212,8 +212,8 @@ select throws_ok(
   '23514', null, 'a 121-char branch name_ar is rejected'
 );
 select throws_ok(
-  format('select public.branch_update_i18n(%L, %L, %L, %L, %L, %L)', :'branchC', null, null, repeat('a', 301), null, null),
-  '23514', null, 'a 301-char branch address_ar is rejected'
+  format('select public.branch_update_i18n(%L, %L, %L, %L, %L, %L)', :'branchC', null, null, repeat('word ', 251), null, null),
+  '23514', null, 'a 251-word branch address_ar is rejected'
 );
 select throws_ok(
   format('select public.branch_update_i18n(%L, %L, %L, %L, %L, %L)', :'branchC', null, null, null, null, 'Not/AZone'),

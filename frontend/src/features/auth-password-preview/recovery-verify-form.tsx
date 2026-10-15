@@ -12,6 +12,7 @@ import {
 import { RESEND_COOLDOWN_SECONDS } from "./constants";
 import { AuthCard } from "@/features/auth/auth-card";
 import { LabeledField, SubmitButton, ResendButton } from "@/components/ui/controls";
+import { TurnstileWidget } from "./turnstile-widget";
 import { OtpInput } from "@/components/ui/otp-input";
 import { maskEmail } from "@/lib/ui/mask-email";
 
@@ -77,6 +78,11 @@ export function RecoveryVerifyForm({ email }: { email: string }) {
         </form>
 
         <form action={dispatchResend} className="border-t pt-md">
+          {/* GoTrue protects every recovery send with CAPTCHA, resends included. */}
+          <TurnstileWidget name="captchaToken" action="recovery-resend" appearance="interaction-only" resetKey={resendState} />
+          {resendState.code && !resendState.ok ? (
+            <p role="alert" className="pb-sm text-label text-danger">{t(resendState.code)}</p>
+          ) : null}
           <ResendButton cooldown={cooldown} />
         </form>
       </div>

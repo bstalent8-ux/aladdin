@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState, useState, type FormEvent } from "react";
+import { TurnstileWidget } from "@/features/auth-password-preview/turnstile-widget";
 import { useI18n } from "@/lib/i18n/context";
 import { SubmitButton } from "@/components/ui/controls";
 import { craftsmanSignIn, type CraftsmanAuthState, type CraftsmanField } from "@/server/actions/installer-phone-auth";
 import { IconField, PasswordField } from "./fields";
 import { PhoneIcon } from "./icons";
+import { loginPasswordSchema } from "@/features/auth-password-preview/password-policy";
 import { parsePhone } from "./validation";
 
 const initial: CraftsmanAuthState = { ok: false };
@@ -40,6 +42,7 @@ export function CraftsmanSignInForm({ next }: { next: string }) {
     if (!phone.ok) next.phone = phone.code;
     const password = data.get("password");
     if (typeof password !== "string" || password.length === 0) next.password = "temporaryCraftsman.error.passwordRequired";
+    if (typeof password === "string" && password.length > 0 && !loginPasswordSchema.safeParse(password).success) next.password = "temporaryCraftsman.error.passwordTooLong";
     setClientErrors(next);
     if (Object.keys(next).length > 0) event.preventDefault();
   }
@@ -77,6 +80,15 @@ export function CraftsmanSignInForm({ next }: { next: string }) {
         required
         error={errors.password ? t(errors.password) : undefined}
       />
+
+      {/* GoTrue protects the password grant with CAPTCHA: interaction-only, so a
+          challenge appears only when Cloudflare requires one. */}
+      <TurnstileWidget name="captchaToken" action="phone-sign-in" appearance="interaction-only" resetKey={state} />
+      {errors.captcha ? (
+        <p role="alert" className="text-label text-danger">
+          {t(errors.captcha)}
+        </p>
+      ) : null}
 
       <SubmitButton
         className="mt-sm min-h-14 w-full rounded-lg bg-shell text-body-lg font-semibold text-shell-fg shadow-card hover:opacity-90 tablet:min-h-16 tablet:text-title dark:bg-brand-lapis"

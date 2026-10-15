@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
             aria-invalid={Boolean(state.code) || undefined}
           />
         </LabeledField>
-        <TurnstileWidget resetKey={state} />
+        <TurnstileWidget action="recovery-request" resetKey={state} />
         <SubmitButton className="w-full" pendingLabel={t("authPasswordPreview.forgotPassword.submitting")}>
           {t("authPasswordPreview.forgotPassword.submit")}
         </SubmitButton>

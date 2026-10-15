@@ -153,13 +153,21 @@ export async function createCraftsmanPasswordUser(params: {
   password: string;
   fullName: string;
 }): Promise<CraftsmanUserCreation> {
+  return createPhonePasswordUser(params, TEMPORARY_CRAFTSMAN_REGISTRATION_SOURCE);
+}
+
+export async function createShowroomPasswordUser(params: { loginAlias: string; password: string; fullName: string }): Promise<CraftsmanUserCreation> {
+  return createPhonePasswordUser(params, "temporary_showroom_password_flow");
+}
+
+async function createPhonePasswordUser(params: { loginAlias: string; password: string; fullName: string }, source: string): Promise<CraftsmanUserCreation> {
   const admin = getAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
     email: params.loginAlias,
     password: params.password,
     email_confirm: true,
     user_metadata: { full_name: params.fullName, locale: "ar" },
-    app_metadata: { registration_source: TEMPORARY_CRAFTSMAN_REGISTRATION_SOURCE },
+    app_metadata: { registration_source: source, [PASSWORD_SET_FLAG]: true },
   });
   if (error || !data.user) {
     const code = (error as { code?: string } | null)?.code;
@@ -178,7 +186,11 @@ export async function deleteCraftsmanPasswordUser(userId: string): Promise<boole
   const admin = getAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
-    console.error(`installer phone sign-up: rollback delete failed for user ${userId} (code ${(error as { code?: string }).code ?? "unknown"})`);
+    console.error(`phone password sign-up: rollback delete failed for user ${userId} (code ${(error as { code?: string }).code ?? "unknown"})`);
+    // Only THIS request's freshly created user reaches this compensator. If
+    // deletion is unavailable, quarantine it rather than permit a half-setup login.
+    const { error: quarantineError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
+    if (quarantineError) console.error(`phone password sign-up: quarantine failed (code ${(quarantineError as { code?: string }).code ?? "unknown"})`);
     return false;
   }
   return true;
@@ -208,4 +220,13 @@ export async function loadPublicMarketplaceImage(imageId: string): Promise<Publi
   const { data: blob, error: dlError } = await admin.storage.from(ref.storage_bucket).download(ref.object_key);
   if (dlError || !blob) return null;
   return { bytes: await blob.arrayBuffer(), mimeType: ref.mime_type || "application/octet-stream", sha256: ref.checksum_sha256 };
+}
+
+/** Durable shared phone-auth limiter. Only service_role can consume buckets. */
+export async function consumePhoneAuthLimit(action: "sign-in" | "sign-up", ipKey: string, phoneKey: string): Promise<boolean> {
+  const { data, error } = await getAdminClient().rpc("phone_auth_consume_limit", {
+    p_action: action, p_ip_key: ipKey, p_phone_key: phoneKey,
+  });
+  if (error) throw new Error("phone auth limiter unavailable");
+  return data === true;
 }

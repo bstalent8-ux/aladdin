@@ -15,6 +15,11 @@ export async function middleware(request: NextRequest) {
   request.headers.delete(BRAND_SURFACE_HEADER);
   if (isBrand2026Path(request.nextUrl.pathname)) request.headers.set(BRAND_SURFACE_HEADER, "2026");
 
+  const phoneAuthRoute = /^\/(installer|showroom)\/sign-(in|up)$/.test(request.nextUrl.pathname);
+  const contentLength = request.headers.get("content-length");
+  if (phoneAuthRoute && request.method === "POST" && contentLength && Number(contentLength) > 65536) {
+    return new NextResponse("Request too large", { status: 413 });
+  }
   let response = NextResponse.next({ request });
   const env = readPublicEnv();
 
@@ -22,6 +27,7 @@ export async function middleware(request: NextRequest) {
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      cookieOptions: { secure: env.NEXT_PUBLIC_APP_ENV !== "local", sameSite: "lax", path: "/" },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -71,7 +77,9 @@ export async function middleware(request: NextRequest) {
     (path === "/auth/sign-in" ||
       path === "/auth/sign-up" ||
       path === "/installer/sign-in" ||
-      path === "/installer/sign-up") &&
+      path === "/installer/sign-up" ||
+      path === "/showroom/sign-in" ||
+      path === "/showroom/sign-up") &&
     user
   ) {
     const url = request.nextUrl.clone();

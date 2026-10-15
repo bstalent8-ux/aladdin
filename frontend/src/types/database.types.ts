@@ -801,11 +801,15 @@ export type Database = {
       }
       business_creation_drafts: {
         Row: {
+          activity_type: string | null
           city: string | null
           city_custom_name: string | null
           completed_at: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
           description: string | null
+          detailed_address: string | null
           display_name: string | null
           governorate: string | null
           id: string
@@ -817,11 +821,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_type?: string | null
           city?: string | null
           city_custom_name?: string | null
           completed_at?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
+          detailed_address?: string | null
           display_name?: string | null
           governorate?: string | null
           id?: string
@@ -833,11 +841,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_type?: string | null
           city?: string | null
           city_custom_name?: string | null
           completed_at?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
+          detailed_address?: string | null
           display_name?: string | null
           governorate?: string | null
           id?: string
@@ -4302,6 +4314,8 @@ export type Database = {
       }
       organizations: {
         Row: {
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -4323,6 +4337,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -4344,6 +4360,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -7404,7 +7422,29 @@ export type Database = {
         }
         Returns: string
       }
+      business_draft_save_v2: {
+        Args: {
+          p_activity_type?: string
+          p_city?: string
+          p_city_custom_name?: string
+          p_contact_email?: string
+          p_contact_phone?: string
+          p_description?: string
+          p_detailed_address?: string
+          p_display_name?: string
+          p_draft_id?: string
+          p_governorate?: string
+          p_legal_name?: string
+          p_org_type?: Database["public"]["Enums"]["organization_type"]
+          p_primary_branch_name?: string
+        }
+        Returns: string
+      }
       business_draft_submit: { Args: { p_draft_id?: string }; Returns: string }
+      business_draft_submit_v2: {
+        Args: { p_draft_id?: string }
+        Returns: string
+      }
       business_save: {
         Args: {
           p_city?: string
@@ -8327,6 +8367,14 @@ export type Database = {
           p_username: string
         }
         Returns: undefined
+      }
+      phone_auth_consume_limit: {
+        Args: { p_action: string; p_ip_key: string; p_phone_key: string }
+        Returns: boolean
+      }
+      phone_password_account_allowed: {
+        Args: { p_kind: string; p_phone: string }
+        Returns: boolean
       }
       points_balance: { Args: { p_user_id?: string }; Returns: number }
       portfolio_item_create: {

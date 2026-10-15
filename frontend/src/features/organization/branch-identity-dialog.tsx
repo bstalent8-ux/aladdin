@@ -54,7 +54,7 @@ export function BranchIdentityDialog({
 
       <div className="grid gap-md tablet:grid-cols-2">
         <LabeledField label={m.settings.field.addressAr} htmlFor="branch-address-ar" optional={m.common.optional}>
-          <Textarea id="branch-address-ar" name="addressAr" defaultValue={addressAr ?? ""} dir="rtl" maxLength={300} />
+          <Textarea id="branch-address-ar" name="addressAr" defaultValue={addressAr ?? ""} dir="rtl" maxLength={16384} />
         </LabeledField>
         <LabeledField label={m.settings.field.addressEn} htmlFor="branch-address-en" optional={m.common.optional}>
           <Textarea id="branch-address-en" name="addressEn" defaultValue={addressEn ?? ""} dir="ltr" maxLength={300} />

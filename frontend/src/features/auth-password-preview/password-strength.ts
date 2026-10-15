@@ -71,7 +71,7 @@ const RUN_LENGTH = 4;
 
 /** 4+ identical characters, 4+ sequential character codes, or a 4+ run lifted from a keyboard row (either direction). */
 export function hasSequentialOrRepetitiveRun(value: string): boolean {
-  if (/(.)\1{3,}/.test(value)) return true;
+  if (/(.)\1{3,}/u.test(value)) return true;
 
   for (let i = 0; i + RUN_LENGTH <= value.length; i++) {
     let ascending = true;
@@ -137,8 +137,10 @@ export function evaluatePasswordStrength(
   maxBytes: number,
   byteLength: (v: string) => number,
 ): PasswordStrength {
+  if (value.length > maxBytes) return { level: "weak", score: 0, tooShort: false, tooLong: true, common: false, sequential: false, accountRelated: false, acceptable: false };
+  const characters = Array.from(value).length;
   const bytes = byteLength(value);
-  const tooShort = value.length < minLength;
+  const tooShort = characters < minLength;
   const tooLong = bytes > maxBytes;
   const common = !tooShort && isCommonPassword(value);
   const sequential = !tooShort && hasSequentialOrRepetitiveRun(value);
@@ -147,10 +149,10 @@ export function evaluatePasswordStrength(
 
   let score = 0;
   if (!tooShort && !tooLong) {
-    if (value.length >= minLength) score = 1;
-    if (value.length >= minLength + 4) score = 2;
-    if (value.length >= minLength + 8) score = 3;
-    if (value.length >= minLength + 14) score = 4;
+    if (characters >= minLength) score = 1;
+    if (characters >= minLength + 4) score = 2;
+    if (characters >= minLength + 8) score = 3;
+    if (characters >= minLength + 14) score = 4;
     const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9\s]/].filter((re) => re.test(value)).length;
     // Composition variety only ever ADDS to the score — never a requirement.
     if (classes >= 3 && score < 4) score += 1;

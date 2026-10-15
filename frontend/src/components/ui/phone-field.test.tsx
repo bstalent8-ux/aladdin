@@ -82,7 +82,7 @@ describe("PhoneField renders the same markup on every platform", () => {
     for (const locale of ["en", "ar"] as const) {
       const html = markup(locale);
       expect(html).toContain("+20");
-      expect(html).toContain("🇪🇬");
+      expect(html).toContain("/assets/country-flags/eg.svg");
       expect(html).not.toContain("<option");
     }
     const { unmount } = renderWithI18n(<PhoneField onChange={() => undefined} />, "en");

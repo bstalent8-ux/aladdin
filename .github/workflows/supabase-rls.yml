@@ -61,6 +61,9 @@ jobs:
       - name: Run pgTAP tenant-isolation / RLS tests
         run: pnpm exec supabase test db
 
+      - name: Verify authoritative business-phone metadata matches the application
+        run: node scripts/test-business-phone-parity.mjs --container supabase_db_aladdin --database postgres
+
       - name: Prove last-owner safety with concurrent transactions
         run: bash supabase/tests/last_owner_concurrency_test.sh
 

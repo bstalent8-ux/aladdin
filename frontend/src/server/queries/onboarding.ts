@@ -122,6 +122,10 @@ export type IndividualOnboardingData = {
  * There is no owner confirmation: creating a business makes the creator its owner.
  */
 export type BusinessAnswers = {
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  activityType?: import("@/lib/onboarding/business-details").SHOWROOM_ACTIVITIES_TYPE;
+  detailedAddress?: string | null;
   legalName: string | null;
   displayName: string | null;
   orgType: OrgTypeValue | null;
@@ -178,6 +182,10 @@ export async function getBusinessOnboardingData(): Promise<BusinessOnboardingDat
     selectedAccountType: progress?.selected_persona ?? progress?.selected_org_type ?? null,
     draftId: draft?.id ?? null,
     business: {
+      contactPhone: draft?.contact_phone ?? null,
+      contactEmail: draft?.contact_email ?? null,
+      activityType: draft?.activity_type as BusinessAnswers["activityType"],
+      detailedAddress: draft?.detailed_address ?? null,
       legalName: draft?.legal_name ?? null,
       displayName: draft?.display_name ?? null,
       orgType: draft?.org_type ?? null,

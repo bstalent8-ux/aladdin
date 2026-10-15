@@ -130,6 +130,7 @@ select throws_ok($$ select app.organization_create_owned('Direct Org', 'manufact
 select throws_ok($$ select app.organization_create_owned('Direct Org', 'manufacturer', 'en', null, 'Direct Org LLC', 'narnia') $$,
   '22023', null, 'app.organization_create_owned refuses an unknown governorate');
 
+insert into app.showroom_legacy_seller_exceptions(organization_id,reason) values('87aaaaaa-0000-4000-8000-000000000087','Synthetic historical approved business fixture');
 set local role authenticated;
 
 -- ===========================================================================

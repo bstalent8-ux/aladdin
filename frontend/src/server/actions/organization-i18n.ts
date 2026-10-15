@@ -1,5 +1,6 @@
 "use server";
 
+import { businessAddressSchema } from "@/lib/onboarding/business-details";
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { mapOrgI18nError } from "@/server/actions/error-mapping";
@@ -40,6 +41,7 @@ export async function updateOrganizationI18nAction(_prev: FormState, fd: FormDat
 
 export async function updateBranchI18nAction(_prev: FormState, fd: FormData): Promise<FormState> {
   const branchId = str(fd, "branchId");
+  if (![str(fd, "addressAr"), str(fd, "addressEn")].every(value => businessAddressSchema.safeParse(value).success)) return { ok: false, code: "onboarding.error.addressTooLong" };
   if (!branchId) return { ok: false, code: "states.genericRetry" };
 
   const supabase = await getServerSupabase();

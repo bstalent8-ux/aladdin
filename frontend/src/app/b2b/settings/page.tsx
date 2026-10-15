@@ -64,7 +64,7 @@ export default async function SettingsPage() {
   const [{ data: record }, { data: auth }, { data: branchRows }] = await Promise.all([
     supabase
       .from("organizations")
-      .select("name, slug, org_type, status, is_verified, primary_locale, name_ar, name_en, timezone")
+      .select("name, slug, org_type, status, is_verified, primary_locale, name_ar, name_en, timezone, contact_phone, contact_email")
       .eq("id", org.organizationId)
       .maybeSingle(),
     supabase.auth.getUser(),
@@ -135,6 +135,7 @@ export default async function SettingsPage() {
             <Field label={m.settings.field.status}>
               {record?.status ? m.settings.orgStatus[record.status] : "—"}
             </Field>
+            {canManageOrg && record?.org_type === "showroom_dealer" ? <><Field label={m.onboarding.business.identity.phoneLabel}><span dir="ltr">{record.contact_phone ?? "—"}</span></Field><Field label={m.onboarding.business.identity.emailLabel}><span dir="ltr">{record.contact_email ?? "—"}</span></Field></> : null}
             <Field label={m.settings.field.handle}>{record?.slug ?? "—"}</Field>
             <Field label={m.settings.field.language}>
               {record?.primary_locale === "ar" ? m.common.languageName.ar : m.common.languageName.en}

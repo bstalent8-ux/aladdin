@@ -64,7 +64,7 @@ import {
   getCountryCallingCode,
   parsePhoneNumberFromString,
   type CountryCode,
-} from "libphonenumber-js";
+} from "libphonenumber-js/max";
 
 export const DEFAULT_PHONE_COUNTRY: CountryCode = "EG";
 
@@ -104,10 +104,11 @@ export type CanonicalPhone = {
  * number to `profiles.phone_e164` that does not actually reach the caller.
  */
 export function toCanonicalPhone(national: string, countryIso2: CountryCode): CanonicalPhone | null {
-  const trimmed = national.trim();
+  const trimmed = toAsciiDigits(national).trim();
+  if (trimmed.length > 64 || !getCountries().includes(countryIso2)) return null;
   if (trimmed === "") return null;
   const parsed = parsePhoneNumberFromString(trimmed, countryIso2);
-  if (!parsed || !parsed.isValid()) return null;
+  if (!parsed || !parsed.isValid() || parsed.country !== countryIso2) return null;
   return { countryIso2, national: parsed.nationalNumber, e164: parsed.number };
 }
 
@@ -121,4 +122,12 @@ export function splitE164(e164: string | null | undefined): { countryIso2: Count
   const parsed = parsePhoneNumberFromString(e164);
   if (!parsed || !parsed.country || !parsed.isValid()) return null;
   return { countryIso2: parsed.country, national: parsed.nationalNumber };
+}
+
+/** Arabic-Indic input is accepted; passwords are never normalized. */
+export function toAsciiDigits(value: string): string {
+  return value.replace(/[٠-٩۰-۹]/g, digit => {
+    const code = digit.charCodeAt(0);
+    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660);
+  });
 }

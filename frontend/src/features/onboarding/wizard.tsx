@@ -48,18 +48,20 @@ export function WizardShell({
   progress,
   title,
   subtitle,
+  titleClassName,
   children,
 }: {
   progress: ReactNode;
   title: string;
   subtitle: string;
+  titleClassName?: string;
   children: ReactNode;
 }) {
   return (
     <Card className="flex flex-col gap-lg p-lg tablet:p-xl">
       {progress}
       <div className="flex flex-col gap-1">
-        <h1 className="font-display-ar text-headline text-fg">{title}</h1>
+        <h1 className={cn("text-fg", titleClassName ?? "font-display-ar text-headline")}>{title}</h1>
         <p className="text-body-lg text-fg-secondary">{subtitle}</p>
       </div>
       {children}

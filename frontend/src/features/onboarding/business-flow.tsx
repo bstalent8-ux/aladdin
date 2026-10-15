@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PhoneField } from "@/components/ui/phone-field";
+import { splitE164 } from "@/lib/contact/phone";
+import { SHOWROOM_ACTIVITIES, showroomIdentityError, businessAddressSchema, businessAddressWords, businessDetailsSchema, type SHOWROOM_ACTIVITIES_TYPE } from "@/lib/onboarding/business-details";
 import { useI18n } from "@/lib/i18n/context";
 import { Input, Textarea, Select, LabeledField } from "@/components/ui/controls";
 import { InlineError } from "@/components/ui/primitives";
@@ -36,6 +39,10 @@ type Step = "identity" | "type" | "location" | "branch" | "review";
 const OTHER_VALUE = "__other__";
 
 type BState = {
+  contactPhone: string | null;
+  contactEmail: string;
+  activityType: SHOWROOM_ACTIVITIES_TYPE;
+  detailedAddress: string;
   legalName: string;
   displayName: string;
   orgType: BusinessOrgType | null;
@@ -63,6 +70,10 @@ export function BusinessFlow({
   const [draftId, setDraftId] = useState<string | null>(initialDraftId);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<BState>({
+    contactPhone: answers.contactPhone ?? null,
+    contactEmail: answers.contactEmail ?? "",
+    activityType: answers.activityType ?? null,
+    detailedAddress: answers.detailedAddress ?? "",
     legalName: answers.legalName ?? "",
     displayName: answers.displayName ?? "",
     orgType: businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType,
@@ -82,18 +93,22 @@ export function BusinessFlow({
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
 
+  const showroom = state.orgType === "showroom_dealer";
+  const [phoneInvalid, setPhoneInvalid] = useState(false);
+  const savedPhone = splitE164(state.contactPhone);
   // BOTH names are required to leave the identity step: the business (trading) name and the legal / registered name.
-  const identityDone = (s: BState) => s.displayName.trim().length > 0 && s.legalName.trim().length >= 2;
-  // The location is optional as a whole, but once a governorate is chosen it needs a city (or Other + a typed city).
+  const identityDone = (s: BState) => s.displayName.trim().length >= 2 && s.legalName.trim().length >= 2 && s.description.trim().length <= 250 && (!showroom || (!phoneInvalid && !showroomIdentityError(s)));
+  // Every new business needs a governorate, a city (or custom city) and a detailed address.
   const locationDone = (s: BState) =>
-    !s.governorate ||
+    !!s.governorate && businessAddressSchema.safeParse(s.detailedAddress).success &&
     (s.otherCity ? s.cityCustomName.trim().length >= CUSTOM_CITY_MIN : Boolean(s.city));
   const typeDone = (s: BState) => !!s.orgType;
 
   const [step, setStep] = useState<number>(() => {
     if (!identityDone(state)) return 0;
     if (!typePreselected && !typeDone(state)) return steps.indexOf("type");
-    return steps.length - 1; // location + branch are optional; land on review
+    if (!locationDone(state)) return steps.indexOf("location");
+    return steps.length - 1;
   });
 
   const current: Step = steps[step] ?? "review";
@@ -116,6 +131,10 @@ export function BusinessFlow({
 
   const toInput = (s: BState): BusinessInput => ({
     draftId,
+    contactPhone: s.contactPhone,
+    contactEmail: s.contactEmail,
+    activityType: s.activityType,
+    detailedAddress: s.detailedAddress,
     legalName: s.legalName.trim() || null,
     displayName: s.displayName.trim() || null,
     orgType: s.orgType,
@@ -129,7 +148,7 @@ export function BusinessFlow({
   const persistAdvance = () =>
     start(async () => {
       setError(null);
-      const res = await saveBusiness(toInput(state));
+      const res = await saveBusiness({ ...toInput(state), step: current === "identity" || current === "location" ? current : undefined });
       if (!res.ok) {
         setError(res.code ?? "onboarding.error.saveFailed");
         return;
@@ -163,12 +182,14 @@ export function BusinessFlow({
 
   return (
     <WizardShell
+      titleClassName="font-sans text-display-ar"
       progress={progress}
       title={t(`onboarding.business.${current}.title`)}
       subtitle={t(`onboarding.business.${current}.subtitle`)}
     >
       {current === "identity" ? (
         <div className="flex flex-col gap-md">
+          <h2 className="text-title text-fg">{t("onboarding.business.identity.informationSection")}</h2>
           <LabeledField label={t("onboarding.business.identity.displayNameLabel")} htmlFor="bname">
             <Input
               id="bname"
@@ -191,15 +212,24 @@ export function BusinessFlow({
               onChange={(e) => set({ legalName: e.target.value })}
             />
           </LabeledField>
+          {showroom ? <LabeledField label={t("onboarding.business.identity.activityLabel")} htmlFor="bactivity"><Select id="bactivity" required value={state.activityType ?? ""} onChange={e => set({activityType: e.target.value as SHOWROOM_ACTIVITIES_TYPE})}><option value="">{t("onboarding.business.location.choose")}</option>{SHOWROOM_ACTIVITIES.map(value => <option key={value} value={value}>{t(`onboarding.business.activities.${value}`)}</option>)}</Select></LabeledField> : null}
           <LabeledField label={t("onboarding.business.identity.descriptionLabel")} htmlFor="bdesc" optional={t("common.optional")}>
             <Textarea
+              aria-invalid={state.description.trim().length > 250 || undefined}
               id="bdesc"
               value={state.description}
-              maxLength={1000}
+              maxLength={250}
               placeholder={t("onboarding.business.identity.descriptionPlaceholder")}
               onChange={(e) => set({ description: e.target.value })}
             />
           </LabeledField>
+          <p className="text-label text-fg-secondary text-end" dir="ltr" aria-live="polite">{state.description.length} / 250</p>
+          {state.description.trim().length > 250 ? <InlineError>{t("onboarding.error.descriptionTooLong")}</InlineError> : null}
+          {showroom ? <section className="flex flex-col gap-md border-t border-strong pt-lg" aria-labelledby="business-contact-heading">
+            <h2 id="business-contact-heading" className="text-title text-fg">{t("onboarding.business.identity.contactSection")}</h2>
+            <LabeledField label={t("onboarding.business.identity.phoneLabel")} htmlFor="bphone"><PhoneField id="bphone" defaultCountryIso2={savedPhone?.countryIso2} defaultNational={savedPhone?.national} onChange={phone => set({contactPhone: phone?.e164 ?? null})} onInvalidChange={setPhoneInvalid} compact /></LabeledField>
+            <LabeledField label={t("onboarding.business.identity.emailLabel")} htmlFor="bemail" optional={t("common.optional")}><Input id="bemail" type="email" dir="ltr" autoComplete="email" maxLength={254} value={state.contactEmail} aria-invalid={!businessDetailsSchema.safeParse(state).success || undefined} onChange={e => set({contactEmail:e.target.value})}/>{!businessDetailsSchema.safeParse(state).success ? <InlineError>{t("onboarding.error.contactInvalid")}</InlineError> : null}</LabeledField>
+          </section> : null}
         </div>
       ) : null}
 
@@ -221,9 +251,10 @@ export function BusinessFlow({
 
       {current === "location" ? (
         <div className="flex flex-col gap-md">
-          <LabeledField label={t("onboarding.business.location.governorateLabel")} htmlFor="bgov" optional={t("common.optional")}>
+          <LabeledField label={t("onboarding.business.location.governorateLabel")} htmlFor="bgov">
             <Select
               id="bgov"
+              required
               value={state.governorate ?? ""}
               // A different governorate invalidates whatever city (catalogue or typed) was chosen under the previous one.
               onChange={(e) => set({ governorate: e.target.value || null, city: null, otherCity: false, cityCustomName: "" })}
@@ -238,6 +269,7 @@ export function BusinessFlow({
             <LabeledField label={t("onboarding.business.location.cityLabel")} htmlFor="bcity">
               <Select
                 id="bcity"
+                required
                 value={state.otherCity ? OTHER_VALUE : (state.city ?? "")}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -264,7 +296,7 @@ export function BusinessFlow({
               />
             </LabeledField>
           ) : null}
-          <p className="text-label text-fg-muted">{t("onboarding.business.location.note")}</p>
+          <LabeledField label={t("onboarding.business.location.addressLabel")} htmlFor="baddress" optional={t("common.optional")} hint={t("onboarding.business.location.addressHint")}><Textarea id="baddress" autoComplete="street-address" maxLength={16384} value={state.detailedAddress} onChange={e => set({detailedAddress:e.target.value})}/><p className="text-label text-fg-secondary text-end" dir="ltr" aria-live="polite">{businessAddressWords(state.detailedAddress)} / 250</p>{!businessAddressSchema.safeParse(state.detailedAddress).success ? <InlineError>{t("onboarding.error.addressTooLong")}</InlineError> : null}</LabeledField>
         </div>
       ) : null}
 
@@ -297,7 +329,7 @@ export function BusinessFlow({
               },
               {
                 label: t("onboarding.business.review.location"),
-                value: locationSummary(),
+                value: `${locationSummary()} — ${state.detailedAddress}`,
                 to: "location" as Step,
               },
               {

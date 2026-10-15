@@ -33,6 +33,9 @@ export function PhoneField({
   id,
   placeholder,
   compact = false,
+  name,
+  countryName,
+  joined = false,
 }: {
   defaultCountryIso2?: string | null;
   defaultNational?: string | null;
@@ -48,6 +51,10 @@ export function PhoneField({
    * calling code of the chosen country (a clipped name reads badly, most of all in Arabic), so the number input gets the room.
    */
   compact?: boolean;
+  name?: string;
+  countryName?: string;
+  /** Unified country/number border for auth forms; ordinary profile forms keep the existing split controls. */
+  joined?: boolean;
 }) {
   const { t } = useI18n();
   const [countryIso2, setCountryIso2] = useState<CountryCode>(
@@ -71,7 +78,8 @@ export function PhoneField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex gap-2">
+      <div className="flex gap-2" data-phone-layout={joined ? "joined" : undefined}>
+        {countryName ? <input type="hidden" name={countryName} value={countryIso2} /> : null}
         <CountryPicker
           value={countryIso2}
           onChange={(next) => emit(next, national)}
@@ -80,22 +88,29 @@ export function PhoneField({
         />
         <Input
           id={id}
+          name={name}
+          autoComplete="tel-national"
+          maxLength={64}
+          aria-describedby={id && (error || invalid) ? `${id}-error` : undefined}
           type="tel"
           inputMode="tel"
           dir="ltr"
           className="min-w-0 flex-1"
           value={national}
           onChange={(e) => emit(countryIso2, e.target.value)}
+          onBlur={() => {
+            if (joined && canonical && (national.startsWith("+") || national.startsWith("00"))) emit(countryIso2, canonical.national);
+          }}
           placeholder={placeholder ?? t("phoneField.nationalPlaceholder")}
           aria-invalid={invalid || Boolean(error) ? true : undefined}
         />
       </div>
       {error ? (
-        <p role="alert" className="text-label text-danger">
+        <p id={id ? `${id}-error` : undefined} role="alert" className="text-label text-danger">
           {error}
         </p>
       ) : invalid ? (
-        <p className="text-label text-danger">{t("phoneField.invalid")}</p>
+        <p id={id ? `${id}-error` : undefined} className="text-label text-danger">{t("phoneField.invalid")}</p>
       ) : null}
     </div>
   );

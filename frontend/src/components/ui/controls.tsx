@@ -172,19 +172,21 @@ export function Checkbox({
   checked,
   onChange,
   children,
+  ...input
 }: {
   id: string;
   name: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: ReactNode;
-}) {
+} & Pick<InputHTMLAttributes<HTMLInputElement>, "aria-invalid" | "aria-describedby">) {
   return (
     <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 text-body text-fg">
       <input
         id={id}
         name={name}
         type="checkbox"
+        {...input}
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         className="mt-0.5 h-4.5 w-4.5 shrink-0 rounded-xs border border-strong text-accent-solid accent-[var(--accent-solid)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
