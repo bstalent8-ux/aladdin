@@ -30,6 +30,38 @@
 -- ---------------------------------------------------------------------------
 -- 1. Data remap (test accounts)
 -- ---------------------------------------------------------------------------
+-- APPROVED PRODUCT DECISION (2026-10-15): Interior Designer is consolidated into Engineer; Trainer / Trainee are cleared.
+-- Before any row changes, the ORIGINAL classification and the affected record identifiers are archived (service-role / owner only)
+-- so the change stays auditable and reversible. Nothing is approved, activated or granted by this remap: only the account-type
+-- value changes; status, reviewer, timestamps, reasons and permissions are untouched.
+create table if not exists app.taxonomy_remap_archive (
+  id           bigint generated always as identity primary key,
+  archived_at  timestamptz not null default now(),
+  source_table text not null,
+  source_id    text not null,
+  source_column text not null,
+  original_value text not null,
+  new_value    text
+);
+alter table app.taxonomy_remap_archive enable row level security;
+revoke all on app.taxonomy_remap_archive from public, anon, authenticated, service_role;
+insert into app.taxonomy_remap_archive (source_table, source_id, source_column, original_value, new_value)
+select 'public.users', id::text, 'primary_account_type', primary_account_type::text,
+       case when primary_account_type::text = 'interior_designer' then 'engineer' end
+  from public.users where primary_account_type::text in ('interior_designer','trainer','trainee')
+union all
+select 'public.individual_onboarding', user_id::text, 'prof_concrete_type', prof_concrete_type::text,
+       case when prof_concrete_type::text = 'interior_designer' then 'engineer' end
+  from public.individual_onboarding where prof_concrete_type::text in ('interior_designer','trainer','trainee')
+union all
+select 'public.onboarding_progress', user_id::text, 'selected_persona', selected_persona::text,
+       case when selected_persona::text = 'interior_designer' then 'engineer' end
+  from public.onboarding_progress where selected_persona::text in ('interior_designer','trainer','trainee')
+union all
+select 'public.verifications', id::text, 'requested_account_type', requested_account_type::text,
+       case when requested_account_type::text = 'interior_designer' then 'engineer' end
+  from public.verifications where requested_account_type::text in ('interior_designer','trainer','trainee');
+
 update public.users set primary_account_type = 'engineer'
  where primary_account_type::text = 'interior_designer';
 update public.users set primary_account_type = null
@@ -44,11 +76,20 @@ update public.onboarding_progress set selected_persona = 'engineer'
  where selected_persona::text = 'interior_designer';
 update public.onboarding_progress set selected_persona = null
  where selected_persona::text in ('trainer', 'trainee');
-
+-- The verification immutability guard (app.guard_verification_update) forbids changing requested_account_type on a submitted request.
+-- It is suspended for EXACTLY the verifications remap below, inside this migration's transaction, then re-enabled; a DO block
+-- after it fails the whole migration if the guard is not back on.
+alter table public.verifications disable trigger guard_verification_update;
 update public.verifications set requested_account_type = 'engineer'
  where requested_account_type::text = 'interior_designer';
 update public.verifications set requested_account_type = null
  where requested_account_type::text in ('trainer', 'trainee');
+alter table public.verifications enable trigger guard_verification_update;
+do $$ begin
+  if (select tgenabled from pg_trigger where tgrelid = 'public.verifications'::regclass and tgname = 'guard_verification_update') is distinct from 'O' then
+    raise exception 'guard_verification_update is not enabled again';
+  end if;
+end $$;
 
 -- A wholesaler is a SUPPLIER subtype. Organizations were remapped earlier
 -- (20260924090004); this is a no-op on a database where that already ran, and a
