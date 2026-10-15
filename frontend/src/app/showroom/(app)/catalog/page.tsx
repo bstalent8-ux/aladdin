@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
-import { requireShowroomContext } from "@/features/showroom-shell/context";
+import { requireApprovedShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, canNavigate } from "@/features/showroom-shell/navigation";
 import { ShowroomCatalog } from "@/features/showroom-shell/catalog/catalog";
 
@@ -12,7 +12,7 @@ export default async function ShowroomCatalogPage({
 }: {
   searchParams: Promise<{ q?: string; category?: string; supplier?: string }>;
 }) {
-  const ctx = await requireShowroomContext();
+  const ctx = await requireApprovedShowroomContext();
   // The same capability gate the sidebar applies to "تصفح المنتجات".
   const item = SHOWROOM_GROUPS.flatMap((g) => g.items).find((entry) => entry.id === "catalog");
   if (!item || !canNavigate(item, ctx.org.capabilities)) notFound();

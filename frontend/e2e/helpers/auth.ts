@@ -101,6 +101,9 @@ export async function signIn(
   await page.getByLabel(/^email address$|^البريد الإلكتروني$/i).fill(email);
   // Anchored: the "Show password" toggle is labelled too.
   await page.getByLabel(/^password$|^كلمة المرور$/i).fill(password);
+  // PR #84: sign-in forwards a Turnstile token to GoTrue and refuses an unchallenged request, so wait for the REAL widget
+  // (always-pass TEST site key locally) to produce it before submitting.
+  await waitForCaptchaToken(page);
   await page.getByRole("button", { name: /^sign in$|^تسجيل الدخول$/i }).click();
 
   // Wait on the URL committing, not the full "load" event — under sustained

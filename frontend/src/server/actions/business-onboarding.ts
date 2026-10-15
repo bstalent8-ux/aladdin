@@ -161,6 +161,10 @@ export async function submitBusiness(input: BusinessInput): Promise<BusinessActi
   if (!saved.ok) return saved;
 
   const supabase = await getServerSupabase();
+  // The FIRST application of a person has no approved workspace to stay in, so they land in the limited (pending) workspace of the
+  // business they just created. A later, additional application leaves them in their approved workspace and shows its status.
+  const slot = await supabase.rpc("my_organization_application_slot");
+  const landing = slot.data === "first_available" ? "/b2b" : "/business/applications";
   const { data: orgId, error } = await supabase.rpc("business_draft_submit_v2", {
     p_draft_id: input.draftId ?? saved.draftId ?? undefined,
   });
@@ -189,5 +193,5 @@ export async function submitBusiness(input: BusinessInput): Promise<BusinessActi
     }
   }
   revalidatePath("/", "layout");
-  redirect("/business/applications");
+  redirect(landing);
 }

@@ -1,3 +1,5 @@
+import { SHOWROOM_PENDING_MARKER } from "./navigation";
+import { PendingApprovalBanner } from "./pending-banner";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { LOCALE_COOKIE, resolveLocale, directionFor } from "@/lib/i18n/config";
@@ -41,7 +43,8 @@ export async function ShowroomFrame({ children }: { children: ReactNode }) {
   const displayName = (locale === "ar" ? identity?.displayNameAr : identity?.displayNameEn) || identity?.displayName || (locale === "ar" ? "حسابي" : "My account");
   const location = (locale === "ar" ? branch.data?.address_ar : branch.data?.address_en) || branch.data?.address_ar || branch.data?.address_en || null;
   return <I18nProvider locale={locale} dir={directionFor(locale)}>
-    <ShowroomShell key={org.organizationId} theme={resolveTheme(resolveThemePreference(store.get(THEME_COOKIE)?.value))} sidebarMode={resolveSidebarMode(store.get(SIDEBAR_MODE_COOKIE)?.value)} displayName={displayName} location={location} capabilities={org.capabilities}
+    <ShowroomShell key={org.organizationId} theme={resolveTheme(resolveThemePreference(store.get(THEME_COOKIE)?.value))} sidebarMode={resolveSidebarMode(store.get(SIDEBAR_MODE_COOKIE)?.value)} displayName={displayName} location={location} capabilities={org.isApproved === true ? org.capabilities : [...org.capabilities, SHOWROOM_PENDING_MARKER]}
+      banner={org.isApproved === true ? undefined : <PendingApprovalBanner title={createTranslator(locale)("showroomPending.title")} body={createTranslator(locale)("showroomPending.body")} linkLabel={createTranslator(locale)("showroomPending.link")} />}
       workspaceSwitch={<ShowroomWorkspaceMenu entries={workspace.entries} activeKey={org.organizationId} canCreate={access.allowed} />}
       branchSwitch={org.branches.length > 1 ? (
         <BranchSwitcher branches={org.branches} activeId={org.activeBranchId} orgWide={org.canManageSales || org.capabilities.includes("branch.manage")} />

@@ -51,7 +51,11 @@ test.beforeAll(async () => {
   expect(created.error, created.error?.message).toBeNull();
   orgId = created.data as string;
   expect((await owner.rpc("organization_application_submit", { p_org_id: orgId })).error).toBeNull();
+  // Fixture only (local test DB): this governance suite approves a bare showroom, which the seller-readiness guards of PR #84 refuse
+  // until a full profile exists. The guards are switched off for exactly this approval and back on straight after.
+  psql(`alter table public.verifications disable trigger showroom_review_complete; alter table public.organizations disable trigger showroom_activation_complete;`);
   await decide(q(`select id from public.verifications where organization_id = '${orgId}' and verification_type = 'organization' and status = 'submitted'`), "approve");
+  psql(`alter table public.verifications enable trigger showroom_review_complete; alter table public.organizations enable trigger showroom_activation_complete;`);
   // two more members of the approved office: a co-owner candidate (org.manage) and a sales member (no governance rights)
   psql(`
     with m as (

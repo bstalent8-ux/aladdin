@@ -1,3 +1,4 @@
+import { SHOWROOM_PENDING_MARKER } from "./navigation";
 import { describe, expect, it } from "vitest";
 import { activeShowroomItem, canNavigate, showroomNavigation, SHOWROOM_GROUPS, SHOWROOM_ROOT } from "./navigation";
 import { eligibleWorkspaces, isShowroomBusinessType, SHOWROOM_BUSINESS_LABELS } from "./workspace-model";
@@ -90,5 +91,18 @@ describe("canonical business mappings", () => {
     expect(isShowroomBusinessType("engineer")).toBe(false);
     expect(isShowroomBusinessType("toString")).toBe(false);
     expect(isShowroomBusinessType(null)).toBe(false);
+  });
+});
+
+describe("a pending application's limited workspace (rc2 product decision)", () => {
+  it("shows only Home, My products and Settings - and no commercial entry - even for an owner with every capability", () => {
+    const all = ["org.manage", "catalog.read", "catalog.write", "rfq.create", "rfq.respond", "quote.decide"];
+    const ids = showroomNavigation([...all, SHOWROOM_PENDING_MARKER]).flatMap((g) => g.items).map((i) => i.id);
+    expect(ids.sort()).toEqual(["home", "my-products", "settings"]);
+  });
+  it("is unchanged for an approved organization", () => {
+    const ids = showroomNavigation(["org.manage"]).flatMap((g) => g.items).map((i) => i.id);
+    expect(ids).toContain("catalog");
+    expect(ids).toContain("customers");
   });
 });

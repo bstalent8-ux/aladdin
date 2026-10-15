@@ -7,8 +7,10 @@ import { ShowroomSidebar } from "./sidebar";
 import { ShowroomTopbar } from "./topbar";
 
 /** Isolated composition of the production craftsman frame; no alternate theme. */
-export function ShowroomShell({ children, theme, sidebarMode, displayName, location, capabilities, workspaceSwitch, notifications, chat, branchSwitch }: {
+export function ShowroomShell({ children, theme, sidebarMode, displayName, location, capabilities, workspaceSwitch, notifications, chat, branchSwitch, banner }: {
   children: ReactNode;
+  /** Shown above the page (the "pending Admin approval" status). */
+  banner?: ReactNode;
   theme: "light" | "dark";
   sidebarMode: SidebarMode;
   displayName: string;
@@ -25,7 +27,7 @@ export function ShowroomShell({ children, theme, sidebarMode, displayName, locat
       <ShowroomSidebar initialMode={sidebarMode} mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} capabilities={capabilities} />
       <div className={`${INSTALLER_SHELL_GUTTER_CLASS} flex min-w-0 flex-1 flex-col tablet:gap-6 tablet:pb-10 tablet:pt-6 desktop:pt-8`}>
         <ShowroomTopbar theme={theme} onMenuClick={() => setMobileNavOpen(true)} displayName={displayName} location={location} capabilities={capabilities} workspaceSwitch={workspaceSwitch} notifications={notifications} chat={chat} branchSwitch={branchSwitch} />
-        <main id="top" className={`${INSTALLER_CONTENT_FRAME_CLASS} flex flex-1 flex-col py-4 tablet:py-6 desktop:py-7`}>{children}</main>
+        <main id="top" className={`${INSTALLER_CONTENT_FRAME_CLASS} flex flex-1 flex-col py-4 tablet:py-6 desktop:py-7`}>{banner}{children}</main>
       </div>
     </div>
   );

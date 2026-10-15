@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
-import { requireShowroomContext } from "@/features/showroom-shell/context";
+import { requireApprovedShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, canNavigate } from "@/features/showroom-shell/navigation";
 
 export default async function ShowroomModule({ params }: { params: Promise<{ page: string }> }) {
-  const { org } = await requireShowroomContext();
+  const { org } = await requireApprovedShowroomContext();
   const { page } = await params;
   const item = SHOWROOM_GROUPS.flatMap((group) => group.items).find((entry) => entry.id === page);
   if (!item || !canNavigate(item, org.capabilities)) notFound();

@@ -31,10 +31,15 @@ async function applyThroughUi(page: Page, name: string) {
   // Type step: an Engineering Office is the Engineer business type.
   await page.getByText("Engineer", { exact: true }).first().click();
   await page.getByRole("button", { name: /^continue$/i }).click();
-  // Location and branch are optional; walk to the review step.
+  // PR #84: a new business needs a governorate and a city (the address is only required for a Showroom).
+  await page.locator("#bgov").selectOption("cairo");
+  await page.locator("#bcity").selectOption("maadi");
+  // Walk to the review step.
   for (let i = 0; i < 2; i++) await page.getByRole("button", { name: /^continue$/i }).click();
   await page.getByRole("button", { name: /submit for review/i }).click();
-  await page.waitForURL(/\/business\/applications/);
+  // rc2 product decision: the FIRST application lands in the limited (pending) workspace of the business just created.
+  await page.waitForURL(/\/(b2b|showroom)(\/|$)/);
+  await open(page, "/business/applications");
 }
 
 test("G1 a new Engineer applies for an Engineering Office and lands on a pending application, not a workspace", async ({ page, request }) => {
@@ -62,13 +67,13 @@ test("G2 a second application is explained, not started, while the first is pend
   await expect(page.getByTestId("application-blocked")).toContainText(/first organization is still in progress/i);
 });
 
-test("G3 a pending application never appears in the workspace switcher or becomes the active workspace", async ({ page, request }) => {
+test("G3 a pending application opens as the owner's LIMITED workspace while the organization itself stays unapproved", async ({ page, request }) => {
   await prefs(page, { locale: "en" });
   await signIn(page, request, EMAIL, /\/(home|b2b)(\/|$)/);
-  const pendingId = psql(`select id from public.organizations where name = '${OFFICE}'`).trim();
-  await page.context().addCookies([{ name: "aladdin-org", value: pendingId, url: "http://127.0.0.1" }]);
-  await open(page, "/home");
-  expect(await page.locator("body").innerText()).not.toContain(OFFICE);
+  await open(page, "/b2b");
+  await expect(page.locator("header").first()).toContainText(OFFICE);
+  // Nothing about the database truth changes: still provisional and unverified, so no commercial authority exists behind the screen.
+  expect(psql(`select status || '/' || is_verified from public.organizations where name = '${OFFICE}'`).trim()).toBe("pending_verification/false");
 });
 
 test("G4 a rejected application is shown with the reviewer's reason and can be abandoned, keeping its history", async ({ page, request }) => {

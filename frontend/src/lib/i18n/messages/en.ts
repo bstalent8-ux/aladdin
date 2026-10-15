@@ -2032,7 +2032,7 @@ export const en = {
   orgApplications: {
     title: "My Organizations & Applications",
     subtitle: "Track your organizations. An application becomes a workspace only after an Admin approves it.",
-    notWorkspace: "Applications are not workspaces. An organization gets no audience and no commercial access until it is approved.",
+    notWorkspace: "While an application is under review you can complete your profile and prepare draft products in a limited workspace. An organization gets no audience and no commercial access until it is approved.",
     approved: { title: "Approved organizations", empty: "You have no approved organization yet.", open: "Open workspace" },
     open: { title: "Open applications", empty: "You have no open application." },
     history: { title: "History" },
@@ -3726,6 +3726,12 @@ export const en = {
       alreadyOwner: "You are already recognised as an owner of this business.",
       awaiting: "A request that is under review cannot be withdrawn.",
     },
+  },
+  /* Limited workspace of an organization that is still an application. */
+  showroomPending: {
+    title: "Pending Admin approval",
+    body: "You can complete your business profile and prepare draft products. Publishing, public visibility, selling and offers unlock once an Admin approves your business.",
+    link: "Application status",
   },
   showroomSettings: {
     title: "Settings",

@@ -68,8 +68,17 @@ export function canNavigate(item: ShowroomNavItem, capabilities: readonly string
   if (item.id === "activity") return item.capabilities.some((cap) => capabilities.includes(cap));
   return !item.capabilities.length || capabilities.includes("org.manage") || item.capabilities.some((cap) => capabilities.includes(cap));
 }
+/**
+ * A UI-only marker the shell appends to the capability list while the organization is a pending APPLICATION. It confers nothing (the
+ * database withholds every commercial authority from a pending organization); it only limits the navigation to the three screens a
+ * pending owner may use.
+ */
+export const SHOWROOM_PENDING_MARKER = "workspace.pending_approval";
+const PENDING_ALLOWED_IDS: readonly string[] = ["home", "my-products", "settings"];
+
 export function showroomNavigation(capabilities: readonly string[]) {
-  return SHOWROOM_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden && canNavigate(item, capabilities)) })).filter((group) => group.items.length);
+  const pending = capabilities.includes(SHOWROOM_PENDING_MARKER);
+  return SHOWROOM_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden && (!pending || PENDING_ALLOWED_IDS.includes(item.id)) && canNavigate(item, capabilities)) })).filter((group) => group.items.length);
 }
 
 /** The path part of an item's href (items may carry a view query). */

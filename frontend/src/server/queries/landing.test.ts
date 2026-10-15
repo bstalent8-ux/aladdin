@@ -82,15 +82,15 @@ describe("resolveActiveLanding", () => {
     await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
   });
 
-  it("never lands in, or selects, a business that is still pending approval", async () => {
+  it("a pending-only identity lands in its LIMITED workspace (profile, settings, draft products)", async () => {
     cookieValue.current = "org-pending";
     const { client } = clientWithWorkspaces([pendingBusiness("org-pending", "Under Review")]);
-    // A pending-only identity has no workspace: /home explains the state instead of /b2b.
-    await expect(resolveActiveLanding(client)).resolves.toBe("/home");
+    // Product decision (rc2): a pending owner works in a limited workspace; the database withholds every commercial authority.
+    await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
   });
 
-  it("an explicit selection of a pending business falls back to the approved one", async () => {
-    cookieValue.current = "org-pending";
+  it("an approved organization stays the default workspace when a pending application sits beside it", async () => {
+    cookieValue.current = undefined;
     const { client } = clientWithWorkspaces([
       pendingBusiness("org-pending", "Under Review"),
       business("org-ok", "Cairo Ceramics"),

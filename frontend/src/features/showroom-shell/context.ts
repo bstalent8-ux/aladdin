@@ -16,3 +16,10 @@ export const requireShowroomContext = cache(async () => {
   if (!workspace.active || !isShowroomBusinessType(workspace.active.orgType)) redirect("/b2b");
   return { supabase, workspace, org: workspace.active };
 });
+
+/** Commercial screens (browse, saved, product details) exist only for an APPROVED organization; a pending owner is sent home. */
+export async function requireApprovedShowroomContext() {
+  const ctx = await requireShowroomContext();
+  if (ctx.org.isApproved !== true) redirect("/showroom/home");
+  return ctx;
+}

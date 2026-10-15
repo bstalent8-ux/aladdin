@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
 import { getMessages, createTranslator } from "@/lib/i18n/translate";
-import { requireShowroomContext } from "@/features/showroom-shell/context";
+import { requireApprovedShowroomContext } from "@/features/showroom-shell/context";
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { getCatalogProduct, savedProductIds } from "@/server/queries/commerce";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * 404 here exactly as it is on /b2b/catalog.
  */
 export default async function ShowroomCatalogProductPage({ params }: { params: Promise<{ productId: string }> }) {
-  const { supabase, org } = await requireShowroomContext();
+  const { supabase, org } = await requireApprovedShowroomContext();
   const item = SHOWROOM_GROUPS.flatMap((g) => g.items).find((entry) => entry.id === "catalog");
   if (!item || !canNavigate(item, org.capabilities)) notFound();
 

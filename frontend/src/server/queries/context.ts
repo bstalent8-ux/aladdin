@@ -40,6 +40,8 @@ export type OrgContext = {
    * called.
    */
   orgType: string | null;
+  /** `false` while the organization is an application awaiting Admin approval (a limited workspace). */
+  isApproved: boolean;
   /** The caller's own active membership id in this org (for self-assignment). */
   membershipId: string;
   /** membership_capabilities for the caller in this org (+ org.manage). */
@@ -214,6 +216,8 @@ export const loadWorkspaceContext = cache(async function loadWorkspaceContext(
       organizationId: activeOrg.id,
       organizationName: activeOrg.name,
       orgType: activeEntry.orgType,
+      // Fail closed: only an explicit approval counts; anything else is a limited (pending) workspace.
+      isApproved: activeEntry.isApproved === true,
       membershipId: membership.id,
       capabilities,
       canManageSales,

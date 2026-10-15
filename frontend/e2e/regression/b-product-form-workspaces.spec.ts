@@ -42,6 +42,8 @@ test.describe("showroom product form", () => {
     const errors = guardConsole(page);
     const id = psql(`select id from public.products where sku = '${REG.ownCode}' limit 1`).trim();
     await open(page, `${SUITE}/my-products/${id}/edit`);
+    // A file chosen before React hydrates the input is silently dropped; wait for hydration like a person would.
+    await page.waitForLoadState("networkidle");
     const before = await page.getByTestId("image-slots").locator("img").count();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -60,14 +62,14 @@ test.describe("workspace switching (two approved organizations, one pending appl
     await signIn(page, request, REG.multiEmail, /\/(b2b|home)(\/|$)/);
   });
 
-  test("B4 the switcher lists approved organizations only, with a link to the applications page", async ({ page }) => {
+  test("B4 the switcher lists approved organizations and the pending one (a limited workspace), with a link to the applications page", async ({ page }) => {
     const errors = guardConsole(page);
     await open(page, "/b2b");
     await page.getByTestId("workspace-switcher").first().click();
     const menu = page.getByRole("menu").first();
     await expect(menu).toContainText("REG Engineering Office");
     await expect(menu).toContainText("REG Import House");
-    await expect(menu).not.toContainText("REG Pending Supply");
+    await expect(menu).toContainText("REG Pending Supply");
     await expect(menu.getByRole("menuitem", { name: /my organizations & applications/i })).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -84,10 +86,13 @@ test.describe("workspace switching (two approved organizations, one pending appl
     expect(errors).toEqual([]);
   });
 
-  test("B6 a forged workspace cookie naming the pending organization never makes it active", async ({ page, context }) => {
+  test("B6 a workspace cookie naming the caller's own pending organization opens its limited workspace; a forged id is ignored", async ({ page, context }) => {
     const pendingId = psql(`select id from public.organizations where name = 'REG Pending Supply' limit 1`).trim();
     await context.addCookies([{ name: "aladdin-org", value: pendingId, url: "http://127.0.0.1" }]);
     const errors = guardConsole(page);
+    await open(page, "/b2b");
+    expect(await page.locator("header").first().innerText()).toContain("REG Pending Supply");
+    await context.addCookies([{ name: "aladdin-org", value: "00000000-0000-4000-8000-0000000000ff", url: "http://127.0.0.1" }]);
     await open(page, "/b2b");
     const header = await page.locator("header").first().innerText();
     expect(header).not.toContain("REG Pending Supply");
