@@ -14,6 +14,9 @@ vi.mock("@/lib/env", () => ({
   isMarketplacePreviewEnabled: () => false,
 }));
 
+// The Marketplace section is behind its own flag (off here); its server-only data loader is never reached.
+vi.mock("@/features/landing-marketplace/landing-marketplace-loader", () => ({ LandingMarketplaceLoader: () => null }));
+
 const ENVIRONMENTS = ["staging", "production", "local", "preview", undefined] as const;
 
 describe("homepage: one canonical Landing, whatever the environment", () => {
