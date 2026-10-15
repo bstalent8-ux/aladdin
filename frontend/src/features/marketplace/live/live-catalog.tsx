@@ -266,16 +266,14 @@ export function LiveCatalog({ locale, dir, params, page, facets }: { locale: Loc
                   <input type="radio" name="mp-type" checked={!params.type} onChange={() => go({ type: "", category: "", attrs: {} })} />
                   <span>{t.allProducts}</span>
                 </label>
-                {types
-                  .filter((ty) => ty.count > 0 || ty.key === params.type)
-                  .map((ty) => (
-                    <label key={ty.key} className={styles.checkRow}>
-                      <input type="radio" name="mp-type" checked={params.type === ty.key} onChange={() => go({ type: ty.key, category: ty.category, attrs: {} })} />
-                      <span>
-                        {name(ty, locale)} ({fmtNum(ty.count, locale)})
-                      </span>
-                    </label>
-                  ))}
+                {types.map((ty) => (
+                  <label key={ty.key} className={styles.checkRow}>
+                    <input type="radio" name="mp-type" checked={params.type === ty.key} onChange={() => go({ type: ty.key, category: ty.category, attrs: {} })} />
+                    <span>
+                      {name(ty, locale)} ({fmtNum(ty.count, locale)})
+                    </span>
+                  </label>
+                ))}
               </div>
             </Section>
 
