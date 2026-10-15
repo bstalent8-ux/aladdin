@@ -17,7 +17,6 @@ vi.mock("@/server/actions/job-forms", () => ({
 }));
 
 import { JobForm } from "./job-form";
-import { openSelect, readOptions, selectValue } from "@/test/select-menu";
 import type { JobListRow } from "@/server/queries/jobs";
 
 const trades = [
@@ -101,7 +100,7 @@ describe("JobForm and a retired trade", () => {
   });
 
   it("marks it as history rather than presenting it as a current choice", () => {
-    const { container } = renderWithI18n(
+    renderWithI18n(
       <JobForm
         mode="edit"
         orgId="o1"

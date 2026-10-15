@@ -245,6 +245,9 @@ describe("ProductForm audiences", () => {
   });
 });
 
+// The shared listbox lists the "Choose…" prompt as an (empty-valued) row; the canonical choices are the others.
+const realOptions = () => screen.getAllByRole("option").filter((o) => o.getAttribute("data-value") !== "");
+
 describe("ProductForm", () => {
   const existing = {
     id: "p1",
@@ -281,11 +284,11 @@ describe("ProductForm", () => {
   it("offers the 15 canonical categories and the twelve shared units", () => {
     wrap(<ProductForm orgId="org-1" />);
     fireEvent.click(screen.getByTestId("category-select"));
-    expect(screen.getAllByRole("option")).toHaveLength(15);
+    expect(realOptions()).toHaveLength(15);
     expect(screen.queryByRole("option", { name: /Unclassified/i })).toBeNull();
     fireEvent.keyDown(screen.getByTestId("category-select"), { key: "Escape" });
     fireEvent.click(screen.getByTestId("unit-select"));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toHaveLength(12);
+    expect(realOptions().map((o) => o.textContent)).toHaveLength(12);
   });
 
   it("carries the organization on create and the optimistic version on edit", () => {
@@ -302,7 +305,7 @@ describe("ProductForm", () => {
     wrap(<ProductForm orgId="org-1" product={existing} />);
     expect(screen.getByTestId("unit-select").getAttribute("data-value")).toBe("ton");
     fireEvent.click(screen.getByTestId("unit-select"));
-    expect(screen.getAllByRole("option")).toHaveLength(13);
+    expect(realOptions()).toHaveLength(13);
     expect(screen.getByTestId("category-select").getAttribute("data-value")).toBe("");
   });
 

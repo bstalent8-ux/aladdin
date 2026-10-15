@@ -29,7 +29,7 @@ describe("business draft writers — the same entitlement as the page", () => {
   it("submits design_office through the canonical draft and membership-creation RPC", async () => {
     state.allowed = true;
     state.rpc.mockResolvedValueOnce({ data: "draft-1", error: null }).mockResolvedValueOnce({ data: "org-1", error: null });
-    await submitBusiness({ displayName: "Engineering", orgType: "design_office" });
+    await submitBusiness({ displayName: "Engineering", legalName: "Engineering Consultants LLC", orgType: "design_office" });
     expect(state.rpc).toHaveBeenNthCalledWith(1, "business_draft_save", expect.objectContaining({ p_org_type: "design_office" }));
     expect(state.rpc).toHaveBeenNthCalledWith(2, "business_draft_submit", { p_draft_id: "draft-1" });
   });

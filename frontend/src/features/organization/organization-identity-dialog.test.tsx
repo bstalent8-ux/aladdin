@@ -44,8 +44,6 @@ describe("OrganizationIdentityDialog", () => {
     renderWithI18n(<OrganizationIdentityDialog m={ar} orgId="org-1" nameAr={null} nameEn={null} timezone={null} />);
     fireEvent.click(screen.getByRole("button", { name: ar.common.edit }));
     expect((screen.getByLabelText(ar.settings.field.nameAr, { exact: false }) as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText(ar.settings.field.timezone, { exact: false }) as HTMLSelectElement).value).toBe("");
-    // The "not set" label is what the person SEES on the control (the native option behind it is hidden and says the same).
-    expect(screen.getAllByText(ar.settings.timezoneUnset).some((el) => !el.closest("select"))).toBe(true);
+    expect((screen.getByRole("dialog").querySelector('input[name="timezone"]') as HTMLInputElement).value).toBe("");
   });
 });

@@ -349,7 +349,7 @@ function collectOptions(nodes: ReactNode, group?: string, out: ListboxOption[] =
  * native select announces its label and value, so there is one control for assistive tech and no duplicate label.
  */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { className, children, size = "field", onChange, onFocus, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, "aria-describedby": ariaDescribedBy, "aria-invalid": ariaInvalid, ...rest },
+  { className, children, size = "field", onChange, onFocus, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, "aria-describedby": ariaDescribedBy, "aria-invalid": ariaInvalid, "data-testid": testId, ...rest },
   ref,
 ) {
   const nativeRef = useRef<HTMLSelectElement | null>(null);
@@ -418,6 +418,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       options={options}
       emptyIsPlaceholder
       buttonRef={buttonRef}
+      testId={testId as string | undefined}
       buttonClassName={cn(selectSize[size], className)}
       onChange={(value) => {
         const native = nativeRef.current;
@@ -452,7 +453,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       </select>
     </ListboxSelect>
   );
-}
+});
 
 /** Accessible labelled field wrapper with optional error/hint text. */
 export function LabeledField({

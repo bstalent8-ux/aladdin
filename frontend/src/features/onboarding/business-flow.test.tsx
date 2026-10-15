@@ -64,7 +64,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("BusinessFlow — acceptance gates", () => {
   it("offers Engineer as design_office in the existing add-business flow", async () => {
     renderWithI18n(<BusinessFlow answers={emptyAnswers} presetOrgType={null} draftId={null} />, "en");
-    fireEvent.change(screen.getByLabelText(en.onboarding.business.identity.displayNameLabel), { target: { value: "Engineering" } });
+    fillNames("Engineering", "Engineering Consultants LLC");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: en.onboarding.continue })); });
     fireEvent.click(screen.getByRole("button", { name: /Engineer/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: en.onboarding.continue })); });

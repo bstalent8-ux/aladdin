@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n } from "@/test/render";
-import { readOptions, selectValue } from "@/test/select-menu";
 import { createTranslator } from "@/lib/i18n/translate";
 import type { PersonalHomeData } from "@/server/queries/personal-home";
 
