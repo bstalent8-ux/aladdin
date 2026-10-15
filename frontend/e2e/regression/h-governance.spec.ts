@@ -53,9 +53,8 @@ test.beforeAll(async () => {
   expect((await owner.rpc("organization_application_submit", { p_org_id: orgId })).error).toBeNull();
   // Fixture only (local test DB): this governance suite approves a bare showroom, which the seller-readiness guards of PR #84 refuse
   // until a full profile exists. The guards are switched off for exactly this approval and back on straight after.
-  psql(`alter table public.verifications disable trigger showroom_review_complete; alter table public.organizations disable trigger showroom_activation_complete;`);
+  psql(`alter table public.verifications disable trigger showroom_review_complete; alter table public.organizations disable trigger showroom_activation_complete; alter table public.branches disable trigger showroom_live_address_required;`);
   await decide(q(`select id from public.verifications where organization_id = '${orgId}' and verification_type = 'organization' and status = 'submitted'`), "approve");
-  psql(`alter table public.verifications enable trigger showroom_review_complete; alter table public.organizations enable trigger showroom_activation_complete;`);
   // two more members of the approved office: a co-owner candidate (org.manage) and a sales member (no governance rights)
   psql(`
     with m as (
@@ -66,6 +65,11 @@ test.beforeAll(async () => {
     select m.id, c from m join auth.users u on u.id = m.user_id,
       unnest(case when u.email = '${COOWNER}' then array['org.manage','branch.manage','catalog.read'] else array['sales.read','catalog.read'] end) c;
   `);
+});
+
+test.afterAll(() => {
+  // Fixture guards (see beforeAll) go back on once this suite is done, so later suites see the real seller-readiness rules.
+  psql(`alter table public.verifications enable trigger showroom_review_complete; alter table public.organizations enable trigger showroom_activation_complete; alter table public.branches enable trigger showroom_live_address_required;`);
 });
 
 /** A Showroom's Settings is the sectioned V2 page. Wait for hydration so an early click is not lost in dev builds. */
