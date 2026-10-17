@@ -192,6 +192,11 @@ select is((select array_agg(action order by action) from public.audit_log where 
         'business_verification.review_started', 'business_verification.submitted', 'business_verification.submitted'],
   'E15: every step is audited');
 set local role authenticated;
+set local request.jwt.claims = :'adm';
+select ok((public.admin_organization_detail((select v::uuid from _ids where k = 'o1')) ->> 'business_verified_at') is not null,
+  'E15b: the Admin organization detail carries the badge separately from approval');
+reset role;
+set local role authenticated;
 set local request.jwt.claims = :'own';
 select is(public.my_business_verification((select v::uuid from _ids where k = 'o1')) ->> 'status', 'verified', 'E16: owner sees Verified');
 select throws_ok(format('select public.business_verification_submit(%L)', (select v from _ids where k = 'o1')), '22023', null, 'E17: a verified organization cannot submit again');

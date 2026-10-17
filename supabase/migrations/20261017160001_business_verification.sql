@@ -855,7 +855,9 @@ begin
       ('public.purchase_requests_discover(uuid)', 'o.name, o.is_verified,', 'o.name, (o.business_verified_at is not null),'),
       ('public.showroom_directory_search(text,integer)', 'o.org_type, o.is_verified,',            'o.org_type, (o.business_verified_at is not null),'),
       ('public.showroom_directory_search(text,integer)', 'order by o.is_verified desc',           'order by (o.business_verified_at is not null) desc'),
-      ('public.my_showroom_affiliations()',             'o.org_type, o.is_verified, b.name',      'o.org_type, (o.business_verified_at is not null), b.name')
+      ('public.my_showroom_affiliations()',             'o.org_type, o.is_verified, b.name',      'o.org_type, (o.business_verified_at is not null), b.name'),
+      -- Admin keeps both facts: approval (is_verified) and the badge (business_verified_at).
+      ('public.admin_organization_detail(uuid)',        '''is_verified'', o.is_verified,',        '''is_verified'', o.is_verified, ''business_verified_at'', o.business_verified_at,')
     ) t(fn, old_text, new_text)
   loop
     begin
