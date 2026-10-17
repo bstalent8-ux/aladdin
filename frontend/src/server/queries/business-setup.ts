@@ -4,7 +4,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { loadPlatformRole } from "@/server/queries/platform";
+import { loadIsAdminStaff } from "@/server/queries/platform";
 import { loadWorkspaces } from "@/server/queries/workspace";
 import { businessEntries, personalEntry } from "@/lib/workspace/model";
 import { decideMandatoryBusinessSetup, type MandatoryBusinessSetup } from "@/lib/onboarding/mandatory-business-setup";
@@ -40,14 +40,14 @@ export async function computeMandatoryBusinessSetup(supabase: SupabaseClient<Dat
     .maybeSingle();
   if (progress?.selected_track !== "business") return { required: false, orgType: null };
 
-  const [{ entries }, completed, platformRole] = await Promise.all([
+  const [{ entries }, completed, isPlatformStaff] = await Promise.all([
     loadWorkspaces(supabase),
     supabase
       .from("business_creation_drafts")
       .select("id", { head: true, count: "exact" })
       .eq("user_id", user.id)
       .not("completed_at", "is", null),
-    loadPlatformRole(supabase),
+    loadIsAdminStaff(supabase),
   ]);
 
   return decideMandatoryBusinessSetup({
@@ -56,7 +56,7 @@ export async function computeMandatoryBusinessSetup(supabase: SupabaseClient<Dat
     hasPersonalWorkspace: Boolean(personalEntry(entries)),
     businessMembershipCount: businessEntries(entries).length,
     hasCompletedBusinessDraft: (completed.count ?? 0) > 0,
-    isPlatformStaff: Boolean(platformRole),
+    isPlatformStaff,
   });
 }
 
