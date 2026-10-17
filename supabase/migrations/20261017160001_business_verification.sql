@@ -355,7 +355,8 @@ begin
 end;
 $$;
 
--- Confirm after the upload; the object must actually exist in the private bucket.
+-- Confirm after the upload. The caller checks the object exists through its own Storage access first (the
+-- product-images pattern): no app/public function reads storage.objects.
 create or replace function public.business_verification_document_confirm(p_object_key text)
 returns uuid
 language plpgsql
@@ -370,10 +371,6 @@ begin
    for update;
   if not found or not app.has_capability(v_d.organization_id, 'org.manage') then
     raise exception 'no matching pending document upload for this caller' using errcode = 'P0002';
-  end if;
-  if not exists (select 1 from storage.objects o
-                  where o.bucket_id = 'business-verification-documents' and o.name = p_object_key) then
-    raise exception 'the document has not been uploaded' using errcode = 'P0002';
   end if;
   update public.business_verification_documents set state = 'ready' where id = v_d.id;
   perform app.record_audit_event('business_verification.document_added', 'organization', v_d.organization_id,

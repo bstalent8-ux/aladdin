@@ -99,9 +99,9 @@ select is((select file_name from public.business_verification_documents where ob
   '.. .. etc Register.pdf', 'B5: path separators are stripped from the display name');
 
 set local role authenticated;
-set local request.jwt.claims = :'own';
+set local request.jwt.claims = :'out';
 select throws_ok(format('select public.business_verification_document_confirm(%L)', (select v from _ids where k = 'k1')), 'P0002', null,
-  'B6: confirm refuses before the object exists');
+  'B6: nobody but the uploader can confirm a pending document');
 
 -- C. an outsider cannot plant the object, read state or reserve an upload
 set local request.jwt.claims = :'out';

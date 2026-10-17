@@ -50,10 +50,20 @@ export async function requestBvUploadAction(input: {
   return { ok: true, key: data };
 }
 
-/** Confirm only after the browser uploaded the bytes; the database checks the object exists. */
+/**
+ * Confirm only AFTER the browser has uploaded: the database never reads the byte store, so the existence
+ * check lives here, through the caller's own Storage access (the same pattern as product images).
+ */
 export async function confirmBvUploadAction(key: string): Promise<BvResult> {
   if (!isBvKey(key)) return { ok: false, code: "businessVerification.errors.upload" };
   const supabase = await getServerSupabase();
+  const slash = key.lastIndexOf("/");
+  const { data: listed, error: listError } = await supabase.storage
+    .from(BV_BUCKET)
+    .list(key.slice(0, slash), { search: key.slice(slash + 1), limit: 5 });
+  if (listError || !(listed ?? []).some((o) => o.name === key.slice(slash + 1))) {
+    return { ok: false, code: "businessVerification.errors.upload" };
+  }
   const { error } = await supabase.rpc("business_verification_document_confirm", { p_object_key: key });
   if (error) return { ok: false, code: mapBvError(error.message) };
   revalidatePath(SHOWROOM_PATH);
