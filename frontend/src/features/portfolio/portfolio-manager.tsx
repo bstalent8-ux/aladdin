@@ -3,7 +3,9 @@
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, InlineError, StatePanel } from "@/components/ui/primitives";
-import { Button, Input, LabeledField, SubmitButton, Textarea } from "@/components/ui/controls";
+import { Button, Input, LabeledField, SubmitButton } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isAcceptableEdit } from "@/lib/text/description-limit";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LayersIcon, AlertIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { useI18n } from "@/lib/i18n/context";
@@ -265,6 +267,28 @@ function UnfinishedCard({ item }: { item: PortfolioCard }) {
   );
 }
 
+/** The portfolio description: counted in characters, never cut off; the form refuses an over-limit value. */
+function PortfolioDescription({ id, initial }: { id: string; initial: string }) {
+  const { t } = useI18n();
+  const [value, setValue] = useState(initial);
+  return (
+    <>
+      <CountedTextarea
+        id={id}
+        name="description"
+        rows={3}
+        dir="auto"
+        value={value}
+        max={DESCRIPTION_MAX_CHARS}
+        unitLabel={t("showroomSettings.description.chars")}
+        counterTestId={`${id}-count`}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      {isAcceptableEdit(value, initial) ? null : <InlineError>{t("portfolio.errors.descriptionTooLong")}</InlineError>}
+    </>
+  );
+}
+
 function EditForm({ item, onDone }: { item: PortfolioCard; onDone: () => void }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -287,14 +311,7 @@ function EditForm({ item, onDone }: { item: PortfolioCard; onDone: () => void })
         <Input id={`title-${item.id}`} name="title" defaultValue={item.title} required maxLength={120} dir="auto" />
       </LabeledField>
       <LabeledField label={t("portfolio.form.description")} htmlFor={`desc-${item.id}`}>
-        <Textarea
-          id={`desc-${item.id}`}
-          name="description"
-          defaultValue={item.description ?? ""}
-          rows={3}
-          maxLength={600}
-          dir="auto"
-        />
+        <PortfolioDescription id={`desc-${item.id}`} initial={item.description ?? ""} />
       </LabeledField>
       {state.ok ? null : <InlineError>{t(state.code ?? "states.genericRetry")}</InlineError>}
       <div className="flex items-center gap-2">
@@ -365,7 +382,7 @@ function AddWork() {
             <Input id="new-title" name="title" required maxLength={120} dir="auto" />
           </LabeledField>
           <LabeledField label={t("portfolio.form.description")} htmlFor="new-description">
-            <Textarea id="new-description" name="description" rows={3} maxLength={600} dir="auto" />
+            <PortfolioDescription id="new-description" initial="" />
           </LabeledField>
           <AssetFileField namespace="portfolio" onPick={setFile} />
           {error ? <InlineError>{t(error)}</InlineError> : null}

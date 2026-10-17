@@ -65,7 +65,7 @@ where instance_id = '00000000-0000-0000-0000-000000000000';
 -- whose persona was the business classification.
 update public.users set primary_account_type = null,                status = 'active' where id = '11111111-1111-4111-8111-111111111111';
 update public.users set primary_account_type = 'sales',             status = 'active' where id = '22222222-2222-4222-8222-222222222222';
-update public.users set primary_account_type = 'interior_designer', status = 'active' where id = '33333333-3333-4333-8333-333333333333';
+update public.users set primary_account_type = 'engineer', status = 'active' where id = '33333333-3333-4333-8333-333333333333';
 update public.users set primary_account_type = 'end_consumer',      status = 'active' where id = '44444444-4444-4444-8444-444444444444';
 -- Platform staff hold a NORMAL account type; their authority comes solely from
 -- the platform_role_grant below, never from primary_account_type (review B4).

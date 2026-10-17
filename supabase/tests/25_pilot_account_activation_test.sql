@@ -172,7 +172,7 @@ select is(public.my_registration_state(), 'username_pending',
 -- (20260928090001_business_creation_entitlement.sql). A concrete approved type chosen
 -- at registration (supplier, showroom_dealer, ...) is what authorizes it.
 select throws_ok(
-  $$ select public.business_save('Zayed Marble LLC', 'Zayed Marble', 'wholesaler'::public.organization_type,
+  $$ select public.business_save('Zayed Marble LLC', 'Zayed Marble', 'contractor_company'::public.organization_type,
        null, 'giza', 'sheikh_zayed', 'Main branch', true) $$,
   '42501', null, 'the generic owner/manager choice cannot open a business draft');
 -- A consumer type on the business track is still refused.

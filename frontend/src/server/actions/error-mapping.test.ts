@@ -11,6 +11,7 @@ describe("mapSalesError", () => {
 
   it("maps a stale-version serialization failure to the conflict key", () => {
     expect(mapSalesError({ code: "40001" })).toBe("leads.conflict");
+    expect(mapSalesError({ code: "VC001" })).toBe("leads.conflict");
     expect(mapSalesError({ message: "lead was modified concurrently" })).toBe("leads.conflict");
   });
 
@@ -55,6 +56,7 @@ describe("mapSalesError", () => {
 describe("isStaleVersion", () => {
   it("detects optimistic-concurrency conflicts", () => {
     expect(isStaleVersion({ code: "40001" })).toBe(true);
+    expect(isStaleVersion({ code: "VC001" })).toBe(true);
     expect(isStaleVersion({ message: "modified concurrently" })).toBe(true);
     expect(isStaleVersion({ code: "42501" })).toBe(false);
   });

@@ -34,23 +34,18 @@ export type ConsumerBudget = (typeof CONSUMER_BUDGETS)[number];
  * The professional persona is derived from the account type chosen at the shared
  * account-type step.
  *
- * Sprint 12: Engineer and Interior Designer became DISTINCT registration choices,
- * so each now maps to its own persona with a FIXED concrete type — the type is
- * asked once, at registration, and never again. The combined `engineer_designer`
- * persona is retained for saved drafts from before the split: it carries no fixed
- * type and still resolves through the in-flow sub-choice.
+ * Every persona maps to ONE fixed concrete type — the type is asked once, at
+ * registration, and never again. (Engineer is the single engineer-related account;
+ * the retired interior-designer and combined engineer/designer personas are gone.)
  */
 export type ProfessionalPersona =
   | "engineer"
-  | "interior_designer"
-  | "engineer_designer"
   | "installer_technician"
   | "contractor"
   | "salesperson";
 
 export const PERSONA_BY_ACCOUNT_TYPE: Partial<Record<AccountTypeValue, ProfessionalPersona>> = {
   engineer: "engineer",
-  interior_designer: "interior_designer",
   installer_technician: "installer_technician",
   contractor: "contractor",
   sales: "salesperson",
@@ -58,18 +53,12 @@ export const PERSONA_BY_ACCOUNT_TYPE: Partial<Record<AccountTypeValue, Professio
 
 /** The four individual professional types an upgrade may be requested for. */
 export const INDIVIDUAL_PROFESSIONAL_TYPES: AccountTypeValue[] = [
-  "engineer", "interior_designer", "installer_technician", "contractor", "sales",
+  "engineer", "installer_technician", "contractor", "sales",
 ];
 
-/** Only the legacy combined persona needs a sub-choice; every current one is fixed. */
-export const ENGINEER_DESIGNER_TYPES = ["engineer", "interior_designer"] as const;
-
-/** The fixed concrete account type for a persona (null → resolved by sub-choice). */
-export const FIXED_CONCRETE_TYPE: Record<ProfessionalPersona, AccountTypeValue | null> = {
+/** The fixed concrete account type for a persona. */
+export const FIXED_CONCRETE_TYPE: Record<ProfessionalPersona, AccountTypeValue> = {
   engineer: "engineer",
-  interior_designer: "interior_designer",
-  // Transitional: a draft saved before the Engineer/Interior Designer split.
-  engineer_designer: null,
   installer_technician: "installer_technician",
   contractor: "contractor",
   salesperson: "sales",
@@ -78,7 +67,6 @@ export const FIXED_CONCRETE_TYPE: Record<ProfessionalPersona, AccountTypeValue |
 /** 05.2.1 Identity — specialization options, keyed by the CONCRETE account type. */
 export const SPECIALIZATIONS: Record<string, readonly string[]> = {
   engineer: ["structural", "mep", "site_supervision", "cost_estimation"],
-  interior_designer: ["residential", "commercial", "kitchen_bath", "lighting_design"],
   installer_technician: ["kitchens_doors", "plumbing", "electrical", "hvac", "gypsum_paint"],
   contractor: ["full_finishing", "renovation", "turnkey", "specific_trades"],
   sales: ["showroom_sales", "field_sales", "technical_sales", "key_accounts"],
@@ -87,7 +75,6 @@ export const SPECIALIZATIONS: Record<string, readonly string[]> = {
 /** 05.2.2 Services & Skills — core + additional service pools, per concrete type. */
 export const SERVICES: Record<string, readonly string[]> = {
   engineer: ["design_review", "structural_design", "supervision", "boq"],
-  interior_designer: ["space_planning", "visualization", "material_selection", "styling"],
   installer_technician: ["kitchen_install", "door_install", "site_measurement"],
   contractor: ["finishing", "renovation", "turnkey_fitout"],
   sales: ["showroom_advice", "quotations", "product_demos"],
@@ -95,7 +82,6 @@ export const SERVICES: Record<string, readonly string[]> = {
 
 export const ADDITIONAL_SERVICES: Record<string, readonly string[]> = {
   engineer: ["consultation", "feasibility", "permits"],
-  interior_designer: ["consultation", "procurement", "site_followup"],
   installer_technician: ["maintenance", "finishing", "consultation"],
   contractor: ["demolition", "waterproofing", "consultation"],
   sales: ["site_visits", "after_sales", "key_accounts"],

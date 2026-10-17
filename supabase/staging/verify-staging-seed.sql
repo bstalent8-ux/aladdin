@@ -280,7 +280,7 @@ begin
     from public.users
    where primary_account_type is not null
      and primary_account_type::text not in
-         ('end_consumer','engineer','interior_designer','installer_technician','contractor','sales','trainer','trainee');
+         ('end_consumer','engineer','installer_technician','contractor','sales');
   if v_n > 0 then
     raise exception 'C1 linkage: % user(s) carry a non-persona account type', v_n;
   end if;

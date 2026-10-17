@@ -30,7 +30,7 @@ export type PersonaType = Database["public"]["Enums"]["persona_type"];
 const LIST_LIMIT = 60;
 
 /** Businesses a showroom BUYS from. */
-export const SUPPLIER_ORG_TYPES: OrgType[] = ["supplier", "manufacturer", "importer", "wholesaler"];
+export const SUPPLIER_ORG_TYPES: OrgType[] = ["supplier", "manufacturer", "importer"];
 
 /**
  * Institutional counterparties — contracting companies, design/engineering
@@ -44,7 +44,7 @@ export const INSTITUTION_ORG_TYPES: OrgType[] = ["contractor_company", "design_o
 export const TECHNICIAN_PERSONAS: PersonaType[] = ["installer_technician"];
 
 /** Professionals a showroom consults or refers work to, other than trades. */
-export const CONSULTANT_PERSONAS: PersonaType[] = ["engineer", "interior_designer", "contractor"];
+export const CONSULTANT_PERSONAS: PersonaType[] = ["engineer", "contractor"];
 
 export async function listOrganizations(
   supabase: DB,
@@ -163,13 +163,14 @@ export type ProductCategory = Database["public"]["Enums"]["product_category"];
  */
 export async function organizationProductFacets(
   supabase: DB,
+  viewerOrgId: string | null,
   orgIds: string[],
 ): Promise<Map<string, OrgFacet>> {
   const out = new Map<string, OrgFacet>();
   if (orgIds.length === 0) return out;
 
   const { data, error } = await supabase
-    .from("catalog_published_products")
+    .rpc("catalog_products", { p_org_id: viewerOrgId ?? undefined })
     .select("organization_id, category")
     .in("organization_id", orgIds);
   if (error) throw error;

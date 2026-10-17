@@ -37,7 +37,6 @@ describe("commerceStance", () => {
     expect(commerceStance("supplier")).toBe("seller");
     expect(commerceStance("manufacturer")).toBe("seller");
     expect(commerceStance("importer")).toBe("seller");
-    expect(commerceStance("wholesaler")).toBe("seller");
   });
 
   it("leaves the showroom and its peers in the buyer seat", () => {
@@ -67,11 +66,10 @@ describe("supplyVoice", () => {
     expect(supplyVoice("importer")).toBe("importer");
   });
 
-  it("uses the distributor voice for supplier and wholesaler", () => {
+  it("uses the distributor voice for supplier (a wholesaler is a supplier subtype)", () => {
     // `supplier` is the internal identifier for the Distributor product concept,
     // and a wholesaler is the same reseller-supply relationship.
     expect(supplyVoice("supplier")).toBe("distributor");
-    expect(supplyVoice("wholesaler")).toBe("distributor");
   });
 
   it("falls back to the distributor voice rather than throwing", () => {

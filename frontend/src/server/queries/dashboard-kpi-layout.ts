@@ -19,6 +19,9 @@ export type EffectiveKpiLayout = {
  * the organization's team default, else the application's hardcoded system
  * order — never duplicated here, imported from the one shared catalog.
  *
+ * Reads ONLY the `home` surface: the showroom suite keeps its own layouts
+ * (`showroom_suite`, 20261007090001) that must never leak into this dashboard.
+ *
  * Two narrow reads in parallel rather than one `.or(...)` filter: building
  * an `or` string from a caller-scoped membership id works, but two plain
  * `.eq()`/`.is()` reads are simpler to read and no slower for a two-row table.
@@ -34,12 +37,14 @@ export async function loadEffectiveKpiLayout(
       .select("card_order")
       .eq("organization_id", orgId)
       .eq("membership_id", membershipId)
+      .eq("surface", "home")
       .maybeSingle(),
     supabase
       .from("dashboard_kpi_layouts")
       .select("card_order")
       .eq("organization_id", orgId)
       .is("membership_id", null)
+      .eq("surface", "home")
       .maybeSingle(),
   ]);
   if (personal.error) throw personal.error;

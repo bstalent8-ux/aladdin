@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/temporary/craftsman/sign-up", destination: "/installer/sign-up", permanent: true },
       { source: "/temporary/craftsman/sign-in", destination: "/installer/sign-in", permanent: true },
+      // Showroom V2 was reviewed under /preview/showroom-suite-v2; it now lives at /showroom (links stay valid).
+      { source: "/preview/showroom-suite-v2", destination: "/showroom", permanent: true },
+      { source: "/preview/showroom-suite-v2/:path*", destination: "/showroom/:path*", permanent: true },
     ];
   },
 };

@@ -376,3 +376,7 @@ BusinessFlow keeps the shared wizard and controls, with separate business-inform
 
 ## Approved Showroom review — 2026-10-14
 Authentication/onboarding UI approved with 2026 derived brand assets, vertically centered country control, exact password helper “يجب أن تتكون كلمة المرور من 10 أحرف على الأقل”, description250characters and optional onboarding address250words. Address helper explains activation requirement; existing business-profile completion item links to authorized branch settings. Functional RTL controls and original references/screenshots are retained; no screenshot-as-interface or duplicate preview routes.
+
+## Showroom Suite V2 is the design authority (2026-10-13)
+
+The user approved `/preview/showroom-suite-v2` (the `.installer-surface` theme: Deep Navy `#071A2D`, Warm Sand `#D8C7A6`, Soft Cream `#F2E9D8`, Muted Terracotta `#B96F52`, Readex Pro) as the visual language for every new or modified user-facing page, including future Supplier, Manufacturer, Importer, Contractor and Engineer interfaces (adapted to their needs). New pages consume the semantic token utilities and the shared V2 shell (`features/showroom-shell`); do not build a third shell and do not continue developing the legacy `/b2b` visual design. Third-party reference screenshots inform content and information architecture only, never branding.

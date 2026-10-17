@@ -98,6 +98,41 @@ Read-only hosted review: staging Free, native CAPTCHA off, no hooks, signups/sig
 - Product guide updated (the "business choices" bullet now states the mandatory first business).
 
 ---
+## Session - 2026-10-14: Showroom V2 Business Description and the 250-character description rule
+
+- Purpose: add the missing Business Description to Showroom Settings and apply one 250-character limit to user-authored description fields, enforced beyond the frontend, without touching legacy data. Part of the ongoing V2 alignment; no new milestone.
+- Findings: `organizations` had no description column; the registration description lived only on the draft and was never copied to the organization; the draft and bio RPCs silently truncated at 1000; `profiles.bio` had a direct client UPDATE grant; product/offer validators already enforced 250.
+- Built: migration `20261025090001_organization_description_250.sql` (additive: `organizations.description` CHECK <= 250, `organization_description_set` RPC with live `org.manage` and audit, one counting rule, reject-not-truncate in the draft/bio/portfolio RPCs, legacy-safe direct-write trigger on six columns, draft description copied on submit); Settings field with live counter; registration, professional bio, portfolio and legacy product inputs moved to the counted textarea (no silent `maxLength` cut); shared `lib/text/description-limit`.
+- Records: [reference alignment section 10](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md) (now 44 migrations).
+- Validation: fresh `supabase db reset --local` then pgTAP 85 files / 3732 tests pass (new test 84: 36 assertions); Vitest 219 files / 2673 tests; tsc and eslint clean on touched files; browser `v2-description` DS-1..DS-3, `v2-settings` S-1..S-4, regression b/c/g/h pass. pgTAP on a database that still holds e2e seed data fails 8 files on row counts (pollution; passes after a reset).
+- Pending: production audit query for existing over-250 values (documented), decision on jobs/projects/referral descriptions, whether the description should ever be public or moderated, all earlier V2 blockers.
+
+## Session - 2026-10-13 (later): Showroom V2 reference alignment and Settings corrections
+
+- Purpose: the exact Home reference image became available; align Home to it, keep KPI customization, apply the approved Settings corrections (remove business language/timezone, add a Showroom profile image, explain/hide the technical slug), audit personal-data privacy, rename the workspace-switcher actions. No deployment.
+- Built: Home per reference (five cards with real period-over-period trend, six-product grid, quotations with thumbnails, category donut); quick actions/benefits/active-RFQ/needs-attention removed from Home only; migrations `20261024090001` (two KPI keys) and `20261024090002` (business profile image); Settings changes; switcher labels; privacy pgTAP.
+- Records: [reference alignment](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md).
+- Validation: fresh `supabase db reset --local` then pgTAP 84 files / 3696 tests pass; Vitest and browser specs reported in the final report.
+- Findings: `cairo-ceramics` is the public handle `organizations.slug` (protected identity field); no personal data reaches public business identity; four privacy decisions left open (listed professional profiles, colleague roster, manager view, platform-support access). Pre-existing unused column `logo_media_id` is now the image pointer.
+- Pending: user visual approval of Home vs reference, hosted validation, Admin review UI, route decision.
+
+## Session - 2026-10-13: Showroom V2 Home, Settings, converged shell and release plan
+
+- Purpose: user declared `/preview/showroom-suite-v2` the design authority and widened the target to the COMPLETE Showroom account (not only Home and Settings). Inventory, convergence, Home V2, Settings V2, evidence and release plan; no push/PR/merge/deploy.
+- Built: V2 Home (six KPI cards, discover rail, incoming quotations, purchasing by category, active Direct RFQs, quick actions), sectioned V2 Settings reusing the governance/account backend, one Showroom frame shared by `/preview/showroom-suite-v2/*` and `/b2b/*` for `showroom_dealer`, placeholder-free navigation (only Shared Purchase Requests hidden), Chat panel and branch switcher mounted in the V2 frame, Direct RFQ label correction. No migrations.
+- Records: [inventory](../frontend/showroom-v2-release-inventory.md), [Home data map](../frontend/showroom-v2-home-data-map.md), [release plan](showroom-v2-release-plan.md). Screenshots: `docs/frontend/screenshots/v2-release/`.
+- Validation: tsc clean; Vitest 215 files / 2649 tests; real-browser `e2e/regression/a..i` all pass (h now through V2 Settings); `e2e/audit/v2-*.spec.ts` pass (Home, sidebar destinations, Settings sections, staff scope, pending org, empty/multi-branch org, chat, Direct RFQ -> quotation -> order).
+- Findings: local PostgREST hangs 60 s on SQLSTATE 40001 (stale quotation version) - verify on hosted; seeded owner lacks `conversation.participate`; older default Playwright harness targets another DB container and was not run.
+- Pending: user visual approval; hosted staging validation; Admin review path for identity/branch requests; canonical route decision; untested transitions (order execution, invitations, personal profile saves).
+
+## Session — 2026-10-06: showroom full-stack Phase 0 isolation and audit
+
+- Purpose: user changed showroom from frontend-only preview to phased backend-backed implementation without production-route changes.
+- Created `feature/showroom-fullstack-v2` in `D:/projects/aladdin-wt-showroom-fullstack-v2` from fetched main `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`, after inspecting status/branches/all worktrees. Left dirty source and concurrent auth/installer/admin work untouched.
+- Recorded [source map, backend gaps and continuation](../frontend/showroom-fullstack-v2.md). Reuse organizations/memberships, canonical commerce/orders, KPI persistence, referrals, CRM/jobs/points. No parallel identity model or DB mutation.
+- Validation evidence: Git isolation inspected; Docker container inventory succeeded read-only after sandbox permission retry. Port 3023 unavailable. Application lint/typecheck/tests/build and DB reset/pgTAP not run because this checkpoint changes documentation only; they remain mandatory for implemented phases.
+- Pending: Phase 1–10, isolated database runtime, browser parity and all implementation validation. No routes or migrations added, no preview files ported, no push/PR/deploy.
+- Documentation validation: `python scripts/check_doc_links.py` passed (1004 internal links, 123 Markdown files, zero broken); `git diff --check` passed.
 
 ## Session — 2026-10-05: isolated installer settings preview
 

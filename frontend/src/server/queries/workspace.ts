@@ -54,7 +54,11 @@ export const loadWorkspaces = cache(async function loadWorkspaces(
   // A Personal row reports a `persona` and a Business row an `org_type`; since
   // Sprint 13 those are two different columns of two different types, and each row
   // populates only its own. Reading one for the other is no longer possible.
-  const entries: WorkspaceEntry[] = (data ?? []).map((row) =>
+  // An organization still under review is a LIMITED workspace: the owner may complete the profile and prepare DRAFT products, and
+  // the shell says "pending Admin approval". It resolves no audience and holds no commercial authority in the database (no catalog,
+  // offers, requests, RFQ, quotation, publishing), so offering it here grants nothing. `isApproved` lets the shell limit itself.
+  const entries: WorkspaceEntry[] = (data ?? [])
+    .map((row) =>
     row.kind === "personal"
       ? { kind: "personal" as const, name: row.name ?? "", persona: row.persona ?? null }
       : {
@@ -63,6 +67,7 @@ export const loadWorkspaces = cache(async function loadWorkspaces(
           name: row.name ?? "",
           orgType: row.org_type ?? null,
           relationship: toRelationship(row.relationship),
+          isApproved: row.is_approved === true,
         },
   );
 

@@ -69,7 +69,7 @@ test.describe("installer dashboard", () => {
 
     await expect(page.getByTestId("installer-home")).toBeVisible();
     await expect(page.getByTestId("workspace-switcher")).toHaveCount(0);
-    await expect(page.getByText(/add business|إضافة نشاط تجاري|connect a showroom|اربط معرضًا/i)).toHaveCount(0);
+    await expect(page.getByText(/add business|request new organization|إضافة نشاط تجاري|طلب إضافة مؤسسة جديدة|connect a showroom|اربط معرضًا/i)).toHaveCount(0);
     // The profile subtitle uses the person form, never the legacy category label.
     await expect(page.getByTestId("profile-menu-trigger")).toContainText(/Craftsman|صنايعي/);
     await expect(page.locator("body")).not.toContainText(/Installer \/ Technician|فني \/ مركّب/);

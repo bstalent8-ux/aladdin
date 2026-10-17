@@ -83,6 +83,7 @@ create temp table _p as select id as pid, version as pv from public.products whe
 grant select on _p to authenticated, service_role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select public.product_audiences_set((select pid from _p), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select public.set_product_published((select pid from _p), true, (select pv from _p));
 
 -- Chain 1: submitted RFQ → submitted quotation → accepted → ORDER.

@@ -32,7 +32,7 @@ export default async function CatalogPage({
     : undefined;
 
   const [products, saved] = await Promise.all([
-    listCatalog(supabase, { search: sp.q, category, supplierOrgId: sp.supplier }),
+    listCatalog(supabase, org.organizationId, { search: sp.q, category, supplierOrgId: sp.supplier }),
     savedProductIds(supabase, org.organizationId),
   ]);
 

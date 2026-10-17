@@ -35,7 +35,9 @@ const offersBoth = (text: string) =>
   (/active=\{view === "grid"\}/.test(text) && /active=\{view === "list"\}/.test(text));
 
 describe("Grid is the default wherever Grid and List both exist", () => {
-  const withToggle = files.filter((f) => offersBoth(f.text));
+  // Showroom V2 ships its own approved Grid/List toggle (features/showroom-shell/view-toggle.tsx) that REMEMBERS the choice; the
+  // rule below is for the three installer views.
+  const withToggle = files.filter((f) => offersBoth(f.text) && f.rel !== "features/showroom-shell/view-toggle.tsx");
 
   it("the audit finds exactly the three known views", () => {
     expect(withToggle.map((f) => f.rel).sort()).toEqual([

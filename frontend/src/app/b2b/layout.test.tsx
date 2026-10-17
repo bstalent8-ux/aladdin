@@ -24,6 +24,9 @@ vi.mock("@/components/layout/no-org-notice", () => ({ NoOrgNotice: () => <div da
 
 import B2BLayout from "./layout";
 
+// rc2: the layout now (transitively) imports the Showroom shell context, which is server-only.
+vi.mock("server-only", () => ({}));
+
 const personal = { kind: "personal", name: "P", persona: "sales" };
 const active = { organizationId: "o1", organizationName: "Nile", activeBranchId: null, branches: [] };
 

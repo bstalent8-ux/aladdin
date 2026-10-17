@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { getPageContext } from "@/server/queries/page-context";
 import { getMessages } from "@/lib/i18n/translate";
-import { getProduct } from "@/server/queries/commerce";
+import { getProduct, getProductAudiences } from "@/server/queries/commerce";
+import { isProductAudienceCode } from "@/features/showroom-shell/products/product-audiences";
 import { PageHeader } from "@/components/ui/workspace-layout";
 import { BackLink } from "@/features/sales/page-parts";
 import { StatePanel } from "@/components/ui/primitives";
@@ -19,6 +20,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const product = await getProduct(supabase, id);
   if (!product || product.organization_id !== org.organizationId) notFound();
 
+  const audiences = (await getProductAudiences(supabase, product.id)).filter(isProductAudienceCode);
   const canWrite = org.capabilities.includes("catalog.write") || org.capabilities.includes("org.manage");
 
   return (
@@ -26,7 +28,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       <BackLink href={`/b2b/products/${product.id}`}>{product.name}</BackLink>
       <PageHeader locale={locale} title={m.commerce.products.editTitle} />
       {canWrite ? (
-        <ProductForm orgId={org.organizationId} product={product} />
+        <ProductForm orgId={org.organizationId} product={product} audiences={audiences} />
       ) : (
         <StatePanel tone="warning" title={m.commerce.products.noAccessTitle} body={m.commerce.products.noAccessBody} />
       )}

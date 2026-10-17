@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { mapCommerceError } from "@/server/actions/error-mapping";
+import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 
 /**
  * Server Actions for the organization's product shortlist.
@@ -42,5 +43,10 @@ export async function toggleSavedProductAction(
   revalidatePath("/b2b/saved");
   revalidatePath("/b2b/catalog");
   revalidatePath(`/b2b/catalog/${productId}`);
+  // The showroom suite shows the same save state (catalog, product detail, and the Home count).
+  revalidatePath(`${SHOWROOM_ROOT}/catalog`);
+  revalidatePath(`${SHOWROOM_ROOT}/catalog/${productId}`);
+  revalidatePath(`${SHOWROOM_ROOT}/saved`);
+  revalidatePath(`${SHOWROOM_ROOT}/home`);
   return { ok: true };
 }

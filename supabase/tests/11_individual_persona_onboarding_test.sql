@@ -39,14 +39,14 @@ insert into public.onboarding_progress
    profile_completed_at, contact_completed_at, account_type_completed_at, completed_at)
 values
   ('c0000000-0000-4000-8000-0000000000c1', '01012345678', 'consumer', null, now(), now(), now(), now()),
-  ('d0000000-0000-4000-8000-0000000000d1', '01512345678', 'professional', 'interior_designer', now(), now(), now(), now());
--- What onboarding_select_account_type('professional', 'interior_designer')
+  ('d0000000-0000-4000-8000-0000000000d1', '01512345678', 'professional', 'engineer', now(), now(), now(), now());
+-- What onboarding_select_account_type('professional', 'engineer')
 -- records alongside the row above since Increment 11: the DECLARED persona.
 -- Increment 12 locks individual_save_professional to it — the wizard's profile
 -- step saves data for the chosen persona and can no longer switch it (this
--- fixture used to select 'engineer' and then save 'interior_designer').
+-- fixture used to select 'engineer' and then save 'engineer').
 insert into public.individual_onboarding (user_id, prof_concrete_type)
-values ('d0000000-0000-4000-8000-0000000000d1', 'interior_designer');
+values ('d0000000-0000-4000-8000-0000000000d1', 'engineer');
 
 -- ===========================================================================
 -- Consumer branch
@@ -106,10 +106,10 @@ select throws_ok(
 -- Save WITHOUT a headline first → submit must fail on the required-field check.
 select lives_ok(
   $$ select public.individual_save_professional(
-       'interior_designer'::public.persona_type, null, 8::smallint, 'residential', null,
+       'engineer'::public.persona_type, null, 8::smallint, 'residential', null,
        array['space_planning','styling'], null, array['arabic'], 'within_week',
        array['nasr_city'], false, 'cairo', 'nasr_city', 30::smallint) $$,
-  'professional can save the common profile (concrete type resolved to interior_designer)');
+  'professional can save the common profile (concrete type resolved to engineer)');
 select throws_ok(
   $$ select public.individual_submit_professional() $$,
   '22023', null, 'submit is blocked until the required fields (headline) are present');
@@ -117,7 +117,7 @@ select throws_ok(
 -- Provide the headline, then submit succeeds and hands off to review.
 select lives_ok(
   $$ select public.individual_save_professional(
-       'interior_designer'::public.persona_type, 'Studio for interiors', 8::smallint, 'residential', null,
+       'engineer'::public.persona_type, 'Studio for interiors', 8::smallint, 'residential', null,
        array['space_planning','styling'], null, array['arabic'], 'within_week',
        array['nasr_city'], false, 'cairo', 'nasr_city', 30::smallint) $$,
   'professional adds the required headline');
@@ -127,7 +127,7 @@ select lives_ok($$ select public.individual_submit_professional() $$, 'professio
 select is(
   (select count(*)::int from public.verifications
    where user_id = 'd0000000-0000-4000-8000-0000000000d1'
-     and requested_account_type = 'interior_designer' and status = 'submitted'),
+     and requested_account_type = 'engineer' and status = 'submitted'),
   1, 'submit hands off to the trusted upgrade workflow (a submitted verification)');
 -- …and the account type is NEVER applied here. The identity carries no persona
 -- yet (Sprint 12: no default), which is precisely the "claimed but not yet

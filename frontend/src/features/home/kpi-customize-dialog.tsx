@@ -6,12 +6,17 @@ import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 import { PencilIcon, ChevronUpIcon, ChevronDownIcon, EyeOffIcon, PlusIcon, CheckIcon, XIcon } from "@/components/ui/icons";
 import { DASHBOARD_KPI_CATALOG, type DashboardKpiCardKey } from "@/lib/workspace/dashboard-kpi-catalog";
+import { SHOWROOM_KPI_CATALOG, SHOWROOM_KPI_MAX, type ShowroomKpiKey } from "@/features/showroom-shell/home/kpi-catalog";
 import {
   setPersonalKpiLayoutAction,
   resetPersonalKpiLayoutAction,
   setTeamDefaultKpiLayoutAction,
   resetTeamDefaultKpiLayoutAction,
+  type KpiSurface,
 } from "@/server/actions/dashboard-kpi-layout";
+
+type KpiKey = DashboardKpiCardKey | ShowroomKpiKey;
+const HOME_KPI_MAX = 8;
 
 /**
  * The pencil trigger beside "نظرة على يومك" plus its customization dialog —
@@ -27,6 +32,11 @@ import {
  * row) — no drag-and-drop, so there is nothing here that ONLY a mouse or a
  * touch gesture can drive. The list itself needs no RTL-specific handling:
  * it is vertical, and up/down keep their meaning in both directions.
+ *
+ * `surface` selects which dashboard's layout this edits. The default (`home`)
+ * is the production Home exactly as before; `showroom_suite` swaps in the
+ * suite's own ten-card catalog, its maximum and its own persisted layout rows —
+ * the interaction, copy and a11y contract are shared, not reimplemented.
  */
 export function KpiCustomizeDialog({
   orgId,
@@ -35,6 +45,7 @@ export function KpiCustomizeDialog({
   hasPersonal,
   hasTeamDefault,
   canManageTeamDefault,
+  surface = "home",
 }: {
   orgId: string;
   /**
@@ -46,16 +57,17 @@ export function KpiCustomizeDialog({
    * client-side, right below, from this same shared, statically-imported
    * catalog module.
    */
-  availableKeys: DashboardKpiCardKey[];
-  initialOrder: DashboardKpiCardKey[];
+  availableKeys: KpiKey[];
+  initialOrder: KpiKey[];
   hasPersonal: boolean;
   hasTeamDefault: boolean;
   canManageTeamDefault: boolean;
+  surface?: KpiSurface;
 }) {
   const { t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [enabled, setEnabled] = useState<DashboardKpiCardKey[]>(initialOrder);
+  const [enabled, setEnabled] = useState<KpiKey[]>(initialOrder);
   const [pending, start] = useTransition();
   const [notice, setNotice] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -63,7 +75,10 @@ export function KpiCustomizeDialog({
   const titleId = useId();
 
   const availableKeySet = new Set(availableKeys);
-  const availableCards = DASHBOARD_KPI_CATALOG.filter((c) => availableKeySet.has(c.key));
+  const catalog: readonly { key: KpiKey; Icon: (typeof DASHBOARD_KPI_CATALOG)[number]["Icon"]; labelKey: string; dialogLabelKey?: string }[] =
+    surface === "showroom_suite" ? SHOWROOM_KPI_CATALOG : DASHBOARD_KPI_CATALOG;
+  const maxCards = surface === "showroom_suite" ? SHOWROOM_KPI_MAX : HOME_KPI_MAX;
+  const availableCards = catalog.filter((c) => availableKeySet.has(c.key));
 
   const byKey = new Map(availableCards.map((c) => [c.key, c]));
   const hidden = availableCards.filter((c) => !enabled.includes(c.key));
@@ -112,12 +127,12 @@ export function KpiCustomizeDialog({
     }
   }
 
-  function hide(key: DashboardKpiCardKey) {
+  function hide(key: KpiKey) {
     setEnabled((cur) => cur.filter((k) => k !== key));
   }
 
-  function show(key: DashboardKpiCardKey) {
-    setEnabled((cur) => (cur.length >= 8 ? cur : [...cur, key]));
+  function show(key: KpiKey) {
+    setEnabled((cur) => (cur.length >= maxCards ? cur : [...cur, key]));
   }
 
   // Every action stays OPEN on success rather than closing — a notice shown
@@ -170,7 +185,7 @@ export function KpiCustomizeDialog({
                 <h2 id={titleId} className="text-title text-fg">
                   {t("home.customize.title")}
                 </h2>
-                <p className="mt-1 text-body text-fg-secondary">{t("home.customize.body")}</p>
+                <p className="mt-1 text-body text-fg-secondary">{t(surface === "showroom_suite" ? "showroomHome.customizeBody" : "home.customize.body")}</p>
               </div>
               {/* No action here auto-closes the dialog (a notice inside a
                   dialog that immediately unmounts is unreadable), so an
@@ -205,7 +220,7 @@ export function KpiCustomizeDialog({
                       className="flex items-center gap-2 rounded-sm border bg-surface-2/40 px-2.5 py-1.5"
                     >
                       <card.Icon size={16} />
-                      <span className="min-w-0 flex-1 truncate text-body text-fg">{t(card.labelKey)}</span>
+                      <span className="min-w-0 flex-1 text-body leading-snug text-fg [overflow-wrap:anywhere]">{t(card.dialogLabelKey ?? card.labelKey)}</span>
                       <span className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
@@ -246,8 +261,8 @@ export function KpiCustomizeDialog({
             {hidden.length > 0 ? (
               <div>
                 <h3 className="text-label font-medium text-fg-muted">{t("home.customize.available")}</h3>
-                {enabled.length >= 8 ? (
-                  <p className="mt-1 text-label text-fg-muted">{t("home.customize.maxReached")}</p>
+                {enabled.length >= maxCards ? (
+                  <p className="mt-1 text-label text-fg-muted">{t(surface === "showroom_suite" ? "showroomHome.maxReached" : "home.customize.maxReached")}</p>
                 ) : null}
                 <ul className="mt-1.5 flex flex-col gap-1">
                   {hidden.map((card) => (
@@ -256,11 +271,11 @@ export function KpiCustomizeDialog({
                       className="flex items-center gap-2 rounded-sm border border-dashed px-2.5 py-1.5 text-fg-muted"
                     >
                       <card.Icon size={16} />
-                      <span className="min-w-0 flex-1 truncate text-body">{t(card.labelKey)}</span>
+                      <span className="min-w-0 flex-1 text-body leading-snug [overflow-wrap:anywhere]">{t(card.dialogLabelKey ?? card.labelKey)}</span>
                       <button
                         type="button"
                         onClick={() => show(card.key)}
-                        disabled={enabled.length >= 8}
+                        disabled={enabled.length >= maxCards}
                         aria-label={t("home.customize.show")}
                         title={t("home.customize.show")}
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-sm transition-colors hover:bg-surface-hover hover:text-fg disabled:pointer-events-none disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -282,7 +297,7 @@ export function KpiCustomizeDialog({
                       type="button"
                       disabled={pending}
                       onClick={() =>
-                        run(() => resetPersonalKpiLayoutAction(orgId), t("home.customize.resetDone"))
+                        run(() => resetPersonalKpiLayoutAction(orgId, surface), t("home.customize.resetDone"))
                       }
                       className="inline-flex h-8 items-center rounded-sm px-3 text-label font-medium text-fg-secondary transition-colors hover:bg-surface-hover disabled:opacity-60"
                     >
@@ -293,7 +308,7 @@ export function KpiCustomizeDialog({
                     type="button"
                     disabled={pending || enabled.length === 0}
                     onClick={() =>
-                      run(() => setPersonalKpiLayoutAction(orgId, enabled), t("home.customize.savedPersonal"))
+                      run(() => setPersonalKpiLayoutAction(orgId, enabled, surface), t("home.customize.savedPersonal"))
                     }
                     data-testid="kpi-customize-save-personal"
                     className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-accent-solid px-3 text-label font-medium text-on-accent transition-colors hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
@@ -312,7 +327,7 @@ export function KpiCustomizeDialog({
                       <button
                         type="button"
                         disabled={pending}
-                        onClick={() => run(() => resetTeamDefaultKpiLayoutAction(orgId), t("home.customize.resetDone"))}
+                        onClick={() => run(() => resetTeamDefaultKpiLayoutAction(orgId, surface), t("home.customize.resetDone"))}
                         className="inline-flex h-8 items-center rounded-sm px-3 text-label font-medium text-fg-secondary transition-colors hover:bg-surface-hover disabled:opacity-60"
                       >
                         {t("home.customize.resetTeamDefault")}
@@ -322,7 +337,7 @@ export function KpiCustomizeDialog({
                       type="button"
                       disabled={pending || enabled.length === 0}
                       onClick={() =>
-                        run(() => setTeamDefaultKpiLayoutAction(orgId, enabled), t("home.customize.savedTeamDefault"))
+                        run(() => setTeamDefaultKpiLayoutAction(orgId, enabled, surface), t("home.customize.savedTeamDefault"))
                       }
                       data-testid="kpi-customize-save-team-default"
                       className={cn(

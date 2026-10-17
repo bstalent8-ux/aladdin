@@ -1,8 +1,9 @@
+import { redirect } from "next/navigation";
+import { SHOWROOM_ROOT } from "@/features/showroom-shell/navigation";
 import { getPageContext } from "@/server/queries/page-context";
 import { commerceStance } from "@/lib/workspace/supply-side";
 import { BuyerDashboard } from "@/features/home/buyer-dashboard";
 import { SupplyDashboard } from "@/features/home/supply-dashboard";
-import { ShowroomDashboard } from "@/features/home/showroom-dashboard";
 
 // Auth + organization context come from cookies, so this route is dynamic by
 // construction. The declaration stays because it states the intent explicitly:
@@ -44,14 +45,11 @@ export default async function B2BHomePage({
   // buyer/seller stance so a showroom, which IS buyer-stance under
   // `commerceStance`, does not fall through to the generic buyer dashboard.
   if (ctx.org.orgType === "showroom_dealer") {
-    return (
-      <ShowroomDashboard
-        ctx={ctx}
-        period={one(params.period)}
-        from={one(params.from)}
-        to={one(params.to)}
-      />
-    );
+    // The Showroom's Home is the V2 Home (the same shell now frames this whole workspace). Links that still
+    // point at /b2b land there, with their period.
+    const keep = new URLSearchParams();
+    for (const key of ["period", "from", "to"] as const) { const v = one(params[key]); if (v) keep.set(key, v); }
+    redirect(`${SHOWROOM_ROOT}/home${keep.size ? `?${keep}` : ""}`);
   }
 
   return commerceStance(ctx.org.orgType) === "seller" ? (

@@ -164,8 +164,8 @@ describe("/home layout — workspace switcher scope and account label", () => {
     });
   });
 
-  describe("contractor and other personas", () => {
-    it.each(["contractor", "trainer", "trainee", "interior_designer"])("%s: no generic switcher, no Add business", async (accountType) => {
+  describe("personas that never create a business", () => {
+    it.each(["sales", "end_consumer"])("%s: no generic switcher, no Add business", async (accountType) => {
       state.home = home(accountType);
       state.entries = [personalEntry(accountType), memberOf()];
       await renderLayout();
@@ -175,7 +175,7 @@ describe("/home layout — workspace switcher scope and account label", () => {
   });
 
   describe("approved categories", () => {
-    it.each(["engineer", "showroom_dealer", "supplier", "manufacturer", "importer"])(
+    it.each(["engineer", "contractor", "showroom_dealer", "supplier", "manufacturer", "importer"])(
       "%s keeps the generic switcher with Add business activity",
       async (accountType) => {
         state.home = home(accountType);

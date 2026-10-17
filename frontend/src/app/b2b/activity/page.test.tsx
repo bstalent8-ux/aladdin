@@ -23,6 +23,7 @@ function pageContext(capabilities: string[]) {
       organizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       organizationName: "Activity Test Org",
       orgType: "showroom",
+      isApproved: true,
       membershipId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       capabilities,
       canManageSales: false,

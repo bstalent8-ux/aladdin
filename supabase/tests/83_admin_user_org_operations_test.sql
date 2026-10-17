@@ -200,8 +200,8 @@ select is(pg_temp.state(:'moder', format('public.admin_organization_suspend(%L, 
   'a Moderator cannot suspend an organization (organizations.suspend is Administrator-level)');
 select is(pg_temp.state(:'consumer', format('public.admin_organization_suspend(%L, %L)', :'orgC', 'x')), '42501', 'non-staff cannot');
 select is(pg_temp.state(:'padmin', format('public.admin_organization_suspend(%L, %L)', :'orgC', '')), '22023', 'a reason is required');
-select is(pg_temp.call_as(:'consumer', format('(select count(*) from public.products where organization_id = %L)', :'orgC')), '4'::jsonb,
-  'before: the public sees C''s four published products');
+select is(pg_temp.call_as(:'consumer', format('(select count(*) from public.products where organization_id = %L)', :'orgC')), '0'::jsonb,
+  'before: another organization cannot read C''s product rows directly (Showroom: prices are private, the catalog RPC is the public path)');
 select is(pg_temp.call_as(:'padmin', format('public.admin_organization_suspend(%L, %L)', :'orgC', 'Counterfeit goods complaint')) ->> 'changed',
   'true', 'Administrator suspends organization C');
 select is((select status::text from public.organizations where id = :'orgC'), 'suspended', 'organizations.status is suspended');
