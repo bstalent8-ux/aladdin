@@ -34,7 +34,7 @@ import type { Database } from "@/types/database.types";
  * GoTrue requests (documented draft blocker). Never log credentials or sessions.
  */
 
-export type CraftsmanField = "name" | "phone" | "password" | "confirmPassword" | "consent" | "captcha" | "form";
+export type CraftsmanField = "name" | "phone" | "email" | "password" | "confirmPassword" | "consent" | "captcha" | "form";
 
 export type CraftsmanAuthState = {
   ok: boolean;
@@ -43,7 +43,7 @@ export type CraftsmanAuthState = {
   /** Which field the message belongs to, for inline placement. */
   field?: CraftsmanField;
   /** Values echoed back so a failed submit does not clear the form. NEVER the password. */
-  values?: { name?: string; phone?: string };
+  values?: { name?: string; phone?: string; email?: string };
 };
 
 const CONSENT_TYPES = ["terms", "privacy", "pilot"] as const;
@@ -109,25 +109,54 @@ async function initializeCraftsmanAccount(
     throw new InitializationError("failed");
   }
 
-  let usernameSet = false;
-  for (let attempt = 0; attempt < USERNAME_ATTEMPTS && !usernameSet; attempt += 1) {
-    const { error } = await supabase.rpc("profile_set_username", { p_username: generateCraftsmanUsername().replace(/^craftsman/, kind === "showroom" ? "showroom" : "craftsman") });
-    if (!error) usernameSet = true;
-    else if (error.code !== "23505") {
-      logStepFailure("username", error);
-      throw new InitializationError("failed");
-    }
-  }
-  if (!usernameSet) {
-    logStepFailure("username", { code: "exhausted" });
-    throw new InitializationError("failed");
-  }
+  if (!(await claimGeneratedUsername(supabase, kind))) throw new InitializationError("failed");
 
   const { data: state, error: stateError } = await supabase.rpc("my_registration_state");
   if (stateError || !hasAppAccess(state as RegistrationState)) {
     logStepFailure("registration_state", stateError ?? { code: String(state) });
     throw new InitializationError("failed");
   }
+}
+
+/** The internal username these entry pages generate (they never ask for one). */
+export function generatedEntryUsername(kind: "installer" | "showroom"): string {
+  return generateCraftsmanUsername().replace(/^craftsman/, kind === "showroom" ? "showroom" : "craftsman");
+}
+
+/**
+ * Claims a generated username for the signed-in caller through the
+ * authoritative `profile_set_username` RPC, retrying on a collision (23505).
+ * False on any other failure or when every attempt collided.
+ */
+export async function claimGeneratedUsername(supabase: Client, kind: "installer" | "showroom"): Promise<boolean> {
+  for (let attempt = 0; attempt < USERNAME_ATTEMPTS; attempt += 1) {
+    const { error } = await supabase.rpc("profile_set_username", { p_username: generatedEntryUsername(kind) });
+    if (!error) return true;
+    if (error.code !== "23505") {
+      logStepFailure("username", error);
+      return false;
+    }
+  }
+  logStepFailure("username", { code: "exhausted" });
+  return false;
+}
+
+/**
+ * Where a person who just got a session on a Showroom/Installer entry page
+ * goes next — the SAME post-session rule as the shared email sign-in
+ * (verifyEmailOtp): `next` is re-validated server-side (sanitizeNext:
+ * same-origin allow-list, never `//host` or an absolute URL),
+ * onboarding/invitation continuations keep their handoff, everything else
+ * passes the registration gate, and a deep link survives only when it
+ * belongs to the caller's own landing surface.
+ */
+export async function entryLandingPath(supabase: Client, rawNext: unknown): Promise<string> {
+  const next = sanitizeNext(rawNext);
+  if (next.startsWith("/onboarding") || next.startsWith("/auth/invite/")) return next;
+  const { data: state } = await supabase.rpc("my_registration_state");
+  if (!hasAppAccess(state as RegistrationState)) return "/onboarding";
+  const landing = await resolveActiveLanding(supabase);
+  return next === landing || next.startsWith(`${landing}/`) ? next : landing;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,16 +314,5 @@ export async function phonePasswordSignIn(kind: "installer" | "showroom", _prev:
     return fail("invalidCredentials", "form", values);
   }
 
-  // The SAME post-session rule as the shared email sign-in (verifyEmailOtp):
-  // `next` is re-validated server-side (sanitizeNext: same-origin allow-list,
-  // never `//host` or an absolute URL), onboarding/invitation continuations keep
-  // their handoff, everything else passes the registration gate, and a deep
-  // link survives only when it belongs to the caller's own landing surface.
-  const next = sanitizeNext(formData.get("next"));
-  if (next.startsWith("/onboarding") || next.startsWith("/auth/invite/")) redirect(next);
-
-  const { data: state } = await supabase.rpc("my_registration_state");
-  if (!hasAppAccess(state as RegistrationState)) redirect("/onboarding");
-  const landing = await resolveActiveLanding(supabase);
-  redirect(next === landing || next.startsWith(`${landing}/`) ? next : landing);
+  redirect(await entryLandingPath(supabase, formData.get("next")));
 }

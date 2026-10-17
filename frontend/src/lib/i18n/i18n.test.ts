@@ -28,6 +28,13 @@ const ARABIC = /[؀-ۿ]/;
 // Values that are intentionally identical technical samples in both locales
 // (neutral placeholders), so they carry Latin/digits and no Arabic script.
 const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
+  // Showroom/Installer entry pages: the provider brand names (Google, Facebook)
+  // stay as the providers write them, and the email sample is a literal address.
+  "entryAuth.continueWithGoogle",
+  "entryAuth.continueWithFacebook",
+  "entryAuth.oauthConsentPrefix",
+  "entryAuth.emailPlaceholder",
+  "entryAuth.error.oauth",
   // Admin: a permission VOCABULARY token ("resource.action" is the literal shape
   // of every permission key, e.g. users.read) and the fixed date-entry FORMAT
   // hint (DD/MM/YYYY — the field is LTR by design, so the hint stays literal).
