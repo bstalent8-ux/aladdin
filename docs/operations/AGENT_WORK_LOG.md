@@ -1,8 +1,10 @@
 ## 2026-10-17 — Google, Facebook and email on the Showroom/Installer entry pages
 
-Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017090001`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
+Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017134139`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
 
-Open: migration not applied to hosted Supabase; Google/Facebook provider credentials and the `/auth/callback` redirect URL not configured; pgTAP and E2E not run here (no Docker).
+Migration applied to hosted `aladdin-staging` (version `20261017134139`; file renamed to match). Owner configured Google/Facebook in Supabase. Added the published Privacy Policy (`/legal/privacy`) and Data Deletion Instructions (`/legal/data-deletion`) for Meta review, contact `info@aladdindecore.com` ([legal-pages.md](../frontend/legal-pages.md)).
+
+Open: Terms of Service still a placeholder; no in-app account deletion (deletion is by email request, handled manually within 30 days); pgTAP and E2E not run here (no Docker).
 
 ## 2026-10-17 — Admin Core dashboard integrated onto latest main
 

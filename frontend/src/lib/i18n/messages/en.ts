@@ -2195,6 +2195,9 @@ export const en = {
       "The real, reviewed text for this page hasn't been published yet — this is an honest placeholder, not a substitute. It will be in place before public registration opens.",
     terms: { title: "Terms of Service" },
     privacy: { title: "Privacy Policy" },
+    dataDeletion: { title: "Data Deletion Instructions" },
+    seePrivacy: "Read the Privacy Policy",
+    seeDataDeletion: "How to delete your data",
     backToHome: "Back to Aladdin",
   },
   auth: {
