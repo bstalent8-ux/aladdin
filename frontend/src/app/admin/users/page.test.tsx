@@ -29,7 +29,7 @@ vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => ({ val
 vi.mock("@/server/queries/admin-directory", () => ({ loadUsersDirectory: (...a: unknown[]) => loadUsersDirectory(...a) }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/users",
+  usePathname: () => "/admin/users",
   useSearchParams: () => new URLSearchParams(),
 }));
 

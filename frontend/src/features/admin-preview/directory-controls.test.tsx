@@ -16,7 +16,7 @@ let currentQuery = "";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/users",
+  usePathname: () => "/admin/users",
   useSearchParams: () => new URLSearchParams(currentQuery),
 }));
 
@@ -40,6 +40,9 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+
+/** The shared Select keeps a hidden native <select> as its value carrier; changes go through it. */
+const nativeSelect = () => document.querySelector("select[data-ui-select-native]") as HTMLSelectElement;
 
 describe("AutoFilters", () => {
   const fields = [
@@ -77,7 +80,7 @@ describe("AutoFilters", () => {
   it("a filter change resets to page 1", () => {
     currentQuery = "q=hana&page=4";
     render(wrap(<AutoFilters fields={fields} />));
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "pending" } });
+    fireEvent.change(nativeSelect(), { target: { value: "pending" } });
     const url = lastUrl();
     expect(url.searchParams.get("verification")).toBe("pending");
     expect(url.searchParams.get("page")).toBeNull();
@@ -87,7 +90,7 @@ describe("AutoFilters", () => {
   it("clearing a filter removes it from the URL", () => {
     currentQuery = "verification=pending&page=2";
     render(wrap(<AutoFilters fields={fields} />));
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "" } });
+    fireEvent.change(nativeSelect(), { target: { value: "" } });
     expect(lastUrl().searchParams.has("verification")).toBe(false);
   });
 });
@@ -136,7 +139,7 @@ describe("TablePagination", () => {
   it("changing the page size returns to page 1", () => {
     currentQuery = "q=hana&page=5";
     render(wrap(<TablePagination {...props} />));
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "50" } });
+    fireEvent.change(nativeSelect(), { target: { value: "50" } });
     const url = lastUrl();
     expect(url.searchParams.get("pageSize")).toBe("50");
     expect(url.searchParams.get("page")).toBeNull();

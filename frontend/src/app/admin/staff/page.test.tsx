@@ -51,7 +51,7 @@ vi.mock("@/server/actions/admin-rbac", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/staff",
+  usePathname: () => "/admin/staff",
   useSearchParams: () => new URLSearchParams(),
 }));
 

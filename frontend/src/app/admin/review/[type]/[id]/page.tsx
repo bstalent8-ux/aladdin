@@ -43,7 +43,7 @@ export default async function PreviewReviewDetailPage({
 }: {
   params: Promise<{ type: string; id: string }>;
 }) {
-  const access = await requireAdminRoute("/admin/preview/review");
+  const access = await requireAdminRoute("/admin/review");
   const { type, id } = await params;
   const supabase = await getServerSupabase();
   const store = await cookies();
@@ -177,7 +177,7 @@ export default async function PreviewReviewDetailPage({
 
   return (
     <div className="flex flex-col gap-lg">
-      <Link href="/admin/preview/review" className="text-label text-accent hover:underline">
+      <Link href="/admin/review" className="text-label text-accent hover:underline">
         ← {m.admin.preview.review.title}
       </Link>
 
@@ -231,7 +231,7 @@ export default async function PreviewReviewDetailPage({
             <ul className="flex flex-col gap-1.5">
               {duplicateCandidates.map((c) => (
                 <li key={c.id} className="text-body">
-                  <Link href={`/admin/preview/organizations/${c.id}`} className="text-accent hover:underline">
+                  <Link href={`/admin/organizations/${c.id}`} className="text-accent hover:underline">
                     {c.name}
                   </Link>
                 </li>
@@ -267,7 +267,7 @@ export default async function PreviewReviewDetailPage({
         <dl className="grid gap-md tablet:grid-cols-3">
           <Field label={t.relatedUser}>
             {relatedUserId ? (
-              <Link href={`/admin/preview/users/${relatedUserId}`} className="text-accent hover:underline">
+              <Link href={`/admin/users/${relatedUserId}`} className="text-accent hover:underline">
                 {relatedUserName || m.admin.users.unnamed}
               </Link>
             ) : (
@@ -276,7 +276,7 @@ export default async function PreviewReviewDetailPage({
           </Field>
           <Field label={t.relatedOrganization}>
             {relatedOrgId ? (
-              <Link href={`/admin/preview/organizations/${relatedOrgId}`} className="text-accent hover:underline">
+              <Link href={`/admin/organizations/${relatedOrgId}`} className="text-accent hover:underline">
                 {relatedOrgName || "—"}
               </Link>
             ) : (

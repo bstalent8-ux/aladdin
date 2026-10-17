@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { flattenResults, moveActive, normalizeForSearch, scoreItem, searchPalette, type PaletteItem } from "./command-palette-search";
 
 const items: PaletteItem[] = [
-  { id: "u1", group: "users", label: "Ahmed Hassan", secondary: "Engineer", href: "/admin/preview/users/u1" },
-  { id: "u2", group: "users", label: "Mona Ahmed", secondary: "Consumer", href: "/admin/preview/users/u2" },
-  { id: "u3", group: "users", label: "Sara Ali", secondary: "Ahmed's colleague", href: "/admin/preview/users/u3" },
-  { id: "o1", group: "organizations", label: "Ahmed Showroom", secondary: "Showroom / Dealer", href: "/admin/preview/organizations/o1" },
-  { id: "n1", group: "navigation", label: "Points", href: "/admin/preview/points" },
-  { id: "n2", group: "navigation", label: "Audit", href: "/admin/preview/audit" },
-  { id: "s1", group: "staff", label: "Admin Person", secondary: "Administrator", href: "/admin/preview/staff" },
+  { id: "u1", group: "users", label: "Ahmed Hassan", secondary: "Engineer", href: "/admin/users/u1" },
+  { id: "u2", group: "users", label: "Mona Ahmed", secondary: "Consumer", href: "/admin/users/u2" },
+  { id: "u3", group: "users", label: "Sara Ali", secondary: "Ahmed's colleague", href: "/admin/users/u3" },
+  { id: "o1", group: "organizations", label: "Ahmed Showroom", secondary: "Showroom / Dealer", href: "/admin/organizations/o1" },
+  { id: "n1", group: "navigation", label: "Points", href: "/admin/points" },
+  { id: "n2", group: "navigation", label: "Audit", href: "/admin/audit" },
+  { id: "s1", group: "staff", label: "Admin Person", secondary: "Administrator", href: "/admin/staff" },
 ];
 
 describe("normalizeForSearch", () => {

@@ -66,12 +66,12 @@ describe("can / meets", () => {
 
 describe("route table", () => {
   it("longest prefix wins, trailing slashes ignored", () => {
-    expect(requirementFor("/admin/preview/staff")).toEqual(["admin_staff.read", "roles.read"]);
-    expect(requirementFor("/admin/preview/staff/")).toEqual(["admin_staff.read", "roles.read"]);
-    expect(requirementFor("/admin/preview/users/abc")).toBe("users.read");
+    expect(requirementFor("/admin/staff")).toEqual(["admin_staff.read", "roles.read"]);
+    expect(requirementFor("/admin/staff/")).toEqual(["admin_staff.read", "roles.read"]);
     expect(requirementFor("/admin/users/abc")).toBe("users.read");
-    expect(requirementFor("/admin/preview")).toBe("staff");
-    expect(requirementFor("/admin/preview/unknown")).toBe("staff");
+    expect(requirementFor("/admin/users/abc")).toBe("users.read");
+    expect(requirementFor("/admin")).toBe("staff");
+    expect(requirementFor("/admin/unknown")).toBe("staff");
   });
 
   it("does not match on a bare string prefix (/admin/users-x is not /admin/users)", () => {
@@ -84,17 +84,17 @@ describe("route table", () => {
 
   it("Support (read-only) sees reads, never Points ops, Staff, Audit or Analytics", () => {
     const a = access(SUPPORT);
-    expect(canAccessAdminPath(a, "/admin/preview/users")).toBe(true);
-    expect(canAccessAdminPath(a, "/admin/preview/points")).toBe(true);
-    expect(canAccessAdminPath(a, "/admin/preview/staff")).toBe(false);
-    expect(canAccessAdminPath(a, "/admin/preview/audit")).toBe(false);
-    expect(canAccessAdminPath(a, "/admin/preview/analytics")).toBe(false);
+    expect(canAccessAdminPath(a, "/admin/users")).toBe(true);
+    expect(canAccessAdminPath(a, "/admin/points")).toBe(true);
+    expect(canAccessAdminPath(a, "/admin/staff")).toBe(false);
+    expect(canAccessAdminPath(a, "/admin/audit")).toBe(false);
+    expect(canAccessAdminPath(a, "/admin/analytics")).toBe(false);
   });
 
   it("Moderator reaches the Review Center but not Admin Staff", () => {
     const a = access(MODERATOR, 60);
-    expect(canAccessAdminPath(a, "/admin/preview/review")).toBe(true);
-    expect(canAccessAdminPath(a, "/admin/preview/staff")).toBe(false);
+    expect(canAccessAdminPath(a, "/admin/review")).toBe(true);
+    expect(canAccessAdminPath(a, "/admin/staff")).toBe(false);
   });
 
   it("every rule names only catalog permissions", () => {

@@ -34,7 +34,7 @@ function subject(fd: FormData): { type: Subject; id: string } | null {
   return SUBJECTS.includes(type) && id ? { type, id } : null;
 }
 function detailPath(type: Subject, id: string): string {
-  return type === "user" ? `/admin/preview/users/${id}` : `/admin/preview/organizations/${id}`;
+  return type === "user" ? `/admin/users/${id}` : `/admin/organizations/${id}`;
 }
 
 async function run(
@@ -56,7 +56,7 @@ export async function suspendSubjectAction(_p: FormState, fd: FormData): Promise
   if (!s) return { ok: false, code: "states.genericRetry" };
   const reason = text(fd, "reason");
   if (!reason) return { ok: false, code: "admin.preview.ops.error.reasonRequired", fieldErrors: { reason: "admin.preview.ops.error.reasonRequired" } };
-  const directory = s.type === "user" ? "/admin/preview/users" : "/admin/preview/organizations";
+  const directory = s.type === "user" ? "/admin/users" : "/admin/organizations";
   return run(
     [directory, detailPath(s.type, s.id)],
     (sb) =>
@@ -71,7 +71,7 @@ export async function restoreSubjectAction(_p: FormState, fd: FormData): Promise
   const s = subject(fd);
   if (!s) return { ok: false, code: "states.genericRetry" };
   const reason = text(fd, "reason") || undefined;
-  const directory = s.type === "user" ? "/admin/preview/users" : "/admin/preview/organizations";
+  const directory = s.type === "user" ? "/admin/users" : "/admin/organizations";
   return run(
     [directory, detailPath(s.type, s.id)],
     (sb) =>

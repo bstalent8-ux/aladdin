@@ -47,7 +47,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("notFound");
   },
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/users/x",
+  usePathname: () => "/admin/users/x",
   useSearchParams: () => new URLSearchParams(),
 }));
 

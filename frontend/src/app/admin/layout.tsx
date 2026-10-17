@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/primitives";
 import { AdminSidebar, AdminTopNav } from "@/components/admin/admin-nav";
 import { contentColumnClass } from "@/components/layout/content-column";
 import { cn } from "@/lib/ui/cn";
+import { PreviewShell } from "@/features/admin-preview/preview-shell";
+import { loadAdminPaletteItems } from "@/server/queries/admin-palette";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const dir = directionFor(locale);
   const m = getMessages(locale);
+  const paletteItems = await loadAdminPaletteItems(access, m);
   // Highest-ranked active role; system roles use their localized name.
   const top = access.roles[0];
   const roleLabel = top
@@ -43,11 +46,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <div className="flex min-h-dvh flex-col bg-canvas">
         <AppHeader
           appName={m.common.appName}
-          /* The console has no organization behind it, so the palette offers
-             Admin destinations (server-gated on platform role) and nothing
-             else. Admin record search is deliberately not wired here: the
-             console's own lists are the searchable surface, and a second path
-             into platform-wide data is a second place to get the gate wrong. */
+          /* The console has no organization behind it. On Admin routes the
+             header search opens the Admin Command Palette (lib/admin/palette-bridge),
+             indexed below from the same RLS-scoped reads the pages use. */
           hasWorkspace={false}
           workspaceLabel={m.admin.title}
           context={roleLabel ? <Badge tone="accent">{roleLabel}</Badge> : null}
@@ -71,7 +72,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <AdminTopNav access={access} />
 
             <main className={cn(contentColumnClass, "py-lg")} id="main">
-              {children}
+              <PreviewShell paletteItems={paletteItems}>{children}</PreviewShell>
             </main>
           </div>
         </div>

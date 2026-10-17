@@ -20,7 +20,7 @@ vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => locale
 vi.mock("@/server/queries/admin-preview", () => ({ previewReviewQueue: (...a: unknown[]) => previewReviewQueue(...a) }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/review",
+  usePathname: () => "/admin/review",
   useSearchParams: () => new URLSearchParams(),
 }));
 

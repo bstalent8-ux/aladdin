@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * Admin access itself (roles, permissions) lives on Admin Staff, not here.
  */
 export default async function PreviewSettingsPage() {
-  const access = await requireAdminRoute("/admin/preview/settings");
+  const access = await requireAdminRoute("/admin/settings");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
@@ -100,7 +100,7 @@ export default async function PreviewSettingsPage() {
         <SectionTitle>{st.securityTitle}</SectionTitle>
         <p className="text-body text-fg-secondary">{st.securityBody}</p>
         <div className="flex flex-wrap gap-sm">
-          <ButtonLink variant="outline" size="sm" href="/admin/preview/staff">
+          <ButtonLink variant="outline" size="sm" href="/admin/staff">
             {st.viewAdminStaff}
           </ButtonLink>
         </div>

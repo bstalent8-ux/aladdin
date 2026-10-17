@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
+import { Select } from "@/components/ui/controls";
 import { AdminDateInput } from "@/features/admin-preview/admin-date-input";
 import { nextSort, type SortDir } from "@/features/admin-preview/table-state";
 
@@ -120,11 +121,12 @@ export function AutoFilters({ fields }: { fields: FilterFieldConfig[] }) {
             />
           </div>
         ) : (
-          <select
+          <Select
             key={f.name}
+            aria-label={f.anyLabel}
             value={searchParams.get(f.name) ?? ""}
             onChange={(e) => navigate({ [f.name]: e.target.value })}
-            className="min-h-10 min-w-0 max-w-full rounded-md border border-strong bg-canvas px-3 text-body text-fg"
+            className="min-w-0 max-w-full"
           >
             <option value="">{f.anyLabel}</option>
             {f.options.map((o) => (
@@ -132,7 +134,7 @@ export function AutoFilters({ fields }: { fields: FilterFieldConfig[] }) {
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         ),
       )}
     </div>

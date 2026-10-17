@@ -100,17 +100,13 @@ export const ADMIN_ROUTE_RULES: Readonly<Record<string, AdminRequirement>> = {
   "/admin": "staff",
   "/admin/users": "users.read",
   "/admin/organizations": "organizations.read",
+  "/admin/review": ["users.read", "organizations.read", "referrals.read"],
   "/admin/verifications": ["users.read", "organizations.read"],
+  "/admin/points": "points.read",
+  "/admin/analytics": "analytics.read",
   "/admin/audit": "audit.read",
-  "/admin/preview": "staff",
-  "/admin/preview/users": "users.read",
-  "/admin/preview/organizations": "organizations.read",
-  "/admin/preview/review": ["users.read", "organizations.read", "referrals.read"],
-  "/admin/preview/points": "points.read",
-  "/admin/preview/analytics": "analytics.read",
-  "/admin/preview/audit": "audit.read",
-  "/admin/preview/staff": ["admin_staff.read", "roles.read"],
-  "/admin/preview/settings": "staff",
+  "/admin/staff": ["admin_staff.read", "roles.read"],
+  "/admin/settings": "staff",
 };
 
 export function requirementFor(pathname: string): AdminRequirement {

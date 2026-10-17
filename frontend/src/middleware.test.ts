@@ -33,7 +33,7 @@ describe("middleware — account suspension", () => {
   it("sends a suspended account from every product surface to /auth/suspended", async () => {
     user = { id: "u1" };
     accountStatus = { status: "suspended", suspended: true };
-    for (const path of ["/home", "/b2b/leads", "/admin/preview/users", "/settings/profile", "/business/new", "/onboarding"]) {
+    for (const path of ["/home", "/b2b/leads", "/admin/users", "/settings/profile", "/business/new", "/onboarding"]) {
       expect(location(await at(path)), path).toBe("/auth/suspended");
     }
     expect(rpc).toHaveBeenCalledWith("my_account_status");

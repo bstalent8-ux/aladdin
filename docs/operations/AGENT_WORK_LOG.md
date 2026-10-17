@@ -1,3 +1,11 @@
+## 2026-10-17 — Admin Core dashboard integrated onto latest main
+
+Merged `feature/admin-core-user-org-operations-redacted` into `main` @ `8bde19c`. Conflicts: `supabase/`, generated types and these memory files took `main` (Admin migrations already landed via #74; the Admin pgTAP copies 65–70 dropped, main has them as 80–85). `ConfirmDialog` keeps main's labelled icon trigger and `defaultOpen` and gains `triggerIconOnly` for the Admin row actions. Landing and mandatory business setup now use `loadIsAdminStaff` (`admin_my_access`), since `loadPlatformRole` was retired by Admin RBAC.
+
+Promotion: `app/admin/preview/*` moved onto `app/admin/*`, replacing the classic dashboard, users, organizations and audit pages; the preview layout's palette index became `server/queries/admin-palette.ts`; the console rail is now the single nav (tabs removed). `/admin/verifications` kept. Main's organization contact phone/email added to the new organization detail. Admin raw `<select>`s moved to the shared `Select` and the row menu to `FloatingMenu` to satisfy main's lint rule and menu-surface test.
+
+Open: E2E specs that asserted the classic Admin pages (`pilot-uat-round-1`, `personal-sales-readiness`) were not run here; the React #418 Preview blocker recorded on 2026-10-01 was not re-checked.
+
 ## 2026-10-15 — PR84 definitive functional acceptance passed
 
 Exact committed8be67ba6: isolated GitHub functional run38697762123PASS24/24(0fail,0skip,58.7s), application CI38697762134and fullDB38697762167SUCCESS. All110versions/sixfeatureversions/old+v2RPCs verified; own runner teardown succeeded. Artifacts contain migration hashes and six desktop/mobile screenshots. No uncommitted CAPTCHA files included. Harness corrections preserve last-admin guards, use Node24 and settled action/UI assertions plus counter11; no product code/security weakening, no skipped tests/retries.

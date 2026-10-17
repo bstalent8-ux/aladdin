@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
+import { Select } from "@/components/ui/controls";
 import { cn } from "@/lib/ui/cn";
 import { formatCount } from "@/lib/ui/format";
 import { PAGE_SIZES, pageItems, type PageSize } from "@/features/admin-preview/table-state";
@@ -126,18 +127,18 @@ export function TablePagination({
           </button>
         </div>
 
-        <select
-          value={pageSize}
+        <Select
+          size="compact"
+          value={String(pageSize)}
           onChange={(e) => setSize(Number(e.target.value) as PageSize)}
           aria-label={t("admin.preview.table.perPageLabel")}
-          className="min-h-8 rounded-sm border border-strong bg-canvas px-2 text-label text-fg"
         >
           {PAGE_SIZES.map((n) => (
             <option key={n} value={n}>
               {t("admin.preview.table.perPage", { count: formatCount(n, locale) })}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </nav>
   );

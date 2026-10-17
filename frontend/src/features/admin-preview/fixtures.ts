@@ -6,7 +6,7 @@
  * that has been product-approved (PD-005's rejection reason codes) but has
  * no database column yet. Nothing here is read by, or leaks into, any
  * production Admin page (`/admin/**`) — this module is imported only from
- * `app/admin/preview/**`. Do not import it from outside the preview feature.
+ * `app/admin/**`. Do not import it from outside the preview feature.
  */
 
 /**

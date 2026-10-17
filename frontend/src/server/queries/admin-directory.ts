@@ -86,3 +86,21 @@ export async function loadOrganizationDetail(supabase: Client, orgId: string): P
   const detail = mapOrgDetail(data);
   return detail ? { ok: true, data: detail } : fail("admin_organization_detail (shape)", data);
 }
+
+/**
+ * The business contact phone and email captured at onboarding. Not part of the
+ * `admin_organization_detail` contract, so it is read directly under the caller's
+ * own RLS (the same read the classic Organization page used); a row the caller
+ * cannot see yields nulls.
+ */
+export async function loadOrganizationContact(
+  supabase: Client,
+  orgId: string,
+): Promise<{ phone: string | null; email: string | null }> {
+  const { data } = await supabase
+    .from("organizations")
+    .select("contact_phone, contact_email")
+    .eq("id", orgId)
+    .maybeSingle();
+  return { phone: data?.contact_phone ?? null, email: data?.contact_email ?? null };
+}

@@ -16,15 +16,15 @@ import {
 
 /** Admin pages the palette can jump to. Local definitions — no request is made to build them. */
 const NAV: { key: string; href: string }[] = [
-  { key: "dashboard", href: "/admin/preview" },
-  { key: "users", href: "/admin/preview/users" },
-  { key: "organizations", href: "/admin/preview/organizations" },
-  { key: "review", href: "/admin/preview/review" },
-  { key: "points", href: "/admin/preview/points" },
-  { key: "staff", href: "/admin/preview/staff" },
-  { key: "analytics", href: "/admin/preview/analytics" },
-  { key: "audit", href: "/admin/preview/audit" },
-  { key: "settings", href: "/admin/preview/settings" },
+  { key: "dashboard", href: "/admin" },
+  { key: "users", href: "/admin/users" },
+  { key: "organizations", href: "/admin/organizations" },
+  { key: "review", href: "/admin/review" },
+  { key: "points", href: "/admin/points" },
+  { key: "staff", href: "/admin/staff" },
+  { key: "analytics", href: "/admin/analytics" },
+  { key: "audit", href: "/admin/audit" },
+  { key: "settings", href: "/admin/settings" },
 ];
 
 const DEBOUNCE_MS = 150;

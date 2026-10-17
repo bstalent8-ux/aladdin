@@ -14,7 +14,7 @@ import { mapRbacError } from "@/server/actions/admin-rbac-errors";
  * maps the outcome to a translation KEY (never a raw database string).
  */
 
-const STAFF_PATH = "/admin/preview/staff";
+const STAFF_PATH = "/admin/staff";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SCOPES = ["platform", "organization", "branch", "user"] as const;
 type Scope = (typeof SCOPES)[number];

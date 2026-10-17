@@ -59,7 +59,7 @@ export default async function AdminStaffPage({
 }: {
   searchParams: Promise<{ tab?: string; q?: string; page?: string; pageSize?: string }>;
 }) {
-  const access = await requireAdminRoute("/admin/preview/staff");
+  const access = await requireAdminRoute("/admin/staff");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
@@ -125,7 +125,7 @@ export default async function AdminStaffPage({
       </div>
 
       <TabLinks
-        basePath="/admin/preview/staff"
+        basePath="/admin/staff"
         param="tab"
         current={tab === "staff" ? "" : tab}
         locale={locale}

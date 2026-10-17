@@ -54,7 +54,7 @@ export default async function PreviewReviewQueuePage({
 }: {
   searchParams: Promise<{ tab?: string; q?: string; page?: string; pageSize?: string }>;
 }) {
-  await requireAdminRoute("/admin/preview/review");
+  await requireAdminRoute("/admin/review");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
@@ -68,7 +68,7 @@ export default async function PreviewReviewQueuePage({
     ...PREVIEW_ORG_REQUESTS.map((r): Entry => ({
       key: `orgRequest-${r.id}`,
       kind: "orgRequest",
-      href: `/admin/preview/review/org-request/${r.id}`,
+      href: `/admin/review/org-request/${r.id}`,
       title: r.orgName,
       at: r.requestedAt,
       summary: `${t.orgRequest.requester}: ${r.requesterName} · ${orgTypeLabels[r.orgType] ?? r.orgType} · ${r.city}`,
@@ -81,7 +81,7 @@ export default async function PreviewReviewQueuePage({
         return {
           key: `verification-${item.row.id}`,
           kind: "verification",
-          href: `/admin/preview/review/verification/${item.row.id}`,
+          href: `/admin/review/verification/${item.row.id}`,
           title: item.row.subjectName,
           at: item.row.submittedAt,
           summary: (m.admin.verificationType as Record<string, string>)[item.row.verificationType] ?? item.row.verificationType,
@@ -94,7 +94,7 @@ export default async function PreviewReviewQueuePage({
       return {
         key: `${item.kind}-${item.row.id}`,
         kind: item.kind,
-        href: `/admin/preview/review/${isNetwork ? "network-referral" : "sales-referral"}/${item.row.id}`,
+        href: `/admin/review/${isNetwork ? "network-referral" : "sales-referral"}/${item.row.id}`,
         title: item.row.displayName ?? "",
         at: item.row.createdAt,
         summary: `${t.network.referrer}: ${item.row.referrerName ?? "—"}`,
@@ -147,7 +147,7 @@ export default async function PreviewReviewQueuePage({
       <AdminHeader locale={locale} title={t.title} subtitle={t.subtitle} count={filtered.filter((e) => !e.fixture).length} />
 
       <TabLinks
-        basePath="/admin/preview/review"
+        basePath="/admin/review"
         param="tab"
         current={tab}
         locale={locale}

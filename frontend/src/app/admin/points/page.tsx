@@ -64,7 +64,7 @@ export default async function PreviewPointsPage({
     pageSize?: string;
   }>;
 }) {
-  await requireAdminRoute("/admin/preview/points");
+  await requireAdminRoute("/admin/points");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
@@ -128,7 +128,7 @@ export default async function PreviewPointsPage({
         <RecordCell
           wrap
           title={u.displayName || m.admin.users.unnamed}
-          href={`/admin/preview/points?user=${u.id}`}
+          href={`/admin/points?user=${u.id}`}
           avatar={<Monogram name={u.displayName || "?"} size={28} />}
         />
       ),

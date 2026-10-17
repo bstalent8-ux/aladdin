@@ -5,7 +5,7 @@ import { AuditResults, type AuditRow } from "./audit-results";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/admin/preview/audit",
+  usePathname: () => "/admin/audit",
   useSearchParams: () => new URLSearchParams(""),
 }));
 

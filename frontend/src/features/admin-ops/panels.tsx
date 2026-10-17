@@ -283,7 +283,7 @@ export function DuplicatesPanel({
             {candidates.map((c) => (
               <Card key={c.id} pad="sm" className="flex flex-wrap items-center justify-between gap-md">
                 <div className="flex min-w-0 flex-col gap-1">
-                  <Link href={`/admin/preview/organizations/${c.id}`} className="font-medium text-accent hover:underline">
+                  <Link href={`/admin/organizations/${c.id}`} className="font-medium text-accent hover:underline">
                     {localizedName(c, locale)}
                   </Link>
                   <span className="flex flex-wrap items-center gap-1.5 text-label text-fg-muted">
@@ -292,7 +292,7 @@ export function DuplicatesPanel({
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-sm">
-                  <ButtonLink variant="outline" size="sm" href={`/admin/preview/organizations/${c.id}`}>
+                  <ButtonLink variant="outline" size="sm" href={`/admin/organizations/${c.id}`}>
                     {m.admin.preview.duplicates.inspect}
                   </ButtonLink>
                   {canResolve ? (
@@ -321,7 +321,7 @@ export function DuplicatesPanel({
                   : t.linkedFrom.replace("{name}", name);
             return (
               <div key={r.id} className="flex flex-col gap-0.5 border-t pt-sm first:border-t-0 first:pt-0">
-                <Link href={`/admin/preview/organizations/${r.other.id}`} className="text-body text-accent hover:underline">
+                <Link href={`/admin/organizations/${r.other.id}`} className="text-body text-accent hover:underline">
                   {label}
                 </Link>
                 <p className="text-label text-fg-muted">

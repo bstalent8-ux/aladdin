@@ -56,7 +56,7 @@ export default async function PreviewAnalyticsPage({
 }: {
   searchParams: Promise<{ range?: string; from?: string; to?: string; event?: string; persona?: string }>;
 }) {
-  await requireAdminRoute("/admin/preview/analytics");
+  await requireAdminRoute("/admin/analytics");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
@@ -102,7 +102,7 @@ export default async function PreviewAnalyticsPage({
     { label: t.kpi.signups, value: signups, Icon: TrendingUpIcon, tone: "success" },
     { label: t.kpi.logins, value: logins, Icon: LogOutIcon, tone: "neutral" },
     { label: t.pageEngagement, value: t.engagementValue.replace("{seconds}", formatNumber(engagement, locale)), Icon: ClockIcon, tone: "info" },
-    { label: t.kpi.totalRegistered, value: totalUsers, Icon: UsersIcon, tone: "success", href: "/admin/preview/users" },
+    { label: t.kpi.totalRegistered, value: totalUsers, Icon: UsersIcon, tone: "success", href: "/admin/users" },
     { label: t.kpi.conversionRate, value: `${formatNumber(conversion, locale)}%`, Icon: TrendingUpIcon, tone: "info" },
   ];
 
