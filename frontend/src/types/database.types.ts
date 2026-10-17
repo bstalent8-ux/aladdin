@@ -7065,6 +7065,7 @@ export type Database = {
       }
     }
     Functions: {
+      account_entry_allowed: { Args: { p_kind: string }; Returns: boolean }
       activate_project: {
         Args: { p_expected_version: number; p_project_id: string }
         Returns: number

@@ -1,3 +1,9 @@
+## 2026-10-17 — Google, Facebook and email on the Showroom/Installer entry pages
+
+Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017090001`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
+
+Open: migration not applied to hosted Supabase; Google/Facebook provider credentials and the `/auth/callback` redirect URL not configured; pgTAP and E2E not run here (no Docker).
+
 ## 2026-10-17 — Admin Core dashboard integrated onto latest main
 
 Merged `feature/admin-core-user-org-operations-redacted` into `main` @ `8bde19c`. Conflicts: `supabase/`, generated types and these memory files took `main` (Admin migrations already landed via #74; the Admin pgTAP copies 65–70 dropped, main has them as 80–85). `ConfirmDialog` keeps main's labelled icon trigger and `defaultOpen` and gains `triggerIconOnly` for the Admin row actions. Landing and mandatory business setup now use `loadIsAdminStaff` (`admin_my_access`), since `loadPlatformRole` was retired by Admin RBAC.

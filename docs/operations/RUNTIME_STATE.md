@@ -1,5 +1,11 @@
 # Runtime State
 
+## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
+
+- Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
+- Migration `20261017090001_account_entry_allowed.sql` is local only; hosted Supabase, providers and redirect URLs untouched.
+- Validation: typecheck clean, lint 0 errors, Vitest 3,788 passed, production build passed. pgTAP and E2E not run (no Docker here).
+
 ## Admin Core dashboard promoted onto the Admin routes — 2026-10-17
 
 - Branch `claude/integrate-admin-dashboard-h17a9d` from `main` @ `8bde19c` (PR #85 merged): merges `feature/admin-core-user-org-operations-redacted` (head `f2b2382`) and moves the dashboard from `/admin/preview/*` onto `/admin`, `/admin/users`, `/admin/organizations`, `/admin/review`, `/admin/points`, `/admin/staff`, `/admin/analytics`, `/admin/audit`, `/admin/settings`. `/admin/preview/*` 308-redirects to the same path without `/preview`.
