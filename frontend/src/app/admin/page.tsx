@@ -2,20 +2,23 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { adminSummary } from "@/server/queries/admin";
-import { getMessages } from "@/lib/i18n/translate";
+import { createTranslator, getMessages } from "@/lib/i18n/translate";
 import { resolveLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { formatCount } from "@/lib/ui/format";
 import { Card, SectionTitle } from "@/components/ui/primitives";
 import { AdminHeader, StatTile, DistList } from "@/features/admin/parts";
 import { AuditFeed } from "@/features/admin/audit-feed";
+import { requireAdminRoute } from "@/server/authorization/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  await requireAdminRoute("/admin");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const m = getMessages(locale);
+  const t = createTranslator(locale);
   const s = await adminSummary(supabase);
 
   const label = (map: Record<string, string>, key: string) => map[key] ?? key;
@@ -47,7 +50,15 @@ export default async function AdminDashboardPage() {
           locale={locale}
           label={m.admin.dashboard.totalOrgs}
           value={s.orgsTotal}
-          hint={`${formatCount(s.orgsVerified, locale)} ${m.admin.dashboard.verified}`}
+          hint={[
+            `${formatCount(s.orgsVerified, locale)} ${m.admin.dashboard.verified}`,
+            // The total counts archived organizations too; the directory does not list them.
+            (s.orgsByStatus.archived ?? 0) > 0
+              ? t("admin.preview.dashboard.cards.organizationsIncludesArchived", { n: formatCount(s.orgsByStatus.archived ?? 0, locale) })
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         />
         <Link href="/admin/verifications" className="contents">
           <StatTile locale={locale} label={m.admin.dashboard.pendingReviews} value={s.pendingVerifications} />
