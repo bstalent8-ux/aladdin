@@ -6,6 +6,9 @@ import { createTranslator } from "@/lib/i18n/translate";
 import { CraftsmanAuthShell } from "@/features/installer-phone-auth/auth-shell";
 import { CraftsmanSignInForm } from "@/features/installer-phone-auth/sign-in-form";
 import { INSTALLER_SIGN_UP_PATH } from "@/features/installer-phone-auth/routes";
+import { oauthAvailability } from "@/server/auth/entry-oauth";
+import { EntryAuthPanel } from "@/features/entry-auth/entry-auth-panel";
+import { EntryEmailSignInForm } from "@/features/entry-auth/email-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +19,10 @@ export const metadata: Metadata = { title: t("temporaryCraftsman.meta.signInTitl
 export default async function InstallerSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; method?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, method, error } = await searchParams;
+  const safeNext = sanitizeNext(next);
   // Same rule the middleware applies to /auth/sign-in.
   const supabase = await getServerSupabase();
   const {
@@ -39,7 +43,15 @@ export default async function InstallerSignInPage({
         href: INSTALLER_SIGN_UP_PATH,
       }}
     >
-      <CraftsmanSignInForm next={sanitizeNext(next)} />
+      <EntryAuthPanel
+        kind="installer"
+        next={safeNext}
+        providers={await oauthAvailability()}
+        initialMethod={method === "email" ? "email" : "phone"}
+        error={error}
+        phone={<CraftsmanSignInForm next={safeNext} />}
+        email={<EntryEmailSignInForm kind="installer" next={safeNext} />}
+      />
     </CraftsmanAuthShell>
   );
 }

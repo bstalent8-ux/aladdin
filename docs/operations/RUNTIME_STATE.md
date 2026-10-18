@@ -4,6 +4,19 @@
 
 The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
 
+## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
+
+- Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
+- Migration `20261017134139_account_entry_allowed.sql` applied to hosted Supabase `aladdin-staging` (version `20261017134139`); anon has no execute grant. The owner configured the Google and Facebook providers in Supabase.
+- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. `/legal/terms` is still the placeholder. [Details](../frontend/legal-pages.md).
+- Validation: typecheck clean, lint 0 errors, Vitest 3,793 passed, production build passed. pgTAP and E2E not run (no Docker here).
+
+## Admin Core dashboard promoted onto the Admin routes — 2026-10-17
+
+- Branch `claude/integrate-admin-dashboard-h17a9d` from `main` @ `8bde19c` (PR #85 merged): merges `feature/admin-core-user-org-operations-redacted` (head `f2b2382`) and moves the dashboard from `/admin/preview/*` onto `/admin`, `/admin/users`, `/admin/organizations`, `/admin/review`, `/admin/points`, `/admin/staff`, `/admin/analytics`, `/admin/audit`, `/admin/settings`. `/admin/preview/*` 308-redirects to the same path without `/preview`.
+- `/admin/verifications` (the classic page) stays and stays in the rail: verification, referral and organization approvals are still decided there (Review Center Approve/Reject remain Preview dialogs). The per-area banner still says which areas are live, live-read or Preview.
+- No migration or schema change: main already carries the ten Admin migrations byte-identical (PR #74); `supabase/` and `database.types.ts` equal `main`.
+- Validation: typecheck clean, lint 0 errors, Vitest 284 files / 3,749 passed, production build passed. E2E and hosted smoke not run in this session.
 
 ## Isolated showroom full-stack continuation — 2026-10-06
 

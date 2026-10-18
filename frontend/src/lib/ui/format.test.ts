@@ -3,6 +3,8 @@ import {
   EMPTY,
   formatCompactMoney,
   formatCompactMoneyFine,
+  formatAdminDate,
+  formatAdminDateTime,
   formatCount,
   formatDate,
   formatDateTime,
@@ -205,5 +207,29 @@ describe("formatCompactMoneyFine", () => {
   });
   it("delegates English to the standard compact format", () => {
     expect(formatCompactMoneyFine(148_700, "en")).toBe(formatCompactMoney(148_700, "en"));
+  });
+});
+
+describe("formatAdminDate / formatAdminDateTime (Admin date standard)", () => {
+  // Built from LOCAL fields so the assertion does not depend on the machine's timezone.
+  const iso = new Date(2026, 8, 9, 14, 5, 7).toISOString();
+
+  it("is day/month/year in English, never month-first", () => {
+    expect(formatAdminDate(iso, "en")).toBe("09/09/2026");
+    expect(formatAdminDate(new Date(2026, 8, 19).toISOString(), "en")).toBe("19/09/2026");
+  });
+
+  it("adds a 24-hour clock with seconds: DD/MM/YYYY HH:mm:ss", () => {
+    expect(formatAdminDateTime(iso, "en")).toBe("09/09/2026 14:05:07");
+    expect(formatAdminDateTime(new Date(2026, 0, 2, 3, 4, 5).toISOString(), "en")).toBe("02/01/2026 03:04:05");
+  });
+
+  it("uses Arabic-Indic digits in Arabic and keeps the same field order", () => {
+    expect(formatAdminDateTime(iso, "ar")).toBe("٠٩/٠٩/٢٠٢٦ ١٤:٠٥:٠٧");
+  });
+
+  it("renders the empty marker for a missing or invalid date", () => {
+    expect(formatAdminDateTime(null, "en")).toBe(formatAdminDate(null, "en"));
+    expect(formatAdminDateTime("not a date", "en")).toBe(formatAdminDate("not a date", "en"));
   });
 });

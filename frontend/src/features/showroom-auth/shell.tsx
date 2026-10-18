@@ -24,7 +24,6 @@ export function ShowroomAuthShell({ variant, children }: {
         </header>
         {children}
         <p className={styles.footer}>{t(signUp ? "showroomAuth.haveAccount" : "showroomAuth.noAccount")} <Link href={signUp ? "/showroom/sign-in" : "/showroom/sign-up"}>{t(signUp ? "showroomAuth.signIn" : "showroomAuth.signUp")}</Link></p>
-        {!signUp ? <p className="mt-md text-center text-body text-fg-secondary"><Link href="/auth/sign-in" className="underline underline-offset-4">{t("showroomAuth.emailSignIn")}</Link></p> : null}
       </div>
     </section>
     <div className={styles.photo} aria-hidden="true"><picture><source media="(max-width: 767px)" srcSet="/assets/showroom-auth/showroom-interior-mobile-2026.png"/><Image src="/assets/showroom-auth/showroom-interior-2026.png" alt="" fill loading="eager" fetchPriority="high" sizes="62vw"/></picture></div>

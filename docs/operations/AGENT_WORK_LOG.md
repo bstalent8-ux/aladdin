@@ -1,3 +1,19 @@
+## 2026-10-17 — Google, Facebook and email on the Showroom/Installer entry pages
+
+Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017134139`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
+
+Migration applied to hosted `aladdin-staging` (version `20261017134139`; file renamed to match). Owner configured Google/Facebook in Supabase. Added the published Privacy Policy (`/legal/privacy`) and Data Deletion Instructions (`/legal/data-deletion`) for Meta review, contact `info@aladdindecore.com` ([legal-pages.md](../frontend/legal-pages.md)).
+
+Open: Terms of Service still a placeholder; no in-app account deletion (deletion is by email request, handled manually within 30 days); pgTAP and E2E not run here (no Docker).
+
+## 2026-10-17 — Admin Core dashboard integrated onto latest main
+
+Merged `feature/admin-core-user-org-operations-redacted` into `main` @ `8bde19c`. Conflicts: `supabase/`, generated types and these memory files took `main` (Admin migrations already landed via #74; the Admin pgTAP copies 65–70 dropped, main has them as 80–85). `ConfirmDialog` keeps main's labelled icon trigger and `defaultOpen` and gains `triggerIconOnly` for the Admin row actions. Landing and mandatory business setup now use `loadIsAdminStaff` (`admin_my_access`), since `loadPlatformRole` was retired by Admin RBAC.
+
+Promotion: `app/admin/preview/*` moved onto `app/admin/*`, replacing the classic dashboard, users, organizations and audit pages; the preview layout's palette index became `server/queries/admin-palette.ts`; the console rail is now the single nav (tabs removed). `/admin/verifications` kept. Main's organization contact phone/email added to the new organization detail. Admin raw `<select>`s moved to the shared `Select` and the row menu to `FloatingMenu` to satisfy main's lint rule and menu-surface test.
+
+Open: E2E specs that asserted the classic Admin pages (`pilot-uat-round-1`, `personal-sales-readiness`) were not run here; the React #418 Preview blocker recorded on 2026-10-01 was not re-checked.
+
 ## 2026-10-15 — PR84 definitive functional acceptance passed
 
 ## 2026-10-17 — Approved local RC2 R2 integration

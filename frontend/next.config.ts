@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
       // Showroom V2 was reviewed under /preview/showroom-suite-v2; it now lives at /showroom (links stay valid).
       { source: "/preview/showroom-suite-v2", destination: "/showroom", permanent: true },
       { source: "/preview/showroom-suite-v2/:path*", destination: "/showroom/:path*", permanent: true },
+      // The Admin dashboard was reviewed under /admin/preview; it now owns the Admin routes.
+      { source: "/admin/preview", destination: "/admin", permanent: true },
+      { source: "/admin/preview/:path*", destination: "/admin/:path*", permanent: true },
     ];
   },
 };

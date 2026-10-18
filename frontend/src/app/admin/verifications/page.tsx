@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { listVerifications } from "@/server/queries/admin";
 import { listAdminReferrals } from "@/server/queries/affiliation";
+import { listAdminNetworkReferrals } from "@/server/queries/network-referrals";
 import { getMessages } from "@/lib/i18n/translate";
 import { resolveLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { formatDate } from "@/lib/ui/format";
@@ -10,6 +11,9 @@ import { AdminHeader, StatusBadge } from "@/features/admin/parts";
 import { Card, StatePanel } from "@/components/ui/primitives";
 import { VerificationActions } from "@/features/admin/verification-actions";
 import { ReferralReview } from "@/features/admin/referral-review";
+import { NetworkReferralReview } from "@/features/admin/network-referral-review";
+import { requireAdminRoute } from "@/server/authorization/admin";
+import { can } from "@/lib/permissions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -18,16 +22,19 @@ export default async function AdminVerificationsPage({
 }: {
   searchParams: Promise<{ all?: string; error?: string }>;
 }) {
+  const access = await requireAdminRoute("/admin/verifications");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const m = getMessages(locale);
   const { all, error } = await searchParams;
   const pendingOnly = all !== "1";
-  const [rows, referrals] = await Promise.all([
+  const [rows, referrals, networkReferrals] = await Promise.all([
     listVerifications(supabase, pendingOnly),
-    // Referred showrooms are reviewed HERE rather than on a second Admin surface.
+    // Referred showrooms (Sales) are reviewed HERE rather than on a second Admin surface.
     listAdminReferrals(supabase, pendingOnly),
+    // Referred showrooms (Network — Installer "Add a showroom I know"), same surface.
+    listAdminNetworkReferrals(supabase, pendingOnly),
   ]);
 
   const typeLabels = m.accountType as Record<string, string>;
@@ -81,13 +88,15 @@ export default async function AdminVerificationsPage({
                   </p>
                 </div>
               </div>
-              <VerificationActions v={v} />
+              {/* Decisions only for the matching verify permission (the RPC enforces it too). */}
+              {can(access, v.subjectType === "user" ? "users.verify" : "organizations.verify") ? <VerificationActions v={v} /> : null}
             </Card>
           ))}
         </div>
       )}
 
-      <ReferralReview rows={referrals} m={m} locale={locale} />
+      <ReferralReview rows={referrals} m={m} locale={locale} canDecide={can(access, "referrals.approve")} />
+      <NetworkReferralReview rows={networkReferrals} m={m} locale={locale} canDecide={can(access, "referrals.approve")} />
     </div>
   );
 }

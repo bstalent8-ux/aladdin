@@ -4,8 +4,8 @@ import type { Database } from "@/types/database.types";
 
 vi.mock("server-only", () => ({}));
 
-const { loadPlatformRole } = vi.hoisted(() => ({ loadPlatformRole: vi.fn() }));
-vi.mock("@/server/queries/platform", () => ({ loadPlatformRole }));
+const { loadIsAdminStaff } = vi.hoisted(() => ({ loadIsAdminStaff: vi.fn() }));
+vi.mock("@/server/queries/platform", () => ({ loadIsAdminStaff }));
 
 // The mandatory-first-business rule has its own tests (business-setup.test.ts); here it is a controllable answer.
 const { computeMandatoryBusinessSetup } = vi.hoisted(() => ({ computeMandatoryBusinessSetup: vi.fn() }));
@@ -61,7 +61,7 @@ function clientWithWorkspaces(rows: Row[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  loadPlatformRole.mockResolvedValue(null);
+  loadIsAdminStaff.mockResolvedValue(false);
   computeMandatoryBusinessSetup.mockResolvedValue({ required: false, orgType: null });
   cookieValue.current = undefined;
 });
@@ -69,7 +69,7 @@ beforeEach(() => {
 describe("resolveActiveLanding", () => {
   it("routes platform staff to /admin without consulting workspaces", async () => {
     const { client, rpc } = clientWithWorkspaces([business("org-1", "Cairo Ceramics")]);
-    loadPlatformRole.mockResolvedValueOnce("administrator");
+    loadIsAdminStaff.mockResolvedValueOnce(true);
 
     await expect(resolveActiveLanding(client)).resolves.toBe("/admin");
     expect(rpc).not.toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe("resolveActiveLanding - a business registration whose first business is
   });
 
   it("platform staff are still routed to /admin first", async () => {
-    loadPlatformRole.mockResolvedValueOnce("administrator");
+    loadIsAdminStaff.mockResolvedValueOnce(true);
     computeMandatoryBusinessSetup.mockResolvedValue({ required: true, orgType: "supplier" });
     await expect(resolveActiveLanding(clientWithWorkspaces([]).client)).resolves.toBe("/admin");
   });
