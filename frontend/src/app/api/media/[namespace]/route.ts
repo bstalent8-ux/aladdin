@@ -1,4 +1,5 @@
 import { getServerSupabase } from "@/lib/supabase/server";
+import { readSessionIdentity } from "@/server/auth/session";
 import { isAssetKeyForCaller, isPortfolioObjectKey } from "@/lib/storage/professional-assets";
 import { deliverMedia, mediaNotFound } from "@/server/storage/delivery";
 import { resolveMedia } from "@/server/storage/media";
@@ -16,8 +17,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
     const key = keys[0];
     if (keys.length !== 1 || !key || key.length > 256) return mediaNotFound();
     const client = await getServerSupabase();
-    const { data: { user }, error } = await client.auth.getUser();
-    if (error || !user) return mediaNotFound();
+    // Locally verified identity (no Auth round trip per image); every read below
+    // still runs under the same JWT and RLS decides what this caller may see.
+    const user = await readSessionIdentity(client);
+    if (!user) return mediaNotFound();
     if (isOrganizationMedia(namespace)) {
       const workspace = new URL(request.url).searchParams.getAll("workspace");
       if (workspace.length > 1 || (workspace[0] && !/^[0-9a-f-]{36}$/.test(workspace[0]))) return mediaNotFound();

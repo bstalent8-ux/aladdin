@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/controls";
 import { InlineError, InlineSuccess } from "@/components/ui/primitives";
 import { StorefrontIcon } from "@/components/ui/icons";
 import { uploadWithGrant } from "@/lib/storage/browser-upload";
+import { encodeCanvas } from "@/lib/media/resize-image";
 import {
   ORGANIZATION_IMAGE_ALLOWED_TYPES,
   ORGANIZATION_IMAGE_OUTPUT_PX,
@@ -20,8 +21,12 @@ import {
   requestOrganizationImageUploadAction,
 } from "@/server/actions/organization-image";
 
-/** Renders the chosen square of the source image into a fixed-size JPEG. */
-async function cropToBlob(src: string, area: Area): Promise<Blob> {
+/**
+ * Renders the chosen square of the source image into a fixed 640 px asset. WebP
+ * where the browser can encode it — which keeps a logo's transparency — else PNG
+ * for alpha-capable sources and JPEG (on white) for opaque ones.
+ */
+async function cropToBlob(src: string, area: Area, sourceType: string): Promise<Blob> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -33,13 +38,14 @@ async function cropToBlob(src: string, area: Area): Promise<Blob> {
   canvas.height = ORGANIZATION_IMAGE_OUTPUT_PX;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas unavailable");
-  // JPEG has no alpha: a transparent PNG would otherwise flatten to black (pixel data, not a themed colour).
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, ORGANIZATION_IMAGE_OUTPUT_PX, ORGANIZATION_IMAGE_OUTPUT_PX);
+  const opaque = sourceType === "image/jpeg";
+  if (opaque) {
+    // Only a JPEG source can become a JPEG; the fill is pixel data under it, not a themed colour.
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, ORGANIZATION_IMAGE_OUTPUT_PX, ORGANIZATION_IMAGE_OUTPUT_PX);
+  }
   ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, ORGANIZATION_IMAGE_OUTPUT_PX, ORGANIZATION_IMAGE_OUTPUT_PX);
-  return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode failed"))), ORGANIZATION_IMAGE_OUTPUT_TYPE, 0.9),
-  );
+  return encodeCanvas(canvas, 0.9, opaque ? ORGANIZATION_IMAGE_OUTPUT_TYPE : "image/png");
 }
 
 /**
@@ -53,6 +59,7 @@ export function OrganizationImageField({ orgId, imageUrl, canManage }: { orgId: 
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState("image/jpeg");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -84,6 +91,7 @@ export function OrganizationImageField({ orgId, imageUrl, canManage }: { orgId: 
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    setSourceType(file.type);
     setSource(URL.createObjectURL(file));
   };
 
@@ -92,8 +100,8 @@ export function OrganizationImageField({ orgId, imageUrl, canManage }: { orgId: 
     setBusy(true);
     setError(null);
     try {
-      const blob = await cropToBlob(source, area);
-      const ticket = await requestOrganizationImageUploadAction(orgId, ORGANIZATION_IMAGE_OUTPUT_TYPE, blob.size);
+      const blob = await cropToBlob(source, area, sourceType);
+      const ticket = await requestOrganizationImageUploadAction(orgId, blob.type, blob.size);
       if (!ticket.ok) throw new Error(ticket.code);
       await uploadWithGrant(ticket.grant, blob);
       const confirmed = await confirmOrganizationImageUploadAction(ticket.key);
@@ -128,7 +136,7 @@ export function OrganizationImageField({ orgId, imageUrl, canManage }: { orgId: 
       <div className="flex flex-wrap items-center gap-md">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL, not a static asset
-          <img src={imageUrl} alt={t("showroomSettings.image.label")} className="h-24 w-24 rounded-md border object-cover" data-testid="organization-image-current" />
+          <img src={imageUrl} alt={t("showroomSettings.image.label")} width={96} height={96} decoding="async" className="h-24 w-24 rounded-md border object-cover" data-testid="organization-image-current" />
         ) : (
           <span aria-hidden="true" className="grid h-24 w-24 place-items-center rounded-md bg-surface-2 text-fg-muted" data-testid="organization-image-empty">
             <StorefrontIcon size={32} />

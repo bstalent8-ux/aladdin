@@ -1,3 +1,11 @@
+## 2026-10-18 — WP8: fewer Supabase Auth requests per page (local JWT verification)
+
+Branch `local/wp-auth` from PR #89 head `ee96b48`. Middleware now reads the session with `auth.getClaims()` (local ES256 verification, same cookie refresh) instead of `auth.getUser()`; `/admin/**` keeps `getUser()`. The `my_account_status` suspension redirect is unchanged except that router prefetches skip it. The matcher skips `/api/media/*`, `/p/media/*` and more static extensions. `server/auth/session.ts` adds `getSessionIdentity()` / `readSessionIdentity(client)` (`cache()`d claims) and makes `getCurrentUser()` a `cache()`d network `getUser()`. Read-only loaders use the claims helper; admin and account-settings pages share one `getCurrentUser()`; Server Actions and auth flows are untouched. Estimated Auth `/user` calls: `/home` 8 → 0, `/b2b/*` 3 → 0, `/admin/users` 3 → 2, private image 2 → 0. Security argument and residual window (revoked, not suspended, session until `exp` ≤ 3600 s on non-admin pages): [auth-session-reads.md](../frontend/auth-session-reads.md).
+
+Validation: `pnpm typecheck` clean; `pnpm lint` 0 errors (7 pre-existing warnings); `pnpm test` 307 files, 3,889 passed, 24 skipped (baseline 3,860); `pnpm build` passed. No hosted change, no DB reset.
+
+Open: owner decision on lowering hosted `jwt_expiry` to 1800 s; re-enable the Production `db_pre_request` hook (`20260930100005`); move `server/queries/profile-identity.ts` `loadMyIdentity` to `getCurrentUser()` (media-owned file).
+
 ## 2026-10-18 — Admin users/staff, Offers, secondary phone, R2 integration rehearsal
 
 Branch `claude/showroom-v2-admin-verification-vdrldz` (PR #88). `20261018090000_admin_users_account_type.sql`: `app.user_account_type` derives one of the nine public accounts (effective persona, else earliest owned organization type, else the onboarding choice) or `none`; new `admin_users_directory` filters on it, `admin_users_list` stays as a delegating wrapper. `/admin/users` shows a User Type column and filter; `/admin/staff` search and empty copy fixed. Offers and My Offers routes re-enabled (all audiences are feed-ready).

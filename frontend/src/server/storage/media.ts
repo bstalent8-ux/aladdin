@@ -8,6 +8,8 @@ import type { MediaNamespace, StorageProviderName } from "@/lib/storage/provider
 import { SupabaseStorageProvider } from "./supabase-provider";
 import { CloudflareR2StorageProvider } from "./r2-provider";
 import { verifyMediaBytes } from "./validation";
+import { generateImageVariants, variantManifest, type VariantManifest } from "./public-image-variants";
+import type { StorageProvider } from "@/lib/storage/provider-types";
 import { applicationMediaUrl } from "@/lib/storage/media-url";
 
 const descriptor = z.object({ provider: z.enum(["supabase", "r2"]), contentType: z.string(),
@@ -59,17 +61,37 @@ export async function authorizeMediaUpload(client: SupabaseClient, namespace: Me
   return mediaProvider(client, namespace, provider).createUploadUrl(key, media.contentType, expectedBytes);
 }
 
-export async function verifyPendingMedia(client: SupabaseClient, namespace: MediaNamespace, key: string) {
+/**
+ * Derived thumb/card/full WebP from the VERIFIED bytes, written beside the
+ * original by providers that store variants (R2). Best-effort by design: the
+ * original is the retained reference and renders without variants, so a busy
+ * decode slot or a variant write failure never fails the upload — the backfill
+ * regenerates from the original later.
+ */
+async function storeVariants(provider: StorageProvider, namespace: MediaNamespace, key: string, bytes: Uint8Array, contentType: string): Promise<VariantManifest | null> {
+  if (!provider.putVariant || !contentType.startsWith("image/")) return null;
+  try {
+    const variants = await generateImageVariants(bytes);
+    for (const variant of variants) await provider.putVariant(key, variant.variant, variant.bytes);
+    return variantManifest(variants);
+  } catch (error) {
+    console.warn(JSON.stringify({ event: "media.variants_skipped", namespace, reason: error instanceof Error ? error.message : "unknown" }));
+    return null;
+  }
+}
+
+/** Returns the stored variant manifest when one was produced (for the WP1 receipt column), else null. */
+export async function verifyPendingMedia(client: SupabaseClient, namespace: MediaNamespace, key: string): Promise<VariantManifest | null> {
   // Organization reads deliberately exclude pending rows. A ready retry must
   // still pass current membership/audience authorization before returning.
   if (!isOrganizationMedia(namespace)) {
     const media = await resolveMedia(client, namespace, key, "read");
-    if (media.state === "ready") return;
+    if (media.state === "ready") return null;
   } else {
     try { await resolveMedia(client, namespace, key, "upload"); }
     catch {
       const media = await resolveMedia(client, namespace, key, "read");
-      if (media.state === "ready") return;
+      if (media.state === "ready") return null;
       throw new Error("media unavailable");
     }
   }
@@ -89,13 +111,15 @@ export async function verifyPendingMedia(client: SupabaseClient, namespace: Medi
   const bytes = await provider.readObject(key, maxBytes);
   const verified = await verifyMediaBytes(bytes, pending.contentType, maxBytes);
   await provider.commitVerifiedObject(key, bytes, verified.contentType);
+  const variants = await storeVariants(provider, namespace, key, bytes, verified.contentType);
   const admin = privilegedStorageClient();
   const { error } = await admin.rpc("media_storage_attest", {
     p_namespace: namespace, p_key: key, p_owner: pending.owner, p_provider: pending.provider,
     p_size: verified.size, p_content_type: verified.contentType, p_sha256: verified.sha256,
   });
   if (error) throw new Error("verification receipt refused");
-  console.info(JSON.stringify({ event: "media.verified", namespace, provider: pending.provider, bytes: verified.size }));
+  console.info(JSON.stringify({ event: "media.verified", namespace, provider: pending.provider, bytes: verified.size, variants: variants ? Object.keys(variants).length : 0 }));
+  return variants;
 }
 
 export async function readMediaUrl(client: SupabaseClient, namespace: MediaNamespace, key: string) {
