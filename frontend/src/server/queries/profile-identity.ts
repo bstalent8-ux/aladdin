@@ -4,6 +4,7 @@ import { cache } from "react";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { readMediaUrl } from "@/server/storage/media";
 import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
+import { getCurrentUser } from "@/server/auth/session";
 
 export type MyIdentity = {
   displayName: string;
@@ -36,9 +37,7 @@ function mapSecondaryPhone(raw: unknown): SecondaryPhone | null {
 /** The caller's own shared identity fields (every audience). Scoped to the session — takes no user id. */
 export const loadMyIdentity = cache(async function loadMyIdentity(): Promise<MyIdentity | null> {
   const supabase = await getServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const { data: profile, error } = await supabase
