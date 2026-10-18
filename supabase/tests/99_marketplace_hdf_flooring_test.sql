@@ -1,4 +1,4 @@
--- pgTAP: Marketplace Migration 11 — HDF flooring (20261018090001_marketplace_hdf_flooring.sql).
+-- pgTAP: Marketplace Migration 11 — HDF flooring (20261019090001_marketplace_hdf_flooring.sql).
 --
 --   A. CATALOGUE — «أرضيات HDF» exists once, bilingual, under «الأرضيات», after SPC.
 --   B. FIELDS    — the AC abrasion class field and its three options; the type's twelve

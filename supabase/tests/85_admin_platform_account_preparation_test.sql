@@ -219,11 +219,13 @@ select is((select count(*)::int from public.admin_roles), 4, 'the admin roles ar
 select is(
   (select md5(string_agg(key || '|' || resource || '|' || action || '|' || description || '|' || sort_order::text || '|' || is_active::text,
                          E'\n' order by key))
-   from public.admin_permissions where key not like 'marketplace\_%'),
+   from public.admin_permissions where key not like 'marketplace\_%'
+     and key not in ('verification.approve', 'phones.cooldown_override')),
   '0742c9851ca7b55f8874396fde2234f4',
   'RBAC-1. the 25 pre-existing permissions are present and byte-for-byte unchanged');
 select is(
-  (select count(*)::int from public.admin_permissions where key not like 'marketplace\_%'), 25,
+  (select count(*)::int from public.admin_permissions where key not like 'marketplace\_%'
+     and key not in ('verification.approve', 'phones.cooldown_override')), 25,
   'RBAC-2. ...and there are exactly 25 of them');
 select is(
   (select array_agg(key || ':' || action || ':' || is_active::text || ':' || is_system::text order by key)
@@ -235,6 +237,7 @@ select is(
      select r.key || ':' || count(*)::text || ':' || md5(string_agg(rp.permission_key || ':' || rp.is_locked::text, ',' order by rp.permission_key)) as x
      from public.admin_role_permissions rp join public.admin_roles r on r.id = rp.role_id
      where rp.permission_key not like 'marketplace\_%'
+       and rp.permission_key not in ('verification.approve', 'phones.cooldown_override')
      group by r.key) q),
   array['administrator:24:9e8dcc59cf3f3e5b1bc63338d75e4895', 'moderator:16:829c7432b215b59760ac28145a50abc5',
         'super_admin:25:0139b1bbe0b1f22811be9f1b8691c2b1', 'support:7:a102b27eac08be9dbae163eeb0ed6002'],

@@ -743,8 +743,8 @@ select is(
       and p.prosrc like '%storage.objects%'
       and (has_function_privilege('anon',p.oid,'EXECUTE') or has_function_privilege('authenticated',p.oid,'EXECUTE'))),
   array['admin_marketplace_media_record_validation', 'marketplace_seller_image_confirm_upload',
-        'marketplace_seller_image_remove_finalize', 'marketplace_seller_stage_import_assets'],
-  'Only four named Marketplace functions are caller-accessible AND read storage.objects (upload confirmation: the bytes exist; removal finalize: the bytes are gone; import staging; media validation record); every other reader is service-only and metadata still points AT objects everywhere else'
+        'marketplace_seller_image_remove_finalize'],
+  'Only three named Marketplace functions are caller-accessible AND read storage.objects (upload confirmation: the bytes exist; removal finalize: the bytes are gone; the admin media validation record); every other reader (incl. the app.* import helper and the R2 inventories) is not callable by a client role and metadata still points AT objects everywhere else'
 );
 
 select * from finish();

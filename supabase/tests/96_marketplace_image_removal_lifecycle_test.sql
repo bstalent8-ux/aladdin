@@ -63,10 +63,11 @@ select is(
   'A3. clients still run only the three storage predicates in app.*');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('app', 'public') and p.prosrc like '%storage.objects%'),
+   where n.nspname in ('app', 'public') and p.prosrc like '%storage.objects%'
+     and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'))),
   array['admin_marketplace_media_record_validation', 'marketplace_seller_image_confirm_upload',
-        'marketplace_seller_image_remove_finalize', 'marketplace_seller_stage_import_assets'],
-  'A4. exactly two functions read storage.objects (confirm: bytes exist; finalize: bytes are gone)');
+        'marketplace_seller_image_remove_finalize'],
+  'A4. of the client-callable functions, only these read storage.objects (confirm: bytes exist; finalize: bytes are gone; Migration 07 added the second reader, the admin media record is Migration 09; the whole-DB inventory is pinned in 47_)');
 select is((select public from storage.buckets where id = 'marketplace-product-images'), false, 'A5. the bucket is still private');
 select is((select count(*)::int from information_schema.role_table_grants
            where table_schema = 'public' and grantee in ('anon', 'authenticated') and privilege_type <> 'SELECT'
