@@ -2088,6 +2088,7 @@ export type Database = {
           provider: string
           sha256: string | null
           size_bytes: number | null
+          variants: Json
           verified_at: string | null
         }
         Insert: {
@@ -2101,6 +2102,7 @@ export type Database = {
           provider: string
           sha256?: string | null
           size_bytes?: number | null
+          variants?: Json
           verified_at?: string | null
         }
         Update: {
@@ -2114,6 +2116,7 @@ export type Database = {
           provider?: string
           sha256?: string | null
           size_bytes?: number | null
+          variants?: Json
           verified_at?: string | null
         }
         Relationships: [
@@ -8143,6 +8146,22 @@ export type Database = {
         Args: { p_key: string; p_namespace: string; p_owner: string }
         Returns: undefined
       }
+      media_edge_authorize: {
+        Args: {
+          p_expires_at: string
+          p_key: string
+          p_namespace: string
+          p_session: string
+          p_variant: string
+          p_viewer: string
+          p_workspace: string
+        }
+        Returns: Json
+      }
+      media_edge_public: {
+        Args: { p_id: string; p_namespace: string; p_variant: string }
+        Returns: Json
+      }
       media_migration_inventory: {
         Args: { p_after?: string; p_limit?: number }
         Returns: {
@@ -8186,6 +8205,15 @@ export type Database = {
         Returns: undefined
       }
       media_storage_metrics: { Args: never; Returns: Json }
+      media_storage_record_variants: {
+        Args: {
+          p_key: string
+          p_namespace: string
+          p_owner: string
+          p_variants: Json
+        }
+        Returns: undefined
+      }
       media_storage_reserve: {
         Args: {
           p_key: string
@@ -8620,6 +8648,10 @@ export type Database = {
         Args: { p_keys: string[]; p_namespace: string; p_workspace?: string }
         Returns: string[]
       }
+      organization_media_read_providers: {
+        Args: { p_keys: string[]; p_namespace: string; p_workspace?: string }
+        Returns: Json
+      }
       organization_media_resolve: {
         Args: {
           p_key: string
@@ -8807,6 +8839,10 @@ export type Database = {
         Returns: Json
       }
       profile_set_username: { Args: { p_username: string }; Returns: undefined }
+      public_media_edge_ids: {
+        Args: { p_ids: string[]; p_namespace: string }
+        Returns: string[]
+      }
       public_portfolio_media_key: {
         Args: { p_item_id: string }
         Returns: string

@@ -172,6 +172,22 @@ describe("product image queries", () => {
     expect(createSignedUrls).not.toHaveBeenCalled();
   });
 
+  it("with edge delivery on, only R2 keys get media-Worker URLs; Supabase keys keep the proxy", async () => {
+    vi.stubEnv("MEDIA_EDGE_DELIVERY_ENABLED", "true");
+    vi.stubEnv("MEDIA_EDGE_ORIGIN", "https://media.example.test");
+    vi.stubEnv("MEDIA_EDGE_TICKET_KID", "k1");
+    vi.stubEnv("MEDIA_EDGE_TICKET_SECRET", "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8");
+    try {
+      const { supabase, calls } = stub({ data: { a: "r2", b: "supabase" }, error: null });
+      (supabase as { auth?: unknown }).auth = { getClaims: async () => ({ data: { claims: {
+        sub: "70000003-0000-4000-8000-000000000003", session_id: "e9000000-0000-4000-8000-000000000002" } }, error: null }) };
+      const urls = await signProductImageUrls(supabase, ["a", "b"], { orgId: "9d000000-dddd-4ddd-8ddd-000000000002" });
+      expect(calls[0]).toEqual(["rpc", "organization_media_read_providers", { p_namespace: "product", p_keys: ["a", "b"], p_workspace: "9d000000-dddd-4ddd-8ddd-000000000002" }]);
+      expect(urls.get("a")).toMatch(/^https:\/\/media\.example\.test\/m\/product\/original\?t=k1\./);
+      expect(urls.get("b")).toBe("/api/media/product?key=b&workspace=9d000000-dddd-4ddd-8ddd-000000000002");
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it("lists another organization's gallery through the workspace-aware reader, never the table", async () => {
     const { supabase, calls } = stub({ data: [{ product_id: "p1", id: "i1", object_key: "k1", slot: 1 }], error: null });
     const map = await listCatalogImages(supabase, "org-1", ["p1"]);

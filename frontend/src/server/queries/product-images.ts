@@ -3,12 +3,14 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { applicationMediaUrl } from "@/lib/storage/media-url";
+import { edgeConfig, privateMediaUrl } from "@/server/storage/edge-ticket";
 
 type DB = SupabaseClient<Database>;
 
 export type OwnProductImage = { id: string; objectKey: string; slot: number };
 
-// URLs identify application routes; every byte request rechecks current workspace access.
+// URLs identify application routes (or, for R2 rows with edge delivery on, the media
+// Worker); every byte request rechecks current workspace access in the database.
 
 /**
  * The READY images of the given products, in display order (lowest slot first),
@@ -79,12 +81,21 @@ export async function signProductImageUrls(
   const unique = [...new Set(keys.filter((k): k is string => Boolean(k)))];
   const out = new Map<string, string>();
   if (unique.length === 0) return out;
+  const edge = edgeConfig() !== null;
   for (let i = 0; i < unique.length; i += 60) {
-    const { data, error } = await supabase.rpc("organization_media_read_keys", {
-      p_namespace: "product", p_keys: unique.slice(i, i + 60), p_workspace: viewer?.orgId ?? undefined,
-    });
-    if (error || !data) return new Map();
-    for (const key of data) out.set(key, applicationMediaUrl("product", key, viewer?.orgId));
+    const args = { p_namespace: "product", p_keys: unique.slice(i, i + 60), p_workspace: viewer?.orgId ?? undefined };
+    if (!edge) {
+      const { data, error } = await supabase.rpc("organization_media_read_keys", args);
+      if (error || !data) return new Map();
+      for (const key of data) out.set(key, applicationMediaUrl("product", key, viewer?.orgId));
+      continue;
+    }
+    // Same caller-scoped resolver, plus each readable key's provider for the URL switch.
+    const { data, error } = await supabase.rpc("organization_media_read_providers", args);
+    if (error || !data || typeof data !== "object" || Array.isArray(data)) return new Map();
+    for (const [key, provider] of Object.entries(data)) {
+      out.set(key, await privateMediaUrl(supabase, "product", key, provider === "r2" ? "r2" : "supabase", { workspace: viewer?.orgId ?? null }));
+    }
   }
   return out;
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { readMediaUrl } from "@/server/storage/media";
+import { readableMediaUrl } from "@/server/storage/edge-ticket";
 import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
 
 export type MyIdentity = {
@@ -60,7 +60,7 @@ export const loadMyIdentity = cache(async function loadMyIdentity(): Promise<MyI
       .eq("state", "ready")
       .maybeSingle();
     if (upload?.object_key) {
-      try { avatarUrl = await readMediaUrl(supabase, "avatar", upload.object_key); }
+      try { avatarUrl = await readableMediaUrl(supabase, "avatar", upload.object_key); }
       catch { avatarUrl = null; }
     }
   }

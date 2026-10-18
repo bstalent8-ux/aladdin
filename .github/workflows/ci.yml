@@ -46,6 +46,9 @@ jobs:
       - run: pnpm --filter frontend lint
       - run: pnpm --filter frontend test
       - run: pnpm --filter frontend build
+      # Media Worker (edge/media-worker): unit tests with fake R2/database bindings, no Cloudflare account.
+      - run: pnpm --filter @aladdin/media-worker typecheck
+      - run: pnpm --filter @aladdin/media-worker test
 
   backend:
     name: backend
