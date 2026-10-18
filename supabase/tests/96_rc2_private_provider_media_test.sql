@@ -89,5 +89,8 @@ select ok((select not public from storage.buckets where id='product-images'),'pr
 select ok((select not public from storage.buckets where id='organization-images'),'logo bucket remains private');
 select ok((select permissive='RESTRICTIVE' and qual like '%product-images%' and qual like '%organization-images%'
  from pg_policies where schemaname='storage' and policyname='revocable_media_backend_reads'),'restrictive direct-read boundary covers both organization buckets');
+-- PostgREST runs STABLE functions read-only; the upload branch reaches a FOR SHARE lock.
+select is((select provolatile::text from pg_proc where oid='public.organization_media_resolve(text,text,text,uuid)'::regprocedure),
+  'v','organization_media_resolve is volatile, so a direct RPC upload check may take row locks');
 select * from finish();
 rollback;
