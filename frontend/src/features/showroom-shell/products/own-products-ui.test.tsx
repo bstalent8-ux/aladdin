@@ -13,7 +13,7 @@ const actions = vi.hoisted(() => ({
   confirm: vi.fn(),
   remove: vi.fn(async () => ({ ok: true })),
   reorder: vi.fn(async () => ({ ok: true })),
-  upload: vi.fn(async (): Promise<{ error: { message: string } | null }> => ({ error: null })),
+  upload: vi.fn<(grant: unknown, file: File) => Promise<{ error: { message: string } | null }>>(async () => ({ error: null })),
   refresh: vi.fn(),
 }));
 vi.mock("@/server/actions/own-products", () => ({

@@ -24,7 +24,7 @@ it("never makes missing or spoofed bytes current", async () => {
 it("verifies first, switches through the caller RPC, then cleans only the returned retired key", async () => {
   mocks.rpc.mockResolvedValueOnce({ data: "retired.png", error: null });
   expect((await confirmOrganizationImageUploadAction("new.png")).ok).toBe(true);
-  expect(mocks.verify.mock.invocationCallOrder[0]).toBeLessThan(mocks.rpc.mock.invocationCallOrder[0]);
+  expect(mocks.verify.mock.invocationCallOrder[0]).toBeLessThan(mocks.rpc.mock.invocationCallOrder[0] ?? -1);
   expect(mocks.remove).toHaveBeenCalledWith(expect.anything(), "organization", "retired.png");
 });
 it("reports interrupted cleanup honestly and permits a scoped retry", async () => {

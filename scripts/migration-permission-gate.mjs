@@ -37,7 +37,8 @@ export function compare(actual,expected){
  return errors;
 }
 
-export function contract(version='20261017100227'){
+export const latestContractVersion=()=>fs.readdirSync(path.join(root,'supabase/permissions')).filter(f=>/^\d{14}\.json$/.test(f)).sort().at(-1).slice(0,14);
+export function contract(version=latestContractVersion()){
  const file=path.join(root,'supabase/permissions',`${version}.json`);
  const value=JSON.parse(fs.readFileSync(file,'utf8'));
  if(value.version!==version||!Array.isArray(value.functions)||new Set(value.functions.map(f=>f.signature)).size!==value.functions.length)throw Error('Invalid exact permission contract');
@@ -114,7 +115,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     console.log(`PASS atomic migration ${f}`);
    }
   }else if(mode==='check'){
-   const files=fs.readdirSync(path.join(root,'supabase/permissions')).filter(f=>/^\d{14}\.json$/.test(f)).sort();const expected=contract(files.at(-1).slice(0,14));
+   const expected=contract();
    const errors=compare(JSON.parse(execute('BEGIN READ ONLY;'+inventory+'ROLLBACK;')),expected);if(errors.length)throw Error(errors.join('\n'));console.log(`PASS ${expected.length} exact function permission contracts`);
   }else throw Error('Unknown mode');
  }catch(e){console.error(e.message);process.exitCode=1;}
