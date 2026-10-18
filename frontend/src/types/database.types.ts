@@ -7354,6 +7354,11 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: Json
       }
+      admin_phone_cooldown_override: {
+        Args: { p_phone: string; p_reason: string }
+        Returns: string
+      }
+      admin_phone_cooldown_status: { Args: { p_phone: string }; Returns: Json }
       admin_users_directory: {
         Args: {
           p_account_type?: string
@@ -7378,6 +7383,10 @@ export type Database = {
           p_status?: string
           p_verification?: string
         }
+        Returns: Json
+      }
+      account_password_confirm: {
+        Args: { p_operation: string; p_password: string; p_target: string }
         Returns: Json
       }
       apply_account_upgrade: {
@@ -8042,6 +8051,7 @@ export type Database = {
         Args: { p_membership_id: string }
         Returns: undefined
       }
+      my_secondary_phone: { Args: never; Returns: Json }
       my_account_status: { Args: never; Returns: Json }
       my_business_verification: { Args: { p_org_id: string }; Returns: Json }
       my_branches: {
@@ -8596,6 +8606,20 @@ export type Database = {
       profile_set_phone: {
         Args: { p_country_iso2: string; p_e164: string; p_national: string }
         Returns: undefined
+      }
+      secondary_phone_cancel: { Args: never; Returns: undefined }
+      secondary_phone_change: {
+        Args: { p_phone: string; p_receipt: string }
+        Returns: Json
+      }
+      secondary_phone_make_primary: {
+        Args: { p_country_iso2?: string; p_national?: string; p_receipt: string }
+        Returns: undefined
+      }
+      secondary_phone_renew: { Args: never; Returns: Json }
+      secondary_phone_reserve: {
+        Args: { p_phone: string; p_receipt: string }
+        Returns: Json
       }
       profile_set_username: { Args: { p_username: string }; Returns: undefined }
       public_portfolio_media_key: {
