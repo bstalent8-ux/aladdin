@@ -16,7 +16,7 @@ it("rejects revocable media from the actual installed Next optimizer matcher", (
   }
 });
 it("preserves every existing static asset directory and build image imports", () => {
-  for (const url of ["/brand/mark.png", "/assets/logo.png", "/demo/photo.png", "/installer-auth/hero.png", "/landing-v2/hero.png", "/preview/photo.png", "/_next/static/media/hash.png"]) {
+  for (const url of ["/brand/mark.png", "/assets/logo.png", "/demo/photo.png", "/images/showroom/products/my-products-hero-light.png", "/installer-auth/hero.png", "/landing-v2/hero.png", "/preview/photo.png", "/_next/static/media/hash.png"]) {
     expect(hasLocalMatch(config.images?.localPatterns, url)).toBe(true);
   }
 });
