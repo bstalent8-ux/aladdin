@@ -118,6 +118,14 @@ export async function verifyPendingMedia(client: SupabaseClient, namespace: Medi
     p_size: verified.size, p_content_type: verified.contentType, p_sha256: verified.sha256,
   });
   if (error) throw new Error("verification receipt refused");
+  // Variants are disposable: an unrecorded manifest only means originals are served
+  // until the backfill records it. Edge URLs are issued only for recorded variants.
+  if (variants && Object.keys(variants).length > 0) {
+    const { error: variantError } = await admin.rpc("media_storage_record_variants", {
+      p_namespace: namespace, p_key: key, p_owner: pending.owner, p_variants: variants,
+    });
+    if (variantError) console.warn(JSON.stringify({ event: "media.variants_unrecorded", namespace }));
+  }
   console.info(JSON.stringify({ event: "media.verified", namespace, provider: pending.provider, bytes: verified.size, variants: variants ? Object.keys(variants).length : 0 }));
   return variants;
 }

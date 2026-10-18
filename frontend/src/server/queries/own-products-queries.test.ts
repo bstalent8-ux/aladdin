@@ -180,7 +180,7 @@ describe("product image queries", () => {
     try {
       const { supabase, calls } = stub({ data: { a: "r2", b: "supabase" }, error: null });
       (supabase as { auth?: unknown }).auth = { getClaims: async () => ({ data: { claims: {
-        sub: "70000003-0000-4000-8000-000000000003", session_id: "e9000000-0000-4000-8000-000000000002" } }, error: null }) };
+        sub: "70000003-0000-4000-8000-000000000003", session_id: "e9000000-0000-4000-8000-000000000002", role: "authenticated", exp: 4_000_000_000 } }, error: null }) };
       const urls = await signProductImageUrls(supabase, ["a", "b"], { orgId: "9d000000-dddd-4ddd-8ddd-000000000002" });
       expect(calls[0]).toEqual(["rpc", "organization_media_read_providers", { p_namespace: "product", p_keys: ["a", "b"], p_workspace: "9d000000-dddd-4ddd-8ddd-000000000002" }]);
       expect(urls.get("a")).toMatch(/^https:\/\/media\.example\.test\/m\/product\/original\?t=k1\./);

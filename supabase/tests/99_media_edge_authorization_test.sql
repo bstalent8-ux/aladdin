@@ -99,7 +99,7 @@ reset role;
 set local request.jwt.claims='';
 select is(pg_temp.auth('portfolio',:'pkey','original',:'pro',:'s_pro',null,:exp)->>'object','portfolio/'||:'pkey','owner reads private portfolio original');
 select is(pg_temp.auth('certificate',:'ckey','original',:'pro',:'s_pro',null,:exp),
-  jsonb_build_object('object','certificate/'||:'ckey','contentType','application/pdf','size',200,'sha256',repeat('b',64)),'owner reads certificate with authoritative type and size');
+  jsonb_build_object('object','certificate/'||:'ckey','contentType','application/pdf','size',200,'sha256',repeat('b',64),'variants','[]'::jsonb),'owner reads certificate with authoritative type and size');
 select ok(pg_temp.auth('avatar',:'akey','original',:'pro',:'s_pro',null,:exp) is not null,'owner reads own avatar');
 select is(pg_temp.auth('portfolio',:'pkey','original',:'other',:'s_other',null,:exp),null::jsonb,'another user is denied');
 select is(pg_temp.auth('certificate',:'ckey','original',:'other',:'s_other',null,:exp),null::jsonb,'another user is denied a certificate');
@@ -128,9 +128,9 @@ select is(current_setting('request.jwt.claim.sub'),'','legacy sub claim does not
 set local role service_role;
 select throws_ok(format('select public.media_storage_record_variants(%L,%L,%L,%L)','portfolio',:'pkey',:'pro','{"poster":{}}'),'22023',null,'unknown variant names are refused');
 select throws_ok(format('select public.media_storage_record_variants(%L,%L,%L,%L)','portfolio',:'legacy',:'pro',
-  jsonb_build_object('thumb',jsonb_build_object('bytes',10,'sha256',repeat('1',64),'width',320,'height',200))),'42501',null,'variants need a verified R2 receipt');
+  jsonb_build_object('thumb',jsonb_build_object('size',10,'sha256',repeat('1',64),'width',320,'height',200))),'42501',null,'variants need a verified R2 receipt');
 select lives_ok(format('select public.media_storage_record_variants(%L,%L,%L,%L)','portfolio',:'pkey',:'pro',
-  jsonb_build_object('thumb',jsonb_build_object('bytes',10,'sha256',repeat('1',64),'width',320,'height',200))),'backend records a verified variant');
+  jsonb_build_object('thumb',jsonb_build_object('size',10,'sha256',repeat('1',64),'width',320,'height',200))),'backend records a verified variant');
 reset role;
 select is(pg_temp.auth('portfolio',:'pkey','thumb',:'pro',:'s_pro',null,:exp),
   jsonb_build_object('object','v/portfolio/'||:'pkey'||'/thumb.webp','contentType','image/webp','size',10,'sha256',repeat('1',64)),'variant resolves to its derived object');
@@ -161,7 +161,8 @@ select is(pg_temp.pub('certificate',:'item','original'),null::jsonb,'certificate
 select is(pg_temp.pub('portfolio','e9100000-0000-4000-8000-000000000003','original'),null::jsonb,'unpublished legacy item stays denied');
 set local role anon;
 set local request.jwt.claims='{"role":"anon"}';
-select is(public.public_media_edge_ids('portfolio',array[:'item'::uuid,'e9100000-0000-4000-8000-000000000003'::uuid]),array[:'item'::uuid],'anon sees only currently eligible edge ids');
+select is(public.public_media_edge_sources('portfolio',array[:'item'::uuid,'e9100000-0000-4000-8000-000000000003'::uuid]),
+  jsonb_build_object(:'item','["thumb"]'::jsonb),'anon sees only currently eligible edge ids, with their recorded variants');
 select throws_ok(format('select public.media_edge_public(%L,%L,%L)','portfolio',:'item','original'),'42501',null,'anon cannot call the Worker function');
 select throws_ok(format('select public.media_edge_authorize(%L,%L,%L,%L,%L,null,now())','portfolio',:'pkey','original',:'pro',:'s_pro'),'42501',null,'anon cannot call the private Worker function');
 reset role;

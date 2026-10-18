@@ -1,10 +1,11 @@
 import "server-only";
 import { createHmac } from "node:crypto";
-import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readStorageEnv } from "@/lib/env/storage";
 import { applicationMediaUrl } from "@/lib/storage/media-url";
 import { isOrganizationMedia } from "@/lib/storage/media-policy";
+import { MEDIA_VARIANTS, type MediaSource, type MediaVariant, type MediaVariantUrls } from "@/lib/media/image-variants";
+import { readSessionIdentity } from "@/server/auth/session";
 import { resolveMedia } from "./media";
 import type { MediaNamespace, StorageProviderName } from "@/lib/storage/provider-types";
 
@@ -56,16 +57,15 @@ export function edgeConfig(): EdgeConfig | null {
 }
 
 /**
- * The verified viewer and Auth session behind this request, once per request
- * (React cache keyed by the caller's client). Null means no edge ticket.
+ * The locally verified viewer and Auth session behind this request, once per
+ * request (server/auth/session.ts). Null means no edge ticket. Whether that
+ * session still exists is decided by the database on every Worker request.
  */
-export const edgeViewer = cache(async (client: SupabaseClient): Promise<{ sub: string; sid: string } | null> => {
-  const { data, error } = await client.auth.getClaims();
-  const sub = data?.claims?.sub;
-  const sid = data?.claims?.session_id;
-  if (error || typeof sub !== "string" || typeof sid !== "string" || !UUID.test(sub) || !UUID.test(sid)) return null;
-  return { sub, sid };
-});
+export async function edgeViewer(client: SupabaseClient): Promise<{ sub: string; sid: string } | null> {
+  const identity = await readSessionIdentity(client);
+  if (!identity || !UUID.test(identity.id) || !identity.sessionId || !UUID.test(identity.sessionId)) return null;
+  return { sub: identity.id, sid: identity.sessionId };
+}
 
 /**
  * The URL rendering code receives for media the caller is ALREADY authorized to
@@ -95,6 +95,31 @@ export async function readableMediaUrl(client: SupabaseClient, namespace: MediaN
 }
 
 /**
+ * `readableMediaUrl` plus variant URLs, for the owner's own previews. Variants are
+ * issued only for R2 rows that have them recorded, and only through the Worker
+ * (the application proxy serves originals only).
+ */
+export async function readableMediaSource(client: SupabaseClient, namespace: "avatar" | "portfolio" | "certificate", key: string): Promise<MediaSource> {
+  const media = await resolveMedia(client, namespace, key, "read");
+  if (!media.owner || media.state !== "ready") throw new Error("media unavailable");
+  const src = await privateMediaUrl(client, namespace, key, media.provider);
+  if (media.provider !== "r2" || !edgeConfig()) return { src };
+  // Owner-scoped by RLS (media_locations_owner_read).
+  const { data } = await client.from("media_storage_locations").select("variants")
+    .eq("namespace", namespace).eq("object_key", key).maybeSingle();
+  const recorded = recordedVariants(data?.variants);
+  if (recorded.length === 0) return { src };
+  const variants: MediaVariantUrls = {};
+  for (const variant of recorded) variants[variant] = await privateMediaUrl(client, namespace, key, "r2", { variant });
+  return { src, variants };
+}
+
+function recordedVariants(value: unknown): MediaVariant[] {
+  const names = Array.isArray(value) ? value : value && typeof value === "object" ? Object.keys(value) : [];
+  return MEDIA_VARIANTS.filter((variant) => names.includes(variant));
+}
+
+/**
  * Public media by opaque id (portfolio item id, listed profile id). Edge URLs
  * carry no ticket and no key: the Worker re-checks eligibility on every request.
  */
@@ -104,14 +129,27 @@ export function publicMediaUrl(namespace: "portfolio" | "avatar", id: string, on
   return namespace === "portfolio" ? `/p/media/${id}` : null;
 }
 
-/** Ids among `ids` that are currently public AND stored on R2; empty while Mode C is off. */
-export async function publicEdgeIds(client: SupabaseClient, namespace: "portfolio" | "avatar", ids: readonly string[]): Promise<Set<string>> {
-  if (ids.length === 0 || !edgeConfig()?.publicEnabled) return new Set();
-  const out = new Set<string>();
+/**
+ * A public portfolio image as rendering code takes it: `/p/media/<id>` unless the
+ * item is on R2 and Mode C is on, then the Worker URL plus its recorded variants.
+ */
+export function publicPortfolioSource(id: string, edgeVariants: readonly MediaVariant[] | undefined): MediaSource {
+  const onEdge = edgeVariants !== undefined;
+  const src = publicMediaUrl("portfolio", id, onEdge)!;
+  if (!onEdge || !src.startsWith("https://") || edgeVariants.length === 0) return { src };
+  const variants: MediaVariantUrls = {};
+  for (const variant of edgeVariants) variants[variant] = publicMediaUrl("portfolio", id, true, variant)!;
+  return { src, variants };
+}
+
+/** Currently public R2 items among `ids` and their recorded variants; empty while Mode C is off. */
+export async function publicEdgeSources(client: SupabaseClient, namespace: "portfolio" | "avatar", ids: readonly string[]): Promise<Map<string, MediaVariant[]>> {
+  const out = new Map<string, MediaVariant[]>();
+  if (ids.length === 0 || !edgeConfig()?.publicEnabled) return out;
   for (let i = 0; i < ids.length; i += 100) {
-    const { data, error } = await client.rpc("public_media_edge_ids", { p_namespace: namespace, p_ids: ids.slice(i, i + 100) });
-    if (error || !Array.isArray(data)) return new Set();
-    for (const id of data) if (typeof id === "string") out.add(id);
+    const { data, error } = await client.rpc("public_media_edge_sources", { p_namespace: namespace, p_ids: ids.slice(i, i + 100) });
+    if (error || !data || typeof data !== "object" || Array.isArray(data)) return new Map();
+    for (const [id, variants] of Object.entries(data)) out.set(id, recordedVariants(variants));
   }
   return out;
 }

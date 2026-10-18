@@ -19,7 +19,8 @@ grant media_edge to postgres with set true, inherit false;
 grant usage on schema public to media_edge;
 
 -- Derived image renditions (written by the trusted verifier, WP2). Keys are a
--- closed set; each value describes one immutable object at v/<ns>/<key>/<variant>.webp.
+-- closed set; each value {width,height,size,sha256} describes one immutable
+-- object at v/<ns>/<key>/<variant>.webp (lib/media/image-variants.ts).
 alter table public.media_storage_locations add column variants jsonb not null default '{}'::jsonb
   check (jsonb_typeof(variants)='object' and variants - array['thumb','card','full'] = '{}'::jsonb);
 
@@ -28,10 +29,12 @@ alter table public.media_storage_locations add column variants jsonb not null de
 create function app.media_edge_grant(p_namespace text,p_key text,p_variant text)
 returns jsonb language sql stable security definer set search_path='' as $$
   select case
+    -- The original also names the recorded variants, so URL issuers mint only those.
     when p_variant='original' then jsonb_build_object('object',l.namespace||'/'||l.object_key,
-      'contentType',l.content_type,'size',l.size_bytes,'sha256',l.sha256)
+      'contentType',l.content_type,'size',l.size_bytes,'sha256',l.sha256,
+      'variants',(select coalesce(jsonb_agg(k order by k),'[]'::jsonb) from jsonb_object_keys(l.variants) k))
     when l.variants ? p_variant then jsonb_build_object('object','v/'||l.namespace||'/'||l.object_key||'/'||p_variant||'.webp',
-      'contentType','image/webp','size',(l.variants->p_variant->>'bytes')::bigint,'sha256',l.variants->p_variant->>'sha256')
+      'contentType','image/webp','size',(l.variants->p_variant->>'size')::bigint,'sha256',l.variants->p_variant->>'sha256')
   end
   from public.media_storage_locations l
   where l.namespace=p_namespace and l.object_key=p_key and l.provider='r2'
@@ -121,15 +124,17 @@ $$;
 revoke all on function public.media_edge_public(text,uuid,text) from public,anon,authenticated,service_role;
 grant execute on function public.media_edge_public(text,uuid,text) to media_edge;
 
--- Rendering: which currently public items are servable at the edge. Reveals only
--- the provider of media that is already public; ineligible ids are simply absent.
-create function public.public_media_edge_ids(p_namespace text,p_ids uuid[])
-returns uuid[] language sql volatile security definer set search_path='' as $$
-  select coalesce(array_agg(distinct i),'{}'::uuid[]) from unnest(p_ids[1:100]) i
-    where public.media_edge_public(p_namespace,i,'original') is not null;
+-- Rendering: which currently public items are servable at the edge, with the
+-- variants each one has. Reveals only the provider of media that is already
+-- public; ineligible ids are simply absent.
+create function public.public_media_edge_sources(p_namespace text,p_ids uuid[])
+returns jsonb language sql volatile security definer set search_path='' as $$
+  select coalesce(jsonb_object_agg(i::text,g->'variants'),'{}'::jsonb) from (
+    select distinct i, public.media_edge_public(p_namespace,i,'original') g from unnest(p_ids[1:100]) i) s
+  where g is not null;
 $$;
-revoke all on function public.public_media_edge_ids(text,uuid[]) from public,anon,authenticated,service_role;
-grant execute on function public.public_media_edge_ids(text,uuid[]) to anon,authenticated;
+revoke all on function public.public_media_edge_sources(text,uuid[]) from public,anon,authenticated,service_role;
+grant execute on function public.public_media_edge_sources(text,uuid[]) to anon,authenticated;
 
 -- Rendering: the caller's readable organization media keys with their provider,
 -- through the same caller-scoped resolver as organization_media_read_keys.
@@ -143,7 +148,8 @@ $$;
 revoke all on function public.organization_media_read_providers(text,text[],uuid) from public,anon,authenticated,service_role;
 grant execute on function public.organization_media_read_providers(text,text[],uuid) to authenticated;
 
--- Trusted verifier records renditions it wrote from verified bytes (WP2 interface).
+-- Trusted verifier records the VariantManifest it wrote from verified bytes
+-- (server/storage/media.ts verifyPendingMedia): {variant:{width,height,size,sha256}}.
 create function public.media_storage_record_variants(p_namespace text,p_key text,p_owner uuid,p_variants jsonb)
 returns void language plpgsql security definer set search_path='' as $$
 declare v_name text; v jsonb;
@@ -153,7 +159,7 @@ begin
   end if;
   for v_name,v in select * from jsonb_each(p_variants) loop
     if jsonb_typeof(v)<>'object' or coalesce(v->>'sha256','') !~ '^[0-9a-f]{64}$'
-      or coalesce(v->>'bytes','') !~ '^[1-9][0-9]{0,8}$'
+      or coalesce(v->>'size','') !~ '^[1-9][0-9]{0,8}$'
       or coalesce(v->>'width','') !~ '^[1-9][0-9]{0,4}$' or coalesce(v->>'height','') !~ '^[1-9][0-9]{0,4}$' then
       raise exception 'invalid media variant %',v_name using errcode='22023';
     end if;

@@ -8839,9 +8839,9 @@ export type Database = {
         Returns: Json
       }
       profile_set_username: { Args: { p_username: string }; Returns: undefined }
-      public_media_edge_ids: {
+      public_media_edge_sources: {
         Args: { p_ids: string[]; p_namespace: string }
-        Returns: string[]
+        Returns: Json
       }
       public_portfolio_media_key: {
         Args: { p_item_id: string }

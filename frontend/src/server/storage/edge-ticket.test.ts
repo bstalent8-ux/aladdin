@@ -4,7 +4,7 @@ vi.mock("./media", () => ({ resolveMedia: vi.fn() }));
 import vectors from "../../../../edge/media-worker/test/ticket-vectors.json";
 // The Worker's own verifier: app-minted tickets must verify there, byte for byte.
 import { parseTicketKeys, verifyTicket } from "../../../../edge/media-worker/src/ticket";
-import { edgeConfig, mintTicket, privateMediaUrl, publicMediaUrl, readableMediaUrl, ticketExpiry, type TicketClaims } from "./edge-ticket";
+import { edgeConfig, mintTicket, privateMediaUrl, publicMediaUrl, publicPortfolioSource, readableMediaUrl, ticketExpiry, type TicketClaims } from "./edge-ticket";
 import { resolveMedia } from "./media";
 import { storageEnvSchema } from "@/lib/env/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -63,7 +63,7 @@ describe("ticket minting (shared vectors with the Worker)", () => {
 });
 
 describe("URL switch", () => {
-  const viewer = { sub: VIEWER, session_id: SESSION };
+  const viewer = { sub: VIEWER, session_id: SESSION, role: "authenticated", exp: vectors.now + 3600 };
 
   it("flag off: exactly today's application URLs, and no Auth call", async () => {
     const c = client(viewer);
@@ -90,7 +90,7 @@ describe("URL switch", () => {
   it("flag on without a verified session falls back to the proxy (which then refuses)", async () => {
     enableEdge();
     expect(await privateMediaUrl(client(null), "certificate", KEY, "r2")).toBe(`/api/media/certificate?key=${encodeURIComponent(KEY)}`);
-    expect(await privateMediaUrl(client({ sub: VIEWER }), "certificate", KEY, "r2")).toBe(`/api/media/certificate?key=${encodeURIComponent(KEY)}`);
+    expect(await privateMediaUrl(client({ sub: VIEWER, role: "authenticated", exp: vectors.now + 3600 }), "certificate", KEY, "r2")).toBe(`/api/media/certificate?key=${encodeURIComponent(KEY)}`);
   });
 
   it("public URLs carry only the opaque id, and Mode C can be held back", () => {
@@ -99,6 +99,16 @@ describe("URL switch", () => {
     expect(publicMediaUrl("portfolio", "e9100000-0000-4000-8000-000000000001", false)).toBe("/p/media/e9100000-0000-4000-8000-000000000001");
     vi.stubEnv("MEDIA_EDGE_PUBLIC_ENABLED", "false");
     expect(publicMediaUrl("portfolio", "e9100000-0000-4000-8000-000000000001", true)).toBe("/p/media/e9100000-0000-4000-8000-000000000001");
+  });
+
+  it("public sources offer only recorded variants, and only through the Worker", () => {
+    const id = "e9100000-0000-4000-8000-000000000001";
+    expect(publicPortfolioSource(id, ["thumb", "card"])).toEqual({ src: `/p/media/${id}` });
+    enableEdge();
+    expect(publicPortfolioSource(id, undefined)).toEqual({ src: `/p/media/${id}` });
+    expect(publicPortfolioSource(id, [])).toEqual({ src: `https://media.example.test/c/portfolio/${id}/original` });
+    expect(publicPortfolioSource(id, ["thumb", "card"])).toEqual({ src: `https://media.example.test/c/portfolio/${id}/original`,
+      variants: { thumb: `https://media.example.test/c/portfolio/${id}/thumb`, card: `https://media.example.test/c/portfolio/${id}/card` } });
   });
 
   it("readableMediaUrl keeps readMediaUrl's ownership rule before minting", async () => {

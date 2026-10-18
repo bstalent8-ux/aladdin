@@ -4,7 +4,7 @@
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.media_storage_resolve(text,text,text)",
-  "public.public_media_edge_ids(text,uuid[])",
+  "public.public_media_edge_sources(text,uuid[])",
   "public.public_portfolio_media_key(uuid)",
   "public.username_available(text)"
  ],
@@ -19126,7 +19126,7 @@
     "supabase_auth_admin": false,
     "supabase_storage_admin": false
    },
-   "signature": "public.public_media_edge_ids(text,uuid[])",
+   "signature": "public.public_media_edge_sources(text,uuid[])",
    "schemaUsage": {
     "anon": true,
     "service_role": true,

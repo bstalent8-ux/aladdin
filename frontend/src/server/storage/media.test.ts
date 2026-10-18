@@ -76,6 +76,9 @@ describe("mixed-provider authorization and finalization", () => {
     expect(manifest?.full).toMatchObject({ width: 1600, height: 800 });
     expect(r2.commitVerifiedObject.mock.invocationCallOrder[0]!).toBeLessThan(r2.putVariant.mock.invocationCallOrder[0]!);
     expect(r2.putVariant.mock.invocationCallOrder[2]!).toBeLessThan(adminRpc.mock.invocationCallOrder[0]!);
+    // The manifest is recorded on the receipt AFTER attestation (the RPC requires a verified R2 row).
+    expect(adminRpc.mock.calls.map((c) => c[0])).toEqual(["media_storage_attest", "media_storage_record_variants"]);
+    expect(adminRpc).toHaveBeenLastCalledWith("media_storage_record_variants", { p_namespace: "portfolio", p_key: "key.png", p_owner: pending.owner, p_variants: manifest });
   });
   it("never fails a verified upload because a variant could not be written", async () => {
     rpc.mockResolvedValue({ data: { ...pending, provider: "r2" }, error: null });
