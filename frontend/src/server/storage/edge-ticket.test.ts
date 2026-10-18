@@ -95,6 +95,8 @@ describe("URL switch", () => {
 
   it("public URLs carry only the opaque id, and Mode C can be held back", () => {
     enableEdge();
+    expect(publicMediaUrl("portfolio", "e9100000-0000-4000-8000-000000000001", true)).toBe("/p/media/e9100000-0000-4000-8000-000000000001");
+    vi.stubEnv("MEDIA_EDGE_PUBLIC_ENABLED", "true");
     expect(publicMediaUrl("portfolio", "e9100000-0000-4000-8000-000000000001", true)).toBe("https://media.example.test/c/portfolio/e9100000-0000-4000-8000-000000000001/original");
     expect(publicMediaUrl("portfolio", "e9100000-0000-4000-8000-000000000001", false)).toBe("/p/media/e9100000-0000-4000-8000-000000000001");
     vi.stubEnv("MEDIA_EDGE_PUBLIC_ENABLED", "false");
@@ -104,7 +106,7 @@ describe("URL switch", () => {
   it("public sources offer only recorded variants, and only through the Worker", () => {
     const id = "e9100000-0000-4000-8000-000000000001";
     expect(publicPortfolioSource(id, ["thumb", "card"])).toEqual({ src: `/p/media/${id}` });
-    enableEdge();
+    enableEdge({ MEDIA_EDGE_PUBLIC_ENABLED: "true" });
     expect(publicPortfolioSource(id, undefined)).toEqual({ src: `/p/media/${id}` });
     expect(publicPortfolioSource(id, [])).toEqual({ src: `https://media.example.test/c/portfolio/${id}/original` });
     expect(publicPortfolioSource(id, ["thumb", "card"])).toEqual({ src: `https://media.example.test/c/portfolio/${id}/original`,
