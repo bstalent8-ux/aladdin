@@ -1286,6 +1286,7 @@ export const ar: Messages = {
         empty: "لا يوجد مستخدمون مطابقون.",
         anyStatus: "أي حالة",
         anyType: "أي نوع",
+        accountTypeNone: "لم يُحدَّد بعد",
         tabs: {
           overview: "نظرة عامة",
           profile: "الملف الشخصي",
@@ -1310,6 +1311,7 @@ export const ar: Messages = {
           phone: "الهاتف",
           contact: "التواصل",
           persona: "النوع",
+          accountType: "نوع المستخدم",
           organization: "المؤسسة",
           city: "المدينة",
           verification: "التوثيق",

@@ -1321,6 +1321,7 @@ export const en = {
         empty: "No users match.",
         anyStatus: "Any status",
         anyType: "Any type",
+        accountTypeNone: "Not selected yet",
         tabs: {
           overview: "Overview",
           profile: "Profile",
@@ -1345,6 +1346,7 @@ export const en = {
           phone: "Phone",
           contact: "Contact",
           persona: "Type",
+          accountType: "User type",
           organization: "Organization",
           city: "City",
           verification: "Verification",

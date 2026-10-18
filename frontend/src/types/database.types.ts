@@ -7354,6 +7354,19 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: Json
       }
+      admin_users_directory: {
+        Args: {
+          p_account_type?: string
+          p_governorate?: string
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+          p_verification?: string
+        }
+        Returns: Json
+      }
       admin_users_list: {
         Args: {
           p_account_type?: Database["public"]["Enums"]["persona_type"]
