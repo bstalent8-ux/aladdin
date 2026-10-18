@@ -1,5 +1,4 @@
 import { getServerSupabase } from "@/lib/supabase/server";
-import { readSessionIdentity } from "@/server/auth/session";
 import { isAssetKeyForCaller, isPortfolioObjectKey } from "@/lib/storage/professional-assets";
 import { deliverMedia, mediaNotFound } from "@/server/storage/delivery";
 import { resolveMedia } from "@/server/storage/media";
@@ -17,9 +16,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
     const key = keys[0];
     if (keys.length !== 1 || !key || key.length > 256) return mediaNotFound();
     const client = await getServerSupabase();
-    // Locally verified identity (no Auth round trip per image); every read below
-    // still runs under the same JWT and RLS decides what this caller may see.
-    const user = await readSessionIdentity(client);
+    // Private media checks the session with Auth on every request so sign-out,
+    // ban and session revocation deny the next read. The edge Worker path does
+    // the same check in the database, so this cost ends when edge delivery is on.
+    const { data, error } = await client.auth.getUser();
+    const user = error ? null : data.user;
     if (!user) return mediaNotFound();
     if (isOrganizationMedia(namespace)) {
       const workspace = new URL(request.url).searchParams.getAll("workspace");
