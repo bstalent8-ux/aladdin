@@ -29,7 +29,6 @@ export type MyBusinessVerification = {
   organizationStatus: string;
   status: BvStatus;
   verifiedAt: string | null;
-  legacyVerified: boolean;
   reason: string | null;
   canUpload: boolean;
   canSubmit: boolean;
@@ -82,7 +81,6 @@ export function parseMyBusinessVerification(raw: unknown): MyBusinessVerificatio
     organizationStatus: str(r.organization_status),
     status: status(r.status),
     verifiedAt: strOrNull(r.verified_at),
-    legacyVerified: r.legacy_verified === true,
     reason: strOrNull(r.reason),
     canUpload: r.can_upload === true,
     canSubmit: r.can_submit === true,

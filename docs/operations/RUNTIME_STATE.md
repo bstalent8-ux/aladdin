@@ -4,7 +4,7 @@
 
 - Branch `claude/showroom-v2-admin-verification-vdrldz` (draft PR) from `main` @ `9d9a1b6`. Adds `/showroom/verification`, `/admin/business-verification` and `/admin/business-verification/[id]`, and the document stream `/business-verification/file/<org>/<file>`.
 - Migrations `20261017160000` and `20261017160001` are NOT applied to any hosted project. They must be applied in that order, after any migration already on the target, and only with the owner's approval. New private bucket `business-verification-documents`, new permission `verification.approve`.
-- `organizations.is_verified` still means "approved/active" for every gate; `organizations.business_verified_at` drives the Verified badge.
+- `organizations.is_verified` still means "approved/active" for every gate; `organizations.business_verified_at` drives the Verified badge. No backfill: existing organizations show no badge until a business verification is approved (Decision B). `verification.approve` does not approve applications.
 - Validation: typecheck, lint, Vitest, build and pgTAP (local shim) passed; browser journeys not run here.
 
 ## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17

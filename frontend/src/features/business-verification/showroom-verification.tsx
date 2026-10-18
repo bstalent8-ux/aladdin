@@ -36,9 +36,7 @@ export async function ShowroomVerification({ ctx, locale }: { ctx: Ctx; locale: 
             </SectionTitle>
             <div className="mt-md flex flex-col gap-sm" data-testid="bv-status" data-status={view.status}>
               <p className="text-body text-fg-secondary">
-                {view.status === "verified" && view.legacyVerified
-                  ? t("businessVerification.owner.body.legacy")
-                  : t(`businessVerification.owner.body.${view.status}`)}
+                {t(`businessVerification.owner.body.${view.status}`)}
               </p>
               {view.status === "verified" && view.verifiedAt ? (
                 <p className="text-label text-fg-muted">{t("businessVerification.owner.verifiedOn", { date: formatDate(view.verifiedAt, locale) })}</p>

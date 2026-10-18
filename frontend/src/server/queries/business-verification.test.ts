@@ -9,7 +9,6 @@ describe("parseMyBusinessVerification", () => {
       organization_status: "active",
       status: "needs_info",
       verified_at: null,
-      legacy_verified: false,
       reason: "Please add the tax card",
       can_upload: true,
       can_submit: "yes",

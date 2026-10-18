@@ -23,12 +23,13 @@
 --        organizations.verify   start a review, request more information (Moderator by default)
 --        verification.approve   NEW permission: approve or reject, reason mandatory. Super Admin and
 --                               Administrator hold it (locked); any other role only by explicit delegation.
---      The organization APPLICATION approval uses the same permission instead of the hard-coded
---      Administrator tier (20261015090052), so delegation is one grant instead of a migration.
+--      verification.approve decides ONLY business verification. Approving an organization APPLICATION
+--      (activation) keeps its own Administrator gate (20261015090052) and is never granted by it.
 --   5. The generic review_* RPCs refuse a business request, so the only path to the badge is the
 --      business_verification_* RPCs below (mandatory reasons, own-organization guard, audit, notifications).
---   6. Organizations that already carry is_verified keep their badge (business_verified_at backfilled from
---      their applied approval, business_verification_id left NULL = "approved before documents existed").
+--   6. No backfill (product decision B, 2026-10-18): every existing organization starts WITHOUT the badge,
+--      whatever its is_verified, until its documents are reviewed and approved. Activation, access, seller
+--      permissions and every gate keep reading is_verified/status, so live businesses keep operating.
 -- ===========================================================================
 
 -- ---------------------------------------------------------------------------
@@ -36,7 +37,7 @@
 -- ---------------------------------------------------------------------------
 insert into public.admin_permissions (key, resource, action, description, sort_order) values
   ('verification.approve', 'verification', 'approve',
-   'Approve or reject organization applications and business verification requests (Administrator by default; delegable).', 23)
+   'Approve or reject business verification requests and grant the Verified badge (Administrator by default; delegable). Does not approve organization applications.', 23)
 on conflict (key) do nothing;
 
 insert into public.admin_role_permissions (role_id, permission_key, is_locked)
@@ -45,20 +46,8 @@ select r.id, 'verification.approve', true
  where r.key in ('super_admin', 'administrator')
 on conflict (role_id, permission_key) do nothing;
 
--- The organization-subject approval gate: was "is_platform('administrator')", now the delegable permission.
--- Same name and signature, so review_start / review_approve (which call it) are unchanged.
-create or replace function app.org_review_requires_administrator(p_verification_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (select 1 from public.verifications v
-                  where v.id = p_verification_id and v.subject_type = 'organization')
-     and not app.has_admin_permission('verification.approve');
-$$;
-revoke all on function app.org_review_requires_administrator(uuid) from public, anon, authenticated, service_role;
+-- Organization ACTIVATION (the application review, app.org_review_requires_administrator) is untouched: it stays
+-- Administrator-tier and is NOT granted by verification.approve (product decision B, 2026-10-18).
 
 -- The generic review engine never decides a business request (its own RPCs below enforce the rules).
 create or replace function app.can_review_verification(p_verification_id uuid)
@@ -114,20 +103,14 @@ alter table public.audit_log validate constraint ck_audit_action_known;
 -- ---------------------------------------------------------------------------
 alter table public.organizations
   add column business_verified_at timestamptz,
-  add column business_verification_id uuid references public.verifications (id) on delete set null;
+  add column business_verification_id uuid references public.verifications (id);
 comment on column public.organizations.business_verified_at is
-  'When an Admin approved this organization''s BUSINESS verification (legal documents). The ONLY source of the user-facing Verified badge. Distinct from is_verified/status, which record activation. Written only by business_verification_approve (and the one-time legacy backfill in 20261017160001).';
+  'When an Admin approved this organization''s BUSINESS verification (legal documents). The ONLY source of the user-facing Verified badge. Distinct from is_verified/status, which record activation. Written only by business_verification_approve.';
 comment on column public.organizations.business_verification_id is
-  'The approved business verification behind business_verified_at. NULL with a non-NULL business_verified_at = approved before documents existed (legacy backfill).';
-
--- Existing verified organizations keep their badge (product decision default: no visible change for live businesses).
-update public.organizations o
-   set business_verified_at = coalesce(
-         (select max(v.applied_at) from public.verifications v
-           where v.organization_id = o.id and v.subject_type = 'organization'
-             and v.verification_type = 'organization' and v.status = 'approved'),
-         o.updated_at)
- where o.is_verified and o.status = 'active' and o.deleted_at is null and o.business_verified_at is null;
+  'The approved business verification behind business_verified_at.';
+alter table public.organizations add constraint ck_organizations_business_verified_pair
+  check ((business_verified_at is null) = (business_verification_id is null)) not valid;
+alter table public.organizations validate constraint ck_organizations_business_verified_pair;
 
 -- ---------------------------------------------------------------------------
 -- 4. The request record: a verifications row of type 'business'
@@ -535,7 +518,6 @@ begin
     'organization_status', v_org.status,
     'status', v_status,
     'verified_at', v_org.business_verified_at,
-    'legacy_verified', v_org.business_verified_at is not null and v_org.business_verification_id is null,
     'reason', case when v_status in ('needs_info', 'rejected') then v_current.reason end,
     'current_id', v_current.id,
     'can_upload', v_org.business_verified_at is null and v_org.status in ('active', 'pending_verification')

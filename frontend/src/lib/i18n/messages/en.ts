@@ -6498,7 +6498,6 @@ export const en = {
         verified: "Your business is verified. The Verified badge shows on your business across Aladdin.",
         rejected: "Your last request was not approved. You can send a new request with updated documents.",
       },
-      legacy: "Your business was verified when it was approved on Aladdin, so it already has the Verified badge.",
       verifiedOn: "Verified on {date}",
       requestedInfo: "What the reviewer asked for",
       rejectionReason: "Reason",

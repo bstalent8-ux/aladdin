@@ -202,6 +202,12 @@ select is(public.my_business_verification((select v::uuid from _ids where k = 'o
 select throws_ok(format('select public.business_verification_submit(%L)', (select v from _ids where k = 'o1')), '22023', null, 'E17: a verified organization cannot submit again');
 select throws_ok(format('select public.business_verification_reject(%L, %L)', (select v from _ids where k = 'v1'), 'x'), '42501', null, 'E18: the owner cannot decide');
 
+select is((select count(*)::int from public.organizations o
+             where o.business_verified_at is not null
+               and not exists (select 1 from public.verifications v where v.id = o.business_verification_id
+                                 and v.verification_type = 'business' and v.status = 'approved')),
+  0, 'E19: no organization carries the badge without an approved business verification (no legacy backfill)');
+
 -- F. a second organization: own-organization guard and the delegated approver
 set local request.jwt.claims = :'out';
 select isnt(public.business_draft_save(p_display_name => 'Office 96', p_legal_name => 'Office 96 LLC', p_org_type => 'design_office'), null, 'F0: a second owner opens a draft');
@@ -210,8 +216,15 @@ insert into _ids select 'a2', public.organization_application_submit((select v::
 set local request.jwt.claims = :'mod';
 select throws_ok(format('select public.review_start(%L)', (select v from _ids where k = 'a2')), '42501', null, 'F1: a Moderator cannot start an application review (approval gate)');
 set local request.jwt.claims = :'del';
-select lives_ok(format('select public.review_start(%L)', (select v from _ids where k = 'a2')), 'F2: the delegated approver starts the application review');
-select lives_ok(format('select public.review_approve(%L, false)', (select v from _ids where k = 'a2')), 'F3: ...and approves the application (delegation, not a hard-coded tier)');
+select throws_ok(format('select public.review_start(%L)', (select v from _ids where k = 'a2')), '42501', null,
+  'F2: verification.approve does NOT grant organization activation (the application gate stays Administrator-only)');
+set local request.jwt.claims = :'adm';
+select lives_ok(format('select public.review_start(%L)', (select v from _ids where k = 'a2')), 'F3a: an Administrator starts the application review');
+select lives_ok(format('select public.review_approve(%L, false)', (select v from _ids where k = 'a2')), 'F3: ...and approves (activates) the organization');
+reset role;
+select is((select (status::text || '/' || is_verified::text || '/' || (business_verified_at is null)::text) from public.organizations where id = (select v::uuid from _ids where k = 'o2')),
+  'active/true/true', 'F3b: activation sets is_verified but never the Verified badge');
+set local role authenticated;
 set local request.jwt.claims = :'out';
 insert into _ids select 'k3', public.business_verification_document_request_upload((select v::uuid from _ids where k = 'o2'), 'other', 'image/jpeg', 512, 'office.jpg');
 insert into storage.objects (bucket_id, name) values ('business-verification-documents', (select v from _ids where k = 'k3'));
