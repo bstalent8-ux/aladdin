@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StorageProvider, UploadGrant } from "@/lib/storage/provider-types";
 import { readStorageEnv } from "@/lib/env/storage";
 import { readBoundedBody } from "./validation";
+import { MEDIA_VARIANTS, variantStorageKey, type MediaVariant } from "@/lib/media/image-variants";
 
 export class CloudflareR2StorageProvider implements StorageProvider {
   private readonly client: S3Client;
@@ -59,8 +60,27 @@ export class CloudflareR2StorageProvider implements StorageProvider {
     }
     // Temporary bytes are retained until receipt/finalization succeeds; lifecycle expires them.
   }
+  /**
+   * A variant is a deterministic derivative of an immutable verified original, so
+   * an existing object (412 on retry or backfill) is already the right bytes.
+   * Same bucket and Cache-Control as the original: it inherits its privacy.
+   */
+  async putVariant(key: string, variant: MediaVariant, bytes: Uint8Array) {
+    try {
+      await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: variantStorageKey(this.namespace, key, variant),
+        Body: bytes, ContentType: "image/webp", IfNoneMatch: "*",
+        CacheControl: this.visibility === "public" ? "public, max-age=31536000, immutable" : "private, no-store" }));
+    } catch (error) {
+      if (!(error instanceof Error) || !("$metadata" in error) ||
+        (error.$metadata as { httpStatusCode?: number }).httpStatusCode !== 412) throw error;
+    }
+  }
   async deleteObject(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: this.finalKey(key) }));
     await this.client.send(new DeleteObjectCommand({ Bucket: this.uploadBucket, Key: this.pendingKey(key) }));
+    // Derivatives go with the original; deleting an absent key is a no-op in S3/R2.
+    for (const variant of MEDIA_VARIANTS) {
+      await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: variantStorageKey(this.namespace, key, variant) }));
+    }
   }
 }

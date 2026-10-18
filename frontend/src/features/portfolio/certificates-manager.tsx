@@ -335,14 +335,14 @@ function AddCertificate() {
             const result = await uploadAsset(
               "certificate",
               file,
-              () =>
+              (prepared) =>
                 startCertificateUpload({
                   title: String(data.get("title") ?? ""),
                   issuer: read("issuer"),
                   issuedOn: read("issuedOn"),
                   expiresOn: read("expiresOn"),
-                  contentType: file.type,
-                  size: file.size,
+                  contentType: prepared.type,
+                  size: prepared.size,
                   // Kept for the owner's own recognition. It never becomes part
                   // of a key and never fetches anything.
                   originalFilename: file.name,

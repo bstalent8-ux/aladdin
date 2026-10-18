@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/controls";
 import { InlineError, InlineSuccess } from "@/components/ui/primitives";
 import { uploadWithGrant } from "@/lib/storage/browser-upload";
+import { encodeCanvas } from "@/lib/media/resize-image";
 import {
   AVATAR_ALLOWED_TYPES,
   AVATAR_OUTPUT_PX,
@@ -15,7 +16,12 @@ import {
 } from "@/lib/storage/avatar-assets";
 import { confirmAvatarUploadAction, requestAvatarUploadAction, deleteAvatarAction } from "@/server/actions/profile-identity";
 
-/** Renders the chosen square of the source image into a fixed-size JPEG. */
+/**
+ * Renders the chosen square of the source image into a fixed 512 px asset: WebP
+ * where the browser can encode it (about a third smaller than the JPEG at the
+ * same quality), else JPEG. 512 px covers the largest avatar rendering at 3x DPR
+ * with margin; the server's derived 320 px thumb serves the small placements.
+ */
 async function cropToBlob(src: string, area: Area): Promise<Blob> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
@@ -28,14 +34,12 @@ async function cropToBlob(src: string, area: Area): Promise<Blob> {
   canvas.height = AVATAR_OUTPUT_PX;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas unavailable");
-  // JPEG has no alpha: a transparent PNG would otherwise flatten to black. This
-  // is pixel data baked into the uploaded file, not a themed UI colour.
+  // A JPEG fallback has no alpha: a transparent PNG would otherwise flatten to
+  // black. This is pixel data baked into the uploaded file, not a themed UI colour.
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, AVATAR_OUTPUT_PX, AVATAR_OUTPUT_PX);
   ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, AVATAR_OUTPUT_PX, AVATAR_OUTPUT_PX);
-  return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode failed"))), AVATAR_OUTPUT_TYPE, 0.9),
-  );
+  return encodeCanvas(canvas, 0.9, AVATAR_OUTPUT_TYPE);
 }
 
 /**
@@ -96,7 +100,7 @@ export function AvatarField({ avatarUrl, displayName }: { avatarUrl: string | nu
     setError(null);
     try {
       const blob = await cropToBlob(source, area);
-      const ticket = await requestAvatarUploadAction(AVATAR_OUTPUT_TYPE, blob.size);
+      const ticket = await requestAvatarUploadAction(blob.type, blob.size);
       if (!ticket.ok) throw new Error(ticket.code);
       await uploadWithGrant(ticket.grant, blob);
       const confirmed = await confirmAvatarUploadAction(ticket.key);
@@ -122,6 +126,9 @@ export function AvatarField({ avatarUrl, displayName }: { avatarUrl: string | nu
           <img
             src={avatarUrl}
             alt={t("profileIdentity.avatar.label")}
+            width={80}
+            height={80}
+            decoding="async"
             className="h-20 w-20 rounded-full border object-cover"
             data-testid="avatar-current"
           />
