@@ -1751,6 +1751,8 @@ export const en = {
         statusActive: "Active",
         statusDisabled: "Disabled",
         invite: "Invite Admin Staff",
+        searchPlaceholder: "Search by name or email",
+        empty: "No staff match.",
         inviteTitle: "Invite Admin Staff",
         inviteBody: "Preview of the planned invite flow: invite a person and assign a role. Nothing is sent or saved, and no access is granted.",
         nameLabel: "Name",

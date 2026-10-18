@@ -1717,6 +1717,8 @@ export const ar: Messages = {
         statusDisabled: "معطّل",
         invite: "دعوة عضو إدارة",
         inviteTitle: "دعوة عضو إدارة",
+        searchPlaceholder: "ابحث بالاسم أو البريد الإلكتروني",
+        empty: "لا يوجد أعضاء مطابقون.",
         inviteBody: "معاينة لتدفق الدعوة المخطَّط: دعوة شخص وتعيين دور له. لا يُرسل ولا يُحفظ شيء، ولا تُمنح أي صلاحية.",
         nameLabel: "الاسم",
         emailLabel: "البريد الإلكتروني",
