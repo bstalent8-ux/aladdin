@@ -43,10 +43,10 @@ export const SHOWROOM_GROUPS = [
   ] },
   { label: { ar: "المنتجات", en: "Products" }, items: [
     v2("catalog", "تصفح المنتجات", "Browse products", StorefrontIcon, NAV_CAPS.catalog ?? []),
-    pending("offers", "العروض", "Offers", TagIcon, NAV_CAPS.catalog ?? []),
+    v2("offers", "العروض", "Offers", TagIcon, NAV_CAPS.catalog ?? []),
     v2("saved", "المنتجات المحفوظة", "Saved products", StarIcon, NAV_CAPS.saved ?? []),
     v2("my-products", "منتجاتي", "My products", StorefrontIcon, NAV_CAPS.products ?? []),
-    pending("my-offers", "إدارة العروض", "My offers", TagIcon, NAV_CAPS.products ?? []),
+    v2("my-offers", "إدارة العروض", "My offers", TagIcon, NAV_CAPS.products ?? []),
   ] },
   { label: { ar: "الشبكة", en: "Network" }, items: [
     legacy("suppliers", `${LEGACY}/suppliers`, "الموردون", "Suppliers", StorefrontIcon),
