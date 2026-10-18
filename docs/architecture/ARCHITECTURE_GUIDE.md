@@ -1,5 +1,10 @@
 # Architecture Guide
 
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
+
 <!-- CANONICAL PROJECT MEMORY — the currently active architecture. Read before any code or infra change. -->
 
 | | |
@@ -89,6 +94,7 @@ Token/brand changes follow the design-system edit-order (token JSON first) and u
 - **Platform (Admin) authority is dynamic RBAC — one source (Phase 1A, [ADR-0011](../decisions/ADR-0011-admin-rbac-platform-authority.md), Accepted).** `admin_role_assignments` is the only source of platform authority, checked by `app.has_admin_permission()` in RPCs/RLS and read by the frontend only through `admin_my_access()` (`server/authorization/admin.ts`, one route→permission table in `lib/permissions/admin.ts`, every Admin page guards its own route). `platform_role_grants` is a never-read, one-way compatibility bridge until retirement ([`ADMIN_RBAC_ARCHITECTURE.md` §6](../admin/ADMIN_RBAC_ARCHITECTURE.md)); `app.is_platform()` is a deprecated shim over the same assignments. Tenant authority (`membership_capabilities`) is unchanged.
 - **Admin Users / Organizations reads are server-side RPCs (Phase 1B-A, awaiting approval).** `admin_users_list` / `admin_user_detail` (`users.read`) and `admin_organizations_list` / `admin_organization_detail` (`organizations.read`) — platform-scoped, security-definer, deterministic (primary-key tie-break), paging/search/filter/sort over the full dataset in Postgres; the frontend reads them through `server/queries/admin-directory.ts` with one URL parser (`features/admin-preview/directory-params.ts`). Profile completion has ONE formula, `app.profile_completion(user_id)`, which `my_profile_completion()` wraps. Account email is read from `auth.users` only inside those RPCs (Installer login alias excluded). Details: [`ADMIN_USERS_ORGS_READ_AUDIT.md`](../admin/ADMIN_USERS_ORGS_READ_AUDIT.md).
 - **Suspension is enforced by the database, centrally (Admin Core Phase 1B-B, awaiting approval).** A PostgREST `db_pre_request` hook refuses every Data API request from a suspended/deactivated account except `my_account_status`; `has_capability` / `is_org_member` / `require_verified_caller` / the personal storage helpers treat such a caller as having no authority (Storage/Realtime paths). A suspended **organization** keeps only its `.read` capabilities (members untouched). The middleware routes a suspended account to `/auth/suspended`. Admin Notes (append-only), Follow-ups (derived status), internal Cases, the Entity Timeline and organization duplicate resolution are security-definer RPCs behind their own `resource.action` permissions. The hook's entry point is `pgrst_hooks.pre_request()` (migration `20260930100005`), a one-function schema that delegates to the canonical `app.api_pre_request()` so every request role (including `service_role`, which must NOT get `USAGE` on schema `app`) can resolve it; the original direct configuration broke service-role requests in Production and is currently disabled there — see [`POSTGREST_PRE_REQUEST_HOOK.md`](../admin/POSTGREST_PRE_REQUEST_HOOK.md). Details: [`ADMIN_USER_ORG_OPERATIONS.md`](../admin/ADMIN_USER_ORG_OPERATIONS.md).
+- **Per-request session reads (WP8, 2026-10-18, not deployed).** Middleware verifies the session JWT locally with `auth.getClaims()` (ES256 / JWKS) and keeps the `my_account_status` suspension redirect on every non-prefetch product-surface request; `/admin/**` still calls the network `auth.getUser()`. Server code reads identity through `server/auth/session.ts`: `getSessionIdentity()` / `readSessionIdentity(client)` (`cache()`d claims) for read-only loaders, `getCurrentUser()` (`cache()`d `getUser()`) for admin and account-security pages; privileged Server Actions keep their own `getUser()`. RLS and the DB suspension helpers remain the authority; the residual window is a revoked (not suspended) session navigating non-admin pages until `exp` (`jwt_expiry` 3600 s). Details and request counts: [auth-session-reads.md](../frontend/auth-session-reads.md).
 
 ## RLS Strategy
 - RLS is **mandatory** on every tenant/user/verification/sales/project/file/AI table; every policy ships with tests (pgTAP + isolation tests).
@@ -175,6 +181,9 @@ Every architecture change must, in the same session:
 6. Include **validation results** (the commands run and their outcomes).
 
 ## Architecture Change History
+
+### 2026-10-18 — Local JWT verification for per-request session reads (WP8)
+Middleware and read-only server loaders verify the session JWT locally (`getClaims`) instead of calling Auth `getUser` on every request; admin routes, account-security pages and privileged actions stay network-validated. Suspension enforcement is unchanged. See [auth-session-reads.md](../frontend/auth-session-reads.md).
 Newest first.
 
 ### 2026-09-30 — Admin RBAC becomes the single source of platform authority

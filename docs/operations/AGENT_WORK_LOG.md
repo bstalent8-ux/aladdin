@@ -1,3 +1,31 @@
+## 2026-10-18 — WP8: fewer Supabase Auth requests per page (local JWT verification)
+
+Branch `local/wp-auth` from PR #89 head `ee96b48`. Middleware now reads the session with `auth.getClaims()` (local ES256 verification, same cookie refresh) instead of `auth.getUser()`; `/admin/**` keeps `getUser()`. The `my_account_status` suspension redirect is unchanged except that router prefetches skip it. The matcher skips `/api/media/*`, `/p/media/*` and more static extensions. `server/auth/session.ts` adds `getSessionIdentity()` / `readSessionIdentity(client)` (`cache()`d claims) and makes `getCurrentUser()` a `cache()`d network `getUser()`. Read-only loaders use the claims helper; admin and account-settings pages share one `getCurrentUser()`; Server Actions and auth flows are untouched. Estimated Auth `/user` calls: `/home` 8 → 0, `/b2b/*` 3 → 0, `/admin/users` 3 → 2, private image 2 → 0. Security argument and residual window (revoked, not suspended, session until `exp` ≤ 3600 s on non-admin pages): [auth-session-reads.md](../frontend/auth-session-reads.md).
+
+Validation: `pnpm typecheck` clean; `pnpm lint` 0 errors (7 pre-existing warnings); `pnpm test` 307 files, 3,889 passed, 24 skipped (baseline 3,860); `pnpm build` passed. No hosted change, no DB reset.
+
+Open: owner decision on lowering hosted `jwt_expiry` to 1800 s; re-enable the Production `db_pre_request` hook (`20260930100005`); move `server/queries/profile-identity.ts` `loadMyIdentity` to `getCurrentUser()` (media-owned file).
+
+## 2026-10-18 — Admin users/staff, Offers, secondary phone, R2 integration rehearsal
+
+Branch `claude/showroom-v2-admin-verification-vdrldz` (PR #88). `20261018090000_admin_users_account_type.sql`: `app.user_account_type` derives one of the nine public accounts (effective persona, else earliest owned organization type, else the onboarding choice) or `none`; new `admin_users_directory` filters on it, `admin_users_list` stays as a delegating wrapper. `/admin/users` shows a User Type column and filter; `/admin/staff` search and empty copy fixed. Offers and My Offers routes re-enabled (all audiences are feed-ready).
+
+`20261018090001_secondary_phone_reservations.sql`: one unverified secondary phone per account (E.164, global uniqueness under a per-number advisory lock, 7 days + one 7-day renewal, no auto-renew), active reservation blocks primary claims by other accounts (profiles trigger), expiry/cancel starts a 30-day cooldown that blocks secondary claims only, conversion to primary starts none. Current-password receipt (single-use, 60 s, bound to user/operation/number; 5 wrong in 15 min = 15-min lock). Support override `admin_phone_cooldown_override` needs `phones.cooldown_override` and a reason, written to an immutable table and audit. pgTAP 98 (69 checks) and a 19-way race script.
+
+R2: device worktree `.worktrees/r2-rc2-integration` snapshotted untouched (D:\projects\_claude-r2-snapshot-20261018) and merged locally with main + PR #88; contracts regenerated from the real Postgres 17 inventory, all 551 reviewed R2 entries unchanged. Real local Supabase: pgTAP 5,447 pass, permission gate pass, Vitest 3,860 pass. The legacy HTTP storage harness (not in CI) already fails 19 checks on main and 29 with R2, the extra 10 by design (finalize needs backend attestation, direct reads denied). Not pushed: needs the owner's choice of branch.
+
+Open: owner decision on Supabase Pro vs egress code fixes (see `/mnt/project-files/showroom-admin/supabase-usage-audit.md`); R2 push/branch; browser E2E; hosted migrations.
+
+## 2026-10-17 — Business verification (the Verified badge), separate from organization approval
+
+Branch `claude/showroom-v2-admin-verification-vdrldz` from `main` @ `9d9a1b6`. Migrations `20261017160000_business_verification_type.sql` (enum value `business`) and `20261017160001_business_verification.sql`: private bucket `business-verification-documents`, document/submission tables (RLS on, no table grants), owner RPCs (`business_verification_document_request_upload/confirm/remove`, `business_verification_submit`, `my_business_verification`) and Admin RPCs (`business_verification_queue/detail/start_review/request_info/approve/reject`), every decision with a mandatory reason, audited and notified. New permission `verification.approve` (super_admin + administrator; delegable to custom roles); `organizations.business_verified_at` is the badge source; `is_verified` keeps its activation meaning for every gate, and only display outputs were rewritten. No backfill (owner Decision B, 2026-10-18): existing organizations lose the badge until their documents are approved; a check constraint pairs `business_verified_at` with an approved `business_verification_id`. `verification.approve` does not grant organization activation: the application review keeps its Administrator gate.
+
+Frontend: `/showroom/verification` (owner upload, drafts, submit/resubmit, status, reasons, history), `/admin/business-verification` (queue, filters, pagination) and `/[id]` (evidence by round, previous requests, Admin Notes, start / request information / approve / reject). Documents stream through `/business-verification/file/<org>/<file>` as the caller (storage policy decides). Settings and the Admin organization detail now show the badge from `business_verified_at`. Classic `/admin/verifications` excludes the business type.
+
+Validation: typecheck clean; lint 0 errors; Vitest 294 files, all passing (one i18n whitelist added for file-format names); production build passed; pgTAP on a local Postgres 16 with a Supabase shim: 109/117 files, the same 8 shim-only failures as untouched `main`; new file 96 (72 checks) passes. Not run: browser journeys and screenshots (no Supabase stack here: Docker image pulls are rate-limited), E2E. No hosted write, deploy or merge.
+
+Open: owner decisions on the badge backfill, Offers/My Offers re-enable, invitation revoke/hashing, purchase-request UI, Points/staff-invite Preview buttons; the 30-day phone cooldown was not found in code or docs; hosted GoTrue CAPTCHA gap stays with the Auth owner.
+
 ## 2026-10-17 — Google, Facebook and email on the Showroom/Installer entry pages
 
 Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017134139`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
@@ -15,6 +43,11 @@ Promotion: `app/admin/preview/*` moved onto `app/admin/*`, replacing the classic
 Open: E2E specs that asserted the classic Admin pages (`pilot-uat-round-1`, `personal-sales-readiness`) were not run here; the React #418 Preview blocker recorded on 2026-10-01 was not re-checked.
 
 ## 2026-10-15 — PR84 definitive functional acceptance passed
+
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
 
 Exact committed8be67ba6: isolated GitHub functional run38697762123PASS24/24(0fail,0skip,58.7s), application CI38697762134and fullDB38697762167SUCCESS. All110versions/sixfeatureversions/old+v2RPCs verified; own runner teardown succeeded. Artifacts contain migration hashes and six desktop/mobile screenshots. No uncommitted CAPTCHA files included. Harness corrections preserve last-admin guards, use Node24 and settled action/UI assertions plus counter11; no product code/security weakening, no skipped tests/retries.
 

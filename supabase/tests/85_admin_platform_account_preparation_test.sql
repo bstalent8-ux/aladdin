@@ -198,8 +198,9 @@ select ok((select pg_get_constraintdef(oid) from pg_constraint where conname = '
   'account.platform_cleanup (the explicit cleanup record) is in the audit vocabulary');
 select is((select count(*)::int from public.audit_log where action = 'account.platform_cleanup'), 0,
   'the helper itself never writes a cleanup event (only the operational transaction does)');
--- 25 original + 2 Marketplace seller permissions (marketplace_sellers.read / .manage, Migration 04)
-select is((select count(*)::int from public.admin_permissions), 28, 'the permission catalog is unchanged apart from the three Marketplace permissions');
+-- 25 original permissions; later migrations add: verification.approve (20261017160001), phones.cooldown_override (20261018090001),
+-- and the three Marketplace permissions (marketplace_sellers.read / .manage, Migration 04; marketplace_media.moderate, Migration 09)
+select is((select count(*)::int from public.admin_permissions where key not in ('verification.approve', 'phones.cooldown_override', 'marketplace_sellers.read', 'marketplace_sellers.manage', 'marketplace_media.moderate')), 25, 'the permission catalog is unchanged by account preparation (later migrations add only the five named permissions)');
 select is(
   (select array_agg(r.key || ':' || rp.is_locked::text order by r.key)
    from public.admin_role_permissions rp join public.admin_roles r on r.id = rp.role_id

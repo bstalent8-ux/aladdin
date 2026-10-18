@@ -7,6 +7,23 @@
 - Local data: Decore Store holds 795 draft products (786 from the real file + 9 QA), 0 published; `media_verification_ready=false`.
 - Details and acceptance numbers: `docs/marketplace/catalog-launch.md`.
 
+## Showroom V2 and Admin follow-ups (PR #88) — 2026-10-18
+
+- Same branch and PR as business verification below. Adds: Admin Users "User Type" column/filter (`admin_users_directory`, migration `20261018090000`); Admin Staff search/empty copy; Offers and My Offers re-enabled; unverified secondary phone reservations with password receipts and a Support cooldown override (`20261018090001`, `/admin/phone-cooldowns`, permission `phones.cooldown_override`, Super Admin only by default).
+- None of `20261017160000`, `20261017160001`, `20261018090000`, `20261018090001` is applied to any hosted project. Owner approval required.
+- R2 RC2 worktree (device, uncommitted) was snapshotted and merged onto main + this PR in a separate local branch (not pushed). R2 migrations renamed to `20261018100000`–`100003` so they sort after main's newest; exact permission contracts added for every intervening migration.
+- Validation: real local Supabase stack (supabase/postgres 17): pgTAP 123 files / 5,447 checks pass, exact permission gate passes, concurrency scripts pass. Browser E2E not yet run.
+
+## Business verification (Verified badge) — 2026-10-17
+
+- Branch `claude/showroom-v2-admin-verification-vdrldz` (draft PR) from `main` @ `9d9a1b6`. Adds `/showroom/verification`, `/admin/business-verification` and `/admin/business-verification/[id]`, and the document stream `/business-verification/file/<org>/<file>`.
+- Migrations `20261017160000` and `20261017160001` are NOT applied to any hosted project. They must be applied in that order, after any migration already on the target, and only with the owner's approval. New private bucket `business-verification-documents`, new permission `verification.approve`.
+- `organizations.is_verified` still means "approved/active" for every gate; `organizations.business_verified_at` drives the Verified badge. No backfill: existing organizations show no badge until a business verification is approved (Decision B). `verification.approve` does not approve applications.
+- Validation: typecheck, lint, Vitest, build and pgTAP (local shim) passed; browser journeys not run here.
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
 ## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
 
 - Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
