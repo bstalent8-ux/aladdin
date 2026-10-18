@@ -19,10 +19,16 @@ import {
   updatePortfolioItemAction,
 } from "@/server/actions/portfolio";
 import { AddPanel, AssetFileField, MediaFrame, QuickAction, VisibilityBadge } from "./parts";
+import { MediaImage } from "./media-frame";
+import type { MediaVariantUrls } from "@/lib/media/image-variants";
 import { uploadAsset } from "./upload";
 
-/** One item plus the short-lived URL the server minted for its preview. */
-export type PortfolioCard = PortfolioItem & { previewUrl: string | null };
+/**
+ * One item plus the URL the server issued for its preview, and — optionally,
+ * from the URL issuer — thumb/card variant URLs for the same object. Issued once
+ * per page render; nothing here re-requests a URL per card.
+ */
+export type PortfolioCard = PortfolioItem & { previewUrl: string | null; previewVariants?: MediaVariantUrls | null };
 
 /**
  * The Portfolio manager.
@@ -125,15 +131,7 @@ function WorkCard({
       <Card pad="sm" className="flex h-full flex-col gap-md">
         <MediaFrame>
           {item.previewUrl ? (
-            // A signed, short-lived Storage URL cannot be optimised by
-            // next/image without a loader that would cache it past its expiry.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={item.previewUrl}
-              alt={item.title}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
+            <MediaImage source={{ src: item.previewUrl, variants: item.previewVariants }} alt={item.title} />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-fg-muted">
               <AlertIcon size={20} />
@@ -360,12 +358,12 @@ function AddWork() {
             const result = await uploadAsset(
               "portfolio",
               file,
-              () =>
+              (prepared) =>
                 startPortfolioUpload({
                   title,
                   description: description || null,
-                  contentType: file.type,
-                  size: file.size,
+                  contentType: prepared.type,
+                  size: prepared.size,
                 }),
               finishPortfolioUpload,
               setProgress,

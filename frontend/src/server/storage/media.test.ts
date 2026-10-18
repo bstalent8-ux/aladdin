@@ -8,7 +8,10 @@ vi.mock("@/lib/env", () => ({ readPublicEnv: () => ({ NEXT_PUBLIC_SUPABASE_URL: 
 const settings = vi.hoisted(() => ({ R2_STORAGE_ENABLED: false, SUPABASE_SERVICE_ROLE_KEY: "test-only-key" }));
 vi.mock("@/lib/env/storage", () => ({ readStorageEnv: () => settings }));
 const r2Upload = vi.hoisted(() => vi.fn());
-vi.mock("./r2-provider", () => ({ CloudflareR2StorageProvider: class { createUploadUrl = r2Upload; } }));
+const r2 = vi.hoisted(() => ({ readObject: vi.fn(), commitVerifiedObject: vi.fn(), putVariant: vi.fn() }));
+vi.mock("./r2-provider", () => ({ CloudflareR2StorageProvider: class {
+  createUploadUrl = r2Upload; readObject = r2.readObject; commitVerifiedObject = r2.commitVerifiedObject; putVariant = r2.putVariant;
+} }));
 import { authorizeMediaUpload, readMediaUrl, removeMedia, verifyPendingMedia } from "./media";
 
 const OWNER = "70000009-0000-4000-8000-000000000009";
@@ -62,6 +65,33 @@ describe("mixed-provider authorization and finalization", () => {
     r2Upload.mockResolvedValue({ provider: "r2", url: "https://r2.test/pending" });
     expect((await authorizeMediaUpload(client, "portfolio", "key.png", 93)).provider).toBe("r2");
     expect(adminRpc).not.toHaveBeenCalled();
+  });
+  it("writes thumb/card/full variants from the verified R2 bytes before the receipt", async () => {
+    rpc.mockResolvedValue({ data: { ...pending, provider: "r2" }, error: null });
+    const bytes = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: "white" } }).png().toBuffer();
+    r2.readObject.mockResolvedValue(new Uint8Array(bytes));
+    const manifest = await verifyPendingMedia(client, "portfolio", "key.png");
+    expect(r2.putVariant.mock.calls.map((c) => c[1])).toEqual(["thumb", "card", "full"]);
+    expect(r2.putVariant.mock.calls.every((c) => c[0] === "key.png")).toBe(true);
+    expect(manifest?.full).toMatchObject({ width: 1600, height: 800 });
+    expect(r2.commitVerifiedObject.mock.invocationCallOrder[0]!).toBeLessThan(r2.putVariant.mock.invocationCallOrder[0]!);
+    expect(r2.putVariant.mock.invocationCallOrder[2]!).toBeLessThan(adminRpc.mock.invocationCallOrder[0]!);
+  });
+  it("never fails a verified upload because a variant could not be written", async () => {
+    rpc.mockResolvedValue({ data: { ...pending, provider: "r2" }, error: null });
+    r2.readObject.mockResolvedValue(new Uint8Array(await sharp({ create: { width: 8, height: 8, channels: 3, background: "white" } }).png().toBuffer()));
+    r2.putVariant.mockRejectedValueOnce(new Error("service unavailable"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await verifyPendingMedia(client, "portfolio", "key.png")).toBeNull();
+    expect(adminRpc).toHaveBeenCalledWith("media_storage_attest", expect.objectContaining({ p_provider: "r2" }));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("media.variants_skipped"));
+    warn.mockRestore();
+  });
+  it("does not write variants through the legacy Supabase provider", async () => {
+    const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: "white" } }).png().toBuffer();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array(bytes))));
+    expect(await verifyPendingMedia(client, "portfolio", "key.png")).toBeNull();
+    expect(r2.putVariant).not.toHaveBeenCalled();
   });
   it("does not reverify legacy ready objects on an idempotent retry", async () => {
     rpc.mockResolvedValue({ data: { ...pending, state: "ready" }, error: null });

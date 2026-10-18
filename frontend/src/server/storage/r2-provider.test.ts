@@ -6,7 +6,22 @@ vi.mock("@/lib/env/storage", () => ({ readStorageEnv: () => ({
 const send = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-s3", async (original) => {
   const sdk = await original<typeof import("@aws-sdk/client-s3")>();
-  return { ...sdk, S3Client: class extends sdk.S3Client { send = send; } };
+  return { ...sdk, S3Client: class extends sdk.S3Client { send = send; } };  it("stores variants beside the original in the same private bucket, idempotently", async () => {
+    const provider = new CloudflareR2StorageProvider("portfolio");
+    await provider.putVariant("image.png", "card", new Uint8Array([9]));
+    expect(send.mock.calls[0]?.[0].input).toMatchObject({ Bucket: "isolated-private", Key: "v/portfolio/image.png/card.webp",
+      ContentType: "image/webp", IfNoneMatch: "*", CacheControl: "private, no-store" });
+    send.mockRejectedValueOnce(Object.assign(new Error("exists"), { $metadata: { httpStatusCode: 412 } }));
+    await expect(provider.putVariant("image.png", "card", new Uint8Array([9]))).resolves.toBeUndefined();
+    send.mockRejectedValueOnce(new Error("service unavailable"));
+    await expect(provider.putVariant("image.png", "thumb", new Uint8Array([9]))).rejects.toThrow("unavailable");
+  });
+  it("deletes every variant together with the original", async () => {
+    await new CloudflareR2StorageProvider("product").deleteObject("o/p/i.webp");
+    const keys = send.mock.calls.map((call) => call[0].input.Key);
+    expect(keys).toEqual(["product/o/p/i.webp", "pending/product/o/p/i.webp",
+      "v/product/o/p/i.webp/thumb.webp", "v/product/o/p/i.webp/card.webp", "v/product/o/p/i.webp/full.webp"]);
+  });
 });
 import { CloudflareR2StorageProvider } from "./r2-provider";
 beforeEach(() => { vi.clearAllMocks(); send.mockResolvedValue({}); });
@@ -56,5 +71,20 @@ describe("R2 immutable promotion", () => {
     expect(send.mock.calls[0]?.[0].input).toMatchObject({ Bucket: "isolated-public", Key: "explicit-public-asset/image.png", CacheControl: "public, max-age=31536000, immutable" });
     expect(await provider.getReadAccess("image.png", 30)).toBe("https://media.example.test/explicit-public-asset/image.png");
   });
-
+  it("stores variants beside the original in the same private bucket, idempotently", async () => {
+    const provider = new CloudflareR2StorageProvider("portfolio");
+    await provider.putVariant("image.png", "card", new Uint8Array([9]));
+    expect(send.mock.calls[0]?.[0].input).toMatchObject({ Bucket: "isolated-private", Key: "v/portfolio/image.png/card.webp",
+      ContentType: "image/webp", IfNoneMatch: "*", CacheControl: "private, no-store" });
+    send.mockRejectedValueOnce(Object.assign(new Error("exists"), { $metadata: { httpStatusCode: 412 } }));
+    await expect(provider.putVariant("image.png", "card", new Uint8Array([9]))).resolves.toBeUndefined();
+    send.mockRejectedValueOnce(new Error("service unavailable"));
+    await expect(provider.putVariant("image.png", "thumb", new Uint8Array([9]))).rejects.toThrow("unavailable");
+  });
+  it("deletes every variant together with the original", async () => {
+    await new CloudflareR2StorageProvider("product").deleteObject("o/p/i.webp");
+    const keys = send.mock.calls.map((call) => call[0].input.Key);
+    expect(keys).toEqual(["product/o/p/i.webp", "pending/product/o/p/i.webp",
+      "v/product/o/p/i.webp/thumb.webp", "v/product/o/p/i.webp/card.webp", "v/product/o/p/i.webp/full.webp"]);
+  });
 });
