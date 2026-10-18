@@ -8,6 +8,12 @@ import { Button, SubmitButton } from "@/components/ui/controls";
 import { cn } from "@/lib/ui/cn";
 import type { FormState } from "@/server/actions/sales-forms";
 
+const ICON_TONES = {
+  neutral: "text-fg-muted hover:bg-surface-hover hover:text-fg",
+  danger: "text-danger hover:bg-danger/10",
+  success: "text-success hover:bg-success/10",
+} as const;
+
 /**
  * Accessible confirmation dialog for a destructive/terminal action. Focus moves
  * into the dialog on open, is trapped, Escape closes, a backdrop click closes,
@@ -26,6 +32,8 @@ import type { FormState } from "@/server/actions/sales-forms";
 export function ConfirmDialog({
   trigger,
   triggerVariant = "danger",
+  triggerIcon,
+  triggerClassName,
   title,
   body,
   confirmLabel,
@@ -34,10 +42,16 @@ export function ConfirmDialog({
   formAction,
   confirmDisabled = false,
   defaultOpen = false,
+  wide = false,
+  triggerIconOnly = false,
+  triggerTone = "neutral",
   children,
 }: {
   trigger: string;
   triggerVariant?: "danger" | "ghost" | "outline" | "accent";
+  /** Optional icon beside the trigger label, and extra classes for the trigger button (sizing in a button row). */
+  triggerIcon?: ReactNode;
+  triggerClassName?: string;
   title: string;
   body?: string;
   confirmLabel: string;
@@ -53,6 +67,14 @@ export function ConfirmDialog({
   confirmDisabled?: boolean;
   /** Opens on first render (a deep link into the confirmation). Nothing is submitted until the person confirms. */
   defaultOpen?: boolean;
+  /** Wider panel for editors (e.g. the Admin role editor). */
+  wide?: boolean;
+  /**
+   * Render the trigger as a compact icon button (a table-row action) showing only
+   * `triggerIcon`; `trigger` becomes its accessible name and tooltip.
+   */
+  triggerIconOnly?: boolean;
+  triggerTone?: keyof typeof ICON_TONES;
   children?: ReactNode | ((state: FormState) => ReactNode);
 }) {
   const { t } = useI18n();
@@ -124,9 +146,26 @@ export function ConfirmDialog({
 
   return (
     <>
-      <Button ref={triggerRef} type="button" variant={triggerVariant} onClick={() => setOpen(true)}>
-        {trigger}
-      </Button>
+      {triggerIconOnly && triggerIcon ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          title={trigger}
+          aria-label={trigger}
+          onClick={() => setOpen(true)}
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-surface",
+            ICON_TONES[triggerTone],
+          )}
+        >
+          {triggerIcon}
+        </button>
+      ) : (
+        <Button ref={triggerRef} type="button" variant={triggerVariant} className={triggerClassName} onClick={() => setOpen(true)}>
+          {triggerIcon}
+          {trigger}
+        </Button>
+      )}
 
       {open ? (
         <div
@@ -143,7 +182,8 @@ export function ConfirmDialog({
             aria-labelledby={titleId}
             aria-describedby={body ? bodyId : undefined}
             className={cn(
-              "flex max-h-[90dvh] w-full max-w-md flex-col gap-md overflow-auto rounded-md border bg-surface p-lg shadow-lg",
+              "flex max-h-[90dvh] w-full flex-col gap-md overflow-auto rounded-md border bg-surface p-lg shadow-lg",
+              wide ? "max-w-2xl" : "max-w-md",
             )}
           >
             <h2 id={titleId} className="text-title text-fg">

@@ -164,11 +164,14 @@ describe("PortfolioManager", () => {
    * is what the attribute is for, and `<bdi>` does not apply to an input. The
    * distinction is easy to lose in a sweep, so it is pinned.
    */
-  it("leaves dir=auto on the inputs, where it is the right answer", () => {
+  it("uses dir=auto on the inputs once there is text (empty fields inherit the page direction)", () => {
     const { container } = renderWithI18n(<PortfolioManager items={[]} />, "ar");
     fireEvent.click(screen.getByRole("button", { name: "إضافة عمل" }));
     const title = container.querySelector('input[name="title"]');
     const description = container.querySelector('textarea[name="description"]');
+    expect(title?.getAttribute("dir")).toBeNull();
+    fireEvent.input(title!, { target: { value: "Villa" } });
+    fireEvent.input(description!, { target: { value: "وصف" } });
     expect(title?.getAttribute("dir")).toBe("auto");
     expect(description?.getAttribute("dir")).toBe("auto");
   });

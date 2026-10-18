@@ -50,8 +50,11 @@ select is(
      and not has_function_privilege('anon', p.oid, 'execute')
      and not has_function_privilege('service_role', p.oid, 'execute')),
   6, 'A1. every image RPC is SECURITY DEFINER, empty search_path, authenticated-only');
-select is((select count(*)::int from pg_policies where schemaname = 'storage' and tablename = 'objects'), 16,
-  'A2. storage policies: 14 + the two reviewed Migration 09 additions (moderator read, import upload)');
+select is((select array_agg(policyname::text order by policyname::text collate "C") from pg_policies
+           where schemaname = 'storage' and tablename = 'objects' and policyname like 'marketplace\_%'),
+  array['marketplace_images_delete_unreferenced', 'marketplace_images_insert_authorized', 'marketplace_images_select_member',
+        'marketplace_images_select_moderator', 'marketplace_import_assets_insert'],
+  'A2. the Marketplace storage policies are exactly the reviewed five (three from Migration 06, moderator read + import upload from Migration 09); none added or widened by Migration 07 (the whole-table inventory is pinned in 47_)');
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app' and p.proname like 'marketplace\_%' and has_function_privilege('authenticated', p.oid, 'execute')),

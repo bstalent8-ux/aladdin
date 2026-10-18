@@ -45,6 +45,9 @@ export type NavKey =
   | "purchaseRequests"
   | "offers"
   | "orders"
+  // The shared audience Offers feed (product offers published for this business type) — NOT the
+  // incoming-quotations module above, which the workspace has always called "offers".
+  | "productOffers"
   // Browsing and shortlisting other businesses' catalogs.
   | "catalog"
   | "saved"
@@ -124,6 +127,9 @@ export const NAV_CAPS: Record<NavKey, string[] | null> = {
   purchaseRequests: COMMERCE,
   offers: COMMERCE,
   orders: ["order.create", "order.manage", "project.write", "project.read"],
+  // The same browse rights as the catalog (the showroom suite uses the same gate): the database still decides
+  // which offers this business type may see.
+  productOffers: BROWSE,
   catalog: BROWSE,
   saved: BROWSE,
 
@@ -186,7 +192,7 @@ const EXACT_CAPABILITY_NAV_KEYS: ReadonlySet<NavKey> = new Set(["activity", "mar
  */
 const BUYER_SECTIONS: { section: NavSection; keys: NavKey[] }[] = [
   { section: "overview", keys: ["home"] },
-  { section: "buying", keys: ["purchaseRequests", "offers", "orders", "catalog", "saved"] },
+  { section: "buying", keys: ["purchaseRequests", "offers", "orders", "productOffers", "catalog", "saved"] },
   { section: "network", keys: ["suppliers", "technicians", "jobs", "institutions"] },
   { section: "selling", keys: ["customers", "leads", "followUps", "products"] },
   // B2C — only ever reachable with the admin-granted seller entitlement, and only
@@ -201,7 +207,7 @@ const SELLER_SECTIONS: { section: NavSection; keys: NavKey[] }[] = [
   { section: "network", keys: ["buyers", "suppliers", "technicians", "jobs", "institutions"] },
   { section: "selling", keys: ["customers", "leads", "followUps"] },
   // Still present, deliberately last: a distributor buys raw materials too.
-  { section: "buying", keys: ["catalog", "saved"] },
+  { section: "buying", keys: ["productOffers", "catalog", "saved"] },
   { section: "business", keys: ["points", "projects", "team", "reports", "activity", "settings"] },
 ];
 

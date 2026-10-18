@@ -36,6 +36,7 @@
 
 export type PersonalNavKey =
   | "home"
+  | "offers"
   | "profile"
   | "points"
   | "settings"
@@ -66,6 +67,7 @@ export type PersonalNavItem = {
 
 const ITEMS: Record<PersonalNavKey, PersonalNavItem> = {
   home: { key: "home", href: "/home", labelKey: "personalNav.home" },
+  offers: { key: "offers", href: "/home/offers", labelKey: "personalNav.offers" },
   profile: { key: "profile", href: "/home/profile", labelKey: "personalNav.profile" },
   points: { key: "points", href: "/home/points", labelKey: "personalNav.points" },
   jobs: { key: "jobs", href: "/home/jobs", labelKey: "personalNav.jobs" },
@@ -86,7 +88,7 @@ const ITEMS: Record<PersonalNavKey, PersonalNavItem> = {
 };
 
 const SECTIONS: { section: PersonalNavSection; keys: PersonalNavKey[] }[] = [
-  { section: "account", keys: ["home", "profile", "points", "settings"] },
+  { section: "account", keys: ["home", "offers", "profile", "points", "settings"] },
   /* Work is its own group rather than a fourth entry under "account", because it
      is the only destination here that is about the OUTSIDE world: the other
      three are the caller's own record. Increment 9 made it the group of two it

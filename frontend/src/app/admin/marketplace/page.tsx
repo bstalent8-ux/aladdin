@@ -5,6 +5,7 @@ import { resolveLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { AdminHeader } from "@/features/admin/parts";
 import { StatePanel } from "@/components/ui/primitives";
 import { SellersTable, type SellerRow } from "@/features/admin-marketplace/sellers-table";
+import { requireAdminRoute } from "@/server/authorization/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export const dynamic = "force-dynamic";
  * staff member without the permission sees the refusal panel, not data.
  */
 export default async function AdminMarketplaceSellersPage() {
+  // Console door for this route (the route table in lib/permissions/admin.ts); the page's RPCs still re-check
+  // marketplace_sellers.* / marketplace_media.moderate and the refusal panel shows without them.
+  await requireAdminRoute("/admin/marketplace");
   const supabase = await getServerSupabase();
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);

@@ -6,7 +6,7 @@ set -euo pipefail
 # takes p_expected_updated_at and rejects a stale edit under the row lock.
 # T1 edits (bumping updated_at via the trigger) and holds the FOR UPDATE lock for
 # ~3s; T2 enters update_customer with the SAME (now stale) expected updated_at,
-# blocks on the lock, then re-reads the committed row and fails with 40001 — so
+# blocks on the lock, then re-reads the committed row and fails with VC001 — so
 # only T1's edit applies. The single-session pgTAP test cannot prove this.
 
 db_container="$(docker ps --filter 'name=supabase_db_aladdin' --format '{{.Names}}' | head -n 1)"
@@ -96,4 +96,4 @@ if [[ "${audit_count}" != "1" ]]; then
   echo "expected exactly 1 customer.updated audit row, got ${audit_count}" >&2; exit 1
 fi
 
-echo "customer-update concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (40001); final='${final}', audit rows=${audit_count} (no lost update)"
+echo "customer-update concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (VC001); final='${final}', audit rows=${audit_count} (no lost update)"

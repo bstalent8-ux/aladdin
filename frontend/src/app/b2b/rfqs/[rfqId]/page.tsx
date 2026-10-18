@@ -46,7 +46,7 @@ export default async function RfqDetailPage({
   // to a draft RFQ (all items must be the same supplier's published products).
   const supplierProducts =
     isRequester && rfq.status === "draft"
-      ? (await listCatalog(supabase, { supplierOrgId: rfq.supplier_org_id }))
+      ? (await listCatalog(supabase, org.organizationId, { supplierOrgId: rfq.supplier_org_id }))
           .filter((p): p is typeof p & { id: string; name: string } => Boolean(p.id && p.name))
           .map((p) => ({ id: p.id, name: p.name }))
       : [];

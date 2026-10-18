@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useI18n } from "@/lib/i18n/context";
 import { toggleSavedProductAction, type SaveState } from "@/server/actions/saved-products";
@@ -51,21 +51,35 @@ export function SaveProductButton({
   productId,
   saved,
   compact = false,
+  onChange,
 }: {
   orgId: string;
   productId: string;
   saved: boolean;
   /** Icon-only, for dense product cards. */
   compact?: boolean;
+  /** Called once the save/unsave really happened, so a list can react (e.g. drop the card). */
+  onChange?: (saved: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [state, action] = useActionState(toggleSavedProductAction, initial);
+  // The bookmark flips in place the moment the server confirms, instead of waiting for a page refresh.
+  const [current, setCurrent] = useState(saved);
+  useEffect(() => setCurrent(saved), [saved]);
+  const [state, action] = useActionState(async (prev: SaveState, fd: FormData) => {
+    const result = await toggleSavedProductAction(prev, fd);
+    if (result.ok) {
+      const next = fd.get("saved") !== "1";
+      setCurrent(next);
+      onChange?.(next);
+    }
+    return result;
+  }, initial);
   return (
     <form action={action} className="flex flex-col items-start gap-1">
       <input type="hidden" name="orgId" value={orgId} />
       <input type="hidden" name="productId" value={productId} />
-      <input type="hidden" name="saved" value={saved ? "1" : "0"} />
-      <Toggle saved={saved} compact={compact} />
+      <input type="hidden" name="saved" value={current ? "1" : "0"} />
+      <Toggle saved={current} compact={compact} />
       {state.code && !state.ok ? <InlineError>{t(state.code)}</InlineError> : null}
     </form>
   );

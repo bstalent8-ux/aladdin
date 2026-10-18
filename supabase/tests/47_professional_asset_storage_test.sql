@@ -209,19 +209,24 @@ select ok(
 -- Staging-prep Increment 5 (20260924090005_avatars_storage.sql) added a third
 -- bucket (avatars), mirroring this exact same 3-certificates/3-portfolio shape
 -- plus its own public door: 4 more policies (insert/select-own/delete-own/
--- select-published), for 11 total. Updated here rather than left stale,
+-- select-published), for 11 total; Own Products (20261015090004) then added the
+-- four named product_images_* policies of the private product-images bucket, for 15; Milestone C (20261015090020) added
+-- the four request_images_* policies of the private purchase-request-images bucket, for 19; the Showroom profile image (20261015090043)
+-- added the four organization_images_* policies of the private organization-images bucket, for 23. Updated here rather than left stale,
 -- since this file's own point is to name every policy explicitly so a NEW
 -- one cannot pass quietly — the avatars bucket is a reviewed addition, named.
 -- Marketplace Migration 06 (20261014090001) adds the private
 -- marketplace-product-images bucket with the same pending-row shape and NO
 -- public door: insert (needs a server-issued pending row) / select (members of
 -- the owning organization) / delete (only once no confirmed row references the
--- object): 3 more, 14 total. Reviewed addition, named below.
+-- object): 3 more (14 when only the Marketplace was added); Migration 09 adds the moderator
+-- select and the import-assets insert. Merged with Own Products / Purchase Requests /
+-- Showroom image policies the exact set is 28. Reviewed additions, named below.
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  16,
-  'Fourteen policies on storage.objects: three each for certificates/portfolio/avatars/marketplace images, plus two public doors'
+  28,
+  'Twenty-eight policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261015090004), the four request-images policies (Purchase Requests, 20261015090020), the four organization-images policies (Showroom profile image, 20261015090043), and the Marketplace policies (marketplace-product-images: three from Migration 06, the moderator select of Migration 09, and the import-assets insert)'
 );
 
 select is(
@@ -237,13 +242,25 @@ select is(
     'marketplace_images_select_member',
     'marketplace_images_select_moderator',
     'marketplace_import_assets_insert',
+    'organization_images_delete_manager',
+    'organization_images_insert_authorized',
+    'organization_images_select_manager',
+    'organization_images_select_member',
+    'product_images_delete_writer',
+    'product_images_insert_authorized',
+    'product_images_select_org',
+    'product_images_select_public',
     'professional_certificates_delete_own',
     'professional_certificates_insert_own',
     'professional_certificates_select_own',
     'professional_portfolio_delete_own',
     'professional_portfolio_insert_authorized',
     'professional_portfolio_select_own',
-    'professional_portfolio_select_published'
+    'professional_portfolio_select_published',
+    'request_images_delete_manager',
+    'request_images_insert_authorized',
+    'request_images_select_owner',
+    'request_images_select_viewer'
   ],
   'Each policy still names ONE bucket in its own name, so widening one bucket''s reads cannot silently widen another''s'
 );

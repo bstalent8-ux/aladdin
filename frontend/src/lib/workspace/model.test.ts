@@ -94,3 +94,18 @@ describe("resolveActiveBusinessId", () => {
     expect(resolveActiveBusinessId([personal], "A")).toBeNull();
   });
 });
+
+describe("pending applications are limited workspaces (rc2 product decision)", () => {
+  const ok = { kind: "business" as const, organizationId: "org-ok", name: "Approved", orgType: "showroom_dealer", relationship: "owner" as const, isApproved: true };
+  const pending = { kind: "business" as const, organizationId: "org-pending", name: "Pending", orgType: "showroom_dealer", relationship: "owner" as const, isApproved: false };
+
+  it("an approved organization is the default even when the pending one is listed first", () => {
+    expect(resolveActiveBusinessId([pending, ok], undefined)).toBe("org-ok");
+  });
+  it("a pending-only owner gets that organization as the active workspace", () => {
+    expect(resolveActiveBusinessId([pending], undefined)).toBe("org-pending");
+  });
+  it("an explicit selection of the pending organization is honoured (it is the owner's own limited workspace)", () => {
+    expect(resolveActiveBusinessId([ok, pending], "org-pending")).toBe("org-pending");
+  });
+});

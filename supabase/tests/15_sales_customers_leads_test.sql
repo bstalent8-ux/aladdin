@@ -5,7 +5,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(49);
+select plan(51);
 
 -- Sales capabilities are granted here (as postgres, inside the test transaction)
 -- so the shared seed — and the existing Phase-1 assertions that snapshot it —
@@ -146,6 +146,12 @@ select lives_ok(
 select throws_ok(
   format($$ select public.assign_lead('%s','e3333333-eeee-4eee-8eee-eeeeeeeeeee3',2) $$, (select cairo_lead from _ids)),
   '22023', null, 'a lead cannot be assigned to a member of another organization');
+select throws_ok(
+  format($$ select public.assign_lead('%s','e2222222-eeee-4eee-8eee-eeeeeeeeeee2',1) $$, (select cairo_lead from _ids)),
+  'VC001', null, 'a stale assign_lead is a version conflict (not the retryable 40001)');
+select throws_ok(
+  format($$ select public.update_lead_details('%s',1,'Stale title') $$, (select cairo_lead from _ids)),
+  'VC001', null, 'a stale update_lead_details is a version conflict (not the retryable 40001)');
 reset role;
 select is((select count(*)::int from public.audit_log where action='lead.assigned' and subject_id=(select cairo_lead from _ids)),
   1, 'assignment emits exactly one lead.assigned audit event');
@@ -171,7 +177,7 @@ select is((select stage::text from public.leads where title='Cairo Lead'),
   'contacted', 'the lead stage is now contacted');
 select throws_ok(
   format($$ select public.transition_lead('%s',2,'qualified') $$, (select cairo_lead from _ids)),
-  '40001', null, 'a stale-version transition is rejected (optimistic concurrency)');
+  'VC001', null, 'a stale-version transition is rejected (optimistic concurrency)');
 select throws_ok(
   format($$ select public.transition_lead('%s',3,null,'lost',null) $$, (select cairo_lead from _ids)),
   '22023', null, 'marking a lead lost without a reason is rejected');

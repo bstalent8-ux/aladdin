@@ -31,7 +31,7 @@
 --                to prove availability does not gate discovery
 --   70000005 — null canonical → given a DECLARED type here (the review window)
 --   70000003 — made a consumer here
---   70000004 — made a trainer here
+--   70000004 — made a personal account here
 --   11111111 — business-only identity (null persona)
 create extension if not exists pgtap;
 
@@ -49,7 +49,7 @@ values ('70000005-0000-4000-8000-000000000005', 'installer_technician', now())
 on conflict (user_id) do update
   set prof_concrete_type = 'installer_technician', professional_completed_at = now();
 
-update public.users set primary_account_type = 'trainer'
+update public.users set primary_account_type = 'end_consumer'
   where id = '70000004-0000-4000-8000-000000000004';
 update public.users set primary_account_type = 'end_consumer'
   where id = '70000003-0000-4000-8000-000000000003';

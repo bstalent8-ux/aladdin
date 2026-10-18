@@ -1,3 +1,19 @@
+## 2026-10-17 — Google, Facebook and email on the Showroom/Installer entry pages
+
+Branch `claude/auth-oauth-email-g90ajg` from `main` @ `282210b`. The four entry pages now offer Google/Facebook (rendered only when enabled in Supabase Auth) and a Phone | Email switch; phone flows unchanged. New RPC `account_entry_allowed` (migration `20261017134139`, pgTAP 91). See [entry-auth-methods.md](../frontend/entry-auth-methods.md).
+
+Migration applied to hosted `aladdin-staging` (version `20261017134139`; file renamed to match). Owner configured Google/Facebook in Supabase. Added the published Privacy Policy (`/legal/privacy`) and Data Deletion Instructions (`/legal/data-deletion`) for Meta review, contact `info@aladdindecore.com` ([legal-pages.md](../frontend/legal-pages.md)).
+
+Open: Terms of Service still a placeholder; no in-app account deletion (deletion is by email request, handled manually within 30 days); pgTAP and E2E not run here (no Docker).
+
+## 2026-10-17 — Admin Core dashboard integrated onto latest main
+
+Merged `feature/admin-core-user-org-operations-redacted` into `main` @ `8bde19c`. Conflicts: `supabase/`, generated types and these memory files took `main` (Admin migrations already landed via #74; the Admin pgTAP copies 65–70 dropped, main has them as 80–85). `ConfirmDialog` keeps main's labelled icon trigger and `defaultOpen` and gains `triggerIconOnly` for the Admin row actions. Landing and mandatory business setup now use `loadIsAdminStaff` (`admin_my_access`), since `loadPlatformRole` was retired by Admin RBAC.
+
+Promotion: `app/admin/preview/*` moved onto `app/admin/*`, replacing the classic dashboard, users, organizations and audit pages; the preview layout's palette index became `server/queries/admin-palette.ts`; the console rail is now the single nav (tabs removed). `/admin/verifications` kept. Main's organization contact phone/email added to the new organization detail. Admin raw `<select>`s moved to the shared `Select` and the row menu to `FloatingMenu` to satisfy main's lint rule and menu-surface test.
+
+Open: E2E specs that asserted the classic Admin pages (`pilot-uat-round-1`, `personal-sales-readiness`) were not run here; the React #418 Preview blocker recorded on 2026-10-01 was not re-checked.
+
 ## 2026-10-15 — PR84 definitive functional acceptance passed
 
 Exact committed8be67ba6: isolated GitHub functional run38697762123PASS24/24(0fail,0skip,58.7s), application CI38697762134and fullDB38697762167SUCCESS. All110versions/sixfeatureversions/old+v2RPCs verified; own runner teardown succeeded. Artifacts contain migration hashes and six desktop/mobile screenshots. No uncommitted CAPTCHA files included. Harness corrections preserve last-admin guards, use Node24 and settled action/UI assertions plus counter11; no product code/security weakening, no skipped tests/retries.
@@ -98,6 +114,41 @@ Read-only hosted review: staging Free, native CAPTCHA off, no hooks, signups/sig
 - Product guide updated (the "business choices" bullet now states the mandatory first business).
 
 ---
+## Session - 2026-10-14: Showroom V2 Business Description and the 250-character description rule
+
+- Purpose: add the missing Business Description to Showroom Settings and apply one 250-character limit to user-authored description fields, enforced beyond the frontend, without touching legacy data. Part of the ongoing V2 alignment; no new milestone.
+- Findings: `organizations` had no description column; the registration description lived only on the draft and was never copied to the organization; the draft and bio RPCs silently truncated at 1000; `profiles.bio` had a direct client UPDATE grant; product/offer validators already enforced 250.
+- Built: migration `20261025090001_organization_description_250.sql` (additive: `organizations.description` CHECK <= 250, `organization_description_set` RPC with live `org.manage` and audit, one counting rule, reject-not-truncate in the draft/bio/portfolio RPCs, legacy-safe direct-write trigger on six columns, draft description copied on submit); Settings field with live counter; registration, professional bio, portfolio and legacy product inputs moved to the counted textarea (no silent `maxLength` cut); shared `lib/text/description-limit`.
+- Records: [reference alignment section 10](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md) (now 44 migrations).
+- Validation: fresh `supabase db reset --local` then pgTAP 85 files / 3732 tests pass (new test 84: 36 assertions); Vitest 219 files / 2673 tests; tsc and eslint clean on touched files; browser `v2-description` DS-1..DS-3, `v2-settings` S-1..S-4, regression b/c/g/h pass. pgTAP on a database that still holds e2e seed data fails 8 files on row counts (pollution; passes after a reset).
+- Pending: production audit query for existing over-250 values (documented), decision on jobs/projects/referral descriptions, whether the description should ever be public or moderated, all earlier V2 blockers.
+
+## Session - 2026-10-13 (later): Showroom V2 reference alignment and Settings corrections
+
+- Purpose: the exact Home reference image became available; align Home to it, keep KPI customization, apply the approved Settings corrections (remove business language/timezone, add a Showroom profile image, explain/hide the technical slug), audit personal-data privacy, rename the workspace-switcher actions. No deployment.
+- Built: Home per reference (five cards with real period-over-period trend, six-product grid, quotations with thumbnails, category donut); quick actions/benefits/active-RFQ/needs-attention removed from Home only; migrations `20261024090001` (two KPI keys) and `20261024090002` (business profile image); Settings changes; switcher labels; privacy pgTAP.
+- Records: [reference alignment](../frontend/showroom-v2-reference-alignment.md), [inventory](../frontend/showroom-v2-release-inventory.md), [release plan](showroom-v2-release-plan.md).
+- Validation: fresh `supabase db reset --local` then pgTAP 84 files / 3696 tests pass; Vitest and browser specs reported in the final report.
+- Findings: `cairo-ceramics` is the public handle `organizations.slug` (protected identity field); no personal data reaches public business identity; four privacy decisions left open (listed professional profiles, colleague roster, manager view, platform-support access). Pre-existing unused column `logo_media_id` is now the image pointer.
+- Pending: user visual approval of Home vs reference, hosted validation, Admin review UI, route decision.
+
+## Session - 2026-10-13: Showroom V2 Home, Settings, converged shell and release plan
+
+- Purpose: user declared `/preview/showroom-suite-v2` the design authority and widened the target to the COMPLETE Showroom account (not only Home and Settings). Inventory, convergence, Home V2, Settings V2, evidence and release plan; no push/PR/merge/deploy.
+- Built: V2 Home (six KPI cards, discover rail, incoming quotations, purchasing by category, active Direct RFQs, quick actions), sectioned V2 Settings reusing the governance/account backend, one Showroom frame shared by `/preview/showroom-suite-v2/*` and `/b2b/*` for `showroom_dealer`, placeholder-free navigation (only Shared Purchase Requests hidden), Chat panel and branch switcher mounted in the V2 frame, Direct RFQ label correction. No migrations.
+- Records: [inventory](../frontend/showroom-v2-release-inventory.md), [Home data map](../frontend/showroom-v2-home-data-map.md), [release plan](showroom-v2-release-plan.md). Screenshots: `docs/frontend/screenshots/v2-release/`.
+- Validation: tsc clean; Vitest 215 files / 2649 tests; real-browser `e2e/regression/a..i` all pass (h now through V2 Settings); `e2e/audit/v2-*.spec.ts` pass (Home, sidebar destinations, Settings sections, staff scope, pending org, empty/multi-branch org, chat, Direct RFQ -> quotation -> order).
+- Findings: local PostgREST hangs 60 s on SQLSTATE 40001 (stale quotation version) - verify on hosted; seeded owner lacks `conversation.participate`; older default Playwright harness targets another DB container and was not run.
+- Pending: user visual approval; hosted staging validation; Admin review path for identity/branch requests; canonical route decision; untested transitions (order execution, invitations, personal profile saves).
+
+## Session — 2026-10-06: showroom full-stack Phase 0 isolation and audit
+
+- Purpose: user changed showroom from frontend-only preview to phased backend-backed implementation without production-route changes.
+- Created `feature/showroom-fullstack-v2` in `D:/projects/aladdin-wt-showroom-fullstack-v2` from fetched main `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`, after inspecting status/branches/all worktrees. Left dirty source and concurrent auth/installer/admin work untouched.
+- Recorded [source map, backend gaps and continuation](../frontend/showroom-fullstack-v2.md). Reuse organizations/memberships, canonical commerce/orders, KPI persistence, referrals, CRM/jobs/points. No parallel identity model or DB mutation.
+- Validation evidence: Git isolation inspected; Docker container inventory succeeded read-only after sandbox permission retry. Port 3023 unavailable. Application lint/typecheck/tests/build and DB reset/pgTAP not run because this checkpoint changes documentation only; they remain mandatory for implemented phases.
+- Pending: Phase 1–10, isolated database runtime, browser parity and all implementation validation. No routes or migrations added, no preview files ported, no push/PR/deploy.
+- Documentation validation: `python scripts/check_doc_links.py` passed (1004 internal links, 123 Markdown files, zero broken); `git diff --check` passed.
 
 ## Session — 2026-10-05: isolated installer settings preview
 
@@ -6691,3 +6742,13 @@ Branch `feat/public-marketplace-20261011`, local only, nothing pushed. Commits: 
 Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.
 
 Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](https://github.com/hmohamed080/aladdin/pull/84) verified OPEN/DRAFT targeting main. Additional journey rerun aborted due stalled Docker, not counted as pass; final non-mutating contrast/layout2/2passed and typecheckpassed. Preview3341HTTP200, localAPI63321; original14hashesunchanged. External untracked frontend/e2e/auth-captcha.spec.ts appeared and remains excluded/preserved. No merge/deployment/worktree cleanup. Native quota and direct contact metadata remain merge blockers.
+
+## Sync with origin/main (170 commits, Showroom rc2 + Admin Core + OAuth) — 2026-10-18
+
+Branch `feat/public-marketplace-20261011` merged with `origin/main` @ `9d9a1b6`; the base checkout's `main` fast-forwarded to the same commit. Nothing pushed.
+
+**Conflicts resolved (6):** `RUNTIME_STATE.md` (both sections kept); `admin-nav.tsx` (origin's Admin Core rail + the two Marketplace entries); `i18n.test.ts` (both literal-word lists); `platform.ts` (origin's `loadIsAdminStaff`, no other caller of the removed exports); `database.types.ts` (regenerated from the merged chain); `47_professional_asset_storage_test.sql` (28 policies: origin's 23 + the 5 Marketplace ones, all named).
+
+**Fixes the merge required:** (1) duplicate migration version — Migration 11 (HDF flooring) renamed `20261015090001` -> `20261018090001` (origin owns `20261015090001_showroom_suite_kpi_layouts`; the branch was never pushed, so no hosted DB saw it); (2) origin's `20261015090048` self-check fails on the text "40001" inside function bodies — two comments in our migrations 06/07 reworded (comment-only, no behaviour change); (3) `96_` no longer pins the whole-table policy count (47_ owns that), it pins the five Marketplace policies; (4) `middleware.test.ts` mock gains `isMarketplacePreviewEnabled`; (5) the two `/admin/marketplace*` pages call `requireAdminRoute` (origin's route-coverage test).
+
+**Verification on a clean `db reset` of the merged chain (175 migrations):** full pgTAP **126 files / 5,967 tests PASS** (after fix 3); Marketplace removal HTTP test 59/59; professional-asset Storage HTTP test 59/59; frontend typecheck clean, lint 0 errors in `src`, vitest 305 files / 3,900 passed. The local untracked audit harness (`frontend/e2e-audit`, `docs/qa`) was left untouched; its config was renamed `playwright.full-audit.config.ts` because origin now tracks a different `playwright.audit.config.ts`; `e2e-audit` has 3 `no-explicit-any` lint errors (so `pnpm lint` over the whole `frontend/` fails while it exists).

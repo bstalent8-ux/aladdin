@@ -246,6 +246,11 @@ The **design language** is global. The **navigation content and the modules are 
 - Column set is intentional: identity + status + key metric + action. Support row density appropriate to the surface; make row actions discoverable, not hover-only on touch.
 - Empty leading/utility cells are **explicit, named** structure (not "broken"); every column has a header (even if visually empty by design).
 - Numbers/dates/currency use locale + **EGP** formatting; align numerics; RTL tables mirror column order.
+- **Admin table standard (Phase 0D, opt-in on the shared `DataTable`):** the full identity name stays readable (wrap, never initials-only); every column declares a minimum width and dates/badges/phones stay on one line; a dense table scrolls horizontally **inside its own box** — the page never scrolls sideways; below the desktop breakpoint it becomes stacked cards. Opt-in only (`minWidth`, `nowrap`, `stackBelow`, `RecordCell wrap`) so existing production tables are unchanged.
+- **Pagination footer (one component, every Admin table):** `Showing 1–10 of N` · `Previous 1 2 … N Next` · `10 per page` (never "Rows per page: 10"); default 10, options 10/25/50/100; lives in the footer, not the filter bar; mirrors in RTL through flex order alone.
+- **Search/filter:** typing and selects apply automatically (debounced text, instant selects) — no Search button. One sortable column per sort state; switching columns starts at that column's own direction (an inactive header shows ↕).
+- **Admin dates:** `DD/MM/YYYY` and `DD/MM/YYYY HH:mm:ss` (24-hour, seconds), day-month-year in both locales, locale digits.
+- **Row-action icons:** the eye always means **View on platform** (public page, new tab, only when a valid destination exists — otherwise a disabled icon that says why); **Manage** opens Admin details. Never impersonation.
 
 ## Forms & Validation
 - **React Hook Form + Zod**; the Zod schema is the single validation source shared client/server. Validate at boundaries, trust internal state.
@@ -336,6 +341,10 @@ The **design language** is global. The **navigation content and the modules are 
 ## Change History
 Newest first.
 
+### 2026-09-29 — Admin table, pagination and date standard (Phase 0D)
+- **What:** Added the Admin table standard, the single pagination footer, auto search/filter, the Admin date-time format and the eye/Manage row-action meaning to **Tables & Data Views**. Implemented as opt-in additions to the shared `DataTable` plus `features/admin-preview/table-pagination.tsx`; existing tables are unchanged.
+- **Why:** Phase 0D's Product Owner review required readable identity names, no overlapping columns, one pagination footer, and a consistent meaning for row actions across every Admin directory.
+
 ### 2026-08-26 — The approved visual direction becomes the canonical design system
 - **What:** Promoted the reviewed-and-approved workspace visual system out of a one-account prototype gate and into the shared design system. New **Workspace Shell & Surface Language** section (two materials and a field, surface hierarchy, header, search, radius/spacing/motion, and what is global vs role-specific). Rewrote **Desktop display modes**: the mode control moves to the **top** of the sidebar and answers a click (binary toggle) and a hover/focus (mode menu) differently; the hover reveal now **pushes** the workspace instead of overlaying it. Added **Sidebar hierarchy** (quick access + collapsible groups, one open collapsed group at a time, `inert` when closed), **Active route**, and **Fixed bottom actions** (one Settings, unified Upgrade, no divider). Added the superseded frame shell, identity-gated presentation, and the anti-AI constraints to *Anti-Patterns*.
 - **Why:** The direction was approved in the running application, so the gate it was reviewed behind (`user.email === "fady@example.test"`) had to go — a design system that depends on who is signed in is not a design system. Two of the rules here **reverse** earlier ones and both reversals are deliberate. The hover reveal was forbidden from resizing the document because a hover-widened layout element reflows the page on every pointer pass; what makes pushing safe is that the panel and the spacer that reserves its width are driven by **one** spring off **one** value, with the server-rendered width coming from the mode cookie. And the mode control moved out of the footer because a click there opened a three-item menu to change a state the user could already see, making the common case cost two clicks.
@@ -376,3 +385,7 @@ BusinessFlow keeps the shared wizard and controls, with separate business-inform
 
 ## Approved Showroom review — 2026-10-14
 Authentication/onboarding UI approved with 2026 derived brand assets, vertically centered country control, exact password helper “يجب أن تتكون كلمة المرور من 10 أحرف على الأقل”, description250characters and optional onboarding address250words. Address helper explains activation requirement; existing business-profile completion item links to authorized branch settings. Functional RTL controls and original references/screenshots are retained; no screenshot-as-interface or duplicate preview routes.
+
+## Showroom Suite V2 is the design authority (2026-10-13)
+
+The user approved `/preview/showroom-suite-v2` (the `.installer-surface` theme: Deep Navy `#071A2D`, Warm Sand `#D8C7A6`, Soft Cream `#F2E9D8`, Muted Terracotta `#B96F52`, Readex Pro) as the visual language for every new or modified user-facing page, including future Supplier, Manufacturer, Importer, Contractor and Engineer interfaces (adapted to their needs). New pages consume the semantic token utilities and the shared V2 shell (`features/showroom-shell`); do not build a third shell and do not continue developing the legacy `/b2b` visual design. Third-party reference screenshots inform content and information architecture only, never branding.

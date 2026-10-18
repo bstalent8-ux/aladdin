@@ -6,6 +6,7 @@ import { AdminHeader } from "@/features/admin/parts";
 import { StatePanel } from "@/components/ui/primitives";
 import { MARKETPLACE_IMAGE_BUCKET } from "@/features/marketplace-seller/errors";
 import { MediaModeration, type MediaItem, type MediaSettings } from "@/features/admin-marketplace/media-moderation";
+import { requireAdminRoute } from "@/server/authorization/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,9 @@ export default async function AdminMarketplaceMediaPage({
 }: {
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
+  // Console door for this route (the route table in lib/permissions/admin.ts); the page's RPCs still re-check
+  // marketplace_sellers.* / marketplace_media.moderate and the refusal panel shows without them.
+  await requireAdminRoute("/admin/marketplace/media");
   const sp = await searchParams;
   const status: Status = (STATUSES as readonly string[]).includes(sp.status ?? "") ? (sp.status as Status) : "pending";
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);

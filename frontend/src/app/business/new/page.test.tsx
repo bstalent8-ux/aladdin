@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   registration: "access_ready" as string,
   entries: [] as unknown[],
   data: null as unknown,
+  slot: "first_available" as string,
 }));
 
 class Redirect extends Error {
@@ -28,9 +29,23 @@ vi.mock("@/server/queries/workspace", () => ({
   personalEntry: (entries: Array<{ kind: string }>) => entries.find((e) => e.kind === "personal"),
 }));
 vi.mock("@/server/queries/onboarding", () => ({ getBusinessOnboardingData: async () => state.data }));
+vi.mock("@/server/queries/organization-applications", () => ({
+  loadOrganizationApplications: async () => ({ rows: [], slot: state.slot }),
+}));
+vi.mock("@/features/onboarding/operating-model-step", () => ({
+  OperatingModelStep: ({ persona }: { persona: string }) => <div data-testid="operating-model">{persona}</div>,
+}));
 vi.mock("@/features/onboarding/business-flow", () => ({
-  BusinessFlow: ({ presetOrgType, draftId }: { presetOrgType: string | null; draftId: string | null }) => (
-    <div data-testid="business-flow">{`${presetOrgType ?? "none"}|${draftId ?? "nodraft"}`}</div>
+  BusinessFlow: ({
+    presetOrgType,
+    draftId,
+    typeChoices,
+  }: {
+    presetOrgType: string | null;
+    draftId: string | null;
+    typeChoices?: string[];
+  }) => (
+    <div data-testid="business-flow">{`${presetOrgType ?? "none"}|${draftId ?? "nodraft"}|${(typeChoices ?? []).join(",")}`}</div>
   ),
 }));
 
@@ -47,9 +62,9 @@ const onboarding = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-async function visit() {
+async function visit(model?: string) {
   try {
-    const tree = await AddBusinessPage();
+    const tree = await AddBusinessPage({ searchParams: Promise.resolve({ model }) });
     return { redirectedTo: null as string | null, ...render(tree as React.ReactElement) };
   } catch (e) {
     if (e instanceof Redirect) return { redirectedTo: e.to };
@@ -62,13 +77,13 @@ describe("/business/new — server-side entitlement (direct URL)", () => {
     state.registration = "access_ready";
     state.entries = [personal(null)];
     state.data = onboarding();
+    state.slot = "first_available";
   });
 
   it.each([
     ["installer_technician", "professional"],
     ["sales", "professional"],
     ["end_consumer", "consumer"],
-    ["contractor", "professional"],
   ])("%s visiting directly cannot start a business", async (persona, selectedTrack) => {
     state.entries = [personal(persona)];
     state.data = onboarding({ selectedTrack, selectedAccountType: persona });
@@ -105,11 +120,53 @@ describe("/business/new — server-side entitlement (direct URL)", () => {
   });
 
   it("an already-open draft can still be completed", async () => {
-    state.entries = [personal("contractor")];
+    state.entries = [personal("sales")];
     state.data = onboarding({ draftId: "d-1" });
+    state.slot = "additional_pending";
     const r = await visit();
     expect(r.redirectedTo).toBeNull();
     expect((r as { container: HTMLElement }).container.textContent).toContain("none|d-1");
+  });
+
+  it.each(["first_pending", "first_rejected", "additional_pending"])(
+    "slot %s: a new application is explained on the applications page, not started",
+    async (slot) => {
+      state.entries = [personal("engineer")];
+      state.data = onboarding({ selectedAccountType: "engineer" });
+      state.slot = slot;
+      expect((await visit()).redirectedTo).toBe("/business/applications");
+    },
+  );
+
+  it("a Contractor chooses an operating model first", async () => {
+    state.entries = [personal("contractor")];
+    state.data = onboarding({ selectedAccountType: "contractor" });
+    const r = await visit();
+    expect(r.redirectedTo).toBeNull();
+    expect((r as { container: HTMLElement }).container.textContent).toBe("contractor");
+  });
+
+  it("an Engineer chooses an operating model first", async () => {
+    state.entries = [personal("engineer")];
+    state.data = onboarding({ selectedAccountType: "engineer" });
+    const r = await visit();
+    expect((r as { container: HTMLElement }).container.textContent).toBe("engineer");
+  });
+
+  it("choosing the Contractor organization model opens a contractor-organization-only application", async () => {
+    state.entries = [personal("contractor")];
+    state.data = onboarding({ selectedAccountType: "contractor" });
+    const r = await visit("organization");
+    expect((r as { container: HTMLElement }).container.textContent).toContain("contractor_company|nodraft|contractor_company");
+  });
+
+  it("an Engineer who chooses the organization model keeps the approved business types", async () => {
+    state.entries = [personal("engineer")];
+    state.data = onboarding({ selectedAccountType: "engineer" });
+    const r = await visit("organization");
+    const text = (r as { container: HTMLElement }).container.textContent!;
+    expect(text).toContain("design_office");
+    expect(text).not.toContain("contractor_company");
   });
 
   it("an unverified caller is sent to sign in; one still mid-registration finishes that first", async () => {

@@ -5,18 +5,41 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
-import { GaugeIcon, UsersIcon, BuildingIcon, BadgeCheckIcon, ScrollIcon, StorefrontIcon, CameraIcon } from "@/components/ui/icons";
+import { canAccessAdminPath, type AdminAccess } from "@/lib/permissions/admin";
+import {
+  GaugeIcon,
+  UsersIcon,
+  BuildingIcon,
+  BadgeCheckIcon,
+  ShieldIcon,
+  MoneyIcon,
+  UserIcon,
+  BarChartIcon,
+  ScrollIcon,
+  SettingsIcon,
+  StorefrontIcon,
+  CameraIcon,
+} from "@/components/ui/icons";
 
 type Item = { href: string; key: string; exact: boolean; Icon: ComponentType<{ size?: number }> };
 
 const items: Item[] = [
-  { href: "/admin", key: "admin.nav.dashboard", exact: true, Icon: GaugeIcon },
-  { href: "/admin/users", key: "admin.nav.users", exact: false, Icon: UsersIcon },
-  { href: "/admin/organizations", key: "admin.nav.organizations", exact: false, Icon: BuildingIcon },
-  { href: "/admin/verifications", key: "admin.nav.verifications", exact: false, Icon: BadgeCheckIcon },
+  { href: "/admin", key: "admin.preview.nav.dashboard", exact: true, Icon: GaugeIcon },
+  { href: "/admin/users", key: "admin.preview.nav.users", exact: false, Icon: UsersIcon },
+  { href: "/admin/organizations", key: "admin.preview.nav.organizations", exact: false, Icon: BuildingIcon },
+  { href: "/admin/review", key: "admin.preview.nav.review", exact: false, Icon: BadgeCheckIcon },
+  // Verification, referral and organization decisions are still taken here; the
+  // Review Center's Approve / Reject remain Preview until they are wired.
+  { href: "/admin/verifications", key: "admin.nav.verifications", exact: false, Icon: ShieldIcon },
+  { href: "/admin/points", key: "admin.preview.nav.points", exact: false, Icon: MoneyIcon },
+  { href: "/admin/staff", key: "admin.preview.nav.staff", exact: false, Icon: UserIcon },
+  { href: "/admin/analytics", key: "admin.preview.nav.analytics", exact: false, Icon: BarChartIcon },
+  // Marketplace seller approval and media moderation. Unlisted in the route table, so the console door (any staff)
+  // applies to the link; each page's RPCs re-check marketplace_sellers.* and refuse without the permission.
   { href: "/admin/marketplace", key: "admin.nav.marketplace", exact: true, Icon: StorefrontIcon },
   { href: "/admin/marketplace/media", key: "admin.nav.marketplaceMedia", exact: false, Icon: CameraIcon },
-  { href: "/admin/audit", key: "admin.nav.audit", exact: false, Icon: ScrollIcon },
+  { href: "/admin/audit", key: "admin.preview.nav.audit", exact: false, Icon: ScrollIcon },
+  { href: "/admin/settings", key: "admin.preview.nav.settings", exact: false, Icon: SettingsIcon },
 ];
 
 function useActive() {
@@ -25,13 +48,18 @@ function useActive() {
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 }
 
-/** Vertical rail for the admin console (desktop/tablet). */
-export function AdminSidebar() {
+/**
+ * Vertical rail for the admin console (desktop/tablet). Shows only destinations
+ * the caller's server-loaded `access` opens, via the SAME route table the page
+ * guards use (lib/permissions/admin.ts). Presentation only: a hidden link is
+ * still guarded by its page, and the data behind it by RLS/RPCs.
+ */
+export function AdminSidebar({ access }: { access: AdminAccess }) {
   const { t } = useI18n();
   const isActive = useActive();
   return (
     <nav aria-label={t("admin.title")} className="flex flex-col gap-0.5">
-      {items.map(({ href, key, exact, Icon }) => {
+      {items.filter((i) => canAccessAdminPath(access, i.href)).map(({ href, key, exact, Icon }) => {
         const active = isActive(href, exact);
         return (
           <Link
@@ -55,8 +83,8 @@ export function AdminSidebar() {
   );
 }
 
-/** Horizontal scroll nav for mobile. */
-export function AdminTopNav() {
+/** Horizontal scroll nav for mobile (same permission filter). */
+export function AdminTopNav({ access }: { access: AdminAccess }) {
   const { t } = useI18n();
   const isActive = useActive();
   return (
@@ -64,7 +92,7 @@ export function AdminTopNav() {
       aria-label={t("admin.title")}
       className="flex gap-1 overflow-x-auto border-b bg-surface px-md py-1.5 tablet:hidden"
     >
-      {items.map(({ href, key, exact, Icon }) => {
+      {items.filter((i) => canAccessAdminPath(access, i.href)).map(({ href, key, exact, Icon }) => {
         const active = isActive(href, exact);
         return (
           <Link

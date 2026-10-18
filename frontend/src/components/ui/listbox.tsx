@@ -52,6 +52,7 @@ export function ListboxSelect({
   variant = "default",
   emptyIsPlaceholder = false,
   buttonRef,
+  testId,
   children,
 }: {
   /** The accessible name of the control (and of its list). Optional when `labelledBy` or an external <label> names it. */
@@ -80,6 +81,8 @@ export function ListboxSelect({
   variant?: "default" | "field" | "compact";
   /** An option whose value is "" is a prompt ("Choose…"), so it reads as muted text, like a placeholder. */
   emptyIsPlaceholder?: boolean;
+  /** `data-testid` of the visible trigger (the control a person and a test operate). */
+  testId?: string;
   /** Lets a wrapper reach the trigger (to forward focus to it). */
   buttonRef?: RefObject<HTMLButtonElement | null>;
   /** Rendered inside the control's box, after the trigger (a wrapper's hidden form carrier). */
@@ -116,7 +119,9 @@ export function ListboxSelect({
       key={option.value}
       type="button"
       role="option"
+      data-value={option.value}
       aria-selected={option.value === value}
+      aria-disabled={option.disabled ? true : undefined}
       disabled={option.disabled}
       onClick={() => {
         onChange(option.value);
@@ -148,6 +153,8 @@ export function ListboxSelect({
         aria-label={label}
         aria-labelledby={labelledBy}
         aria-haspopup="listbox"
+        data-value={value}
+        data-testid={testId}
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-describedby={describedBy}

@@ -4,8 +4,8 @@ import type { Database } from "@/types/database.types";
 
 vi.mock("server-only", () => ({}));
 
-const { loadPlatformRole } = vi.hoisted(() => ({ loadPlatformRole: vi.fn() }));
-vi.mock("@/server/queries/platform", () => ({ loadPlatformRole }));
+const { loadIsAdminStaff } = vi.hoisted(() => ({ loadIsAdminStaff: vi.fn() }));
+vi.mock("@/server/queries/platform", () => ({ loadIsAdminStaff }));
 
 // The mandatory-first-business rule has its own tests (business-setup.test.ts); here it is a controllable answer.
 const { computeMandatoryBusinessSetup } = vi.hoisted(() => ({ computeMandatoryBusinessSetup: vi.fn() }));
@@ -27,6 +27,7 @@ type Row = {
   persona: string | null;
   org_type: string | null;
   relationship: string | null;
+  is_approved: boolean;
 };
 
 const personal: Row = {
@@ -36,6 +37,7 @@ const personal: Row = {
   persona: "engineer",
   org_type: null,
   relationship: null,
+  is_approved: true,
 };
 const business = (id: string, name: string): Row => ({
   kind: "business",
@@ -44,7 +46,10 @@ const business = (id: string, name: string): Row => ({
   persona: null,
   org_type: "showroom_dealer",
   relationship: "owner",
+  is_approved: true,
 });
+// An organization still under review: an application, never a workspace.
+const pendingBusiness = (id: string, name: string): Row => ({ ...business(id, name), is_approved: false });
 
 function clientWithWorkspaces(rows: Row[]) {
   const rpc = vi.fn(async () => ({ data: rows, error: null }));
@@ -56,7 +61,7 @@ function clientWithWorkspaces(rows: Row[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  loadPlatformRole.mockResolvedValue(null);
+  loadIsAdminStaff.mockResolvedValue(false);
   computeMandatoryBusinessSetup.mockResolvedValue({ required: false, orgType: null });
   cookieValue.current = undefined;
 });
@@ -64,7 +69,7 @@ beforeEach(() => {
 describe("resolveActiveLanding", () => {
   it("routes platform staff to /admin without consulting workspaces", async () => {
     const { client, rpc } = clientWithWorkspaces([business("org-1", "Cairo Ceramics")]);
-    loadPlatformRole.mockResolvedValueOnce("administrator");
+    loadIsAdminStaff.mockResolvedValueOnce(true);
 
     await expect(resolveActiveLanding(client)).resolves.toBe("/admin");
     expect(rpc).not.toHaveBeenCalled();
@@ -74,6 +79,22 @@ describe("resolveActiveLanding", () => {
     // No personal entry at all: the person has no personal persona.
     const { client } = clientWithWorkspaces([business("org-1", "Cairo Ceramics")]);
 
+    await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
+  });
+
+  it("a pending-only identity lands in its LIMITED workspace (profile, settings, draft products)", async () => {
+    cookieValue.current = "org-pending";
+    const { client } = clientWithWorkspaces([pendingBusiness("org-pending", "Under Review")]);
+    // Product decision (rc2): a pending owner works in a limited workspace; the database withholds every commercial authority.
+    await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
+  });
+
+  it("an approved organization stays the default workspace when a pending application sits beside it", async () => {
+    cookieValue.current = undefined;
+    const { client } = clientWithWorkspaces([
+      pendingBusiness("org-pending", "Under Review"),
+      business("org-ok", "Cairo Ceramics"),
+    ]);
     await expect(resolveActiveLanding(client)).resolves.toBe("/b2b");
   });
 
@@ -130,7 +151,7 @@ describe("resolveActiveLanding - a business registration whose first business is
   });
 
   it("platform staff are still routed to /admin first", async () => {
-    loadPlatformRole.mockResolvedValueOnce("administrator");
+    loadIsAdminStaff.mockResolvedValueOnce(true);
     computeMandatoryBusinessSetup.mockResolvedValue({ required: true, orgType: "supplier" });
     await expect(resolveActiveLanding(clientWithWorkspaces([]).client)).resolves.toBe("/admin");
   });

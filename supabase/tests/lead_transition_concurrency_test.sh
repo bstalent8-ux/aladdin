@@ -5,7 +5,7 @@ set -euo pipefail
 # cannot lose an update. Transaction 1 holds the lead row lock (FOR UPDATE) while
 # transaction 2 enters transition_lead with the same expected version. The second
 # call must BLOCK on the row lock, then re-read the committed (bumped) version and
-# fail with 40001 — so only the first transition applies (no lost update). The
+# fail with VC001 — so only the first transition applies (no lost update). The
 # single-session pgTAP version-mismatch test cannot prove this serialization.
 
 db_container="$(docker ps --filter 'name=supabase_db_aladdin' --format '{{.Names}}' | head -n 1)"
@@ -103,4 +103,4 @@ if [[ "${final}" != "2|contacted" ]]; then
   exit 1
 fi
 
-echo "lead-transition concurrency PASS: second transition waited ${elapsed_ms}ms and was rejected (40001); final=${final} (no lost update)"
+echo "lead-transition concurrency PASS: second transition waited ${elapsed_ms}ms and was rejected (VC001); final=${final} (no lost update)"

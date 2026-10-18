@@ -11,7 +11,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(30);
+select plan(34);
 
 -- Grant the granular commerce + execution caps (also exercises the non-org.manage
 -- path). Owners already qualify via the org.manage fallback in the helpers.
@@ -39,6 +39,7 @@ create temp table _p as select id as pid, version as pv from public.products whe
 grant select on _p to authenticated, service_role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select public.product_audiences_set((select pid from _p), array['showroom_dealer','supplier','manufacturer','importer','contractor','engineer','installer_technician','end_consumer']);
 select public.set_product_published((select pid from _p), true, (select pv from _p));
 
 -- Helper: build an accepted quotation for a titled RFQ; returns nothing (state in tables).
@@ -167,6 +168,13 @@ select throws_ok(
   $$ select public.create_project_from_order((select oid from _o1), 'Too early') $$,
   '22023', null, 'a confirmed (not-yet-started) order cannot create a project');
 
+-- B2: a stale expected_version is a VC001 business conflict (not the retryable 40001) and changes nothing.
+select throws_ok(
+  $$ select public.start_order((select oid from _o1), (select ov from _o1) + 1000) $$,
+  'VC001', 'order was modified concurrently', 'a stale start_order is a VC001 conflict');
+select is((select status::text from public.orders where id=(select oid from _o1)),
+  'confirmed', 'the stale start left the order confirmed');
+
 -- Supplier starts the order.
 select lives_ok(
   $$ select public.start_order((select oid from _o1), (select ov from _o1)) $$,
@@ -211,6 +219,11 @@ select is((select count(*)::int from public.projects where id=(select prid from 
 -- Project completion → PROJECT COMPLETED (and the order completes with it)
 -- ===========================================================================
 set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}';
+select throws_ok(
+  $$ select public.activate_project((select prid from _prj), (select prv from _prj) + 1000) $$,
+  'VC001', 'project was modified concurrently', 'a stale activate_project is a VC001 conflict');
+select is((select status::text from public.projects where id=(select prid from _prj)),
+  'planned', 'the stale activation left the project planned');
 select lives_ok(
   $$ select public.activate_project((select prid from _prj), (select prv from _prj)) $$,
   'the executing org activates the project');

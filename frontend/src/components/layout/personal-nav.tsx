@@ -27,6 +27,7 @@ import {
   StarIcon,
   UsersIcon,
   SettingsIcon,
+  TagIcon,
 } from "@/components/ui/icons";
 
 /**
@@ -64,6 +65,7 @@ import {
 
 const ICONS: Record<PersonalNavKey, ComponentType<{ size?: number }>> = {
   home: HomeIcon,
+  offers: TagIcon,
   profile: UserIcon,
   // The same glyph the workspace Points module uses — one feature, one mark.
   points: GaugeIcon,

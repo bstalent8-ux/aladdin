@@ -49,6 +49,22 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   "marketplaceSeller.imports.chooseImages",
   "marketplaceSeller.imports.errors.format",
   "marketplaceSeller.imports.errors.unreadable",
+  // Showroom/Installer entry pages: the provider brand names (Google, Facebook)
+  // stay as the providers write them, and the email sample is a literal address.
+  "entryAuth.continueWithGoogle",
+  "entryAuth.continueWithFacebook",
+  "entryAuth.oauthConsentPrefix",
+  "entryAuth.emailPlaceholder",
+  "entryAuth.error.oauth",
+  // Admin: a permission VOCABULARY token ("resource.action" is the literal shape
+  // of every permission key, e.g. users.read) and the fixed date-entry FORMAT
+  // hint (DD/MM/YYYY — the field is LTR by design, so the hint stays literal).
+  "admin.preview.staff.subtitle",
+  "admin.preview.staff.rbacNote",
+  "admin.preview.dateInput.placeholder",
+  "admin.preview.dateInput.invalid",
+  // The same literal format hints (DD/MM/YYYY, HH:mm) in the follow-up due-time error.
+  "admin.preview.ops.error.dueInvalid",
   "auth.emailPlaceholder",
   "authPasswordPreview.emailPlaceholder",
   // Illustrative bad-pattern examples ("aaaa", "1234") inside an otherwise
@@ -58,12 +74,21 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   // A KEYCAP legend, not prose. The Enter key is engraved "Enter" on Arabic
   // keyboards too, so translating it would name a key the user cannot find.
   "search.enter",
+  // Own Products: "SPC" is the product category's own name (the requested Arabic label is
+  // "ارضيات SPC"), "PNT-001" is a sample product code, and JPG/PNG/WebP are image format names.
+  "commerce.canonicalCategories.spc_flooring",
+  "showroomProducts.fields.codeHint",
+  "showroomProducts.images.errorType",
+  // Purchase request reference images: the accepted image format names (JPEG / PNG / WebP).
+  "purchaseRequests.errors.imageType",
+  "showroomProducts.fields.colorHex",
   // A FILE FORMAT NAME. "PDF" is written PDF in Arabic — it is the name of the
   // format, not a word — and transliterating it would tell a reader less about
   // the file they are looking at, not more.
   "certificates.fileType.pdf",
   // Same reasoning, for the avatar upload's accepted image formats.
   "profileIdentity.avatar.errorType",
+  "showroomSettings.image.errorType",
   // HDF is a board-material name, written HDF in Arabic trade usage.
   "onboarding.professional.specializations.hdf_flooring_installation",
 ]);

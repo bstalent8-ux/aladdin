@@ -150,7 +150,7 @@ begin
   if v_fresh >= 10 then
     raise exception 'mp:too_many_pending_uploads' using errcode = '23514';
   end if;
-  -- NOT 40001: PostgREST would retry a serialization failure. P0001 is an immediate refusal.
+  -- NOT a serialization-failure SQLSTATE (PostgREST would retry it). P0001 is an immediate refusal.
   select count(*) into v_hour from public.marketplace_product_images i
     join public.marketplace_products p on p.id = i.product_id
    where p.seller_organization_id = v_org and i.created_at > now() - interval '1 hour';

@@ -592,7 +592,7 @@ begin
     -- a replay of an already-applied key is not a conflict
     if not exists (select 1 from public.marketplace_stock_movements
                    where seller_organization_id = v_org and idempotency_key = 'seller:' || p_idempotency_key) then
-      -- NOT 40001: PostgREST transparently retries serialization failures, which
+      -- NOT a serialization-failure SQLSTATE: PostgREST transparently retries those, which
       -- would turn this immediate refusal into a long hang.
       raise exception 'mp:stock_changed' using errcode = 'P0001';
     end if;

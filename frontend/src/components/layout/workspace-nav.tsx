@@ -38,6 +38,7 @@ import {
   ChevronDownIcon,
   GlobeIcon,
   BuildingIcon,
+  TagIcon,
 } from "@/components/ui/icons";
 import type { NavKey, NavSection } from "@/lib/nav/modules";
 import { allowedNavSections, navLabelKey } from "@/lib/nav/modules";
@@ -61,6 +62,7 @@ const ITEMS: Record<NavKey, Item> = {
   purchaseRequests: { href: "/b2b/rfqs", key: "nav.purchaseRequests", exact: false, Icon: ShoppingBagIcon },
   offers: { href: "/b2b/quotations", key: "nav.offers", exact: false, Icon: InboxIcon },
   orders: { href: "/b2b/orders", key: "nav.orders", exact: false, Icon: ClipboardIcon },
+  productOffers: { href: "/b2b/offers", key: "nav.productOffers", exact: false, Icon: TagIcon },
   catalog: { href: "/b2b/catalog", key: "nav.catalog", exact: false, Icon: SearchIcon },
   saved: { href: "/b2b/saved", key: "nav.saved", exact: false, Icon: BookmarkIcon },
 

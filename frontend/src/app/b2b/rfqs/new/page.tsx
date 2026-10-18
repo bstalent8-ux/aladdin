@@ -31,7 +31,7 @@ export default async function NewRfqPage({
     );
   }
 
-  const product = await getCatalogProduct(supabase, sp.product);
+  const product = await getCatalogProduct(supabase, org.organizationId, sp.product);
   if (!product || !product.id || !product.name || !product.organization_id || !product.supplier_name) {
     notFound();
   }

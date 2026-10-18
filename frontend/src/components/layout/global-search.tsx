@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { isAdminPaletteRoute, requestAdminPalette } from "@/lib/admin/palette-bridge";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/ui/cn";
 import { allowedNavSections, navLabelKey, type NavKey } from "@/lib/nav/modules";
@@ -39,6 +40,7 @@ import {
   CommandIcon,
   EnterKeyIcon,
   XIcon,
+  TagIcon,
 } from "@/components/ui/icons";
 
 /**
@@ -74,6 +76,7 @@ const NAV_ICONS: Record<NavKey, ComponentType<{ size?: number }>> = {
   purchaseRequests: ShoppingBagIcon,
   offers: InboxIcon,
   orders: ClipboardIcon,
+  productOffers: TagIcon,
   catalog: SearchIcon,
   saved: BookmarkIcon,
   suppliers: TruckIcon,
@@ -106,6 +109,7 @@ const NAV_HREFS: Record<NavKey, string> = {
   purchaseRequests: "/b2b/rfqs",
   offers: "/b2b/quotations",
   orders: "/b2b/orders",
+  productOffers: "/b2b/offers",
   catalog: "/b2b/catalog",
   saved: "/b2b/saved",
   suppliers: "/b2b/suppliers",
@@ -325,12 +329,20 @@ export function GlobalSearch({
 
   const close = useCallback(() => setOpen(false), []);
 
+  // Inside Admin Preview the header search IS the Admin palette (one entry point).
+  const pathname = usePathname();
+  const adminRoute = isAdminPaletteRoute(pathname);
+
   const openPalette = useCallback(() => {
+    if (adminRoute) {
+      requestAdminPalette("open");
+      return;
+    }
     setQuery("");
     setHits([]);
     setActive(0);
     setOpen(true);
-  }, []);
+  }, [adminRoute]);
 
   // Ctrl/Cmd+K anywhere in the authenticated product. Escape is handled here too
   // so the palette closes even when focus has left the input.
@@ -338,6 +350,10 @@ export function GlobalSearch({
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        if (adminRoute) {
+          requestAdminPalette("toggle");
+          return;
+        }
         setOpen((current) => {
           if (current) return false;
           setQuery("");
@@ -350,7 +366,7 @@ export function GlobalSearch({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [adminRoute]);
 
   useEffect(() => setMounted(true), []);
 

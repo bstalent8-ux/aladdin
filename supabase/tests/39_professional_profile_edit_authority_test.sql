@@ -16,7 +16,7 @@
 --      track — no canonical persona, no declared type, because this very call is
 --      what writes it — is still admitted. Dropping that branch would have broken
 --      the flow the gate was written for.
---   3. A consumer, a trainer/trainee, a business-only identity and a signed-out
+--   3. Consumers (personal accounts), a business-only identity and a signed-out
 --      caller are refused exactly as before.
 --   4. The predicate cannot bootstrap itself: the declared type is written ONLY
 --      by this function, so a refused caller gains nothing to be recognised by.
@@ -27,12 +27,12 @@
 --                → THE seeded case the old gate blocked
 --   70000005 — null canonical, no track → given a DECLARED type here
 --   70000003 — made a consumer here (track = consumer)
---   70000004 — made a trainer here (canonical persona, not a professional one)
+--   70000004 — made a personal account here (canonical persona, not a professional one)
 --   11111111 — null canonical, no track, no onboarding row (business-only)
 create extension if not exists pgtap;
 
 begin;
-select plan(35);
+select plan(34);
 
 update auth.users set email_confirmed_at = now()
   where id in ('70000009-0000-4000-8000-000000000009', '70000005-0000-4000-8000-000000000005',
@@ -47,12 +47,12 @@ values ('70000005-0000-4000-8000-000000000005', 'installer_technician', now())
 on conflict (user_id) do update
   set prof_concrete_type = 'installer_technician', professional_completed_at = now();
 
--- A consumer, and a trainer. Neither is an individual professional for this flow.
+-- Two consumers (personal accounts). Neither is an individual professional for this flow.
 insert into public.onboarding_progress (user_id, selected_track)
 values ('70000003-0000-4000-8000-000000000003', 'consumer')
 on conflict (user_id) do update set selected_track = 'consumer';
 
-update public.users set primary_account_type = 'trainer'
+update public.users set primary_account_type = 'end_consumer'
   where id = '70000004-0000-4000-8000-000000000004';
 
 -- ===========================================================================
@@ -75,7 +75,7 @@ select ok(app.is_professional_persona('70000009-0000-4000-8000-000000000009'),
 select ok(app.is_professional_persona('70000005-0000-4000-8000-000000000005'),
   'a DECLARED professional is recognised while the upgrade is under review');
 select ok(not app.is_professional_persona('70000004-0000-4000-8000-000000000004'),
-  'a trainer is not an individual professional');
+  'a non-professional (personal account) is not an individual professional');
 select ok(not app.is_professional_persona('11111111-1111-4111-8111-111111111111'),
   'a business-only identity is not a professional');
 select ok(not app.is_professional_persona(null),
@@ -249,13 +249,6 @@ select throws_ok(
        null, null, null, null, null, null, null, false, null, null, null) $$,
   '22023', null,
   'end_consumer is still not a valid individual professional type');
-
-select throws_ok(
-  $$ select public.individual_save_professional(
-       'trainer'::public.persona_type, 'x', 1::smallint,
-       null, null, null, null, null, null, null, false, null, null, null) $$,
-  '22023', null,
-  'trainer is still not a valid individual professional type');
 
 select throws_ok(
   $$ select public.individual_save_professional(

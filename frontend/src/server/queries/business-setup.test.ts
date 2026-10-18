@@ -7,10 +7,10 @@ vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), c
 
 const mocks = vi.hoisted(() => ({
   loadWorkspaces: vi.fn(),
-  loadPlatformRole: vi.fn(),
+  loadIsAdminStaff: vi.fn(),
 }));
 vi.mock("@/server/queries/workspace", () => ({ loadWorkspaces: mocks.loadWorkspaces }));
-vi.mock("@/server/queries/platform", () => ({ loadPlatformRole: mocks.loadPlatformRole }));
+vi.mock("@/server/queries/platform", () => ({ loadIsAdminStaff: mocks.loadIsAdminStaff }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: async () => ({}) }));
 
 import { computeMandatoryBusinessSetup } from "./business-setup";
@@ -46,7 +46,7 @@ const business = { kind: "business", organizationId: "o1", name: "Nile", orgType
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.loadWorkspaces.mockResolvedValue({ entries: [], context: null });
-  mocks.loadPlatformRole.mockResolvedValue(null);
+  mocks.loadIsAdminStaff.mockResolvedValue(false);
 });
 
 describe("computeMandatoryBusinessSetup", () => {
@@ -86,7 +86,7 @@ describe("computeMandatoryBusinessSetup", () => {
   });
 
   it("not required for platform staff", async () => {
-    mocks.loadPlatformRole.mockResolvedValue("administrator");
+    mocks.loadIsAdminStaff.mockResolvedValue(true);
     const { supabase } = client({ progress: { selected_track: "business", selected_org_type: "showroom_dealer" } });
     await expect(computeMandatoryBusinessSetup(supabase)).resolves.toEqual({ required: false, orgType: null });
   });

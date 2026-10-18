@@ -2,7 +2,7 @@
 
 import { getServerSupabase } from "@/lib/supabase/server";
 import { loadWorkspaceContext } from "@/server/queries/context";
-import { loadPlatformRole, isPlatformStaff } from "@/server/queries/platform";
+import { loadIsAdminStaff } from "@/server/queries/platform";
 import { sanitizeSearchTerm } from "@/server/queries/sales";
 import { commerceStance, defaultCommerceSide } from "@/lib/workspace/supply-side";
 import {
@@ -88,7 +88,7 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchHit[]> {
         : none,
       groups.has("catalog")
         ? supabase
-            .from("catalog_published_products")
+            .rpc("catalog_products", { p_org_id: orgId })
             .select("id, name, supplier_name, sku")
             .neq("organization_id", orgId)
             .or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like}`)
@@ -253,8 +253,7 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchHit[]> {
     const supplySide =
       o.org_type === "supplier" ||
       o.org_type === "manufacturer" ||
-      o.org_type === "importer" ||
-      o.org_type === "wholesaler";
+      o.org_type === "importer";
     const base = supplySide ? "/b2b/suppliers" : "/b2b/institutions";
     hits.push({
       id: o.id,
@@ -279,5 +278,5 @@ export async function searchWorkspace(rawQuery: string): Promise<SearchHit[]> {
  */
 export async function canSearchAdmin(): Promise<boolean> {
   const supabase = await getServerSupabase();
-  return isPlatformStaff(await loadPlatformRole(supabase));
+  return loadIsAdminStaff(supabase);
 }

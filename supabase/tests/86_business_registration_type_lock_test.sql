@@ -200,12 +200,13 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"86000010-0000-4000-8000-000000000086","role":"authenticated"}';
 select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 First LLC', p_display_name => 'P86 First', p_org_type => 'supplier') $$, '8a. first business saved');
 select lives_ok($$ select public.business_draft_submit(null) $$, '8b. first business created');
-select lives_ok($$ select public.business_draft_save(p_legal_name => 'P86 Second LLC', p_display_name => 'P86 Second', p_org_type => 'importer') $$,
-  '8c. the same user may now save a DIFFERENT approved type (a second business)');
-select lives_ok($$ select public.business_draft_submit(null) $$, '8d. ...and create it');
+select throws_ok($$ select public.business_draft_save(p_legal_name => 'P86 Second LLC', p_display_name => 'P86 Second', p_org_type => 'importer') $$,
+  '42501', 'an organization application is not available right now',
+  '8c. Showroom application model: a second business needs the FIRST to be approved (type lock itself is not global)');
+select is(public.my_organization_application_slot(), 'first_pending', '8d. the first application is the one open slot');
 reset role;
 select is((select string_agg(org_type::text, ',' order by org_type::text) from public.organizations where created_by = '86000010-0000-4000-8000-000000000086'),
-  'importer,supplier', '8e. both organizations exist with their own types');
+  'supplier', '8e. exactly the first organization exists, with its registered type');
 set local role authenticated;
 
 -- ===========================================================================

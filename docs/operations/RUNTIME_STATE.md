@@ -7,6 +7,28 @@
 - Local data: Decore Store holds 795 draft products (786 from the real file + 9 QA), 0 published; `media_verification_ready=false`.
 - Details and acceptance numbers: `docs/marketplace/catalog-launch.md`.
 
+## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
+
+- Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
+- Migration `20261017134139_account_entry_allowed.sql` applied to hosted Supabase `aladdin-staging` (version `20261017134139`); anon has no execute grant. The owner configured the Google and Facebook providers in Supabase.
+- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. `/legal/terms` is still the placeholder. [Details](../frontend/legal-pages.md).
+- Validation: typecheck clean, lint 0 errors, Vitest 3,793 passed, production build passed. pgTAP and E2E not run (no Docker here).
+
+## Admin Core dashboard promoted onto the Admin routes — 2026-10-17
+
+- Branch `claude/integrate-admin-dashboard-h17a9d` from `main` @ `8bde19c` (PR #85 merged): merges `feature/admin-core-user-org-operations-redacted` (head `f2b2382`) and moves the dashboard from `/admin/preview/*` onto `/admin`, `/admin/users`, `/admin/organizations`, `/admin/review`, `/admin/points`, `/admin/staff`, `/admin/analytics`, `/admin/audit`, `/admin/settings`. `/admin/preview/*` 308-redirects to the same path without `/preview`.
+- `/admin/verifications` (the classic page) stays and stays in the rail: verification, referral and organization approvals are still decided there (Review Center Approve/Reject remain Preview dialogs). The per-area banner still says which areas are live, live-read or Preview.
+- No migration or schema change: main already carries the ten Admin migrations byte-identical (PR #74); `supabase/` and `database.types.ts` equal `main`.
+- Validation: typecheck clean, lint 0 errors, Vitest 284 files / 3,749 passed, production build passed. E2E and hosted smoke not run in this session.
+
+## Isolated showroom full-stack continuation — 2026-10-06
+
+- Worktree `D:/projects/aladdin-wt-showroom-fullstack-v2`, branch `feature/showroom-fullstack-v2`, base `origin/main` at `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`.
+- Phase 0 audit only; application code, routes, migrations and production behavior unchanged. [Audit and continuation plan](../frontend/showroom-fullstack-v2.md).
+- Git main includes installer production foundation PR 71 and workspace-switch correction PR 72. The older PR 70 status below is historical, not the current local Git state; remote deployment was not checked.
+- Existing dirty showroom preview remains untouched in its original worktree. No showroom files ported yet. Next: Phase 1 authenticated isolated shell and workspace adapter, then phases 2–10.
+- Port 3023 unavailable during discovery. Docker has multiple other active project stacks; none reset/stopped. Isolated DB runtime still to be configured. No push, PR, deployment or hosted DB action.
+
 ## Current continuation — 2026-10-05: installer UI final polish on PR #70
 
 - Installer UI final polish is on **PR #70** (`feature/installer-ui-final-polish` → `main`), PR head `b696ac38f095769456f6afefe2bca9f087d7c908`. It is open and not yet merged.

@@ -5,12 +5,14 @@ import { PhoneField } from "@/components/ui/phone-field";
 import { splitE164 } from "@/lib/contact/phone";
 import { SHOWROOM_ACTIVITIES, showroomIdentityError, businessAddressSchema, businessAddressWords, businessDetailsSchema, type SHOWROOM_ACTIVITIES_TYPE } from "@/lib/onboarding/business-details";
 import { useI18n } from "@/lib/i18n/context";
-import { Input, Textarea, Select, LabeledField } from "@/components/ui/controls";
+import { Input, Select, Textarea, LabeledField } from "@/components/ui/controls";
+import { CountedTextarea } from "@/components/ui/counted-textarea";
+import { DESCRIPTION_MAX_CHARS, isWithinDescriptionLimit } from "@/lib/text/description-limit";
 import { InlineError } from "@/components/ui/primitives";
 import { WizardShell, WizardProgress, ChoiceCard, FlowActions, SavedHint } from "@/features/onboarding/wizard";
 import { saveBusiness, submitBusiness, type BusinessInput } from "@/server/actions/business-onboarding";
 import type { BusinessAnswers } from "@/server/queries/onboarding";
-import { BUSINESS_ORG_TYPES, businessOrgTypeFromAccountType, type BusinessOrgType } from "@/lib/onboarding/account-types";
+import { APPLICATION_ORG_TYPES, applicationOrgTypeFrom, type ApplicationOrgType } from "@/lib/onboarding/account-types";
 import { GOVERNORATE_OPTIONS, type LocationOption } from "@/lib/installer/location-data";
 import { businessCitiesOf, CUSTOM_CITY_MAX, CUSTOM_CITY_MIN } from "@/lib/location/business-location";
 
@@ -45,7 +47,7 @@ type BState = {
   detailedAddress: string;
   legalName: string;
   displayName: string;
-  orgType: BusinessOrgType | null;
+  orgType: ApplicationOrgType | null;
   description: string;
   governorate: string | null;
   /** A catalogue city key of `governorate`, or null. */
@@ -60,10 +62,13 @@ export function BusinessFlow({
   answers,
   presetOrgType,
   draftId: initialDraftId,
+  typeChoices = APPLICATION_ORG_TYPES.filter((k) => k !== "contractor_company"),
 }: {
   answers: BusinessAnswers;
-  presetOrgType: BusinessOrgType | null;
+  presetOrgType: ApplicationOrgType | null;
   draftId: string | null;
+  /** The org types this applicant may apply for (a Contractor: only a contractor organization). */
+  typeChoices?: readonly ApplicationOrgType[];
 }) {
   const { t, locale } = useI18n();
   const [pending, start] = useTransition();
@@ -76,7 +81,7 @@ export function BusinessFlow({
     detailedAddress: answers.detailedAddress ?? "",
     legalName: answers.legalName ?? "",
     displayName: answers.displayName ?? "",
-    orgType: businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType,
+    orgType: applicationOrgTypeFrom(answers.orgType) ?? presetOrgType,
     description: answers.description ?? "",
     governorate: answers.governorate,
     city: answers.city,
@@ -88,7 +93,7 @@ export function BusinessFlow({
 
   // The type step exists only when the type is still unknown. A person who chose
   // "Showroom" to sign up is never asked what kind of business they are building.
-  const typePreselected = Boolean(businessOrgTypeFromAccountType(answers.orgType) ?? presetOrgType);
+  const typePreselected = Boolean(applicationOrgTypeFrom(answers.orgType) ?? presetOrgType);
   const steps: Step[] = typePreselected
     ? ["identity", "location", "branch", "review"]
     : ["identity", "type", "location", "branch", "review"];
@@ -214,14 +219,18 @@ export function BusinessFlow({
           </LabeledField>
           {showroom ? <LabeledField label={t("onboarding.business.identity.activityLabel")} htmlFor="bactivity"><Select id="bactivity" required value={state.activityType ?? ""} onChange={e => set({activityType: e.target.value as SHOWROOM_ACTIVITIES_TYPE})}><option value="">{t("onboarding.business.location.choose")}</option>{SHOWROOM_ACTIVITIES.map(value => <option key={value} value={value}>{t(`onboarding.business.activities.${value}`)}</option>)}</Select></LabeledField> : null}
           <LabeledField label={t("onboarding.business.identity.descriptionLabel")} htmlFor="bdesc" optional={t("common.optional")}>
-            <Textarea
-              aria-invalid={state.description.trim().length > 250 || undefined}
+            <CountedTextarea
               id="bdesc"
               value={state.description}
-              maxLength={250}
+              max={DESCRIPTION_MAX_CHARS}
+              unitLabel={t("showroomSettings.description.chars")}
+              counterTestId="business-description-count"
               placeholder={t("onboarding.business.identity.descriptionPlaceholder")}
               onChange={(e) => set({ description: e.target.value })}
             />
+            {isWithinDescriptionLimit(state.description) ? null : (
+              <p role="alert" className="mt-1 text-label text-danger">{t("onboarding.error.descriptionTooLong")}</p>
+            )}
           </LabeledField>
           <p className="text-label text-fg-secondary text-end" dir="ltr" aria-live="polite">{state.description.length} / 250</p>
           {state.description.trim().length > 250 ? <InlineError>{t("onboarding.error.descriptionTooLong")}</InlineError> : null}
@@ -236,7 +245,7 @@ export function BusinessFlow({
       {current === "type" ? (
         <LabeledField label={t("onboarding.business.type.label")} htmlFor="btype">
           <div id="btype" className="grid gap-2.5 tablet:grid-cols-2">
-            {BUSINESS_ORG_TYPES.map((k) => (
+            {typeChoices.map((k) => (
               <ChoiceCard
                 key={k}
                 selected={state.orgType === k}

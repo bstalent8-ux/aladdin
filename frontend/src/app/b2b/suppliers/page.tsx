@@ -55,6 +55,7 @@ export default async function DistributorsPage({
   // one bounded by the page rather than by the size of the platform's catalog.
   const facets = await organizationProductFacets(
     supabase,
+    org.organizationId,
     rows.map((r) => r.id).filter((id): id is string => !!id),
   );
 

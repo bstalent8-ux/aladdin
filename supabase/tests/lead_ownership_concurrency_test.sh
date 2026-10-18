@@ -5,7 +5,7 @@ set -euo pipefail
 # locked on `version` and cannot lose an update. T1 edits the lead (v1->v2) and
 # holds the FOR UPDATE lock ~3s; T2 enters set_lead_source_branch with
 # expected_version=1, blocks on the lock, then re-reads the committed (bumped)
-# version and fails with 40001 — so only T1's edit applies. The single-session
+# version and fails with VC001 — so only T1's edit applies. The single-session
 # pgTAP test cannot prove this stale-after-commit serialization.
 
 db_container="$(docker ps --filter 'name=supabase_db_aladdin' --format '{{.Names}}' | head -n 1)"
@@ -84,4 +84,4 @@ if [[ "${final}" != "2|campaign" ]]; then
   echo "expected final version|source = 2|campaign (only T1 applied), got ${final}" >&2; exit 1
 fi
 
-echo "lead-ownership concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (40001); final=${final} (no lost update)"
+echo "lead-ownership concurrency PASS: second edit waited ${elapsed_ms}ms and was rejected (VC001); final=${final} (no lost update)"

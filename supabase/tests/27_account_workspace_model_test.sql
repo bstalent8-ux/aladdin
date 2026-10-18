@@ -14,7 +14,13 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(37);
+select plan(38);
+-- rc2: this fixture activates / approves showrooms directly, bypassing the seller-readiness triggers PR #84 added
+-- (showroom_review_complete / showroom_activation_complete / showroom_product_publish_complete). They are disabled for this
+-- transaction only (rolled back with it); the readiness rules themselves are asserted in tests 92-94.
+alter table public.verifications disable trigger showroom_review_complete;
+alter table public.organizations disable trigger showroom_activation_complete;
+alter table public.products disable trigger showroom_product_publish_complete;
 
 -- Ahmed (44…) is our multi-business identity: a personal ENGINEER who will also
 -- own two businesses of different types. Layla (11…) is an unrelated caller.
@@ -174,6 +180,15 @@ select throws_ok(
 -- ===========================================================================
 -- E. A SECOND, different draft makes a SECOND organization
 -- ===========================================================================
+-- The slot rule (20261015090028): a second organization needs the FIRST to be approved.
+select throws_ok(
+  $$ select public.business_draft_save(p_display_name => 'AH Import', p_org_type => 'importer') $$,
+  '42501', null, 'E: a second business is refused while the first is not approved');
+reset role;
+update public.organizations set status = 'active', is_verified = true
+ where created_by = '44444444-4444-4444-8444-444444444444';
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated"}';
 select isnt(public.business_draft_save(
   p_legal_name => 'AH Import LLC', p_display_name => 'AH Import', p_org_type => 'importer',
   p_primary_branch_name => 'Port Said'), null, 'E: the same user can open a NEW business draft');

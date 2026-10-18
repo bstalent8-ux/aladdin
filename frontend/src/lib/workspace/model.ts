@@ -32,6 +32,12 @@ export type WorkspaceEntry =
       name: string;
       orgType: string | null;
       relationship: Relationship;
+      /**
+       * `false` while the organization is still an APPLICATION awaiting Admin approval. Such an organization is a LIMITED internal
+       * workspace (profile, settings, draft products): the database - not this flag - withholds every commercial authority. Absent
+       * is treated as NOT approved (fail closed).
+       */
+      isApproved?: boolean;
     };
 
 export type WorkContext = { kind: "personal" } | { kind: "business"; organizationId: string };
@@ -65,13 +71,14 @@ export function resolveWorkContext(
   if (named) return { kind: "business", organizationId: named.organizationId };
 
   if (personal) return { kind: "personal" };
-  if (businesses[0]) return { kind: "business", organizationId: businesses[0].organizationId };
+  const first = approvedFirst(businesses)[0];
+  if (first) return { kind: "business", organizationId: first.organizationId };
   return null;
 }
 
 /**
  * Deterministic landing. Platform authority wins outright (it is granted by
- * `platform_role_grants`, never by an account type). Otherwise the caller lands in
+ * admin_role_assignments via admin_my_access(), never by an account type). Otherwise the caller lands in
  * the work context they selected; a business-only identity therefore reaches /b2b
  * and never a fake, empty Personal home, and a personal identity never lands in
  * the Sales cockpit.
@@ -100,5 +107,10 @@ export function resolveActiveBusinessId(
 ): string | null {
   const businesses = businessEntries(entries);
   const named = cookieValue ? businesses.find((b) => b.organizationId === cookieValue) : undefined;
-  return named?.organizationId ?? businesses[0]?.organizationId ?? null;
+  return named?.organizationId ?? approvedFirst(businesses)[0]?.organizationId ?? null;
+}
+
+/** Approved organizations come before pending applications, so an approved business stays the default workspace. */
+export function approvedFirst<T extends { isApproved?: boolean }>(businesses: T[]): T[] {
+  return [...businesses].sort((a, b) => Number(b.isApproved === true) - Number(a.isApproved === true));
 }

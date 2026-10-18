@@ -302,7 +302,7 @@ test("complete showroom journey: optional address, admin activation and seller a
  await page.locator('#bgov').selectOption("cairo");
  await expect(page.getByRole("button",{name:"متابعة",exact:true})).toBeDisabled();
  await page.locator('#bcity').selectOption("maadi");await expect(page.locator('#baddress')).toHaveValue("");
- await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"إنشاء النشاط التجاري",exact:true}).click();await expect(page).toHaveURL(/\/b2b$/);
+ await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"متابعة",exact:true}).click();await page.getByRole("button",{name:"إرسال للمراجعة",exact:true}).click();await expect(page).toHaveURL(/\/showroom\/home$/);
  const owned=await admin.from("organizations").select("id,status,is_verified,contact_phone,contact_email").eq("created_by",uid).single();expect(owned.error).toBeNull();const orgId=z.string().uuid().parse(owned.data!.id);expect(owned.data).toMatchObject({status:"pending_verification",is_verified:false,contact_phone:"+201012345678",contact_email:"contact@example.test"});
  const branch=await admin.from("branches").select("id,address_ar,governorate_key,city_key").eq("organization_id",orgId).single();expect(branch.data).toMatchObject({address_ar:null,governorate_key:"cairo",city_key:"maadi"});
  const cookieJar=await page.context().cookies();
@@ -315,16 +315,17 @@ test("complete showroom journey: optional address, admin activation and seller a
  const reviewerUser=await admin.auth.admin.createUser({email:adminEmail,password,email_confirm:true});expect(reviewerUser.error).toBeNull();const reviewerId=z.string().uuid().parse(reviewerUser.data.user?.id);createdUsers.push(reviewerId);reviewerFixtures.add(reviewerId);
  sql("update public.users set status='active' where id='"+reviewerId+"'; insert into public.admin_role_assignments(user_id,role_id) select '"+reviewerId+"',id from public.admin_roles where key='super_admin';");
  const reviewer=createClient(local.NEXT_PUBLIC_SUPABASE_URL,local.NEXT_PUBLIC_SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});expect((await reviewer.auth.signInWithPassword({email:adminEmail,password})).error).toBeNull();
- const verificationId=randomUUID();sql("insert into public.verifications(id,subject_type,organization_id,verification_type,status,submitted_at) values('"+verificationId+"','organization','"+orgId+"','organization','submitted',now());");
+ // Showroom application model: submitting the wizard already opened this organization's review, so the spec reviews THAT row.
+ const openReview=await admin.from("verifications").select("id").eq("organization_id",orgId).eq("verification_type","organization").eq("status","submitted").single();expect(openReview.error).toBeNull();const verificationId=z.string().uuid().parse(openReview.data!.id);
  expect((await caller.rpc("apply_organization_verification",{p_verification_id:verificationId})).error?.code).toBe("42501");
  expect((await reviewer.rpc("review_start",{p_verification_id:verificationId})).error).toBeNull();
  expect((await reviewer.rpc("review_approve",{p_verification_id:verificationId,p_grant_public_listing:false})).error?.code).toBe("22023");
- await page.goto("/b2b/settings");await page.getByRole("button",{name:"تعديل",exact:true}).last().click();await page.locator('#branch-address-ar').fill("١٠ شارع المعرض — المعادي، القاهرة");await page.getByRole("button",{name:"حفظ التغييرات",exact:true}).click();
+ await page.goto("/showroom/settings?section=branches");await page.waitForLoadState("networkidle");await page.getByRole("button",{name:"تعديل",exact:true}).first().click();await page.locator('#branch-address-ar').fill("١٠ شارع المعرض — المعادي، القاهرة");await page.getByRole("button",{name:"حفظ التغييرات",exact:true}).click();
  await expect.poll(async()=> (await admin.from("branches").select("address_ar").eq("id",branch.data!.id).single()).data?.address_ar).toBe("١٠ شارع المعرض — المعادي، القاهرة");
  expect((await admin.from("organizations").select("status,is_verified").eq("id",orgId).single()).data).toEqual({status:"pending_verification",is_verified:false});
  expect((await caller.rpc("set_product_published",{p_product_id:productId,p_published:true,p_expected_version:1})).error?.code).toBe("42501");
  expect((await reviewer.rpc("review_approve",{p_verification_id:verificationId,p_grant_public_listing:false})).error).toBeNull();expect((await reviewer.rpc("apply_organization_verification",{p_verification_id:verificationId})).error).toBeNull();
- expect((await caller.rpc("set_product_published",{p_product_id:productId,p_published:true,p_expected_version:1})).error).toBeNull();
+ expect((await caller.rpc("product_audiences_set",{p_product_id:productId,p_audiences:["supplier"]})).error).toBeNull();expect((await caller.rpc("set_product_published",{p_product_id:productId,p_published:true,p_expected_version:1})).error).toBeNull();
  expect((await admin.from("organizations").select("status,is_verified").eq("id",orgId).single()).data).toEqual({status:"active",is_verified:true});
  expect((await admin.from("profiles").select("phone_e164").eq("user_id",uid).single()).data?.phone_e164).toBe(phone);
  await reviewer.auth.signOut();

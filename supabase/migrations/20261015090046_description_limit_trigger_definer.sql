@@ -1,0 +1,13 @@
+-- B3-C: the 250-character direct-write safeguard failed for every direct client write.
+--
+-- app.enforce_description_limit() (20261025090001) runs as the CALLER and calls app.description_norm(), whose
+-- EXECUTE was revoked from public. So an authenticated user updating their own profile bio through the table grant
+-- got "permission denied for function description_norm" (42501) for ANY value, instead of the limit check; a 251-character
+-- value was "refused" only by accident and a valid 250-character value was refused too. The application writes these
+-- columns through security-definer RPCs (which run as the owner and are unaffected), so no UI path broke, but the
+-- granted direct path (profiles.bio / headline) was unusable and the safeguard never reached its own rule.
+--
+-- Fix: the trigger function becomes SECURITY DEFINER with an empty search_path (it only reads NEW/OLD and calls
+-- pure helpers). No grant is added; app.description_norm stays closed to clients. The 250 rule, the "unchanged legacy
+-- value is never blocked" rule and the errcode 22023 are untouched.
+alter function app.enforce_description_limit() security definer;

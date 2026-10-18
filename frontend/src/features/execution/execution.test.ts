@@ -15,6 +15,7 @@ function resolve(obj: unknown, key: string): unknown {
 
 describe("mapExecutionError", () => {
   it("maps optimistic-concurrency conflicts", () => {
+    expect(mapExecutionError({ code: "VC001", message: "quotation was modified concurrently" })).toBe("execution.errors.conflict");
     expect(mapExecutionError({ code: "40001" })).toBe("execution.errors.conflict");
     expect(mapExecutionError({ message: "order was modified concurrently" })).toBe(
       "execution.errors.conflict",
@@ -58,6 +59,7 @@ describe("mapExecutionError", () => {
 
   it("only ever returns keys that exist in BOTH message catalogs", () => {
     const samples = [
+      { code: "VC001" },
       { code: "40001" },
       { message: "an order already exists for this quotation" },
       { message: "a project already exists for this order" },

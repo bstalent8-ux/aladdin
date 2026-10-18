@@ -407,7 +407,7 @@ select throws_ok(
   'P0001', null, 'audit insertion failure aborts account-upgrade application');
 reset role;
 select is((select primary_account_type::text from public.users
-  where id='33333333-3333-4333-8333-333333333333'), 'interior_designer',
+  where id='33333333-3333-4333-8333-333333333333'), 'engineer',
   'audit failure rolls back the account-type transition');
 select is((select applied_at from public.verifications
   where user_id='33333333-3333-4333-8333-333333333333'), null,
