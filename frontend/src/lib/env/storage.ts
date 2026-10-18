@@ -16,7 +16,7 @@ export const storageEnvSchema = z.object({
   // application proxy (server/storage/delivery.ts) remains the path when off.
   MEDIA_EDGE_DELIVERY_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   // Mode C (published portfolio, listed avatars) can be held back independently.
-  MEDIA_EDGE_PUBLIC_ENABLED: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
+  MEDIA_EDGE_PUBLIC_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   MEDIA_EDGE_ORIGIN: z.preprocess((value) => value === "" ? undefined : value, z.string().url().optional()),
   MEDIA_EDGE_TICKET_KID: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[a-z0-9]{1,16}$/).optional()),
   MEDIA_EDGE_TICKET_SECRET: optional,

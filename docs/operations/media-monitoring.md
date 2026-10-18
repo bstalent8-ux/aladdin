@@ -49,7 +49,7 @@ Before each run, read the remaining egress figure fresh and run the usage report
 | R2 Class A ops (writes) | > 500k/month (50 % of the free 1M) | Cloudflare dashboard → R2 → Metrics; billing notifications (Owner) |
 | R2 Class B ops (reads) | > 5M/month (50 % of the free 10M); storage > 8 GB of the free 10 GB | Cloudflare dashboard → R2 → Metrics; billing notifications (Owner) |
 | Media Worker 5xx | > 1 % of requests for 5 min, or any Hyperdrive/DB error burst | Workers Observability / Cloudflare Notifications where the plan offers them, otherwise a scheduled poll of the GraphQL Analytics API grouped by status (Owner) |
-| Media Worker 4xx | 401/403 (token verification) > 50/min = abuse or a broken signer; 404 rate > 3× its 7-day median = broken references | Same as above (Owner) |
+| Media Worker 4xx | The Worker answers every denial with 404, so watch the 404 rate: > 3× its 7-day median = a broken ticket signer, abuse or broken references (check Worker logs for the internal reason) | Same as above (Owner) |
 | Worker free-plan limits | > 70 % of 100k requests/day; CPU p99 > 8 ms | Workers analytics (Owner) |
 | Auth request rate | `/auth/v1/user` > 1k/day after the session fix; any day > 3× its 7-day median | Supabase Logs Explorer over `auth_logs` / `edge_logs` (Owner for a schedule) |
 | Revocation canary | any **200** for a deleted (or unpublished) canary object; alert after 1 failure | Scheduled staging probe with a dedicated canary account: upload → fetch 200 → delete → fetch expects **404** right away through the app route and the Worker URL. Runs as a scheduled CI job every 15 min to 1 h (Owner: workflow, secrets and canary account) |
