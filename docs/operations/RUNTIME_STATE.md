@@ -1,5 +1,10 @@
 # Runtime State
 
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
+
 ## Isolated showroom full-stack continuation — 2026-10-06
 
 - Worktree `D:/projects/aladdin-wt-showroom-fullstack-v2`, branch `feature/showroom-fullstack-v2`, base `origin/main` at `a33aa018f0d2d308f9b14d235c4e4ad97b5ef1de`.

@@ -1,5 +1,10 @@
 ## 2026-10-15 — PR84 definitive functional acceptance passed
 
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
+
 Exact committed8be67ba6: isolated GitHub functional run38697762123PASS24/24(0fail,0skip,58.7s), application CI38697762134and fullDB38697762167SUCCESS. All110versions/sixfeatureversions/old+v2RPCs verified; own runner teardown succeeded. Artifacts contain migration hashes and six desktop/mobile screenshots. No uncommitted CAPTCHA files included. Harness corrections preserve last-admin guards, use Node24 and settled action/UI assertions plus counter11; no product code/security weakening, no skipped tests/retries.
 
 Effective live alias and production target both dpl_6F4cLptBtEtR5LwF7mQAneigsc83/projectaladdin-staging/Node24/mainc7963c9. Supabase URLSensitiveSecret cannot be read back; Production and Preview share the configured entry, effective ref/isolation unconfirmed. Protected kkpkg as potentiallylive, read-only0/6versions/old9+submit1/no v2. No hosted mutations/settings/deploy. Full environment map and release gate document exact blockers, staging prerequisites, backup/rollback and beta restrictions; owner has not accepted account-throttle gap. Original14/external7 remain untouched. Local Docker control/API unavailable; no global/shared restart or cleanup. PR staysDraft, do notmerge/deploy/removeworktree. Documentation follow-up changes no tested application/harness.

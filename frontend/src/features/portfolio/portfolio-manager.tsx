@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, InlineError, StatePanel } from "@/components/ui/primitives";
+import { Card, InlineError, StatePanel, ProgressMeter } from "@/components/ui/primitives";
 import { Button, Input, LabeledField, SubmitButton } from "@/components/ui/controls";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
 import { DESCRIPTION_MAX_CHARS, isAcceptableEdit } from "@/lib/text/description-limit";
@@ -337,6 +337,7 @@ function AddWork() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   return (
     <AddPanel label={t("portfolio.add")} title={t("portfolio.form.heading")}>
@@ -353,6 +354,7 @@ function AddWork() {
               setError("portfolio.errors.fileRequired");
               return;
             }
+            setProgress(0);
             setBusy(true);
             setError(null);
             const result = await uploadAsset(
@@ -366,6 +368,7 @@ function AddWork() {
                   size: file.size,
                 }),
               finishPortfolioUpload,
+              setProgress,
             );
             setBusy(false);
             if (!result.ok) {
@@ -385,6 +388,7 @@ function AddWork() {
             <PortfolioDescription id="new-description" initial="" />
           </LabeledField>
           <AssetFileField namespace="portfolio" onPick={setFile} />
+          {busy ? <ProgressMeter value={progress} label={t("portfolio.form.uploading")} /> : null}
           {error ? <InlineError>{t(error)}</InlineError> : null}
           <div className="flex items-center gap-2">
             <Button type="submit" variant="primary" disabled={busy}>

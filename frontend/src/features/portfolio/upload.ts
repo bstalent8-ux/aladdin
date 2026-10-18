@@ -1,6 +1,6 @@
 "use client";
 
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { uploadWithGrant } from "@/lib/storage/browser-upload";
 import {
   validateAssetContent,
   type AssetNamespace,
@@ -51,31 +51,24 @@ export async function uploadAsset(
   file: File,
   start: () => Promise<UploadTicket>,
   finish: (itemId: string) => Promise<{ ok: boolean; code?: string }>,
+  onProgress?: (percent: number) => void,
 ): Promise<UploadOutcome> {
   const head = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
   const valid = validateAssetContent(namespace, { type: file.type, size: file.size }, head);
   if (!valid.ok) return { ok: false, code: valid.code };
 
-  const ticket = await start();
+  let ticket: UploadTicket;
+  try { ticket = await start(); }
+  catch { return { ok: false, code: "assets.errors.uploadFailed" }; }
   if (!ticket.ok) return { ok: false, code: ticket.code };
 
-  const supabase = createBrowserSupabaseClient();
-  const { error } = await supabase.storage
-    .from(ticket.bucket)
-    .uploadToSignedUrl(ticket.objectPath, ticket.token, file, {
-      contentType: file.type,
-      // Named explicitly even though the token already forbids it. A reader of
-      // this call should not have to know that to know the answer.
-      upsert: false,
-    });
+  try {
+    await uploadWithGrant(ticket.grant ?? { provider: "supabase", bucket: ticket.bucket,
+      key: ticket.objectPath, token: ticket.token }, file, onProgress);
+  } catch { return { ok: false, code: "assets.errors.uploadFailed" }; }
 
-  if (error) {
-    // The pending row is left where it is on purpose. It is the record that this
-    // upload was attempted, it is invisible to everyone but its owner, and the
-    // card it produces is how they finish or discard it.
-    return { ok: false, code: "assets.errors.uploadFailed" };
-  }
-
-  const finished = await finish(ticket.itemId);
-  return finished.ok ? { ok: true } : { ok: false, code: finished.code ?? "states.genericRetry" };
+  try {
+    const finished = await finish(ticket.itemId);
+    return finished.ok ? { ok: true } : { ok: false, code: finished.code ?? "states.genericRetry" };
+  } catch { return { ok: false, code: "assets.errors.uploadFailed" }; }
 }

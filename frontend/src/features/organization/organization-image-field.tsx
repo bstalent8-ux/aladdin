@@ -7,10 +7,9 @@ import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/controls";
 import { InlineError, InlineSuccess } from "@/components/ui/primitives";
 import { StorefrontIcon } from "@/components/ui/icons";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { uploadWithGrant } from "@/lib/storage/browser-upload";
 import {
   ORGANIZATION_IMAGE_ALLOWED_TYPES,
-  ORGANIZATION_IMAGE_BUCKET,
   ORGANIZATION_IMAGE_OUTPUT_PX,
   ORGANIZATION_IMAGE_OUTPUT_TYPE,
   validateOrganizationImageFile,
@@ -94,13 +93,9 @@ export function OrganizationImageField({ orgId, imageUrl, canManage }: { orgId: 
     setError(null);
     try {
       const blob = await cropToBlob(source, area);
-      const ticket = await requestOrganizationImageUploadAction(orgId, ORGANIZATION_IMAGE_OUTPUT_TYPE);
+      const ticket = await requestOrganizationImageUploadAction(orgId, ORGANIZATION_IMAGE_OUTPUT_TYPE, blob.size);
       if (!ticket.ok) throw new Error(ticket.code);
-      const supabase = createBrowserSupabaseClient();
-      const { error: uploadError } = await supabase.storage
-        .from(ORGANIZATION_IMAGE_BUCKET)
-        .upload(ticket.key, blob, { contentType: ORGANIZATION_IMAGE_OUTPUT_TYPE, upsert: false });
-      if (uploadError) throw uploadError;
+      await uploadWithGrant(ticket.grant, blob);
       const confirmed = await confirmOrganizationImageUploadAction(ticket.key);
       if (!confirmed.ok) throw new Error(confirmed.code);
       reset();

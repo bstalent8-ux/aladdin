@@ -2,10 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { AVATAR_BUCKET } from "@/lib/storage/avatar-assets";
-
-/** How long a signed avatar read URL lives. Minted per render, never stored. */
-const AVATAR_READ_URL_SECONDS = 300;
+import { readMediaUrl } from "@/server/storage/media";
 
 export type MyIdentity = {
   displayName: string;
@@ -45,10 +42,8 @@ export const loadMyIdentity = cache(async function loadMyIdentity(): Promise<MyI
       .eq("state", "ready")
       .maybeSingle();
     if (upload?.object_key) {
-      const { data: signed } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .createSignedUrl(upload.object_key, AVATAR_READ_URL_SECONDS);
-      avatarUrl = signed?.signedUrl ?? null;
+      try { avatarUrl = await readMediaUrl(supabase, "avatar", upload.object_key); }
+      catch { avatarUrl = null; }
     }
   }
 

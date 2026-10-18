@@ -6,15 +6,14 @@ import Cropper, { type Area } from "react-easy-crop";
 import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/controls";
 import { InlineError, InlineSuccess } from "@/components/ui/primitives";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { uploadWithGrant } from "@/lib/storage/browser-upload";
 import {
   AVATAR_ALLOWED_TYPES,
-  AVATAR_BUCKET,
   AVATAR_OUTPUT_PX,
   AVATAR_OUTPUT_TYPE,
   validateAvatarFile,
 } from "@/lib/storage/avatar-assets";
-import { confirmAvatarUploadAction, requestAvatarUploadAction } from "@/server/actions/profile-identity";
+import { confirmAvatarUploadAction, requestAvatarUploadAction, deleteAvatarAction } from "@/server/actions/profile-identity";
 
 /** Renders the chosen square of the source image into a fixed-size JPEG. */
 async function cropToBlob(src: string, area: Area): Promise<Blob> {
@@ -97,13 +96,9 @@ export function AvatarField({ avatarUrl, displayName }: { avatarUrl: string | nu
     setError(null);
     try {
       const blob = await cropToBlob(source, area);
-      const ticket = await requestAvatarUploadAction(AVATAR_OUTPUT_TYPE);
+      const ticket = await requestAvatarUploadAction(AVATAR_OUTPUT_TYPE, blob.size);
       if (!ticket.ok) throw new Error(ticket.code);
-      const supabase = createBrowserSupabaseClient();
-      const { error: uploadError } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .upload(ticket.key, blob, { contentType: AVATAR_OUTPUT_TYPE, upsert: false });
-      if (uploadError) throw uploadError;
+      await uploadWithGrant(ticket.grant, blob);
       const confirmed = await confirmAvatarUploadAction(ticket.key);
       if (!confirmed.ok) throw new Error(confirmed.code);
       reset();
@@ -147,9 +142,22 @@ export function AvatarField({ avatarUrl, displayName }: { avatarUrl: string | nu
           data-testid="avatar-input"
           onChange={onPick}
         />
-        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
           {avatarUrl ? t("profileIdentity.avatar.change") : t("profileIdentity.avatar.add")}
         </Button>
+        {avatarUrl ? (
+          <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={async () => {
+            setBusy(true); setError(null);
+            try {
+              const result = await deleteAvatarAction();
+              if (!result.ok) setError(t(result.code));
+              else router.refresh();
+            } catch { setError(t("profileIdentity.avatar.errorUpload")); }
+            finally { setBusy(false); }
+          }}>
+            {t("profileIdentity.avatar.remove")}
+          </Button>
+        ) : null}
       </div>
       {saved ? <InlineSuccess>{t("profileIdentity.avatar.saved")}</InlineSuccess> : null}
       {error && !source ? <InlineError>{error}</InlineError> : null}
