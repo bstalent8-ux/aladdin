@@ -50,33 +50,36 @@ export default async function PhoneCooldownsPage({ searchParams }: { searchParam
       {raw && !phone ? <StatePanel title={t("phoneCooldown.errors.invalid")} /> : null}
       {failed ? <StatePanel tone="danger" title={t("states.genericRetry")} /> : null}
       {status ? (
-        <Card data-testid="phone-cooldown-status">
-          <SectionTitle icon={<PhoneIcon size={18} />}>
-            <span dir="ltr">{status.phone}</span>
-          </SectionTitle>
-          <div className="mt-md flex flex-col gap-sm">
-            <p className="text-body text-fg">
-              {status.cooldown_until
-                ? t("phoneCooldown.inCooldown", { date: formatDateTime(status.cooldown_until, locale) })
-                : status.reserved
-                  ? t("phoneCooldown.reserved")
-                  : t("phoneCooldown.free")}
-            </p>
-            {status.cooldown_until ? <PhoneCooldownOverride phone={status.phone} /> : null}
-            {status.overrides.length > 0 ? (
-              <div className="border-t pt-sm">
-                <p className="text-label font-medium text-fg-secondary">{t("phoneCooldown.history")}</p>
-                <ul className="mt-1 flex flex-col gap-1">
-                  {status.overrides.map((o) => (
-                    <li key={o.created_at} className="text-label text-fg-secondary">
-                      {formatDateTime(o.created_at, locale)} · <span dir="auto">{o.reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        </Card>
+        // Card renders no extra props, so the test hook sits on a wrapper.
+        <div data-testid="phone-cooldown-status">
+          <Card>
+            <SectionTitle icon={<PhoneIcon size={18} />}>
+              <span dir="ltr">{status.phone}</span>
+            </SectionTitle>
+            <div className="mt-md flex flex-col gap-sm">
+              <p className="text-body text-fg">
+                {status.cooldown_until
+                  ? t("phoneCooldown.inCooldown", { date: formatDateTime(status.cooldown_until, locale) })
+                  : status.reserved
+                    ? t("phoneCooldown.reserved")
+                    : t("phoneCooldown.free")}
+              </p>
+              {status.cooldown_until ? <PhoneCooldownOverride phone={status.phone} /> : null}
+              {status.overrides.length > 0 ? (
+                <div className="border-t pt-sm">
+                  <p className="text-label font-medium text-fg-secondary">{t("phoneCooldown.history")}</p>
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {status.overrides.map((o) => (
+                      <li key={o.created_at} className="text-label text-fg-secondary">
+                        {formatDateTime(o.created_at, locale)} · <span dir="auto">{o.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+        </div>
       ) : null}
     </div>
   );
