@@ -11,6 +11,7 @@ import { LanguageSwitch, ThemeSwitch } from "@/components/layout/switchers";
 import { formatCount } from "@/lib/ui/format";
 import { maskEmail } from "@/lib/ui/mask-email";
 import { isCraftsmanLoginAlias, userFacingEmail } from "@/lib/auth/craftsman-login-alias";
+import { getCurrentUser } from "@/server/auth/session";
 import { OrganizationIdentityDialog } from "@/features/organization/organization-identity-dialog";
 import { BranchGovernance } from "@/features/organization/branch-governance";
 import { IdentityChangePanel } from "@/features/organization/identity-change-panel";
@@ -104,7 +105,7 @@ export async function ShowroomSettings({ ctx, locale, section: rawSection }: { c
           {section === "activities" ? <ActivitiesSection ctx={ctx} locale={locale} /> : null}
           {section === "branches" ? <BranchesSection ctx={ctx} locale={locale} canManageBranches={canManageBranches} /> : null}
           {section === "access" ? <AccessSection ctx={ctx} locale={locale} canManagePeople={canManagePeople} /> : null}
-          {section === "account" ? <AccountSection ctx={ctx} locale={locale} /> : null}
+          {section === "account" ? <AccountSection locale={locale} /> : null}
           {section === "appearance" ? <AppearanceSection locale={locale} /> : null}
           {section === "support" ? (
             <Card>
@@ -268,13 +269,13 @@ function AccessSection({ ctx, locale, canManagePeople }: { ctx: Ctx; locale: Loc
   );
 }
 
-async function AccountSection({ ctx, locale }: { ctx: Ctx; locale: Locale }) {
-  const [identity, { data: auth }] = await Promise.all([loadMyIdentity(), ctx.supabase.auth.getUser()]);
+async function AccountSection({ locale }: { locale: Locale }) {
+  const [identity, authUser] = await Promise.all([loadMyIdentity(), getCurrentUser()]);
   const m = getMessages(locale);
   // An installer phone account's internal login alias is never shown (lib/auth/craftsman-login-alias.ts).
-  const visible = userFacingEmail(auth.user?.email);
+  const visible = userFacingEmail(authUser?.email);
   const signInEmail = visible ? maskEmail(visible) : null;
-  const phonePassword = isCraftsmanLoginAlias(auth.user?.email);
+  const phonePassword = isCraftsmanLoginAlias(authUser?.email);
   const t = createTranslator(locale);
   return (
     <>

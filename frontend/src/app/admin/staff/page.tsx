@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/server/auth/session";
 import { getMessages } from "@/lib/i18n/translate";
 import { resolveLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { formatAdminDate, formatCount } from "@/lib/ui/format";
@@ -75,9 +76,7 @@ export default async function AdminStaffPage({
   const requested = (tabParam || "staff") as TabKey;
   const tab: TabKey = allowed.includes(requested) ? requested : allowed[0]!;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const callerId = user?.id ?? "";
 
   const [staff, roles, catalog] = await Promise.all([

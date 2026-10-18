@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+vi.mock("server-only", () => ({}));
 import { render, cleanup, screen, within } from "@testing-library/react";
 import { ADMIN_PERMISSIONS, type AdminAccess } from "@/lib/permissions/admin";
 import { I18nProvider } from "@/lib/i18n/context";

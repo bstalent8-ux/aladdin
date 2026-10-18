@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/server/auth/session";
 import { loadUsersDirectory } from "@/server/queries/admin-directory";
 import { parseUsersDirectoryParams, pageWindow, USER_ACCOUNT_TYPES } from "@/features/admin-preview/directory-params";
 import { localizedName, type AdminDirectoryUser } from "@/features/admin-preview/directory-mappers";
@@ -59,9 +60,7 @@ export default async function PreviewUsersPage({
   const supabase = await getServerSupabase();
   // Row-level Suspend / Restore follows the server rule (see `canSuspendUser`): never your own row, never Admin
   // Staff at or above your rank. The RPC remains the judge; this only avoids drawing an action that can never work.
-  const {
-    data: { user: caller },
-  } = await supabase.auth.getUser();
+  const caller = await getCurrentUser();
   const staffRanks = await loadStaffRanks(supabase, access);
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);

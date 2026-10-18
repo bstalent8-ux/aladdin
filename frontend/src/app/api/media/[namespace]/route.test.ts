@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { claimsFrom } from "@/test/session-claims";
 vi.mock("server-only", () => ({}));
 const mocks = vi.hoisted(() => ({ user: vi.fn(), resolve: vi.fn(), deliver: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: async () => ({ auth: { getUser: mocks.user } }) }));
+vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: async () => ({ auth: { getUser: mocks.user, getClaims: claimsFrom(() => mocks.user()) } }) }));
 vi.mock("@/server/storage/media", () => ({ resolveMedia: mocks.resolve }));
 vi.mock("@/server/storage/delivery", () => ({ deliverMedia: mocks.deliver,
   mediaNotFound: () => new Response(null, { status: 404, headers: { "cache-control": "private, no-store" } }) }));
