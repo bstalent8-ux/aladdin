@@ -105,6 +105,17 @@ Token/brand changes follow the design-system edit-order (token JSON first) and u
 - Supabase Storage buckets are governed by storage policies (also SQL migrations).
 - Private design IP (`.pen`) and customer documents never enter Git; document access is authorized per-organization the same way row data is.
 
+## Media Storage & Delivery
+**Status: proposed, not in effect.** The design is [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md) (Proposed, needs owner approval), which refines [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). The code is on draft PR #89, unmerged, with edge delivery off. On `main`, media is still served from Supabase Storage.
+
+- **Authority stays in Postgres.** `media_storage_locations` records the provider (`supabase` or `r2`), size, sha256, receipt and variants for each object. `media_storage_resolve` and `organization_media_resolve` decide every read, upload and delete.
+- **Store.** A private Cloudflare R2 bucket holds avatars, portfolio, certificates, product images and organization logos. **Business-verification documents stay in their own Supabase bucket, unchanged** (PR #88 contract). Purchase-request images also stay on Supabase.
+- **No media is unconditionally public.** Published portfolio photos and listed avatars are conditional: unpublishing, delisting, suspension or deletion withdraws them on the next request. Everything else is private.
+- **Delivery.** When `MEDIA_EDGE_DELIVERY_ENABLED=true`, R2 rows are served by the `media-edge` Worker (`edge/media-worker/`). Private reads need a 120 s HMAC ticket minted by the app; public reads need none. Every request calls Postgres through Hyperdrive with caching off. Otherwise, and for Supabase rows, the app proxy serves them (`/api/media/<ns>`, `/p/media/<itemId>`, `no-store`).
+- **Variants.** WebP `thumb` 320, `card` 768 and `full` 1600 px are generated from the verified original and stored at `v/<ns>/<key>/<variant>.webp`.
+- **Hosting.** The Worker is a media edge beside Supabase Storage. It is not a Vercel service and not the background-worker host; [ADR-0009](../decisions/ADR-0009-vercel-services-deployment.md) is unchanged.
+- Runbooks: [media monitoring and migration](../operations/media-monitoring.md) · [Worker setup](../../edge/media-worker/README.md) · [professional media contract](../database/professional-asset-storage.md).
+
 ## Realtime Responsibilities
 Supabase Realtime carries live status for: notifications, opportunity/pipeline status, task updates, verification status, project activity, inventory availability, and quotation status. Realtime is a delivery channel, not a source of truth — the database remains authoritative.
 
@@ -170,6 +181,8 @@ No Kubernetes, Kafka, RabbitMQ, Redis, Elasticsearch/OpenSearch, event sourcing,
 - [ADR-0003 — Agent-Instruction Hierarchy](../decisions/ADR-0003-agent-instruction-hierarchy.md)
 - [ADR-0004 — Deployment Platforms](../decisions/ADR-0004-deployment-platforms.md)
 - [ADR-0005 — Python Data Access (supabase-py; SQLAlchemy deferred)](../decisions/ADR-0005-python-data-access.md)
+- [ADR-0018 — Media delivery: R2 primary store, ticketed edge Worker (Proposed)](../decisions/ADR-0018-r2-edge-media-delivery.md)
+- Full index: [DECISION_LOG.md](../decisions/DECISION_LOG.md)
 
 ## Architecture-Change Process
 Every architecture change must, in the same session:
@@ -181,6 +194,9 @@ Every architecture change must, in the same session:
 6. Include **validation results** (the commands run and their outcomes).
 
 ## Architecture Change History
+
+### 2026-10-18 — R2 media store and ticketed edge delivery proposed (ADR-0018)
+Proposed, not accepted and not deployed. R2 becomes the primary media store and a Cloudflare Worker serves R2 media with a per-request Postgres authorization, behind `MEDIA_EDGE_DELIVERY_ENABLED` (default false). See [Media Storage & Delivery](#media-storage--delivery) and [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md).
 
 ### 2026-10-18 — Local JWT verification for per-request session reads (WP8)
 Middleware and read-only server loaders verify the session JWT locally (`getClaims`) instead of calling Auth `getUser` on every request; admin routes, account-security pages and privileged actions stay network-validated. Suspension enforcement is unchanged. See [auth-session-reads.md](../frontend/auth-session-reads.md).

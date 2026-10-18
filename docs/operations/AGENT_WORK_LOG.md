@@ -1,3 +1,41 @@
+## 2026-10-18 — WP0: R2 media delivery documentation (ADR-0018 proposed)
+
+Branch `local/wp-docs` from `local/r2-rc2-snapshot` (same head as draft PR #89, `26edd40`). Docs only: no code, migration, push or hosted change.
+
+Covers the R2 work on PR #89:
+- the private R2 store;
+- the ticketed `media-edge` Worker, with Postgres authorization on every request through Hyperdrive (caching off);
+- WebP variants (320/768/1600);
+- migration tooling with an egress budget;
+- local JWT session reads;
+- the app proxy fallback while `MEDIA_EDGE_DELIVERY_ENABLED=false`.
+
+Sources: `/mnt/project-files/showroom-admin/r2-delivery-architecture.md` (plan WP0–WP10), `/mnt/project-files/showroom-admin/supabase-usage-audit.md`, `edge/media-worker/README.md`, [media-monitoring.md](media-monitoring.md), [auth-session-reads.md](../frontend/auth-session-reads.md), migrations `20261018100000`–`100003` and `20261019100000`, and the branch git log.
+
+Written:
+- [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md) (**Proposed**, needs owner approval), plus its row in [DECISION_LOG](../decisions/DECISION_LOG.md);
+- a Media Storage & Delivery section in [ARCHITECTURE_GUIDE](../architecture/ARCHITECTURE_GUIDE.md);
+- the current state in [RUNTIME_STATE](RUNTIME_STATE.md);
+- an R2 section in [professional-asset-storage.md](../database/professional-asset-storage.md);
+- a correction in [auth-session-reads.md](../frontend/auth-session-reads.md): `/api/media` calls Auth `getUser` on every private read again since `26edd40`.
+
+`PRODUCT_DIRECTION_GUIDE.md` is unchanged. It says nothing about media privacy that the R2 work contradicts.
+
+Validation: `python3 scripts/check_doc_links.py` reports 0 broken internal links.
+
+Unfinished:
+- **Variant backfill.** `scripts/media-variants.mjs` is not written yet. It must generate thumb/card/full for migrated media from the R2 copies, so that it spends no Supabase egress.
+- **Revocation canary.** A scheduled staging probe: upload or publish, fetch 200, delete or unpublish, then expect 404 on the next request through both the app route and the Worker. It also needs a canary account and CI secrets. Planned as a canary mode in `supabase/tests/public_media_exposure_test.mjs`.
+- **Hosted steps.** None done: the Worker login role, Hyperdrive, the private bucket, the zone and domain, Workers Paid, the ticket-key secrets, the Vercel env vars, and running the media migrations on hosted projects. Before the Worker role exists, check pg_net `EXECUTE` for `PUBLIC`/`anon` on the hosted projects and revoke it.
+- **Owner decisions:**
+  - **D1:** is a revocation delay acceptable for public media (Mode B public CDN), or does Mode C stay?
+  - **D3:** egress timing for the bulk copy (wait for the cycle reset or upgrade to Pro; about 0.29 GB is left).
+  - **D2:** should product images and organization logos become public? The recommendation is that both stay private.
+  - **D4:** the media domain.
+  - **D5:** Workers Paid ($5/month).
+  - Lowering hosted `jwt_expiry` (recommended 1800 s).
+  - Re-enabling the Production `db_pre_request` hook (`20260930100005`).
+
 ## 2026-10-18 — WP8: fewer Supabase Auth requests per page (local JWT verification)
 
 Branch `local/wp-auth` from PR #89 head `ee96b48`. Middleware now reads the session with `auth.getClaims()` (local ES256 verification, same cookie refresh) instead of `auth.getUser()`; `/admin/**` keeps `getUser()`. The `my_account_status` suspension redirect is unchanged except that router prefetches skip it. The matcher skips `/api/media/*`, `/p/media/*` and more static extensions. `server/auth/session.ts` adds `getSessionIdentity()` / `readSessionIdentity(client)` (`cache()`d claims) and makes `getCurrentUser()` a `cache()`d network `getUser()`. Read-only loaders use the claims helper; admin and account-settings pages share one `getCurrentUser()`; Server Actions and auth flows are untouched. Estimated Auth `/user` calls: `/home` 8 → 0, `/b2b/*` 3 → 0, `/admin/users` 3 → 2, private image 2 → 0. Security argument and residual window (revoked, not suspended, session until `exp` ≤ 3600 s on non-admin pages): [auth-session-reads.md](../frontend/auth-session-reads.md).
