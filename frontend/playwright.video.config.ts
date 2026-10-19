@@ -61,7 +61,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/api/health`,
     // E2E_REUSE_SERVER=1 reuses a server already started with the same env (faster reruns).
     reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
-    timeout: 400_000,
+    timeout: 900_000, // a production build on a busy machine
     env: {
       ...process.env,
       NEXT_PUBLIC_APP_ENV: "local",

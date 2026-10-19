@@ -96,9 +96,9 @@ const metrics: Record<string, unknown>[] = [];
 async function playAndSeek(page: Page, root: ReturnType<Page["locator"]>, label = "play") {
   const segments: string[] = [];
   page.on("response", (r) => { if (/\.m4s(\?|$)/.test(r.url())) segments.push(`${r.status()} ${r.url()}`); });
-  // Before play the player has fetched nothing but its poster.
+  // Before play the player has fetched nothing but its poster (photos on the page come from /m/).
   const edgeBefore = await page.evaluate((origin) => performance.getEntriesByType("resource")
-    .filter((e) => e.name.startsWith(origin)).map((e) => new URL(e.name).pathname.split("/").pop()), edge.origin);
+    .filter((e) => e.name.startsWith(`${origin}/v/`)).map((e) => new URL(e.name).pathname.split("/").pop()), edge.origin);
   expect(edgeBefore.every((name) => name === "poster.jpg")).toBe(true);
   const video = root.locator("video");
   const clicked = Date.now();

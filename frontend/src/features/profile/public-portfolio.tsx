@@ -54,8 +54,8 @@ export function PublicPortfolio({
           if (entry.kind === "video") {
             const video = entry.item;
             return (
-              <li key={`video-${video.id}`}>
-                <Card pad="sm" className="flex h-full flex-col gap-3" data-testid="public-portfolio-video">
+              <li key={`video-${video.id}`} data-testid="public-portfolio-video">
+                <Card pad="sm" className="flex h-full flex-col gap-3">
                   <MediaFrame>
                     <VideoPlayer fill source={video} title={video.title} width={video.width} height={video.height}
                       labels={{ play: t("video.play", { title: video.title }), unavailable: t("video.unavailable") }} />
