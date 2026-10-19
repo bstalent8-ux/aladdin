@@ -4,6 +4,7 @@
 create extension if not exists pgtap;
 begin;
 select no_plan();
+\ir helpers/organization_media_receipt.inc
 
 create function pg_temp.edge(vid uuid, viewer uuid, sess uuid, ws uuid, exp timestamptz) returns jsonb
 language plpgsql as $$ declare v jsonb; begin
@@ -55,7 +56,8 @@ select ok(not has_function_privilege('anon', 'public.video_upload_begin(text,uui
 set local role authenticated;
 set local request.jwt.claims = :'c_pro';
 select throws_ok($$select public.video_upload_begin('portfolio', null, 'Tour', 'video/x-msvideo', 1000)$$, '22023', 'unsupported video type', 'unknown types are refused');
-select throws_ok($$select public.video_upload_begin('portfolio', null, 'Tour', 'video/mp4', 524288001)$$, '22023', 'video size is outside policy', 'oversized declarations are refused');
+select throws_ok($$select public.video_upload_begin('portfolio', null, 'Tour', 'video/mp4', 5497558138881)$$, '22023', 'video size is outside what storage accepts', 'only R2''s own 5 TiB object limit applies');
+select lives_ok($$select public.video_delete(public.video_upload_begin('portfolio', null, 'Long take', 'video/mp4', 53687091200))$$, 'a 50 GB video is accepted: no product size cap');
 select throws_ok($$select public.video_upload_begin('portfolio', null, '   ', 'video/mp4', 1000)$$, '23514', null, 'blank titles are refused');
 select public.video_upload_begin('portfolio', null, 'Kitchen tour', 'video/mp4', 4096) as vid \gset
 select is((select state::text from public.media_videos where id = :'vid'), 'uploading', 'owner sees the new upload');
@@ -63,7 +65,11 @@ select is((public.video_upload_resolve(:'vid'))->>'state', 'uploading', 'owner r
 select throws_ok(format('select public.video_set_visibility(%L, true)', :'vid'), '22023', 'an unfinished video cannot be published', 'unfinished videos cannot be published');
 select public.video_upload_begin('portfolio', null, 'Second', 'video/webm', 2048) as vid2 \gset
 select public.video_upload_begin('portfolio', null, 'Third', 'video/quicktime', 2048) as vid3 \gset
-select throws_ok($$select public.video_upload_begin('portfolio', null, 'Fourth', 'video/mp4', 2048)$$, '23514', 'too many unfinished uploads', 'at most three unfinished uploads');
+select array_agg(public.video_upload_begin('portfolio', null, 'Bulk ' || g, 'video/mp4', 2048)) as bulk from generate_series(4, 10) g \gset
+select throws_ok($$select public.video_upload_begin('portfolio', null, 'Eleventh', 'video/mp4', 2048)$$, '23514', 'too many unfinished uploads', 'ten unfinished uploads at a time, as for images');
+select is((select count(*)::int from unnest(:'bulk'::uuid[]) x, lateral (select public.video_delete(x)) d), 7, 'the extra uploads delete cleanly');
+select is((select count(*)::int from public.media_videos where owner_user_id = :'pro' and scope = 'portfolio' and state <> 'deleted'), 3,
+  'no portfolio video count limit applies beyond in-flight uploads');
 select is(public.video_delete(:'vid3'), null::text, 'an unattached upload deletes cleanly');
 set local request.jwt.claims = :'c_other';
 select throws_ok(format('select public.video_upload_resolve(%L)', :'vid'), '42501', 'video not found', 'another user cannot resolve the upload');
@@ -179,14 +185,103 @@ select public.set_product_published(:'product', false, (select version from publ
 reset role;
 select is(pg_temp.edge(:'pvid', :'other', :'s_other', :'ws_other', :exp), null::jsonb, 'unpublishing the product withdraws its video on the next request');
 
+-- ---------------------------------------------------------------- one order for photos and videos
+set local role authenticated;
+set local request.jwt.claims = :'c_pro';
+select item_id as img1 from public.portfolio_item_create('Kitchen', null, 'image/jpeg') \gset
+select public.video_upload_begin('portfolio', null, 'Walkthrough', 'video/mp4', 4096) as ovid \gset
+select item_id as img2 from public.portfolio_item_create('Bathroom', null, 'image/png') \gset
+select ok((select sort_order from public.portfolio_items where id = :'img1') < (select sort_order from public.media_videos where id = :'ovid')
+  and (select sort_order from public.media_videos where id = :'ovid') < (select sort_order from public.portfolio_items where id = :'img2'),
+  'new photos and videos join the end of one shared order');
+select lives_ok(format($$select public.portfolio_media_move('video', %L, 'up')$$, :'ovid'), 'the owner moves a video earlier');
+select ok((select sort_order from public.media_videos where id = :'ovid') < (select sort_order from public.portfolio_items where id = :'img1'),
+  'a video can come before every photo');
+select lives_ok(format($$select public.portfolio_item_move(%L, 'up')$$, :'img2'), 'the photo-only mover still works');
+select ok((select sort_order from public.portfolio_items where id = :'img2') < (select sort_order from public.portfolio_items where id = :'img1'),
+  'and moves within the shared order');
+select throws_ok($$select public.portfolio_media_move('audio', gen_random_uuid(), 'up')$$, '22023', 'unknown media kind', 'unknown kinds are refused');
+select throws_ok($$select public.portfolio_media_move('video', gen_random_uuid(), 'sideways')$$, '22023', 'unknown direction', 'unknown directions are refused');
+set local request.jwt.claims = :'c_other';
+select throws_ok(format($$select public.portfolio_media_move('video', %L, 'down')$$, :'ovid'), '42501', 'portfolio item not found', 'another user cannot reorder it');
+set local request.jwt.claims = :'c_pro';
+select is(public.video_delete(:'ovid'), null::text, 'cleanup');
+
+set local request.jwt.claims = :'c_hana';
+select public.own_product_create(:'org', 'Gallery product', 'VID-104', 'paints', 'pail', p_base_price => 100) as gproduct \gset
+select public.product_image_request_upload(:'gproduct', 'image/jpeg') as gkey1 \gset
+select public.video_upload_begin('product', :'gproduct', 'Demo', 'video/mp4', 8192) as gvid \gset
+select public.product_image_request_upload(:'gproduct', 'image/png') as gkey2 \gset
+select pg_temp.attest_organization_fixture('product', :'gkey1');
+select pg_temp.attest_organization_fixture('product', :'gkey2');
+select is((select array_agg(x order by x) from (select slot from public.product_images where product_id = :'gproduct' and state <> 'deleted'
+  union all select slot from public.media_videos where product_id = :'gproduct' and state <> 'deleted') s(x)), array[1,2,3]::smallint[],
+  'photos and videos take distinct gallery slots');
+select is((select slot from public.media_videos where id = :'gvid'), 2::smallint, 'the video holds the slot it was given');
+select throws_ok(format($$select public.video_upload_begin('product', %L, 'Fourth', 'video/mp4', 10)$$, :'gproduct'), '23514', null,
+  'a fourth item is refused when it is a video');
+select throws_ok(format($$select public.product_image_request_upload(%L, 'image/jpeg')$$, :'gproduct'), '23514', null,
+  'and when it is a photo: three items in all');
+reset role;
+update public.product_images set state = 'ready' where product_id = :'gproduct';
+set local role service_role;
+select public.video_upload_attach(:'gvid', 'mp-upload-9');
+select public.video_upload_complete(:'gvid', 8192);
+update public.media_videos set lease_until = null where id = :'gvid';
+select public.video_job_finish(:'gvid', :'rev', 10, 1280, 720, array['360p','720p'], true);
+reset role;
+select id as gimg1 from public.product_images where object_key = :'gkey1' \gset
+select id as gimg2 from public.product_images where object_key = :'gkey2' \gset
+set local role authenticated;
+set local request.jwt.claims = :'c_hana';
+select throws_ok(format($$select public.product_media_reorder(%L, %L::jsonb)$$, :'gproduct',
+  jsonb_build_array(jsonb_build_object('kind','image','id',:'gimg1'), jsonb_build_object('kind','image','id',:'gimg2'))), '22023', null,
+  'a reorder must list the videos too');
+select lives_ok(format($$select public.product_media_reorder(%L, %L::jsonb)$$, :'gproduct',
+  jsonb_build_array(jsonb_build_object('kind','video','id',:'gvid'), jsonb_build_object('kind','image','id',:'gimg2'),
+    jsonb_build_object('kind','image','id',:'gimg1'))), 'a writer puts the video first');
+select is((select slot from public.media_videos where id = :'gvid'), 1::smallint, 'the video is first in the gallery');
+select is((select array_agg(id order by slot) from public.product_images where product_id = :'gproduct' and state = 'ready'),
+  array[:'gimg2', :'gimg1']::uuid[], 'the photos follow in the chosen order');
+select lives_ok(format('select public.product_image_reorder(%L, %L::uuid[])', :'gproduct', array[:'gimg1', :'gimg2']),
+  'the photo-only reorder still works and leaves the video in place');
+select is((select slot from public.media_videos where id = :'gvid'), 1::smallint, 'the video keeps its slot');
+set local request.jwt.claims = :'c_other';
+select throws_ok(format($$select public.product_media_reorder(%L, '[]'::jsonb)$$, :'gproduct'), '42501', null, 'a foreign writer cannot reorder');
+set local request.jwt.claims = :'c_hana';
+select is(public.video_delete(:'gvid'), null::text, 'deleting the video frees its slot');
+select lives_ok(format($$select public.product_image_request_upload(%L, 'image/webp')$$, :'gproduct'), 'so a photo can take it');
+reset role;
+select is((select provider from public.media_videos where id = :'gvid'), 'r2_hls', 'videos default to the R2 + HLS provider');
+update public.media_videos set provider = 'cloudflare_stream', provider_ref = 'stream-uid', state = 'ready' where id = :'pvid';
+select is(pg_temp.edge(:'pvid', :'sara', :'s_sara', null, :exp), null::jsonb, 'the Worker never serves another provider''s video');
+update public.media_videos set provider = 'r2_hls', provider_ref = null where id = :'pvid';
+
+set local role service_role;
+select ok(not public.video_job_renew(:'gvid', 600), 'a lease cannot be renewed for a job that is gone');
+reset role;
+
 -- ---------------------------------------------------------------- stale uploads and worker limits
 set local role authenticated;
 set local request.jwt.claims = :'c_pro';
 select public.video_upload_begin('portfolio', null, 'Stale', 'video/mp4', 100) as stale \gset
 reset role;
-update public.media_videos set created_at = now() - interval '25 hours' where id = :'stale';
+select public.video_upload_begin('portfolio', null, 'Slow', 'video/mp4', 100) as slow \gset
+reset role;
+update public.media_videos set created_at = now() - interval '5 days', upload_touched_at = now() - interval '2 hours' where id = :'slow';
+set local role authenticated;
+set local request.jwt.claims = :'c_pro';
+select is((public.video_upload_resolve(:'slow'))->>'expired', 'false', 'a slow upload still in use stays open for days');
+reset role;
+select ok((select upload_touched_at > now() - interval '1 minute' from public.media_videos where id = :'slow'), 'continuing an upload records the activity');
+update public.media_videos set created_at = now() - interval '7 days', upload_touched_at = now() where id = :'slow';
+set local role authenticated;
+set local request.jwt.claims = :'c_pro';
+select is((public.video_upload_resolve(:'slow'))->>'expired', 'true', 'after six days the upload expires before R2 aborts it');
+reset role;
+update public.media_videos set upload_touched_at = now() - interval '25 hours' where id = :'stale';
 set local role service_role;
-select throws_ok(format('select public.video_upload_complete(%L, 100)', :'stale'), '22023', null, 'an upload older than a day cannot complete');
+select throws_ok(format('select public.video_upload_complete(%L, 100)', :'stale'), '22023', null, 'an upload idle for a day cannot complete');
 select ok(exists(select 1 from public.video_purge_candidates(50) where id = :'stale'), 'stale uploads are expired and queued for purge');
 select is((select failure_code from public.media_videos where id = :'stale'), 'expired', 'and say why');
 reset role;

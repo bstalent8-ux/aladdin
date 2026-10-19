@@ -33,7 +33,7 @@ create table public.media_videos (
   content_type     text not null,
   declared_bytes   bigint not null,
   size_bytes       bigint,
-  duration_seconds numeric(8,3),
+  duration_seconds numeric(12,3),
   width            integer,
   height           integer,
   renditions       text[] not null default '{}',
@@ -43,35 +43,55 @@ create table public.media_videos (
   revision         uuid,
   -- S3 multipart upload id. Never granted to clients (column privileges below).
   upload_id        text,
+  -- Delivery provider (ADR-0020 Revision 2). Only r2_hls is implemented; a
+  -- Cloudflare Stream row would carry its Stream uid in provider_ref.
+  provider         text not null default 'r2_hls',
+  provider_ref     text,
+  -- Position among the owner's portfolio media, in the same space as
+  -- portfolio_items.sort_order, so images and videos share one order.
+  sort_order       integer,
+  -- Position in the product gallery, in the same 1..3 space as product_images.slot
+  -- (4..6 only while reordering). Lowest first.
+  slot             smallint,
   attempts         smallint not null default 0,
   lease_until      timestamptz,
   failure_code     text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now(),
+  -- Last time the uploader asked to continue. An upload expires after a day
+  -- without activity, or after six days in all: R2 aborts unfinished multipart
+  -- uploads after seven (a provider limit).
+  upload_touched_at timestamptz not null default now(),
   uploaded_at      timestamptz,
   ready_at         timestamptz,
   deleted_at       timestamptz,
   purged_at        timestamptz,
   constraint ck_media_videos_title check (char_length(btrim(title)) between 1 and 120),
   constraint ck_media_videos_type check (content_type in ('video/mp4', 'video/quicktime', 'video/webm')),
-  -- 500 MB and 5 minutes: frontend/src/lib/media/video-policy.ts mirrors these.
-  constraint ck_media_videos_declared check (declared_bytes > 0 and declared_bytes <= 524288000),
+  -- No product cap on size or length. 5 TiB is R2's own object limit (a provider
+  -- constraint): frontend/src/lib/media/video-policy.ts mirrors it.
+  constraint ck_media_videos_declared check (declared_bytes > 0 and declared_bytes <= 5497558138880),
   constraint ck_media_videos_size check (size_bytes is null or size_bytes = declared_bytes),
-  constraint ck_media_videos_duration check (duration_seconds is null or (duration_seconds > 0 and duration_seconds <= 300)),
+  constraint ck_media_videos_duration check (duration_seconds is null or duration_seconds > 0),
   constraint ck_media_videos_dimensions check ((width is null) = (height is null) and (width is null or (width between 16 and 7680 and height between 16 and 7680))),
   constraint ck_media_videos_renditions check (renditions <@ array['360p', '720p', '1080p']::text[]),
   constraint ck_media_videos_scope check (
-    (scope = 'portfolio' and product_id is null and publisher_id is null)
-    or (scope = 'product' and product_id is not null and publisher_id is not null and visibility = 'private')),
+    (scope = 'portfolio' and product_id is null and publisher_id is null and sort_order is not null and slot is null)
+    or (scope = 'product' and product_id is not null and publisher_id is not null and visibility = 'private'
+        and sort_order is null and slot between 1 and 6)),
+  constraint ck_media_videos_provider check (provider in ('r2_hls', 'cloudflare_stream')
+    and (provider_ref is null or char_length(provider_ref) between 1 and 200)),
   constraint ck_media_videos_public_is_ready check (visibility = 'private' or state = 'ready'),
   constraint ck_media_videos_ready check (state <> 'ready' or (revision is not null and cardinality(renditions) > 0 and duration_seconds is not null)),
   constraint ck_media_videos_attempts check (attempts between 0 and 10),
   constraint ck_media_videos_failure check (failure_code is null or failure_code in
-    ('invalid_media', 'too_long', 'no_video_stream', 'transcode_failed', 'upload_incomplete', 'expired'))
+    ('invalid_media', 'no_video_stream', 'transcode_failed', 'upload_incomplete', 'expired'))
 );
 
 create index ix_media_videos_owner on public.media_videos (owner_user_id, created_at) where state <> 'deleted';
 create index ix_media_videos_product on public.media_videos (product_id) where state <> 'deleted';
+-- A gallery slot holds one live item; product_images has the same index.
+create unique index uq_media_videos_slot on public.media_videos (product_id, slot) where state <> 'deleted';
 create index ix_media_videos_publisher on public.media_videos (publisher_id);
 create index ix_media_videos_jobs on public.media_videos (uploaded_at) where state = 'processing';
 create index ix_media_videos_purge on public.media_videos (deleted_at) where state = 'deleted' and purged_at is null;
@@ -93,9 +113,279 @@ create policy media_videos_select_publisher on public.media_videos
 -- Reads only; every write goes through the functions below.
 revoke all on public.media_videos from anon, authenticated, service_role;
 grant select (id, owner_user_id, scope, product_id, title, visibility, state, content_type, size_bytes,
-  duration_seconds, width, height, renditions, has_poster, failure_code, created_at, updated_at, ready_at)
+  duration_seconds, width, height, renditions, has_poster, failure_code, created_at, updated_at, ready_at,
+  provider, sort_order, slot)
   on public.media_videos to authenticated;
 grant select, insert, update, delete on public.media_videos to service_role;
+
+-- ---------------------------------------------------------------------------
+-- One order for images and videos (ADR-0020 Revision 2)
+-- ---------------------------------------------------------------------------
+-- Portfolio photos (portfolio_items.sort_order) and portfolio videos
+-- (media_videos.sort_order) share one position space per owner; product photos
+-- (product_images.slot) and product videos (media_videos.slot) share the product
+-- gallery's 1..3 slots. The existing limit of three items per product therefore
+-- covers photos and videos together; nothing new is counted.
+
+create function app.portfolio_next_position(p_owner uuid)
+returns integer language sql stable security definer set search_path = '' as $$
+  select coalesce(max(x.pos), -1) + 1 from (
+    select i.sort_order as pos from public.portfolio_items i
+     where i.owner_user_id = p_owner and i.state <> 'deleted'::public.professional_asset_state
+    union all
+    select v.sort_order from public.media_videos v
+     where v.owner_user_id = p_owner and v.scope = 'portfolio' and v.state <> 'deleted') x;
+$$;
+revoke all on function app.portfolio_next_position(uuid) from public, anon, authenticated, service_role;
+
+-- The lowest gallery slot no live photo or video holds. Callers lock the product row.
+create function app.product_media_free_slot(p_product_id uuid)
+returns smallint language sql stable security definer set search_path = '' as $$
+  select s::smallint from generate_series(1, 3) s
+   where not exists (select 1 from public.product_images i
+                      where i.product_id = p_product_id and i.state <> 'deleted' and i.slot = s)
+     and not exists (select 1 from public.media_videos v
+                      where v.product_id = p_product_id and v.state <> 'deleted' and v.slot = s)
+   order by s limit 1;
+$$;
+revoke all on function app.product_media_free_slot(uuid) from public, anon, authenticated, service_role;
+
+-- New portfolio photos go after the last photo OR video.
+create or replace function public.portfolio_item_create(
+  p_title        text,
+  p_description  text,
+  p_content_type text
+)
+returns table (item_id uuid, object_key text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid  uuid := (select auth.uid());
+  v_ext  text;
+  v_key  text;
+  v_id   uuid;
+begin
+  if v_uid is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+  if not app.can_create_professional_asset() then
+    raise exception 'a professional persona is required to add portfolio work'
+      using errcode = '42501';
+  end if;
+  v_ext := case p_content_type
+             when 'image/jpeg' then 'jpg'
+             when 'image/png'  then 'png'
+             when 'image/webp' then 'webp'
+           end;
+  if v_ext is null then
+    raise exception 'unsupported content type for portfolio work'
+      using errcode = '22023';
+  end if;
+  v_key := extensions.gen_random_uuid()::text || '.' || v_ext;
+  insert into public.portfolio_items
+    (owner_user_id, object_key, content_type, title, description, sort_order)
+  values
+    (v_uid, v_key, p_content_type, btrim(p_title), nullif(btrim(coalesce(p_description, '')), ''),
+     app.portfolio_next_position(v_uid))
+  returning id into v_id;
+  return query select v_id, v_key;
+end;
+$$;
+
+-- Moves one photo or video earlier or later in the owner's portfolio. Renumbers
+-- both tables densely in the current total order first, as portfolio_item_move did.
+create function public.portfolio_media_move(p_kind text, p_id uuid, p_direction text)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_uid  uuid := (select auth.uid());
+  v_pos  integer;
+  v_kind text;
+  v_swap uuid;
+begin
+  if p_direction is null or p_direction not in ('up', 'down') then
+    raise exception 'unknown direction' using errcode = '22023';
+  end if;
+  if p_kind is null or p_kind not in ('image', 'video') then
+    raise exception 'unknown media kind' using errcode = '22023';
+  end if;
+  if v_uid is null then
+    raise exception 'portfolio item not found' using errcode = '42501';
+  end if;
+  -- One reorder per owner at a time: two tables cannot share a row lock.
+  perform pg_advisory_xact_lock(hashtext('portfolio_media_order'), hashtext(v_uid::text));
+  if p_kind = 'image' then
+    perform 1 from public.portfolio_items
+     where id = p_id and owner_user_id = v_uid and state <> 'deleted'::public.professional_asset_state;
+  else
+    perform 1 from public.media_videos
+     where id = p_id and owner_user_id = v_uid and scope = 'portfolio' and state <> 'deleted';
+  end if;
+  if not found then
+    raise exception 'portfolio item not found' using errcode = '42501';
+  end if;
+
+  with entries as (
+    select 'image'::text as kind, i.id, i.sort_order, i.created_at from public.portfolio_items i
+     where i.owner_user_id = v_uid and i.state <> 'deleted'::public.professional_asset_state
+    union all
+    select 'video', v.id, v.sort_order, v.created_at from public.media_videos v
+     where v.owner_user_id = v_uid and v.scope = 'portfolio' and v.state <> 'deleted'
+  ), ordered as (
+    select kind, id, (row_number() over (order by sort_order, created_at, id) - 1)::integer as rn from entries
+  ), images as (
+    update public.portfolio_items i set sort_order = o.rn
+      from ordered o where o.kind = 'image' and i.id = o.id and i.sort_order is distinct from o.rn
+    returning 1
+  )
+  update public.media_videos v set sort_order = o.rn
+    from ordered o where o.kind = 'video' and v.id = o.id and v.sort_order is distinct from o.rn;
+
+  if p_kind = 'image' then
+    select sort_order into v_pos from public.portfolio_items where id = p_id;
+  else
+    select sort_order into v_pos from public.media_videos where id = p_id;
+  end if;
+
+  select x.kind, x.id into v_kind, v_swap from (
+    select 'image'::text as kind, i.id, i.sort_order from public.portfolio_items i
+     where i.owner_user_id = v_uid and i.state <> 'deleted'::public.professional_asset_state
+    union all
+    select 'video', v.id, v.sort_order from public.media_videos v
+     where v.owner_user_id = v_uid and v.scope = 'portfolio' and v.state <> 'deleted') x
+   where x.sort_order = case when p_direction = 'up' then v_pos - 1 else v_pos + 1 end;
+  -- At either end there is nothing to swap with; that is a no-op, not an error.
+  if v_swap is null then
+    return;
+  end if;
+
+  if v_kind = 'image' then
+    update public.portfolio_items set sort_order = v_pos where id = v_swap;
+  else
+    update public.media_videos set sort_order = v_pos where id = v_swap;
+  end if;
+  if p_kind = 'image' then
+    update public.portfolio_items set sort_order = case when p_direction = 'up' then v_pos - 1 else v_pos + 1 end where id = p_id;
+  else
+    update public.media_videos set sort_order = case when p_direction = 'up' then v_pos - 1 else v_pos + 1 end where id = p_id;
+  end if;
+end;
+$$;
+
+-- The photo-only mover keeps its signature and now moves within the shared order.
+create or replace function public.portfolio_item_move(p_item_id uuid, p_direction text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform public.portfolio_media_move('image', p_item_id, p_direction);
+end;
+$$;
+
+-- Product photos take the lowest slot no photo or video holds.
+create or replace function public.product_image_request_upload(p_product_id uuid, p_content_type text)
+ returns text
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
+declare
+  v_p    public.products;
+  v_ext  text;
+  v_pos  smallint;
+  v_key  text;
+begin
+  v_ext := case p_content_type when 'image/jpeg' then 'jpg' when 'image/png' then 'png' when 'image/webp' then 'webp' else null end;
+  if v_ext is null then
+    raise exception 'unsupported content type' using errcode = '22023';
+  end if;
+  -- Locking the product row serializes slot allocation, so concurrent requests cannot overfill it.
+  select * into v_p from public.products where id = p_product_id and deleted_at is null for update;
+  if not found then raise exception 'product not found' using errcode = 'P0002'; end if;
+  if not app.can_write_publisher(v_p.publisher_id) then
+    raise exception 'catalog.write required' using errcode = '42501';
+  end if;
+  if v_p.archived_at is not null then
+    raise exception 'an archived product must be restored before its images change' using errcode = '22023';
+  end if;
+  -- An abandoned pending slot does not block the product forever.
+  update public.product_images set state = 'deleted'
+   where product_id = p_product_id and state = 'pending' and created_at < now() - interval '1 hour';
+  v_pos := app.product_media_free_slot(p_product_id);
+  if v_pos is null then
+    raise exception 'a product can have at most 3 images' using errcode = '23514';
+  end if;
+  v_key := coalesce(v_p.organization_id, v_p.publisher_id)::text || '/' || p_product_id::text || '/' || extensions.gen_random_uuid()::text || '.' || v_ext;
+  insert into public.product_images (product_id, organization_id, object_key, content_type, slot, created_by)
+  values (p_product_id, v_p.organization_id, v_key, p_content_type, v_pos, (select auth.uid()));
+  return v_key;
+end;
+$function$;
+
+-- The table-level backstop counts videos too.
+create or replace function app.product_images_enforce_max()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.slot > 3 then
+    raise exception 'image slot must be 1..3' using errcode = '23514';
+  end if;
+  if (select count(*) from public.product_images where product_id = new.product_id and state <> 'deleted')
+     + (select count(*) from public.media_videos where product_id = new.product_id and state <> 'deleted') >= 3 then
+    raise exception 'a product can have at most 3 images' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+-- Reorders a product's ready photos and videos together. p_items lists every
+-- ready item exactly once, as [{"kind":"image"|"video","id":"<uuid>"}, ...] in the
+-- new order; they take the slots the ready items already hold, lowest first.
+-- Items still uploading or processing keep their slots.
+create function public.product_media_reorder(p_product_id uuid, p_items jsonb)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_p     public.products;
+  v_slots smallint[];
+  v_have  text[];
+  v_want  text[];
+  i       integer;
+  v_item  jsonb;
+begin
+  select * into v_p from public.products where id = p_product_id and deleted_at is null for update;
+  if not found then raise exception 'product not found' using errcode = 'P0002'; end if;
+  if not app.can_write_publisher(v_p.publisher_id) then
+    raise exception 'catalog.write required' using errcode = '42501';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' then
+    raise exception 'the order must list every ready photo and video of the product exactly once' using errcode = '22023';
+  end if;
+  select array_agg(x.slot order by x.slot), array_agg(x.kind || ':' || x.id order by x.kind || ':' || x.id)
+    into v_slots, v_have
+    from (select 'image'::text as kind, pi.id, pi.slot from public.product_images pi
+           where pi.product_id = p_product_id and pi.state = 'ready'
+          union all
+          select 'video', mv.id, mv.slot from public.media_videos mv
+           where mv.product_id = p_product_id and mv.state = 'ready') x;
+  select array_agg(e ->> 'kind' || ':' || lower(e ->> 'id') order by e ->> 'kind' || ':' || lower(e ->> 'id'))
+    into v_want from jsonb_array_elements(p_items) e;
+  if coalesce(cardinality(v_want), 0) is distinct from coalesce(cardinality(v_have), 0)
+     or v_want is distinct from v_have then
+    raise exception 'the order must list every ready photo and video of the product exactly once' using errcode = '22023';
+  end if;
+  -- Park everything ready in the scratch slots 4..6, then place it.
+  update public.product_images set slot = slot + 3 where product_id = p_product_id and state = 'ready';
+  update public.media_videos set slot = slot + 3 where product_id = p_product_id and state = 'ready';
+  for i in 1 .. coalesce(jsonb_array_length(p_items), 0) loop
+    v_item := p_items -> (i - 1);
+    if v_item ->> 'kind' = 'image' then
+      update public.product_images set slot = v_slots[i] where id = (v_item ->> 'id')::uuid;
+    else
+      update public.media_videos set slot = v_slots[i] where id = (v_item ->> 'id')::uuid;
+    end if;
+  end loop;
+  perform app.record_audit_event('product.image_reordered', 'product', p_product_id, v_p.organization_id,
+    jsonb_build_object('videos', true));
+end;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Authoring (signed-in callers)
@@ -126,6 +416,7 @@ returns uuid language plpgsql volatile security definer set search_path = '' as 
 declare
   v_uid uuid := (select auth.uid());
   v_product public.products;
+  v_slot smallint;
   v_id uuid;
 begin
   if v_uid is null or not app.account_is_active(v_uid) then
@@ -134,12 +425,14 @@ begin
   if p_content_type is null or p_content_type not in ('video/mp4', 'video/quicktime', 'video/webm') then
     raise exception 'unsupported video type' using errcode = '22023';
   end if;
-  if p_bytes is null or p_bytes <= 0 or p_bytes > 524288000 then
-    raise exception 'video size is outside policy' using errcode = '22023';
+  -- No product size cap: only R2's own 5 TiB object limit.
+  if p_bytes is null or p_bytes <= 0 or p_bytes > 5497558138880 then
+    raise exception 'video size is outside what storage accepts' using errcode = '22023';
   end if;
-  -- At most three unfinished uploads per person, however they are split.
+  -- Resource protection, not a media quota: the same ten in-flight uploads per
+  -- person that app.limit_pending_media allows for images.
   if (select count(*) from public.media_videos
-       where owner_user_id = v_uid and state = 'uploading') >= 3 then
+       where owner_user_id = v_uid and state = 'uploading') >= 10 then
     raise exception 'too many unfinished uploads' using errcode = '23514';
   end if;
   if p_scope = 'portfolio' then
@@ -147,14 +440,12 @@ begin
     if not app.can_create_professional_asset() then
       raise exception 'a professional persona is required to add portfolio work' using errcode = '42501';
     end if;
-    if (select count(*) from public.media_videos
-         where owner_user_id = v_uid and scope = 'portfolio' and state <> 'deleted') >= 10 then
-      raise exception 'a portfolio can have at most 10 videos' using errcode = '23514';
-    end if;
-    insert into public.media_videos (owner_user_id, scope, title, content_type, declared_bytes)
-    values (v_uid, 'portfolio', btrim(p_title), p_content_type, p_bytes)
+    -- Portfolios have no count limit for photos, so none for videos either.
+    insert into public.media_videos (owner_user_id, scope, title, content_type, declared_bytes, sort_order)
+    values (v_uid, 'portfolio', btrim(p_title), p_content_type, p_bytes, app.portfolio_next_position(v_uid))
     returning id into v_id;
   elsif p_scope = 'product' then
+    -- Locking the product serializes slot allocation with product_image_request_upload.
     select * into v_product from public.products where id = p_product_id and deleted_at is null for update;
     if not found or not app.can_write_publisher(v_product.publisher_id) then
       raise exception 'catalog.write required' using errcode = '42501';
@@ -162,12 +453,13 @@ begin
     if v_product.archived_at is not null then
       raise exception 'an archived product must be restored before its media change' using errcode = '22023';
     end if;
-    if (select count(*) from public.media_videos
-         where product_id = p_product_id and state <> 'deleted') >= 2 then
-      raise exception 'a product can have at most 2 videos' using errcode = '23514';
+    -- The product gallery's existing limit (three items) covers images and videos together.
+    v_slot := app.product_media_free_slot(p_product_id);
+    if v_slot is null then
+      raise exception 'a product can have at most 3 photos and videos' using errcode = '23514';
     end if;
-    insert into public.media_videos (owner_user_id, scope, product_id, publisher_id, title, content_type, declared_bytes)
-    values (v_uid, 'product', p_product_id, v_product.publisher_id, btrim(p_title), p_content_type, p_bytes)
+    insert into public.media_videos (owner_user_id, scope, product_id, publisher_id, title, content_type, declared_bytes, slot)
+    values (v_uid, 'product', p_product_id, v_product.publisher_id, btrim(p_title), p_content_type, p_bytes, v_slot)
     returning id into v_id;
   else
     raise exception 'invalid scope' using errcode = '22023';
@@ -178,14 +470,23 @@ $$;
 
 -- The upload in progress, for the caller who may write it. Returns the multipart
 -- id so the server can presign parts; useless without the R2 credentials.
+create function app.video_upload_expired(v public.media_videos)
+returns boolean language sql stable set search_path = '' as $$
+  select v.created_at < now() - interval '6 days' or v.upload_touched_at < now() - interval '24 hours';
+$$;
+revoke all on function app.video_upload_expired(public.media_videos) from public, anon, authenticated, service_role;
+
 create function public.video_upload_resolve(p_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v public.media_videos;
 begin
   v := app.video_writable(p_id);
+  if v.state = 'uploading' and not app.video_upload_expired(v) then
+    update public.media_videos set upload_touched_at = now() where id = p_id;
+  end if;
   return jsonb_build_object('id', v.id, 'state', v.state, 'contentType', v.content_type,
     'declaredBytes', v.declared_bytes, 'uploadId', case when v.state = 'uploading' then v.upload_id end,
-    'expired', v.state = 'uploading' and v.created_at < now() - interval '24 hours');
+    'expired', v.state = 'uploading' and app.video_upload_expired(v));
 end;
 $$;
 
@@ -228,31 +529,33 @@ begin
 end;
 $$;
 
--- Public portfolio page: published, ready videos of a listed profile.
+-- Public portfolio page: published, ready videos of a listed profile, with
+-- their place in the owner's shared photo-and-video order.
 create function public.public_portfolio_videos(p_profile_id uuid)
-returns table (id uuid, title text, duration_seconds numeric, width integer, height integer, has_poster boolean)
+returns table (id uuid, title text, duration_seconds numeric, width integer, height integer, has_poster boolean,
+  sort_order integer, created_at timestamptz)
 language sql stable security definer set search_path = '' as $$
-  select v.id, v.title, v.duration_seconds, v.width, v.height, v.has_poster
+  select v.id, v.title, v.duration_seconds, v.width, v.height, v.has_poster, v.sort_order, v.created_at
     from public.profile_public_directory d
     join public.profiles p on p.id = d.id
     join public.media_videos v on v.owner_user_id = p.user_id
-   where d.id = p_profile_id and v.scope = 'portfolio'
+   where d.id = p_profile_id and v.scope = 'portfolio' and v.provider = 'r2_hls'
      and v.visibility = 'public' and v.state = 'ready'
-   order by v.ready_at desc, v.id
-   limit 10;
+   order by v.sort_order, v.created_at, v.id;
 $$;
 
 -- Product page: ready videos of a product the caller may see.
 create function public.product_videos(p_product_id uuid, p_workspace uuid default null)
-returns table (id uuid, title text, duration_seconds numeric, width integer, height integer, has_poster boolean)
+returns table (id uuid, title text, duration_seconds numeric, width integer, height integer, has_poster boolean,
+  slot smallint)
 language sql stable security definer set search_path = '' as $$
-  select v.id, v.title, v.duration_seconds, v.width, v.height, v.has_poster
+  select v.id, v.title, v.duration_seconds, v.width, v.height, v.has_poster, v.slot
     from public.media_videos v
-   where v.product_id = p_product_id and v.scope = 'product' and v.state = 'ready'
+   where v.product_id = p_product_id and v.scope = 'product' and v.state = 'ready' and v.provider = 'r2_hls'
      and (select auth.uid()) is not null and app.account_is_active((select auth.uid()))
      and (app.is_publisher_member(v.publisher_id)
           or (app.product_is_public(p_product_id) and app.product_image_viewable(p_product_id, p_workspace)))
-   order by v.ready_at, v.id;
+   order by v.slot, v.id;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -279,13 +582,14 @@ begin
   update public.media_videos
      set state = 'processing', size_bytes = p_size, uploaded_at = now(), upload_id = null
    where id = p_id and state = 'uploading' and declared_bytes = p_size
-     and created_at >= now() - interval '24 hours';
+     and created_at >= now() - interval '6 days' and upload_touched_at >= now() - interval '24 hours';
   if not found then raise exception 'upload cannot be completed' using errcode = '22023'; end if;
 end;
 $$;
 
 -- One job, leased. SKIP LOCKED lets several workers run without coordination;
 -- an expired lease (crashed worker) is picked up again, at most three attempts.
+-- A long video outlives one lease: the worker renews it (video_job_renew).
 create function public.video_job_claim(p_lease_seconds integer default 900)
 returns table (id uuid, content_type text, size_bytes bigint, attempts smallint)
 language plpgsql volatile security definer set search_path = '' as $$
@@ -303,6 +607,18 @@ begin
            attempts = v.attempts + 1
      where v.id = v_id
     returning v.id, v.content_type, v.size_bytes, v.attempts;
+end;
+$$;
+
+-- Heartbeat from the worker holding the job. False means the job is gone
+-- (deleted meanwhile) and the worker should stop.
+create function public.video_job_renew(p_id uuid, p_lease_seconds integer default 900)
+returns boolean language plpgsql volatile security definer set search_path = '' as $$
+begin
+  update public.media_videos
+     set lease_until = now() + make_interval(secs => greatest(60, least(p_lease_seconds, 3600)))
+   where id = p_id and state = 'processing';
+  return found;
 end;
 $$;
 
@@ -348,7 +664,8 @@ language plpgsql volatile security definer set search_path = '' as $$
 begin
   update public.media_videos
      set state = 'deleted', failure_code = 'expired', deleted_at = now()
-   where state = 'uploading' and created_at < now() - interval '24 hours';
+   where state = 'uploading'
+     and (created_at < now() - interval '6 days' or upload_touched_at < now() - interval '24 hours');
   return query
     select v.id, v.upload_id, v.revision from public.media_videos v
      where v.state = 'deleted' and v.purged_at is null
@@ -385,7 +702,8 @@ declare
   v_allowed boolean := false;
 begin
   if p_video is null then return null; end if;
-  select * into v from public.media_videos where id = p_video and state = 'ready';
+  -- Only R2 + HLS videos are delivered by the Worker; another provider serves its own.
+  select * into v from public.media_videos where id = p_video and state = 'ready' and provider = 'r2_hls';
   if not found then return null; end if;
   v_public := v.scope = 'portfolio' and v.visibility = 'public' and exists (
     select 1 from public.profiles p join public.profile_public_directory d on d.id = p.id
@@ -424,6 +742,8 @@ $$;
 -- ---------------------------------------------------------------------------
 
 revoke all on function public.video_upload_begin(text, uuid, text, text, bigint) from public, anon, authenticated, service_role;
+revoke all on function public.portfolio_media_move(text, uuid, text) from public, anon, authenticated, service_role;
+revoke all on function public.product_media_reorder(uuid, jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.video_upload_resolve(uuid) from public, anon, authenticated, service_role;
 revoke all on function public.video_update(uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.video_set_visibility(uuid, boolean) from public, anon, authenticated, service_role;
@@ -434,6 +754,7 @@ revoke all on function public.video_upload_attach(uuid, text) from public, anon,
 revoke all on function public.video_upload_complete(uuid, bigint) from public, anon, authenticated, service_role;
 revoke all on function public.video_job_claim(integer) from public, anon, authenticated, service_role;
 revoke all on function public.video_job_expire() from public, anon, authenticated, service_role;
+revoke all on function public.video_job_renew(uuid, integer) from public, anon, authenticated, service_role;
 revoke all on function public.video_job_finish(uuid, uuid, numeric, integer, integer, text[], boolean) from public, anon, authenticated, service_role;
 revoke all on function public.video_job_fail(uuid, text, boolean) from public, anon, authenticated, service_role;
 revoke all on function public.video_purge_candidates(integer) from public, anon, authenticated, service_role;
@@ -441,6 +762,8 @@ revoke all on function public.video_mark_purged(uuid) from public, anon, authent
 revoke all on function public.media_edge_video(uuid, uuid, uuid, uuid, timestamptz) from public, anon, authenticated, service_role;
 
 grant execute on function public.video_upload_begin(text, uuid, text, text, bigint) to authenticated;
+grant execute on function public.portfolio_media_move(text, uuid, text) to authenticated;
+grant execute on function public.product_media_reorder(uuid, jsonb) to authenticated;
 grant execute on function public.video_upload_resolve(uuid) to authenticated;
 grant execute on function public.video_update(uuid, text) to authenticated;
 grant execute on function public.video_set_visibility(uuid, boolean) to authenticated;
@@ -451,6 +774,7 @@ grant execute on function public.video_upload_attach(uuid, text) to service_role
 grant execute on function public.video_upload_complete(uuid, bigint) to service_role;
 grant execute on function public.video_job_claim(integer) to service_role;
 grant execute on function public.video_job_expire() to service_role;
+grant execute on function public.video_job_renew(uuid, integer) to service_role;
 grant execute on function public.video_job_finish(uuid, uuid, numeric, integer, integer, text[], boolean) to service_role;
 grant execute on function public.video_job_fail(uuid, text, boolean) to service_role;
 grant execute on function public.video_purge_candidates(integer) to service_role;
