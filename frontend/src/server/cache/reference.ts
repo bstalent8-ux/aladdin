@@ -15,12 +15,17 @@ import { cacheKey, count, withRedis } from "./redis";
  *     filters out anything a staff policy would add (e.g. `is_active = true`).
  *   * A caller without a verified session never reads or fills the cache; their
  *     query goes to Postgres, where RLS decides.
- *   * Empty results are never cached, so a transient RLS or seed gap is not
- *     pinned for the TTL.
- *   * Freshness: the TTL bounds staleness; `invalidateReference` drops an entry
- *     at once (called after any write to the vocabulary).
+ *   * An empty result is kept for five minutes only, so a transient RLS or seed
+ *     gap is not pinned for the full TTL, while a vocabulary that is empty by
+ *     design (no specialties seeded yet) does not cost a database read on
+ *     every page.
+ *   * Freshness: the TTL bounds staleness. No application path writes these
+ *     vocabularies today (they change by migration), so after such a migration
+ *     entries refresh within ten minutes; `invalidateReference` is for any
+ *     future write path, which must call it.
  */
 export const REFERENCE_TTL_SECONDS = 600;
+export const EMPTY_REFERENCE_TTL_SECONDS = 300;
 export type ReferenceName = "trades" | "trade-specialties" | "product-categories";
 
 const inflight = new Map<string, Promise<unknown[]>>();
@@ -37,7 +42,7 @@ export async function cachedReference<T>(name: ReferenceName, load: () => Promis
   if (typeof cached === "string") {
     try {
       const parsed: unknown = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         count("ref", "hits");
         return parsed as T[];
       }
@@ -51,11 +56,10 @@ export async function cachedReference<T>(name: ReferenceName, load: () => Promis
     inflight.set(key, pending);
   }
   const rows = await pending;
-  if (rows.length > 0) {
-    const stored = await withRedis("ref", (redis) =>
-      redis.set(key, JSON.stringify(rows), { expiration: { type: "EX", value: REFERENCE_TTL_SECONDS } }));
-    if (stored !== undefined) count("ref", "sets");
-  }
+  const ttl = rows.length > 0 ? REFERENCE_TTL_SECONDS : EMPTY_REFERENCE_TTL_SECONDS;
+  const stored = await withRedis("ref", (redis) =>
+    redis.set(key, JSON.stringify(rows), { expiration: { type: "EX", value: ttl } }));
+  if (stored !== undefined) count("ref", "sets");
   return rows;
 }
 
