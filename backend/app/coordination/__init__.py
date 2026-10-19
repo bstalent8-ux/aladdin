@@ -44,10 +44,18 @@ def lock_key(env: str, name: str) -> str:
 
 
 def connect(url: str) -> Any:
+    """One connection for a job run. Upstash bills per command, so the
+    handshake is RESP2 with no ``CLIENT SETINFO`` (one AUTH instead of HELLO
+    plus two CLIENT commands) and there is no health-check PING. The
+    connection lives only as long as the job, so it is never left idle."""
     import redis
 
     return redis.Redis.from_url(
-        url, socket_connect_timeout=2, socket_timeout=2, health_check_interval=30
+        url,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+        protocol=2,
+        driver_info=None,
     )
 
 
@@ -85,6 +93,7 @@ def job_lock(name: str, *, ttl_seconds: int = 300, client: Any | None = None) ->
     from app.config import get_settings
 
     settings = get_settings()
+    owned = client is None
     if client is None:
         if not settings.redis_url:
             log.warning("job_lock.redis_not_configured", lock=name)
@@ -94,12 +103,16 @@ def job_lock(name: str, *, ttl_seconds: int = 300, client: Any | None = None) ->
     lock = JobLock(
         client, lock_key(settings.redis_key_env or settings.app_env, name), ttl_seconds * 1000
     )
-    if not lock.acquire():
-        raise LockUnavailable(name)
     try:
-        yield lock
-    finally:
+        if not lock.acquire():
+            raise LockUnavailable(name)
         try:
-            lock.release()
-        except Exception:  # noqa: BLE001 - the TTL frees it; never mask the job's own error
-            log.warning("job_lock.release_failed", lock=name)
+            yield lock
+        finally:
+            try:
+                lock.release()
+            except Exception:  # noqa: BLE001 - the TTL frees it; never mask the job's own error
+                log.warning("job_lock.release_failed", lock=name)
+    finally:
+        if owned:
+            client.close()

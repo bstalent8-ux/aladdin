@@ -4,8 +4,9 @@ import { z } from "zod";
 /**
  * Server-only Redis settings (server/cache). Redis is an optional accelerator:
  * with REDIS_CACHE_ENABLED=false (the default) every caller reads Postgres
- * directly and the rate limits that Redis adds are skipped. Nothing in Redis is
- * ever an authorization input, so turning it off changes speed, never access.
+ * directly and the rate limits are counted per instance in memory instead.
+ * Nothing in Redis is ever an authorization input, so turning it off changes
+ * speed, never access.
  */
 const optional = z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional());
 
@@ -15,6 +16,8 @@ export const cacheEnvSchema = z.object({
   REDIS_URL: optional,
   // Separates environments that share one Redis database (preview vs staging).
   REDIS_KEY_ENV: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[a-z0-9-]{1,24}$/).optional()),
+  // Monthly command allowance the usage warnings measure against (Upstash Free: 500,000).
+  REDIS_MONTHLY_COMMAND_BUDGET: z.coerce.number().int().positive().default(500_000),
   APP_ENV: z.enum(["local", "staging", "production"]).default("local"),
 }).superRefine((env, ctx) => {
   if (!env.REDIS_CACHE_ENABLED) return;
@@ -43,6 +46,7 @@ export function readCacheEnv(): CacheEnv {
     REDIS_CACHE_ENABLED: process.env.REDIS_CACHE_ENABLED,
     REDIS_URL: process.env.REDIS_URL,
     REDIS_KEY_ENV: process.env.REDIS_KEY_ENV,
+    REDIS_MONTHLY_COMMAND_BUDGET: process.env.REDIS_MONTHLY_COMMAND_BUDGET || undefined,
     APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
   });
 }

@@ -28,7 +28,7 @@ beforeEach(() => {
   sign.mockResolvedValue({ data: { signedUrl: "https://test.invalid/image" }, error: null });
   adminRpc.mockResolvedValue({ error: null });
   limiter.identity.mockResolvedValue({ id: OWNER });
-  limiter.consume.mockResolvedValue({ outcome: "skipped" });
+  limiter.consume.mockResolvedValue({ outcome: "allowed", source: "memory" });
 });
 
 describe("mixed-provider authorization and finalization", () => {

@@ -13,7 +13,7 @@ const KEY = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa.png";
 beforeEach(() => {
   vi.clearAllMocks(); mocks.user.mockResolvedValue({ data: { user: { id: OWNER } }, error: null });
   mocks.resolve.mockResolvedValue({ owner: OWNER });
-  mocks.limit.mockResolvedValue({ outcome: "skipped" });
+  mocks.limit.mockResolvedValue({ outcome: "allowed", source: "memory" });
   mocks.deliver.mockImplementation(async (_client, _namespace, _key, authority) =>
     new Response(null, { status: await authority() ? 200 : 404 }));
 });

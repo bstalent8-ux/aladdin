@@ -45,7 +45,7 @@ function requireWriteApproval(provider: StorageProviderName) {
 
 export async function authorizeMediaUpload(client: SupabaseClient, namespace: MediaNamespace, key: string, expectedBytes?: number) {
   const media = await resolveMedia(client, namespace, key, "upload");
-  // An extra per-user brake ahead of the reservation quota; skipped when Redis is off.
+  // An extra per-user brake ahead of the reservation quota (Redis, or per-instance memory when Redis is down).
   const identity = await readSessionIdentity(client);
   if (identity && (await consumeRateLimit("media-upload", identity.id)).outcome === "limited") {
     throw new Error("upload rate limited");

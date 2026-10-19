@@ -13,8 +13,9 @@ insert into auth.sessions(id, user_id, created_at, aal, not_after) values
   (:'live',  :'u', now(), 'aal1', null),
   (:'ended', :'u', now(), 'aal1', now() - interval '1 minute');
 
+-- authenticated may execute it since 20261019163000 (Storage/Realtime policies run as the caller).
 select ok(not has_function_privilege(r, 'app.jwt_session_is_live()', 'EXECUTE'), format('%s cannot call the helper directly', r))
-  from unnest(array['anon', 'authenticated', 'service_role']) r;
+  from unnest(array['anon', 'service_role']) r;
 
 -- The hook as PostgREST runs it: claims and path set, request role switched.
 create function pg_temp.call_as(p_session text, p_path text default '/trades') returns text language plpgsql as $$
