@@ -14,11 +14,16 @@
 - `organizations.is_verified` still means "approved/active" for every gate; `organizations.business_verified_at` drives the Verified badge. No backfill: existing organizations show no badge until a business verification is approved (Decision B). `verification.approve` does not approve applications.
 - Validation: typecheck, lint, Vitest, build and pgTAP (local shim) passed; browser journeys not run here.
 
+## Terms of Service published — 2026-10-18
+
+- `/legal/terms` now publishes the real Terms of Service (EN/AR, public, contact `info@aladdindecore.com`), replacing the placeholder; the `LegalPending` component is removed. All three legal pages are live content. [Details](../frontend/legal-pages.md).
+- Validation: typecheck clean, lint 0 errors, Vitest 3,795 passed, production build passed.
+
 ## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
 
 - Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
 - Migration `20261017134139_account_entry_allowed.sql` applied to hosted Supabase `aladdin-staging` (version `20261017134139`); anon has no execute grant. The owner configured the Google and Facebook providers in Supabase.
-- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. `/legal/terms` is still the placeholder. [Details](../frontend/legal-pages.md).
+- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. [Details](../frontend/legal-pages.md).
 - Validation: typecheck clean, lint 0 errors, Vitest 3,793 passed, production build passed. pgTAP and E2E not run (no Docker here).
 
 ## Admin Core dashboard promoted onto the Admin routes — 2026-10-17
