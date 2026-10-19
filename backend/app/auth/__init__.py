@@ -3,9 +3,12 @@
 Every backend request that acts for a person carries that person's Supabase
 access token. `TokenVerifier` checks it locally against the project's signing
 keys (JWKS for the asymmetric ES256/RS256 keys, the legacy shared secret only
-for HS256), so no Supabase Auth round trip is spent per request. Two FastAPI
-dependencies build on it:
+for HS256), so no Supabase Auth round trip is spent per request. FastAPI
+dependencies:
 
+- `require_configured`: refuses with 503 while the deployment is missing
+  configuration (`Settings.missing_configuration`); every endpoint that acts for
+  a person or runs a job depends on it, directly or through the two below;
 - `require_principal`: a valid, unexpired `authenticated` token;
 - `require_active_principal`: additionally asks the database, as the caller,
   whether the account is still active and the session still live
@@ -103,7 +106,18 @@ def _unauthorized() -> HTTPException:
     )
 
 
+def require_configured(settings: Annotated[Settings, Depends(get_settings)]) -> None:
+    if settings.missing_configuration:
+        # The variable names are on /api/backend/health; nothing more is said here.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="service misconfigured"
+        )
+
+
 def require_principal(
+    # Declared first: FastAPI resolves dependencies in order, so a misconfigured
+    # deployment answers 503 before a token verifier is ever built.
+    _configured: Annotated[None, Depends(require_configured)],
     verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> Principal:
