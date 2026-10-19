@@ -44,11 +44,16 @@
 
 The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
 
+## Terms of Service published — 2026-10-18
+
+- `/legal/terms` now publishes the real Terms of Service (EN/AR, public, contact `info@aladdindecore.com`), replacing the placeholder; the `LegalPending` component is removed. All three legal pages are live content. [Details](../frontend/legal-pages.md).
+- Validation: typecheck clean, lint 0 errors, Vitest 3,795 passed, production build passed.
+
 ## Showroom/Installer entry pages: Google, Facebook, email — 2026-10-17
 
 - Branch `claude/auth-oauth-email-g90ajg` (draft PR) from `main` @ `282210b`. Adds Google/Facebook OAuth (`/auth/callback`), email + password sign-in and email + OTP sign-up to `/showroom/*` and `/installer/*` sign-in/up; phone + password unchanged and still the default tab. [Details](../frontend/entry-auth-methods.md).
 - Migration `20261017134139_account_entry_allowed.sql` applied to hosted Supabase `aladdin-staging` (version `20261017134139`); anon has no execute grant. The owner configured the Google and Facebook providers in Supabase.
-- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. `/legal/terms` is still the placeholder. [Details](../frontend/legal-pages.md).
+- `/legal/privacy` now publishes the real Privacy Policy and new `/legal/data-deletion` publishes the Data Deletion Instructions (EN/AR, public, contact `info@aladdindecore.com`) for Meta app review. [Details](../frontend/legal-pages.md).
 - Validation: typecheck clean, lint 0 errors, Vitest 3,793 passed, production build passed. pgTAP and E2E not run (no Docker here).
 
 ## Admin Core dashboard promoted onto the Admin routes — 2026-10-17

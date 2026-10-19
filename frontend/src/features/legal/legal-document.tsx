@@ -7,6 +7,7 @@ import { Brand } from "@/components/layout/brand";
 import { LEGAL_UPDATED_AT, legalDocument, type LegalBlock, type LegalDocumentKey } from "@/features/legal/content";
 
 const RELATED: Record<LegalDocumentKey, { href: string; labelKey: "legal.seePrivacy" | "legal.seeDataDeletion" }> = {
+  terms: { href: "/legal/privacy", labelKey: "legal.seePrivacy" },
   privacy: { href: "/legal/data-deletion", labelKey: "legal.seeDataDeletion" },
   dataDeletion: { href: "/legal/privacy", labelKey: "legal.seePrivacy" },
 };
@@ -22,7 +23,7 @@ function Block({ block }: { block: LegalBlock }) {
 }
 
 /**
- * A published legal document (Privacy Policy, Data Deletion Instructions) in
+ * A published legal document (Terms of Service, Privacy Policy, Data Deletion Instructions) in
  * the visitor's locale. Public: no session needed (docs/frontend/legal-pages.md).
  */
 export function LegalDocumentView({ documentKey }: { documentKey: LegalDocumentKey }) {
@@ -30,7 +31,7 @@ export function LegalDocumentView({ documentKey }: { documentKey: LegalDocumentK
   const doc = legalDocument(documentKey, locale);
   const related = RELATED[documentKey];
   const updated = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "ar-EG", { dateStyle: "long", timeZone: "UTC" }).format(
-    new Date(`${LEGAL_UPDATED_AT}T00:00:00Z`),
+    new Date(`${LEGAL_UPDATED_AT[documentKey]}T00:00:00Z`),
   );
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-lg px-md py-xl">
@@ -41,7 +42,7 @@ export function LegalDocumentView({ documentKey }: { documentKey: LegalDocumentK
           </Link>
           <h1 className="font-display-ar text-headline text-fg">{doc.title}</h1>
           <p className="text-label text-fg-muted">
-            {doc.updatedLabel}: <time dateTime={LEGAL_UPDATED_AT}>{updated}</time>
+            {doc.updatedLabel}: <time dateTime={LEGAL_UPDATED_AT[documentKey]}>{updated}</time>
           </p>
           <p className="text-body-lg text-fg-secondary">{doc.intro}</p>
         </header>
