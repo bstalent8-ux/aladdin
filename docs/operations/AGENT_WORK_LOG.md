@@ -1,3 +1,9 @@
+## 2026-10-19 — Image uploads: no cap on originals, ceilings on derivatives
+
+Branch `claude/image-uploads-2ibvgs` (from `claude/video-r2-2ibvgs`, to be merged into it). Owner rule: a picked photo is never refused for its size. `lib/media/resize-image.ts` now always prepares the upload to the namespace's unchanged server cap (avatar/organization 3 MiB, portfolio/product/request 5 MiB, certificate image 10 MiB): header read without decoding, reduced-size decode above 24 MP with an orientation check, quality then long-edge steps, alpha kept, typed failure with a translated "could not be prepared on this device" message. Client-side source caps removed (avatar, organization, product pick, request validation, portfolio `MAX_SOURCE_FACTOR`, installer preview). Server caps, SQL and sharp's 25 MP limit unchanged. Documented in `docs/database/professional-asset-storage.md` §16, with the remaining limits (25 MP server decode on the derivative, browser canvas limits, Supabase Free 50 MB on the rollback path, documents 10 MiB).
+
+Not verified: real-browser behaviour on very large photos (unit tests mock canvas and `createImageBitmap`); purchase-request images still have no browser upload UI.
+
 ## 2026-10-19 — Redis (PR #92), video on R2 + HLS (video PR), palette (PR #93)
 
 Branches: `claude/redis-cache-2ibvgs` (draft #92, base #91's branch), `claude/video-r2-2ibvgs` (stacked on #92), `claude/brand-palette-2ibvgs` (draft #93, base main). No hosted change, no paid service.
