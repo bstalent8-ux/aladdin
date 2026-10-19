@@ -21,6 +21,7 @@ import { E2E_PASSWORD, IDENTITIES } from "./helpers/auth";
 
 const DB = process.env.E2E_DB_CONTAINER ?? "supabase_db_aladdin";
 const SHOTS = process.env.PR89_SCREENSHOT_DIR ?? "/mnt/project-files/showroom-admin/e2e/pr89";
+const AXIS = process.env.E2E_LOCALE || process.env.E2E_THEME ? `-${process.env.E2E_LOCALE ?? "en"}-${process.env.E2E_THEME ?? "light"}` : "";
 const HANA_ORG = "9c000000-cccc-4ccc-8ccc-000000000001";
 const TURNSTILE_STUB =
   'window.turnstile={render:function(el,o){setTimeout(function(){o.callback("XXXX.DUMMY.TOKEN.XXXX")},0);return "local-test"},remove:function(){},reset:function(){}};';
@@ -93,7 +94,7 @@ test("PR #89 avatar: upload renders from /api/media and is private to the owner'
   await page.getByTestId("avatar-input").setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: await testImage(800, 800) });
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByTestId("avatar-cropper")).toBeVisible();
-  await dialog.getByRole("button", { name: /^save/i }).click();
+  await dialog.getByRole("button", { name: /^save|^حفظ/i }).click();
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
   const img = page.getByTestId("avatar-current");
   await expect(img).toBeVisible({ timeout: 20_000 });
@@ -102,7 +103,7 @@ test("PR #89 avatar: upload renders from /api/media and is private to the owner'
   const src = (await img.getAttribute("src"))!;
   expect(src).toMatch(/^\/api\/media\/avatar\?key=/);
   info.annotations.push({ type: "avatar img", description: `src=${src} srcset=${await img.getAttribute("srcset")} loading=${await img.getAttribute("loading")}` });
-  await page.screenshot({ path: path.join(SHOTS, `avatar-${device}.png`), fullPage: true });
+  await page.screenshot({ path: path.join(SHOTS, `avatar-${device}${AXIS}.png`), fullPage: true });
 
   const ownerRes = await owner.request.get(src);
   expect(ownerRes.status()).toBe(200);
@@ -156,7 +157,7 @@ select p.id from public.products p
   info.annotations.push({ type: "product img", description: `src=${src} srcset=${srcset} sizes=${await img.getAttribute("sizes")}` });
   // Local provider = Supabase: no stored variants, so no srcset (variants are R2 + edge only).
   expect(srcset).toBeNull();
-  await page.screenshot({ path: path.join(SHOTS, `product-image-${device}.png`), fullPage: true });
+  await page.screenshot({ path: path.join(SHOTS, `product-image-${device}${AXIS}.png`), fullPage: true });
 
   const ownerRes = await owner.request.get(src);
   expect(ownerRes.status()).toBe(200);
