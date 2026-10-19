@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -125,10 +126,6 @@ def test_probe_rejects_unknown_types_without_running():
             "no_video_stream",
         ),
         (
-            probe_output([{"codec_type": "video", "width": 640, "height": 360}], duration="301"),
-            "too_long",
-        ),
-        (
             probe_output([{"codec_type": "video", "width": 640, "height": 360}], duration="0"),
             "invalid_media",
         ),
@@ -138,6 +135,45 @@ def test_probe_rejections(result: subprocess.CompletedProcess[bytes], code: str)
     with pytest.raises(vt.MediaRejected) as rejected:
         vt.probe(Path("/x"), "video/mp4", fixed(result))
     assert rejected.value.code == code
+
+
+def test_long_videos_are_accepted_and_get_a_longer_ffmpeg_budget():
+    info = vt.probe(
+        Path("/x"),
+        "video/mp4",
+        fixed(
+            probe_output([{"codec_type": "video", "width": 1920, "height": 1080}], duration="10800")
+        ),
+    )
+    assert info.duration == 10800
+    assert vt.ffmpeg_timeout(30) == vt.FFMPEG_MIN_TIMEOUT_SECONDS
+    assert vt.ffmpeg_timeout(10800) == 10800 * vt.FFMPEG_SECONDS_PER_MEDIA_SECOND + 600
+
+
+def test_a_host_without_disk_for_the_file_retries_instead_of_rejecting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(vt.shutil, "disk_usage", lambda _p: type("U", (), {"free": 10})())
+    jobs = FakeJobs(
+        claim=[{"id": VIDEO_ID, "content_type": "video/mp4", "size_bytes": 1000, "attempts": 1}]
+    )
+    result = vt.process_one(jobs, DirStore(tmp_path / "bucket"))
+    assert result is not None and result.outcome == "retry" and result.detail == "InsufficientDisk"
+    assert jobs.last("video_job_fail")["p_retry"] is True
+
+
+def test_the_lease_is_renewed_while_a_job_runs_and_stops_when_the_job_is_gone():
+    renewals: list[dict[str, Any]] = []
+
+    class Jobs:
+        def rpc(self, name: str, params: dict[str, Any]) -> Any:
+            renewals.append(params)
+            return len(renewals) < 3  # the third renewal finds the video deleted
+
+    with vt.LeaseHeartbeat(Jobs(), VIDEO_ID, every=0.01):
+        time.sleep(0.2)
+    assert len(renewals) == 3
+    assert renewals[0] == {"p_id": VIDEO_ID, "p_lease_seconds": vt.LEASE_SECONDS}
 
 
 def test_probe_uses_display_dimensions_for_rotated_phone_video():

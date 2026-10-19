@@ -38,6 +38,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from collections.abc import Callable, Sequence
@@ -49,10 +50,17 @@ import structlog
 
 log = structlog.get_logger(__name__)
 
-MAX_SECONDS = 300
-LEASE_SECONDS = 1800
-FFMPEG_TIMEOUT_SECONDS = 1500
+# No product limit on length or size (ADR-0020 Revision 2). What remains is
+# technical: ffmpeg's time budget grows with the video, the lease is renewed while
+# it runs, and the host needs disk for the original plus its outputs.
+LEASE_SECONDS = 900
+LEASE_RENEW_SECONDS = 300
+FFMPEG_MIN_TIMEOUT_SECONDS = 1500
+# Three renditions on a small CPU run at about one to three times real time.
+FFMPEG_SECONDS_PER_MEDIA_SECOND = 8
 PROBE_TIMEOUT_SECONDS = 60
+# Original + renditions (at most about its own size again) + headroom.
+DISK_FACTOR = 2.5
 SEGMENT_SECONDS = 4
 
 # Closed set, mirrored by the media Worker's file pattern (edge/media-worker/src/video.ts).
@@ -231,8 +239,6 @@ def probe(source: Path, content_type: str, runner: Runner = run) -> Probe:
         raise MediaRejected("invalid_media") from error
     if duration <= 0 or width <= 0 or height <= 0:
         raise MediaRejected("invalid_media")
-    if duration > MAX_SECONDS + 0.5:
-        raise MediaRejected("too_long")
     if abs(_rotation(video)) % 180 == 90:
         width, height = height, width
     return Probe(
@@ -418,6 +424,44 @@ class JobResult:
     detail: str = ""
 
 
+class InsufficientDisk(RuntimeError):
+    """The worker host lacks the disk this job needs; the job is retried, not rejected."""
+
+
+def ffmpeg_timeout(duration: float) -> int:
+    return max(FFMPEG_MIN_TIMEOUT_SECONDS, int(duration * FFMPEG_SECONDS_PER_MEDIA_SECOND) + 600)
+
+
+class LeaseHeartbeat:
+    """Renews the job's lease while a long video is processed, so another worker
+    does not take it over. Stops when the job is gone (deleted meanwhile)."""
+
+    def __init__(self, jobs: JobClient, video_id: str, every: float = LEASE_RENEW_SECONDS) -> None:
+        self._jobs, self._id, self._every = jobs, video_id, every
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="video-lease", daemon=True)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._every):
+            try:
+                if not self._jobs.rpc(
+                    "video_job_renew", {"p_id": self._id, "p_lease_seconds": LEASE_SECONDS}
+                ):
+                    return
+            except Exception as error:  # noqa: BLE001 - a missed renewal only risks a retry
+                log.warning(
+                    "video.lease_renew_failed", video=_ref(self._id), error=type(error).__name__
+                )
+
+    def __enter__(self) -> LeaseHeartbeat:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self._stop.set()
+        self._thread.join(timeout=5)
+
+
 def process_one(
     jobs: JobClient,
     store: VideoStore,
@@ -435,10 +479,15 @@ def process_one(
         raise RuntimeError("database returned an invalid video id")
     content_type, size = str(job["content_type"]), int(job["size_bytes"] or 0)
     started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="video-", dir=workdir) as tmp:
+    heartbeat = LeaseHeartbeat(jobs, video_id)
+    with tempfile.TemporaryDirectory(prefix="video-", dir=workdir) as tmp, heartbeat:
         root = Path(tmp)
         source, out = root / "original", root / "out"
         try:
+            free = shutil.disk_usage(root).free
+            if free < size * DISK_FACTOR:
+                # The host is too small for this file, not the file too big: retry later.
+                raise InsufficientDisk(f"needs {size * DISK_FACTOR:.0f} bytes, has {free}")
             if store.download(f"video/{video_id}/original", source) != size:
                 raise MediaRejected("upload_incomplete")
             info = probe(source, content_type, runner)
@@ -448,7 +497,7 @@ def process_one(
                 (out / name).mkdir(parents=True)
             done = runner(
                 transcode_command(source, content_type, out, info, renditions, codec),
-                FFMPEG_TIMEOUT_SECONDS,
+                ffmpeg_timeout(info.duration),
             )
             if done.returncode != 0:
                 raise RuntimeError(f"ffmpeg failed: {done.stderr[-400:].decode(errors='replace')}")
@@ -497,7 +546,12 @@ def process_one(
             jobs.rpc(
                 "video_job_fail", {"p_id": video_id, "p_code": "transcode_failed", "p_retry": True}
             )
-            log.warning("video.retry", video=_ref(video_id), error=type(error).__name__)
+            log.warning(
+                "video.retry",
+                video=_ref(video_id),
+                error=type(error).__name__,
+                detail=str(error)[:200],
+            )
             return JobResult(video_id, "retry", type(error).__name__)
 
 
