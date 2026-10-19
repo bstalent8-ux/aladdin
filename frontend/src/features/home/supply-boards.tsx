@@ -1106,7 +1106,7 @@ function ReelCard({
         <span
           aria-hidden="true"
           className={cn(
-            "absolute inset-0 grid place-items-center text-white/90 transition-opacity",
+            "absolute inset-0 grid place-items-center text-brand-soft-cream/90 transition-opacity",
             "bg-brand-basalt/10 group-hover:bg-brand-basalt/25",
           )}
         >
@@ -1114,7 +1114,7 @@ function ReelCard({
             <PlayIcon size={18} />
           </span>
         </span>
-        <span className="absolute bottom-1.5 end-1.5 rounded-sm bg-brand-basalt/70 px-1.5 py-0.5 text-[0.6875rem] font-medium text-white">
+        <span className="absolute bottom-1.5 end-1.5 rounded-sm bg-brand-basalt/70 px-1.5 py-0.5 text-[0.6875rem] font-medium text-brand-soft-cream">
           {formatDuration(duration)}
         </span>
       </div>

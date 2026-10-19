@@ -116,6 +116,10 @@ export const KNOWN_SEMANTIC_TOKENS = [
   // `borderColor.strong` — the ONE non-DEFAULT entry outside `colors` itself.
   "strong",
   // `brand.*` — fixed primitives, Tailwind-flattened as `brand-<key>`.
+  "brand-deep-navy",
+  "brand-warm-sand",
+  "brand-soft-cream",
+  "brand-muted-terracotta",
   "brand-basalt",
   "brand-basalt-2",
   "brand-basalt-3",

@@ -148,7 +148,7 @@
 
   .copyWrap {
     position: static;
-    background: #0c1922;
+    background: var(--deep-navy);
     padding-block: 1.75rem;
     align-items: flex-start;
   }

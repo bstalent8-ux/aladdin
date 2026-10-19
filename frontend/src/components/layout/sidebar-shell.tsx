@@ -633,7 +633,7 @@ export function SidebarShell({
                second floating surface beside the sidebar. On the plate it is the
                shell itself lifting, which is the only thing here that is a
                surface at all. */
-            open && hoverMode && "shadow-[8px_0_28px_-8px_rgba(0,10,30,0.28)]",
+            open && hoverMode && "shadow-[8px_0_28px_-8px_color-mix(in_srgb,var(--deep-navy)_28%,transparent)]",
           )}
           style={{ width: "var(--shell-nav-w)" }}
         >

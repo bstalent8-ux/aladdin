@@ -23,7 +23,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: #0b0c0f;
+  background: var(--deep-navy);
 }
 
 .textureImg {

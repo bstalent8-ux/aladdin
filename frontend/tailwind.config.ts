@@ -151,6 +151,12 @@ export default {
 
         // ---- Fixed primitives (brand artwork, mark, seals) ----
         brand: {
+          // The four approved palette roots. Every other entry below is an
+          // alias of these (see tokens.css).
+          "deep-navy": alpha("--deep-navy"),
+          "warm-sand": alpha("--warm-sand"),
+          "soft-cream": alpha("--soft-cream"),
+          "muted-terracotta": alpha("--muted-terracotta"),
           basalt: alpha("--basalt"),
           "basalt-2": alpha("--basalt-2"),
           "basalt-3": alpha("--basalt-3"),

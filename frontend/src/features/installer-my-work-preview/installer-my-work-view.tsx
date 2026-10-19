@@ -229,7 +229,7 @@ function ActiveWorkPanel({ work, locale, onAction }: { work: ActiveWorkVM; local
             ) : (
               <TradeIllustration tradeKey={work.tradeKey} className="absolute inset-y-4 start-1/2 h-[calc(100%-2rem)] w-auto max-w-[80%] -translate-x-1/2 rtl:translate-x-1/2" />
             )}
-            <span className="absolute start-sm top-sm flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-white shadow-sm">
+            <span className="absolute start-sm top-sm flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-brand-soft-cream dark:text-brand-deep-navy shadow-sm">
               {work.badgeLabel}
             </span>
           </div>

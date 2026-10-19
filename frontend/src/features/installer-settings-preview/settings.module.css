@@ -3,7 +3,6 @@
   border-color: var(--border) !important;
   box-shadow: none !important;
 }
-.theme :global(.text-white) { color: var(--soft-cream); }
 .theme :global(.border-danger) { border-color: var(--muted-terracotta); }
 .toggle {
   position: relative;

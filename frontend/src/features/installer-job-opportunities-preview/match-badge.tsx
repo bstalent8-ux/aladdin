@@ -20,9 +20,9 @@ import { formatNumber } from "@/lib/ui/format";
 import { cn } from "@/lib/ui/cn";
 
 const LEVEL_TONE: Record<MatchLevel, string> = {
-  excellent: "bg-success text-white",
-  strong: "bg-success text-white",
-  good: "bg-info text-white",
+  excellent: "bg-success text-brand-soft-cream dark:text-brand-deep-navy",
+  strong: "bg-success text-brand-soft-cream dark:text-brand-deep-navy",
+  good: "bg-info text-brand-soft-cream dark:text-brand-deep-navy",
   partial: "bg-warning text-fg",
   low: "bg-surface text-fg-secondary",
 };
