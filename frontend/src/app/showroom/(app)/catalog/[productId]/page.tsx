@@ -64,7 +64,7 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
       }
       extra={<SaveProductButton orgId={org.organizationId} productId={product.id} saved={saved.has(product.id)} />}
     />
-    <div className="mt-xl"><VideoGallery videos={videos} title={t("video.title")} /></div>
+    <div className="mt-xl"><VideoGallery videos={videos} title={t("video.title")} t={t} /></div>
     </>
   );
 }

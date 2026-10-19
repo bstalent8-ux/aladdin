@@ -66,6 +66,9 @@ describe("beginVideoUpload", () => {
     const u = uploads();
     const plan = await beginVideoUpload(c, { scope: "portfolio", title: "t", contentType: "video/mp4", bytes: VIDEO_PART_BYTES * 2 + 1 }, u);
     expect(plan).toEqual({ id: ID, partBytes: VIDEO_PART_BYTES, partCount: 3, uploaded: [] });
+    // PostgREST resolves functions by argument names: a portfolio upload must still send p_product_id.
+    expect(c.rpc).toHaveBeenCalledWith("video_upload_begin", { p_scope: "portfolio", p_product_id: null, p_title: "t",
+      p_content_type: "video/mp4", p_bytes: VIDEO_PART_BYTES * 2 + 1 });
     expect(mocks.admin).toHaveBeenCalledWith("video_upload_attach", { p_id: ID, p_upload_id: "up-1" });
   });
   it.each([["42501", "not_allowed"], ["23514", "limit"], ["22023", "invalid"]])("maps database refusal %s to %s and never touches R2", async (code, expected) => {

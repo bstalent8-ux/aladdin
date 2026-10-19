@@ -314,3 +314,34 @@ def test_real_transcode_produces_the_layout_the_worker_serves(
     ]
     assert store.types[prefix + "master.m3u8"] == "application/vnd.apple.mpegurl"
     assert store.types[prefix + f"{expected[0]}/seg_00000.m4s"] == "video/iso.segment"
+
+
+def test_vp9_test_codec_is_a_separate_local_only_path():
+    info = vt.Probe(duration=5, width=1280, height=720, has_audio=True)
+    args = vt.transcode_command(
+        Path("/s"), "video/mp4", Path("/o"), info, vt.plan_renditions(1280, 720), "vp9"
+    )
+    assert "libvpx-vp9" in args and "libopus" in args
+    assert "libx264" not in args and "-profile:v" not in args
+    with pytest.raises(ValueError):
+        vt.transcode_command(Path("/s"), "video/mp4", Path("/o"), info, [], "hevc")
+
+
+def test_test_codec_is_refused_outside_local(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    from app.config import Settings
+
+    monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/ffmpeg")
+    monkeypatch.setattr(
+        "app.config.get_settings",
+        lambda: Settings(
+            app_env="staging",
+            supabase_url="x",
+            supabase_service_role_key="x",
+            supabase_jwt_secret="x",
+            database_url="x",
+        ),
+    )
+    assert vt.main(["--once", "--test-codec", "vp9"]) == 2
+    assert "only allowed" in capsys.readouterr().err

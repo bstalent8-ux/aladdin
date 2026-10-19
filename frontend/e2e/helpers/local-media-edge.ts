@@ -1,4 +1,5 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:https";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer } from "node:https";
 import { Readable } from "node:stream";
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { postgresAuthority } from "../../../edge/media-worker/src/authority";
@@ -12,7 +13,7 @@ import type { ByteCacheLike, Env, R2BucketLike } from "../../../edge/media-worke
  * Supabase database as a media_edge LOGIN member, and the edge cache is an
  * in-memory map that counts hits. Nothing here talks to Cloudflare.
  */
-export type LocalEdge = { origin: string; stats: { requests: number; cacheHits: number; denied: number }; close(): Promise<void> };
+export type LocalEdge = { origin: string; stats: { requests: number; cacheHits: number; denied: number; bytes: number }; close(): Promise<void> };
 
 export function s3Bucket(client: S3Client, bucket: string): R2BucketLike {
   const missing = (error: unknown) => (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404;
@@ -38,8 +39,8 @@ export async function startLocalEdge(options: {
   port: number; tls: { key: string; cert: string }; s3: S3Client; bucket: string; databaseUrl: string;
   ticketKeys: Record<string, string>; allowedOrigins: string[];
 }): Promise<LocalEdge> {
-  const stats = { requests: 0, cacheHits: 0, denied: 0 };
-  const bytes = new Map<string, { body: Uint8Array; headers: [string, string][] }>();
+  const stats = { requests: 0, cacheHits: 0, denied: 0, bytes: 0 };
+  const bytes = new Map<string, { body: ArrayBuffer; headers: [string, string][] }>();
   const cache: ByteCacheLike = {
     async match(key) {
       const hit = bytes.get(key);
@@ -48,7 +49,7 @@ export async function startLocalEdge(options: {
       return new Response(hit.body, { headers: hit.headers });
     },
     async put(key, response) {
-      bytes.set(key, { body: new Uint8Array(await response.arrayBuffer()), headers: [...response.headers] });
+      bytes.set(key, { body: await response.arrayBuffer(), headers: [...response.headers] });
     },
   };
   const env: Env = {
@@ -69,6 +70,7 @@ export async function startLocalEdge(options: {
     const response = await handle(new Request(`${origin}${req.url}`, { method: req.method, headers }), env,
       { waitUntil: (p) => { waits.push(p); } });
     if (response.status === 404) stats.denied += 1;
+    stats.bytes += Number(response.headers.get("content-length") ?? 0);
     res.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body) Readable.fromWeb(response.body as never).pipe(res);
     else res.end();

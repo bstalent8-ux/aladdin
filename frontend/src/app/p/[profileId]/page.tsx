@@ -81,7 +81,7 @@ export default async function PublicProfilePage({
           tell a visitor that work exists and is being withheld, which is exactly
           the distinction the whole surface refuses to draw. */}
       <PublicPortfolio items={portfolio} t={t} />
-      <VideoGallery videos={videos} title={t("video.publicTitle")} />
+      <VideoGallery videos={videos} title={t("video.publicTitle")} t={t} />
       {/* Reviews after the work, for the same reason the work comes after the
           identity: a visitor decides who this is, sees what they have done, and
           then reads what other organizations said about it. Rendered only when

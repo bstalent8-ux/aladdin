@@ -1,3 +1,21 @@
+## 2026-10-19 — Redis (PR #92), video on R2 + HLS (video PR), palette (PR #93)
+
+Branches: `claude/redis-cache-2ibvgs` (draft #92, base #91's branch), `claude/video-r2-2ibvgs` (stacked on #92), `claude/brand-palette-2ibvgs` (draft #93, base main). No hosted change, no paid service.
+
+Done:
+- **Redis (ADR-0019)**: optional, fail-open; reference vocabularies cached 600 s, per-user rate limits (media upload/read, video parts), Python job locks. Never authorization or bytes. Local benchmark: trades 4.48 → 0.47 ms p50, categories 3.53 → 0.39 ms.
+- **Video (ADR-0020)**: migration `20261019150000_media_videos` (pgTAP `103_*` 88 checks), browser → R2 multipart (resume, retry, progress), `backend/app/workers/video_transcode.py` (ffmpeg HLS fMP4 + poster, `--once/--loop/--purge`, `boto3` in the `video-worker` uv group), Worker `/v/` with a Postgres decision per segment, players lazy (poster only until play). Portfolio manager, public profile, product edit and catalog pages wired; all behind `VIDEO_ENABLED=false`.
+- **Isolated E2E** (`frontend/playwright.video.config.ts`, SeaweedFS as R2 stand-in, Worker handler on local HTTPS): R2 photo upload/edge retrieval/delete, rollback with R2 off, and video upload/transcode/play/seek/publish/revoke/delete/purge on desktop and mobile. It caught three bugs, fixed: origin check compared against the bind address, `video_upload_begin` needed `p_product_id` sent explicitly, and the public profile crashed because the player used the client i18n hook.
+- **Palette**: tokens remapped to #071A2D/#D8C7A6/#F2E9D8/#B96F52 with an AA contrast test; colors.json and DESIGN.md synced.
+
+Validation: Vitest 3,995 pass / 24 skipped; typecheck clean; lint 0 errors; Worker 41; backend pytest 74 (incl. real ffmpeg); pgTAP 128 files / 5,693; permission gate 626 PASS; Playwright video config 5/5 + rollback 1/1.
+
+Unfinished / needs the owner:
+- Real R2 untested from here (no network path); run `r2.live.test.ts` against the disposable acceptance buckets after approval.
+- Transcode host not chosen (paid; options in ADR-0020). R2 CORS + abort-multipart lifecycle rule, `VIDEO_ROUTES`, `VIDEO_ALLOWED_ORIGINS`, migration — all need approval.
+- Managed Redis not created (Upstash Free recommended in ADR-0019).
+- The test browser cannot decode H.264, so in-browser playback was verified with VP9 (`--test-codec`, local only); check H.264 playback in Chrome/Safari on a preview.
+
 ## 2026-10-19 — Media and backend continuation of PRs #88/#89 (stacked branch)
 
 Branch `claude/media-backend-continuation-2ibvgs`, stacked on PR #89 after merging PR #88's last three commits into it locally (conflicts only in this log and RUNTIME_STATE; HEAD side kept). `main` (`bd0de0a`, includes PR #90 legal pages) was audited and is untouched. No hosted write, deploy, merge, DNS or billing change.

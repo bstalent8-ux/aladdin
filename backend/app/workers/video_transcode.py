@@ -276,7 +276,13 @@ def transcode_command(
     out: Path,
     info: Probe,
     renditions: list[tuple[str, int, str, str]],
+    codec: str = "h264",
 ) -> list[str]:
+    """H.264/AAC: what every browser and native iOS HLS plays. "vp9" (VP9/Opus) exists
+    only for local tests: open-source Chromium, the automated test browser, has no
+    H.264 or AAC decoder. main() refuses it outside APP_ENV=local."""
+    if codec not in ("h264", "vp9"):
+        raise ValueError("unknown codec")
     n = len(renditions)
     labels = "".join(f"[v{i}]" for i in range(n))
     graph = [f"[0:v:0]split={n}{labels}"] + [
@@ -299,7 +305,7 @@ def transcode_command(
             "-map",
             f"[o{i}]",
             f"-c:v:{i}",
-            "libx264",
+            "libx264" if codec == "h264" else "libvpx-vp9",
             f"-b:v:{i}",
             rate,
             f"-maxrate:v:{i}",
@@ -308,15 +314,25 @@ def transcode_command(
             maxrate,
         ]
         if info.has_audio:
-            args += ["-map", "0:a:0", f"-c:a:{i}", "aac", f"-b:a:{i}", "128k", f"-ac:a:{i}", "2"]
+            audio = ["aac", "128k"] if codec == "h264" else ["libopus", "96k"]
+            args += [
+                "-map",
+                "0:a:0",
+                f"-c:a:{i}",
+                audio[0],
+                f"-b:a:{i}",
+                audio[1],
+                f"-ac:a:{i}",
+                "2",
+            ]
             stream_map.append(f"v:{i},a:{i},name:{name}")
         else:
             stream_map.append(f"v:{i},name:{name}")
+    if codec == "h264":
+        args += ["-preset", "veryfast", "-profile:v", "main"]
+    else:
+        args += ["-deadline", "realtime", "-cpu-used", "8", "-row-mt", "1"]
     args += [
-        "-preset",
-        "veryfast",
-        "-profile:v",
-        "main",
         "-pix_fmt",
         "yuv420p",
         "-sc_threshold",
@@ -403,7 +419,11 @@ class JobResult:
 
 
 def process_one(
-    jobs: JobClient, store: VideoStore, runner: Runner = run, workdir: Path | None = None
+    jobs: JobClient,
+    store: VideoStore,
+    runner: Runner = run,
+    workdir: Path | None = None,
+    codec: str = "h264",
 ) -> JobResult | None:
     jobs.rpc("video_job_expire", {})
     claimed = jobs.rpc("video_job_claim", {"p_lease_seconds": LEASE_SECONDS}) or []
@@ -427,7 +447,7 @@ def process_one(
             for name in names:
                 (out / name).mkdir(parents=True)
             done = runner(
-                transcode_command(source, content_type, out, info, renditions),
+                transcode_command(source, content_type, out, info, renditions, codec),
                 FFMPEG_TIMEOUT_SECONDS,
             )
             if done.returncode != 0:
@@ -540,6 +560,11 @@ def main(argv: list[str] | None = None) -> int:
         "--loop", action="store_true", help="keep processing; wake on the Redis queue"
     )
     mode.add_argument("--purge", action="store_true", help="remove deleted and expired videos")
+    parser.add_argument(
+        "--test-codec",
+        choices=["vp9"],
+        help="local tests only: VP9/Opus for a browser without H.264 (APP_ENV=local)",
+    )
     args = parser.parse_args(argv)
 
     if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
@@ -549,10 +574,14 @@ def main(argv: list[str] | None = None) -> int:
     from app.database import create_service_client
 
     settings = get_settings()
+    if args.test_codec and settings.app_env != "local":
+        print("--test-codec is only allowed with APP_ENV=local", file=sys.stderr)
+        return 2
+    codec = args.test_codec or "h264"
     jobs = SupabaseJobClient(create_service_client(settings))
     store = S3VideoStore.from_settings(settings)
     if args.once:
-        result = process_one(jobs, store)
+        result = process_one(jobs, store, codec=codec)
         print(json.dumps(result.__dict__ if result else {"outcome": "idle"}))
         return 0 if result is None or result.outcome != "retry" else 1
     if args.purge:

@@ -40,6 +40,9 @@ const shared = {
 };
 Object.assign(process.env, shared);
 
+// Optional: a specific Chromium binary (as in playwright.config.ts).
+const launchOptions = process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : undefined;
+
 export default defineConfig({
   testDir: "./e2e/video",
   fullyParallel: false,
@@ -50,13 +53,14 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: { baseURL: `http://127.0.0.1:${PORT}`, locale: "en-US", ignoreHTTPSErrors: true, trace: "retain-on-failure" },
   projects: [
-    { name: "chromium-desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
-    { name: "chromium-mobile", use: { ...devices["Pixel 5"] } },
+    { name: "chromium-desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, launchOptions } },
+    { name: "chromium-mobile", use: { ...devices["Pixel 5"], launchOptions } },
   ],
   webServer: {
     command: `pnpm exec next build && pnpm exec next start --port ${PORT}`,
     url: `http://127.0.0.1:${PORT}/api/health`,
-    reuseExistingServer: false,
+    // E2E_REUSE_SERVER=1 reuses a server already started with the same env (faster reruns).
+    reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
     timeout: 400_000,
     env: {
       ...process.env,

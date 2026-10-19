@@ -70,7 +70,8 @@ function VideoCard({ video, canPublish, onChange }: { video: ManagedVideo; canPu
     <Card pad="sm" className="flex flex-col gap-sm" >
       {video.state === "ready" && video.playback ? (
         <VideoPlayer src={video.playback.src} poster={video.playback.poster} title={video.title}
-          width={video.width} height={video.height} />
+          width={video.width} height={video.height}
+          labels={{ play: t("video.play", { title: video.title }), unavailable: t("video.unavailable") }} />
       ) : (
         <div className="flex aspect-video w-full items-center justify-center rounded-md bg-surface-2 px-md text-center text-label text-fg-secondary"
           data-testid="video-state">

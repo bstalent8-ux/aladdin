@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n/context";
 
 type HlsInstance = { destroy(): void; loadSource(src: string): void; attachMedia(media: HTMLMediaElement): void;
   on(event: string, handler: (event: string, data: { fatal?: boolean }) => void): void };
@@ -14,11 +13,13 @@ type HlsInstance = { destroy(): void; loadSource(src: string): void; attachMedia
  * when the viewer presses play. Safari and iOS play HLS natively and never load
  * hls.js. The aspect ratio comes from the stored dimensions, so the frame does
  * not shift the layout when the video starts.
+ *
+ * Labels come in as props: public pages render it without the client i18n provider.
  */
-export function VideoPlayer({ src, poster, title, width, height, className }: {
+export function VideoPlayer({ src, poster, title, width, height, className, labels }: {
   src: string; poster: string | null; title: string; width: number | null; height: number | null; className?: string;
+  labels: { play: string; unavailable: string };
 }) {
-  const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const [started, setStarted] = useState(false);
@@ -65,7 +66,7 @@ export function VideoPlayer({ src, poster, title, width, height, className }: {
           type="button"
           onClick={start}
           className="absolute inset-0 flex items-center justify-center bg-black/20 text-white transition-colors hover:bg-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          aria-label={t("video.play", { title })}
+          aria-label={labels.play}
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor" className="ms-1 h-7 w-7"><path d="M8 5v14l11-7z" /></svg>
@@ -74,7 +75,7 @@ export function VideoPlayer({ src, poster, title, width, height, className }: {
       )}
       {failed && (
         <p role="alert" className="absolute inset-x-0 bottom-0 bg-black/70 px-md py-2 text-label text-white">
-          {t("video.unavailable")}
+          {labels.unavailable}
         </p>
       )}
     </div>

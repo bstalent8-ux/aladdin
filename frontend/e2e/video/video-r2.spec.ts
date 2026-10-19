@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -45,12 +45,22 @@ const lit = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
 function backend(args: string[]): Record<string, unknown> {
   const out = execFileSync("uv", ["run", "--group", "video-worker", "python", "-m", "app.workers.video_transcode", ...args], {
-    cwd: path.resolve(__dirname, "../../../backend"), encoding: "utf8", timeout: 200_000,
+    cwd: path.resolve(process.cwd(), "../backend"), encoding: "utf8", timeout: 200_000,
     env: { ...process.env, APP_ENV: "local", SUPABASE_URL: env("E2E_API_URL"), SUPABASE_SERVICE_ROLE_KEY: env("E2E_SERVICE_ROLE_KEY"),
       R2_ACCESS_KEY_ID: env("E2E_S3_ACCESS_KEY"), R2_SECRET_ACCESS_KEY: env("E2E_S3_SECRET_KEY"),
       R2_PRIVATE_BUCKET: env("E2E_S3_BUCKET"), R2_LOCAL_S3_ENDPOINT: env("E2E_S3_ENDPOINT"), REDIS_URL: "" },
   });
   return JSON.parse(out.trim().split("\n").at(-1)!);
+}
+
+/** Runs the worker until it has handled `videoId` (earlier, unrelated jobs may be queued first). */
+function transcode(videoId: string): Record<string, unknown> {
+  for (let i = 0; i < 5; i += 1) {
+    // VP9/Opus: the test Chromium has no H.264/AAC decoder. Production encodes H.264/AAC.
+    const result = backend(["--once", "--test-codec", "vp9"]);
+    if (result.video_id === videoId || result.outcome === "idle") return result;
+  }
+  throw new Error("video was not processed");
 }
 
 async function objects(prefix: string): Promise<string[]> {
@@ -59,8 +69,10 @@ async function objects(prefix: string): Promise<string[]> {
 }
 
 async function context(browser: Browser, info: TestInfo) {
-  const { defaultBrowserType: _ignored, ...device } = info.project.use;
-  const ctx = await browser.newContext({ ...device, baseURL: appOrigin, ignoreHTTPSErrors: true });
+  const device = { ...info.project.use };
+  delete device.defaultBrowserType;
+  const ctx = await browser.newContext({ ...device, baseURL: appOrigin, ignoreHTTPSErrors: true, locale: "en-US" });
+  await ctx.addCookies([{ name: "NEXT_LOCALE", value: "en", url: appOrigin }]);
   await ctx.route("https://challenges.cloudflare.com/turnstile/v0/api.js*", (route) =>
     route.fulfill({ contentType: "application/javascript", body: TURNSTILE_STUB }));
   return ctx;
@@ -70,21 +82,36 @@ async function signIn(page: Page) {
   await page.goto("/auth/sign-in");
   await page.getByLabel(/^email address$/i).fill(OWNER_EMAIL);
   await page.getByLabel(/^password$/i).fill(E2E_PASSWORD);
+  const captcha = page.locator('input[name="captchaToken"]');
+  if (await captcha.count()) await expect(captcha).not.toHaveValue("", { timeout: 15_000 });
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/auth"), { waitUntil: "commit", timeout: 30_000 });
 }
 
 /** Plays from the poster, then seeks; returns the segment URLs the player fetched. */
-async function playAndSeek(page: Page, root: ReturnType<Page["locator"]>) {
+const metrics: Record<string, unknown>[] = [];
+
+async function playAndSeek(page: Page, root: ReturnType<Page["locator"]>, label = "play") {
   const segments: string[] = [];
   page.on("response", (r) => { if (/\.m4s(\?|$)/.test(r.url())) segments.push(`${r.status()} ${r.url()}`); });
-  await root.getByRole("button", { name: /^play /i }).click();
+  // Before play the player has fetched nothing but its poster.
+  const edgeBefore = await page.evaluate((origin) => performance.getEntriesByType("resource")
+    .filter((e) => e.name.startsWith(origin)).map((e) => new URL(e.name).pathname.split("/").pop()), edge.origin);
+  expect(edgeBefore.every((name) => name === "poster.jpg")).toBe(true);
   const video = root.locator("video");
+  const clicked = Date.now();
+  await root.getByRole("button", { name: /^play /i }).click();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 30_000, intervals: [50] }).toBeGreaterThan(0.1);
+  const firstFrameMs = Date.now() - clicked;
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 30_000 }).toBeGreaterThan(0.5);
+  const seekStart = Date.now();
   await video.evaluate((v: HTMLVideoElement) => { v.currentTime = 6; });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => (!v.seeking && v.currentTime >= 6 ? v.currentTime : 0)),
-    { timeout: 30_000 }).toBeGreaterThan(6);
+    { timeout: 30_000, intervals: [50] }).toBeGreaterThan(6);
+  const seekMs = Date.now() - seekStart;
   await video.evaluate((v: HTMLVideoElement) => v.pause());
+  metrics.push({ label, firstFrameMs, seekMs, segmentRequests: segments.length, edgeRequestsBeforePlay: edgeBefore.length,
+    edgeBytesSoFar: edge.stats.bytes });
   return segments;
 }
 
@@ -97,6 +124,9 @@ test.beforeAll(async () => {
     "-f", "lavfi", "-i", "sine=frequency=440:duration=12", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-shortest", "-movflags", "+faststart", sample]);
 
+  // LOCAL TEST DB ONLY, as e2e/global-setup.ts: give the seeded owner the known E2E password if it has none.
+  scalar(`update auth.users set encrypted_password = extensions.crypt(${lit(E2E_PASSWORD)}, extensions.gen_salt('bf'))
+    where email = ${lit(OWNER_EMAIL)} and coalesce(encrypted_password, '') = ''`);
   role = `media_edge_e2e_${randomBytes(4).toString("hex")}`;
   const password = randomBytes(18).toString("base64url");
   scalar(`create role ${role} login password '${password}' in role media_edge`);
@@ -150,8 +180,7 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
 
   // 2. Transcode.
   const started = Date.now();
-  const result = backend(["--once"]);
-  expect(result).toMatchObject({ video_id: videoId, outcome: "ready" });
+  expect(transcode(videoId)).toMatchObject({ video_id: videoId, outcome: "ready" });
   info.annotations.push({ type: "transcode-ms", description: String(Date.now() - started) });
   const [revision, renditions] = scalar(`select revision || '|' || array_to_string(renditions, ',') from public.media_videos where id = ${lit(videoId)}`).split("|");
   expect(renditions).toBe("360p,720p");
@@ -162,7 +191,7 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
   const player = card.getByTestId("video-player");
   await expect(player).toBeVisible();
   await expect(player.locator("video")).toHaveAttribute("poster", new RegExp(`^${edge.origin}/v/${videoId}/poster\\.jpg\\?t=`));
-  const ownerSegments = await playAndSeek(page, player);
+  const ownerSegments = await playAndSeek(page, player, `${info.project.name} owner`);
   expect(ownerSegments.length).toBeGreaterThan(0);
   expect(ownerSegments.every((s) => s.startsWith("200 ") && s.includes(`${edge.origin}/v/${videoId}/`) && s.includes("?t="))).toBe(true);
   await page.screenshot({ path: shot("owner-playing"), fullPage: false });
@@ -181,7 +210,7 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
   await visitor.goto(`/p/${profileId}`);
   const publicPlayer = visitor.getByTestId("video-player").filter({ has: visitor.locator(`video[aria-label="${title}"]`) });
   await expect(publicPlayer).toBeVisible();
-  const publicSegments = await playAndSeek(visitor, publicPlayer);
+  const publicSegments = await playAndSeek(visitor, publicPlayer, `${info.project.name} anonymous`);
   expect(publicSegments.every((s) => s.startsWith("200 ") && !s.includes("?t="))).toBe(true);
   await visitor.screenshot({ path: shot("public-playing"), fullPage: false });
   const publicSegment = publicSegments.at(-1)!.slice(4);
@@ -207,6 +236,8 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
   expect(scalar(`select purged_at is not null from public.media_videos where id = ${lit(videoId)}`)).toBe("t");
 
   info.annotations.push({ type: "edge", description: JSON.stringify(edge.stats) });
+  writeFileSync(`${SHOTS}/metrics-${info.project.name}.json`, JSON.stringify({ metrics, edge: edge.stats,
+    transcodeMs: Number(info.annotations.find((a) => a.type === "transcode-ms")?.description) }, null, 2));
   await anon.close();
   await owner.close();
 });
@@ -223,7 +254,8 @@ test("sign-out revokes the owner's play ticket", async ({ browser }, info) => {
   await manager.getByRole("button", { name: "Upload video" }).click();
   const card = manager.locator("li").filter({ hasText: title });
   await expect(card.getByTestId("video-state")).toBeVisible({ timeout: 60_000 });
-  expect(backend(["--once"])).toMatchObject({ outcome: "ready" });
+  const signoutId = scalar(`select id from public.media_videos where title = ${lit(title)}`);
+  expect(transcode(signoutId)).toMatchObject({ video_id: signoutId, outcome: "ready" });
   await page.reload();
   const segments = await playAndSeek(page, card.getByTestId("video-player"));
   const segment = segments.at(-1)!.slice(4);

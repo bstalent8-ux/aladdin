@@ -68,7 +68,8 @@ export type UploadPlan = { id: string; partBytes: number; partCount: number; upl
 
 export async function beginVideoUpload(client: SupabaseClient, input: z.infer<typeof beginSchema>, uploads = new R2VideoUploads()): Promise<UploadPlan> {
   requireVideo();
-  const { data: id, error } = await client.rpc("video_upload_begin", { p_scope: input.scope, p_product_id: input.productId ?? undefined,
+  // p_product_id is always sent: it has no SQL default, and PostgREST matches functions by argument names.
+  const { data: id, error } = await client.rpc("video_upload_begin", { p_scope: input.scope, p_product_id: input.productId ?? null,
     p_title: input.title, p_content_type: input.contentType, p_bytes: input.bytes });
   if (error || typeof id !== "string") throw fromDatabase(error);
   const admin = privilegedStorageClient();

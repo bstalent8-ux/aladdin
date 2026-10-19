@@ -15,12 +15,21 @@ export function refuseCrossSite(request: Request): Response | null {
   const origin = request.headers.get("origin");
   // Browsers omit Origin on same-origin GETs; a GET changes nothing and CORS keeps
   // its answer from other sites. Every other method must carry our own origin.
-  if (origin ? origin !== new URL(request.url).origin : request.method !== "GET") return json({ error: "not_allowed" }, 403);
+  // "Ours" is the host the browser addressed (as Next.js server actions check it):
+  // request.url can carry the server's bind address instead.
+  if (origin ? originHost(origin) !== requestHost(request) : request.method !== "GET") return json({ error: "not_allowed" }, 403);
   if (request.method !== "GET" && request.method !== "DELETE"
     && !(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
     return json({ error: "invalid" }, 415);
   }
   return null;
+}
+
+function originHost(origin: string): string | null {
+  try { return new URL(origin).host; } catch { return null; }
+}
+function requestHost(request: Request): string {
+  return (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host).split(",")[0]!.trim();
 }
 
 export function json(body: unknown, status = 200): Response {
