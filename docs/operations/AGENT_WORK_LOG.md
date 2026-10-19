@@ -2,7 +2,7 @@
 
 Branch `claude/brand-palette-2ibvgs` from `main` @ `bd0de0a`. `frontend/src/styles/tokens.css` now derives every surface/ink/border/accent/focus token from Navy `#071A2D`, Sand `#D8C7A6`, Cream `#F2E9D8` and Terracotta `#B96F52` in light and dark; legacy Aperture primitive names are aliases of the palette; status tones are the only other hues (`--status-*`). Hard-coded white/black/rgba in components and CSS modules moved onto the palette. New `src/styles/palette-contrast.test.ts` measures every text/background pair (AA) in both themes. Mapping recorded in `UI-UX/UI_UX_SYSTEM_GUIDE.md` (2026-10-19). Colours only; no layout/RTL change.
 
-Open: `design/tokens/colors.json` and the `DESIGN.md` frontmatter still hold the Aperture values and need reconciling to the new mapping; the `/` landing is still light-only by design (fixed primitives); signed-in surfaces (`/b2b`, admin, home, settings, onboarding) were covered by the token remap and the contrast test but not screenshotted (no live backend).
+Follow-up commit: `design/tokens/colors.json` (v2.0.0) and the `DESIGN.md` frontmatter now mirror the mapping (derived steps computed to hex; `knownDrift` cleared). Open: the `/` landing is still light-only by design (fixed primitives); signed-in surfaces (`/b2b`, admin, home, settings, onboarding) were covered by the token remap and the contrast test but not screenshotted (no live backend).
 
 ## 2026-10-18 — Terms of Service published
 
