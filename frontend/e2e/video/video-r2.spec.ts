@@ -15,7 +15,9 @@ import { startLocalEdge, type LocalEdge } from "../helpers/local-media-edge";
  *   ffmpeg, HLS) -> owner playback and seeking through the real media Worker handler
  *   -> publish -> anonymous playback on the public profile -> unpublish revokes the
  *   very next segment -> sign-out revokes the owner's play ticket -> delete revokes ->
- *   purge removes every object.
+ *   purge removes every object. Then: a photo far over the old size caps is accepted
+ *   (resized in the browser), photos and videos share one order the owner can change,
+ *   desktop hover plays a muted preview that stops on leave, touch never does.
  *
  * It also asserts that no video byte goes through the app: the browser sends parts to
  * storage and fetches playlists and segments from the edge origin only.
@@ -170,7 +172,8 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
   await manager.locator("#video-file").setInputFiles(sample);
   await manager.locator("#video-title").fill(title);
   await manager.getByRole("button", { name: "Upload video" }).click();
-  const card = manager.locator("li").filter({ hasText: title });
+  // Videos are listed in the portfolio itself, among the photos.
+  const card = page.getByTestId("portfolio-video").filter({ hasText: title });
   await expect(card.getByTestId("video-state")).toContainText(/preparing the video/i, { timeout: 60_000 });
   expect(storagePuts.length).toBeGreaterThan(0);
   expect(storagePuts.every((u) => /partNumber=\d+&uploadId=/.test(u) || /uploadId=.*partNumber=/.test(u))).toBe(true);
@@ -229,7 +232,7 @@ test("portfolio video: upload, transcode, play, seek, publish, revoke, delete, p
   // 7. Delete revokes immediately; purge removes every object.
   await card.getByRole("button", { name: "Delete", exact: true }).click();
   await card.getByRole("button", { name: "Delete video" }).click();
-  await expect(manager.locator("li").filter({ hasText: title })).toHaveCount(0);
+  await expect(page.getByTestId("portfolio-video").filter({ hasText: title })).toHaveCount(0);
   expect((await page.request.get(ownerSegment)).status()).toBe(404);
   expect(backend(["--purge"])).toMatchObject({ purged: expect.any(Number) });
   expect(await objects(`video/${videoId}/`)).toEqual([]);
@@ -252,7 +255,7 @@ test("sign-out revokes the owner's play ticket", async ({ browser }, info) => {
   await manager.locator("#video-file").setInputFiles(sample);
   await manager.locator("#video-title").fill(title);
   await manager.getByRole("button", { name: "Upload video" }).click();
-  const card = manager.locator("li").filter({ hasText: title });
+  const card = page.getByTestId("portfolio-video").filter({ hasText: title });
   await expect(card.getByTestId("video-state")).toBeVisible({ timeout: 60_000 });
   const signoutId = scalar(`select id from public.media_videos where title = ${lit(title)}`);
   expect(transcode(signoutId)).toMatchObject({ video_id: signoutId, outcome: "ready" });
@@ -269,10 +272,116 @@ test("sign-out revokes the owner's play ticket", async ({ browser }, info) => {
   // Clean up through the product path: sign in again, delete, purge.
   await signIn(page);
   await page.goto("/home/profile/portfolio");
-  const again = page.getByTestId("video-manager").locator("li").filter({ hasText: title });
+  const again = page.getByTestId("portfolio-video").filter({ hasText: title });
   await again.getByRole("button", { name: "Delete", exact: true }).click();
   await again.getByRole("button", { name: "Delete video" }).click();
   await expect(again).toHaveCount(0);
+  backend(["--purge"]);
+  await owner.close();
+});
+
+test("large photo, mixed order and hover preview", async ({ browser }, info) => {
+  const shot = (name: string) => `${SHOTS}/${info.project.name}-${name}.png`;
+  const desktop = info.project.name === "chromium-desktop";
+  const owner = await context(browser, info);
+  const page = await owner.newPage();
+  await signIn(page);
+  const profileId = scalar(`select p.id from public.profiles p join auth.users u on u.id = p.user_id where u.email = ${lit(OWNER_EMAIL)}`);
+  const tag = randomBytes(3).toString("hex");
+
+  // 1. A 24 MP photo far over the old 10 MB source cap: accepted, resized in the browser.
+  const big = `${workdir}/big-${tag}.jpg`;
+  execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=6000x4000", "-vf", "noise=alls=80:allf=t",
+    "-frames:v", "1", "-q:v", "1", big]);
+  const bigBytes = statSync(big).size;
+  expect(bigBytes).toBeGreaterThan(10 * 1024 * 1024);
+  const photoTitle = `E2E photo ${tag}`;
+  await page.goto("/home/profile/portfolio");
+  await page.getByRole("button", { name: "Add work" }).first().click();
+  await page.locator("#new-title").fill(photoTitle);
+  await page.locator('form input[type="file"]').setInputFiles(big);
+  await page.locator("form").getByRole("button", { name: "Add work" }).click();
+  const photo = page.locator("li").filter({ has: page.getByRole("heading", { name: photoTitle }) });
+  await expect(photo).toBeVisible({ timeout: 60_000 });
+  const stored = scalar(`select pi.id || '|' || pi.object_key from public.portfolio_items pi where pi.title = ${lit(photoTitle)} and pi.state = 'ready'`);
+  const [photoId] = stored.split("|");
+  info.annotations.push({ type: "large-photo", description: `${bigBytes} bytes in, stored as a derivative` });
+
+  // 2. A video uploaded after the photo comes after it…
+  const videoTitle = `E2E order ${tag}`;
+  const manager = page.getByTestId("video-manager");
+  await manager.locator("#video-file").setInputFiles(sample);
+  await manager.locator("#video-title").fill(videoTitle);
+  await manager.getByRole("button", { name: "Upload video" }).click();
+  const card = page.getByTestId("portfolio-video").filter({ hasText: videoTitle });
+  await expect(card.getByTestId("video-state")).toBeVisible({ timeout: 60_000 });
+  const videoId = scalar(`select id from public.media_videos where title = ${lit(videoTitle)}`);
+  expect(transcode(videoId)).toMatchObject({ video_id: videoId, outcome: "ready" });
+  const order = () => Number(scalar(`select (select sort_order from public.media_videos where id = ${lit(videoId)})
+    - (select sort_order from public.portfolio_items where id = ${lit(photoId!)})`));
+  expect(order()).toBeGreaterThan(0);
+
+  // …and the owner can move it first.
+  await page.reload();
+  await card.getByRole("button", { name: "Move earlier" }).click();
+  await expect.poll(order).toBeLessThan(0);
+  await card.getByRole("button", { name: "Publish" }).click();
+  await expect(card).toContainText("Published");
+  await photo.getByRole("button", { name: "Publish" }).click();
+  await expect(photo.getByRole("button", { name: "Unpublish" })).toBeVisible();
+
+  // 3. The public profile shows the same order: the video before the photo.
+  const anon = await context(browser, info);
+  const visitor = await anon.newPage();
+  const segments: string[] = [];
+  visitor.on("response", (r) => { if (r.url().startsWith(edge.origin) && /\.(m4s|m3u8)(\?|$)/.test(r.url())) segments.push(r.url()); });
+  await visitor.goto(`/p/${profileId}`);
+  const publicVideo = visitor.getByTestId("public-portfolio-video").filter({ has: visitor.locator(`video[aria-label="${videoTitle}"]`) });
+  await expect(publicVideo).toBeVisible();
+  const positions = await visitor.evaluate(([v, p]) => {
+    const items = [...document.querySelectorAll("li")];
+    return [items.findIndex((li) => li.querySelector(`video[aria-label="${v}"]`)), items.findIndex((li) => li.textContent?.includes(p!))];
+  }, [videoTitle, photoTitle]);
+  expect(positions[0]).toBeGreaterThanOrEqual(0);
+  expect(positions[0]).toBeLessThan(positions[1]!);
+  // Nothing plays or streams on load or on scroll.
+  await publicVideo.scrollIntoViewIfNeeded();
+  await visitor.waitForTimeout(1_000);
+  expect(segments).toEqual([]);
+  const player = publicVideo.getByTestId("video-player");
+  await expect(player).toHaveAttribute("data-mode", "idle");
+
+  // 4. Hover: a muted preview on desktop that stops on leave; never on touch.
+  await player.hover();
+  if (desktop) {
+    await expect(player).toHaveAttribute("data-mode", "preview");
+    await expect.poll(() => player.locator("video").evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 30_000 }).toBeGreaterThan(0.2);
+    expect(await player.locator("video").evaluate((v: HTMLVideoElement) => v.muted)).toBe(true);
+    expect(segments.length).toBeGreaterThan(0);
+    await visitor.screenshot({ path: shot("hover-preview"), fullPage: false });
+    await visitor.mouse.move(0, 0);
+    await expect(player).toHaveAttribute("data-mode", "idle");
+    expect(await player.locator("video").evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+  } else {
+    await visitor.waitForTimeout(1_000);
+    await expect(player).toHaveAttribute("data-mode", "idle");
+    expect(segments).toEqual([]);
+  }
+  // A click (or tap) plays with sound from the start.
+  await player.getByTestId("video-play").click();
+  await expect(player).toHaveAttribute("data-mode", "playing");
+  await expect.poll(() => player.locator("video").evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 30_000 }).toBeGreaterThan(0.2);
+  expect(await player.locator("video").evaluate((v: HTMLVideoElement) => v.muted)).toBe(false);
+  await visitor.screenshot({ path: shot("mixed-order-playing"), fullPage: false });
+  await anon.close();
+
+  // Clean up through the product path.
+  await card.getByRole("button", { name: "Delete", exact: true }).click();
+  await card.getByRole("button", { name: "Delete video" }).click();
+  await expect(card).toHaveCount(0);
+  await photo.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await expect(photo).toHaveCount(0);
   backend(["--purge"]);
   await owner.close();
 });
