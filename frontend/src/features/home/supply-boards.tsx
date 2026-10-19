@@ -654,7 +654,7 @@ function RowCore({ row }: { row: AttentionRow }) {
             row.tone === "danger"
               ? "bg-danger"
               : row.tone === "accent"
-                ? "bg-accent-solid"
+                ? "bg-accent-solid ring-1 ring-accent-edge"
                 : row.tone === "success"
                   ? "bg-success"
                   : "bg-info",

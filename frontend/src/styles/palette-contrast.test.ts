@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -12,30 +12,63 @@ import { join } from "node:path";
  * surface beside it — so this file resolves the stylesheet the way a browser
  * does (custom properties, `var()` chains, `color-mix(in srgb, …)` with
  * premultiplied alpha) and measures every text/background pair the product
- * actually paints, in BOTH themes.
+ * actually paints — on EVERY ground, in every palette a page can render: the
+ * global light and dark tokens, and the `.installer-surface` scope (installer
+ * and showroom workspaces) with its flat variant, each light and dark.
  *
  * Thresholds are WCAG 2.2 AA: 4.5:1 for body text, 3:1 for UI component
- * boundaries, focus indicators and graphical objects.
+ * boundaries, focus indicators and graphical objects. There is no exception
+ * list: a pair that cannot pass is fixed by changing what it is PAIRED with
+ * (the navy `accent-edge` around terracotta fills, `on-status` ink on status
+ * fills, terracotta INK rather than the fill for type and lines), never by
+ * changing the four palette colours or by skipping a ground.
  */
 
 type RGBA = { r: number; g: number; b: number; a: number };
 type Scope = Map<string, string>;
 
 const CSS = readFileSync(join(process.cwd(), "src/styles/tokens.css"), "utf8");
+const INSTALLER_CSS = readFileSync(join(process.cwd(), "src/styles/installer-theme.css"), "utf8");
 const BRAND = ["#071a2d", "#d8c7a6", "#f2e9d8", "#b96f52"];
 
-function parseScopes(source: string): { light: Scope; dark: Scope } {
+/** Every `--token: value` declared in the blocks whose selector is exactly `selector`. */
+function block(source: string, selector: string): Scope {
   const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const light: Scope = new Map();
-  const darkOnly: Scope = new Map();
-  for (const m of css.matchAll(/(:root|\.dark)\s*\{([^{}]*)\}/g)) {
-    const target = m[1] === ".dark" ? darkOnly : light;
+  const out: Scope = new Map();
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if ((m[1] ?? "").trim() !== selector) continue;
     for (const decl of (m[2] ?? "").split(";")) {
       const d = /^\s*(--[a-z0-9-]+)\s*:\s*([\s\S]+?)\s*$/.exec(decl);
-      if (d?.[1] && d[2]) target.set(d[1], d[2]);
+      if (d?.[1] && d[2]) out.set(d[1], d[2]);
     }
   }
-  return { light, dark: new Map([...light, ...darkOnly]) };
+  return out;
+}
+const merge = (...scopes: Scope[]): Scope => new Map(scopes.flatMap((x) => [...x]));
+
+/**
+ * The six palettes a page can actually paint: the global light/dark tokens,
+ * and the `.installer-surface` scope (installer AND showroom workspaces) with
+ * its `flat` variant, each in light and dark. Later blocks override earlier
+ * ones exactly as the cascade does (all of them are zero-specificity
+ * `:where()` rules, so source order decides).
+ */
+function parseScopes(tokens: string, installer: string) {
+  const light = block(tokens, ":root");
+  const dark = merge(light, block(tokens, ".dark"));
+  const inst = block(installer, ":where(.installer-surface)");
+  const instDark = block(installer, ":where(.dark) :where(.installer-surface)");
+  const flat = block(installer, ':where(.installer-surface[data-installer-theme="flat"])');
+  const flatDark = block(installer, ':where(.dark) :where(.installer-surface[data-installer-theme="flat"])');
+  if (!inst.size || !instDark.size || !flat.size || !flatDark.size) throw new Error("installer-theme.css scopes not found");
+  return {
+    light,
+    dark,
+    "installer-light": merge(light, inst),
+    "installer-dark": merge(dark, inst, instDark),
+    "installer-flat-light": merge(light, inst, flat),
+    "installer-flat-dark": merge(dark, inst, instDark, flat, flatDark),
+  };
 }
 
 function splitArgs(inner: string): string[] {
@@ -123,60 +156,80 @@ function ratio(fg: RGBA, bg: RGBA): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const SCOPES = parseScopes(CSS);
+const SCOPES = parseScopes(CSS, INSTALLER_CSS);
+const THEMES = Object.keys(SCOPES) as Theme[];
 type Theme = keyof typeof SCOPES;
 
-/** Resolve `fg` over `bg` over the theme's canvas, then measure. */
-function measure(theme: Theme, fg: string, bg: string): number {
+/** Resolve `fg` over `bg` over `base` (default: the theme's canvas), then measure. */
+function measure(theme: Theme, fg: string, bg: string, base = "var(--canvas)"): number {
   const scope = SCOPES[theme];
-  const base = resolve("var(--canvas)", scope);
-  const ground = over(resolve(bg, scope), base);
+  const ground = over(resolve(bg, scope), over(resolve(base, scope), { r: 255, g: 255, b: 255, a: 1 }));
   return ratio(over(resolve(fg, scope), ground), ground);
 }
 
 const v = (name: string) => `var(--${name})`;
 const tint = (name: string, pct: number, on: string) => `color-mix(in srgb, var(--${name}) ${pct}%, var(--${on}))`;
 
-const GROUNDS = ["canvas", "surface", "surface-2", "surface-hover", "workspace"];
-const CONTENT_GROUNDS = ["canvas", "surface", "surface-2"];
+/** Every ground a component sits on in the workspace — no subset per role. */
+const GROUNDS = ["canvas", "surface", "surface-2", "surface-hover", "workspace", "field"];
+/** The navy grounds: the rail, its lit rows, and the fixed dark band. */
+const NAVY_GROUNDS = ["shell", "shell-lit", "basalt"];
 const STATUS = ["success", "warning", "danger", "info"];
 
-type Pair = { fg: string; bg: string; min: number; label: string; only?: "light" | "dark" };
+type Pair = { fg: string; bg: string; min: number; label: string; base?: string };
 const PAIRS: Pair[] = [];
 const text = (fg: string, bg: string, label = `${fg} on ${bg}`) => PAIRS.push({ fg, bg, min: 4.5, label });
 const ui = (fg: string, bg: string, label = `${fg} on ${bg}`) => PAIRS.push({ fg, bg, min: 3, label });
 
-for (const g of GROUNDS) for (const t of ["fg", "fg-secondary", "fg-muted"]) text(v(t), v(g), `${t} on ${g}`);
-for (const g of CONTENT_GROUNDS) {
-  for (const t of ["accent", "bronze-sem", "lapis-sem", "iris-sem", ...STATUS]) text(v(t), v(g), `${t} on ${g}`);
-  ui(v("border-strong"), v(g), `border-strong on ${g}`);
-  ui(v("focus"), v(g), `focus on ${g}`);
+// Ink, accent ink, status ink, control boundaries and focus: on EVERY ground.
+for (const g of GROUNDS) {
+  for (const t of ["fg", "fg-secondary", "fg-muted", "accent", "bronze-sem", "lapis-sem", "iris-sem", ...STATUS]) {
+    text(v(t), v(g), `${t} on ${g}`);
+  }
+  for (const t of ["border-strong", "field-line", "focus", ...STATUS]) ui(v(t), v(g), `${t} (graphic) on ${g}`);
+  for (let i = 1; i <= 6; i++) ui(v(`series-${i}`), v(g), `series-${i} on ${g}`);
 }
-// The terracotta FILL is the brand colour itself, so it is measured on the two
-// grounds a filled control sits on (page and card). On the sunk `surface-2`
-// state layer it measures ~2.7:1; nothing uses it there as a sole indicator.
-for (const g of ["canvas", "surface"]) ui(v("accent-solid"), v(g), `accent-solid on ${g}`);
-// Soft status badges: `bg-<tone>/15 text-<tone>` on a surface.
-for (const t of [...STATUS, "accent", "iris-sem"]) text(v(t), tint(t === "accent" ? "accent-solid" : t, 15, "surface"), `${t} on ${t}/15 badge`);
+// Soft status badges: `bg-<tone>/15 text-<tone>` on every ground.
+for (const g of GROUNDS) {
+  for (const t of [...STATUS, "accent", "iris-sem"]) {
+    const fill = t === "accent" ? "accent-solid" : t;
+    text(v(t), tint(fill, 15, g), `${t} on ${t}/15 badge over ${g}`);
+  }
+}
+// Inks that sit ON a fill.
 text(v("primary-foreground"), v("primary"), "primary-foreground on primary");
 text(v("on-accent"), v("accent-solid"), "on-accent on accent-solid");
+for (const t of STATUS) text(v("on-status"), v(t), `on-status on solid ${t}`);
 text(v("field-fg"), v("field"), "field-fg on field");
 text(v("field-placeholder"), v("field"), "field-placeholder on field");
 text(v("field-hint"), v("field"), "field-hint on field");
-ui(v("field-line"), v("field"), "field-line on field");
-ui(v("field-line"), v("canvas"), "field-line on canvas");
-ui(v("focus"), v("field"), "focus on field");
+// The navy rail.
 for (const g of ["shell", "shell-lit"]) {
-  for (const t of ["shell-fg", "shell-fg-secondary", "shell-fg-muted"]) text(v(t), v(g), `${t} on ${g}`);
+  for (const t of ["shell-fg", "shell-fg-secondary", "shell-fg-muted", "shell-accent"]) text(v(t), v(g), `${t} on ${g}`);
 }
+// The current rail row is the light carve, and carries its own ink. (An active
+// row WITHOUT the carve keeps the shell ground, measured above.)
 text(v("shell-active-fg"), v("shell-active"), "shell-active-fg on shell-active");
+PAIRS.push({ fg: v("shell-accent"), bg: v("shell-gold-soft"), base: v("shell"), min: 4.5, label: "shell-accent on shell-gold-soft" });
 for (const t of ["on-dark", "on-dark-secondary", "on-dark-muted"]) text(v(t), v("basalt"), `${t} on basalt`);
-// Solid status fills carry cream ink in light and navy ink in dark.
-for (const t of STATUS) {
-  PAIRS.push({ fg: v("soft-cream"), bg: v(t), min: 4.5, label: `soft-cream on solid ${t}`, only: "light" });
-  PAIRS.push({ fg: v("deep-navy"), bg: v(t), min: 4.5, label: `deep-navy on solid ${t}`, only: "dark" });
+
+/**
+ * THE TERRACOTTA FILL. `accent-solid` is the brand colour itself and is never
+ * lightened or darkened, so it is not measured against a ground directly — on
+ * the sand grounds it cannot clear 3:1. Instead every fill carries the navy
+ * `accent-edge` hairline (enforced by the source scan below), and the fill's
+ * BOUNDARY passes on a ground when either
+ *   - the edge stands out from the ground (cream and sand grounds), or
+ *   - the edge melts into the ground and the fill stands out from both
+ *     (navy grounds).
+ * Measured on every ground, in both themes — no ground is skipped.
+ */
+function fillBoundary(theme: Theme, ground: string): number {
+  const edgeOnGround = measure(theme, v("accent-edge"), ground);
+  if (edgeOnGround >= 3) return edgeOnGround;
+  return Math.min(measure(theme, v("accent-solid"), ground), measure(theme, v("accent-solid"), v("accent-edge")));
 }
-for (let i = 1; i <= 6; i++) ui(v(`series-${i}`), v("surface"), `series-${i} on surface`);
+const FILL_GROUNDS = [...GROUNDS, ...NAVY_GROUNDS];
 
 describe("brand palette", () => {
   it("declares the four approved colours as the palette roots", () => {
@@ -200,16 +253,79 @@ describe("brand palette", () => {
   });
 });
 
-describe.each(["light", "dark"] as const)("WCAG AA contrast — %s theme", (theme) => {
-  it.each(PAIRS.filter((p) => !p.only || p.only === theme))("$label ≥ $min:1", ({ fg, bg, min }) => {
-    expect(measure(theme, fg, bg)).toBeGreaterThanOrEqual(min);
+describe.each(THEMES)("WCAG AA contrast — %s", (theme) => {
+  it.each(PAIRS)("$label ≥ $min:1", ({ fg, bg, min, base }) => {
+    expect(measure(theme, fg, bg, base)).toBeGreaterThanOrEqual(min);
+  });
+  it.each(FILL_GROUNDS)("terracotta fill boundary on %s ≥ 3:1", (ground) => {
+    expect(fillBoundary(theme, v(ground))).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * The fill-boundary measurement above holds only if every terracotta fill in
+ * the product actually draws the edge. These scans make that a fact of the
+ * source, not a convention: a new `bg-accent-solid` without its edge, or the
+ * raw fill colour used as type or as a line, fails here.
+ */
+function walk(dir: string, ext: RegExp): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) return walk(full, ext);
+    return ext.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [full] : [];
+  });
+}
+const SRC = join(process.cwd(), "src");
+
+describe("terracotta pairing in source", () => {
+  const sources = walk(SRC, /\.tsx?$/).map((f) => ({ f, s: readFileSync(f, "utf8") }));
+
+  it("every solid bg-accent-solid class string also draws the navy accent-edge", () => {
+    const offenders: string[] = [];
+    for (const { f, s } of sources) {
+      for (const m of s.matchAll(/"[^"\n]*"|`[^`]*`|'[^'\n]*'/g)) {
+        const str = m[0];
+        if (/(?<![\w-])bg-accent-solid(?![\w/-])/.test(str) && !/(ring|border)-accent-edge\b/.test(str)) {
+          offenders.push(`${f.replace(SRC, "src")}: ${str.slice(0, 120)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("never uses the raw terracotta fill as type, a line or a ring (use `accent`)", () => {
+    const offenders = sources.flatMap(({ f, s }) =>
+      [...s.matchAll(/(?<![\w-])(text|border|ring|stroke|fill|outline|decoration|divide)-accent-solid(?![\w/-])/g)].map(
+        (m) => `${f.replace(SRC, "src")}: ${m[0]}`,
+      ),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("every stylesheet rule that paints a terracotta fill also draws the navy accent-edge", () => {
+    const offenders: string[] = [];
+    for (const f of walk(SRC, /\.css$/)) {
+      const css = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const [, selector = "", body = ""] = rule;
+        // Text selection is not a component: navy ink on the fill, nothing to bound.
+        if (/::selection/.test(selector)) continue;
+        if (/background(-color)?:\s*var\(--(accent-solid|lumen|muted-terracotta)\)/.test(body) && !/accent-edge/.test(body)) {
+          offenders.push(`${f.replace(SRC, "src")}: ${selector.trim()}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
 
 /** `PALETTE_REPORT=1 pnpm vitest run src/styles/palette-contrast.test.ts` prints the table. */
 if (process.env.PALETTE_REPORT) {
-  for (const theme of ["light", "dark"] as const) {
-    const rows = PAIRS.filter((p) => !p.only || p.only === theme).map((p) => ({ ...p, r: measure(theme, p.fg, p.bg) })).sort((a, b) => a.r - b.r);
+  for (const theme of THEMES) {
+    const rows = [
+      ...PAIRS.map((p) => ({ ...p, r: measure(theme, p.fg, p.bg, p.base) })),
+      ...FILL_GROUNDS.map((g) => ({ min: 3, label: `terracotta fill boundary on ${g}`, r: fillBoundary(theme, v(g)) })),
+    ].sort((a, b) => a.r - b.r);
     console.log(`\n${theme}\n` + rows.map((x) => `${x.r.toFixed(2).padStart(6)}  (min ${x.min})  ${x.label}`).join("\n"));
   }
 }

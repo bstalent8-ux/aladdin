@@ -796,13 +796,13 @@ export function SidebarShell({
               href="/b2b/settings"
               aria-label={narrow ? upgradeLabel : undefined}
               className={cn(
-                "flex items-center rounded-md text-label font-medium text-accent-solid",
+                "flex items-center rounded-md text-label font-medium text-shell-accent",
                 "bg-shell-gold-soft hover:bg-shell-gold/30",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-shell",
                 navRowClass(narrow),
               )}
             >
-              <span className={cn(navIconClass(), "text-accent-solid")}>
+              <span className={cn(navIconClass(), "text-shell-accent")}>
                 <TrendingUpIcon size={NAV_ICON_SIZE} />
               </span>
               {narrow ? null : <span className="truncate">{upgradeLabel}</span>}

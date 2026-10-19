@@ -91,7 +91,7 @@ export function JobOpportunityCard({
             </div>
           ) : null
         ) : job.matchPercent !== null ? (
-          <span className="absolute start-2.5 top-2.5 flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-brand-soft-cream dark:text-brand-deep-navy shadow-sm">
+          <span className="absolute start-2.5 top-2.5 flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-on-status shadow-sm">
             <TargetIcon size={13} />
             {locale === "ar"
               ? `${formatNumber(job.matchPercent, locale)}% مناسب لمهاراتك`

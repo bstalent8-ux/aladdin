@@ -100,7 +100,7 @@ export function OpportunityCard({
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-sm p-sm">
           {job.matchPercent !== null ? (
             preview ? (
-              <span className="flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-brand-soft-cream dark:text-brand-deep-navy shadow-sm">
+              <span className="flex items-center gap-1 rounded-pill bg-success px-2.5 py-1 text-label font-semibold text-on-status shadow-sm">
                 <TargetIcon size={13} />
                 {ar
                   ? `${formatNumber(job.matchPercent, locale)}% مناسب لمهاراتك`

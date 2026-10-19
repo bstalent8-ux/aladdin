@@ -680,7 +680,7 @@ header[data-app-header="card"] [data-testid="global-search-trigger"] [class*="te
   border: 2px solid var(--surface);
   border-radius: 9999px;
   background: var(--accent-solid);
-  box-shadow: 0 0 0 1px var(--border-strong);
+  box-shadow: 0 0 0 1px var(--accent-edge);
 }
 
 .installer-budget-range::-moz-range-track {
@@ -693,6 +693,7 @@ header[data-app-header="card"] [data-testid="global-search-trigger"] [class*="te
   height: 0.25rem;
   border-radius: 9999px;
   background: var(--accent-solid);
+  box-shadow: 0 0 0 1px var(--accent-edge);
 }
 
 .installer-budget-range::-moz-range-thumb {
@@ -701,7 +702,7 @@ header[data-app-header="card"] [data-testid="global-search-trigger"] [class*="te
   border: 2px solid var(--surface);
   border-radius: 9999px;
   background: var(--accent-solid);
-  box-shadow: 0 0 0 1px var(--border-strong);
+  box-shadow: 0 0 0 1px var(--accent-edge);
 }
 
 /* FILTER CHIPS — flat and borderless rather than bordered buttons competing with

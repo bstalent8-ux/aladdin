@@ -452,7 +452,7 @@ function NavRow({
         >
           <Icon size={17} />
           {narrow && item.badge && !production ? (
-            <span className="absolute -end-1 -top-1 grid h-4 min-w-4 place-items-center rounded-pill bg-accent-solid px-1 text-[9px] font-semibold text-on-accent">
+            <span className="absolute -end-1 -top-1 grid h-4 min-w-4 place-items-center rounded-pill bg-accent-solid ring-1 ring-accent-edge px-1 text-[9px] font-semibold text-on-accent">
               {item.badge}
             </span>
           ) : null}
@@ -462,7 +462,7 @@ function NavRow({
           <span
             className={cn(
               "grid h-5 min-w-5 shrink-0 place-items-center rounded-pill px-1.5 text-[11px] font-semibold",
-              active ? "bg-brand-soft-cream/20 text-brand-soft-cream" : "bg-shell-gold-soft text-accent-solid",
+              active ? "bg-brand-soft-cream/20 text-brand-soft-cream" : "bg-shell-gold-soft text-shell-accent",
             )}
           >
             {item.badge}

@@ -62,7 +62,7 @@
   --cream-hover: color-mix(in srgb, var(--soft-cream) 62%, var(--warm-sand));
   --cream-sunk: color-mix(in srgb, var(--soft-cream) 45%, var(--warm-sand));
   --cream-strong: color-mix(in srgb, var(--warm-sand) 52%, var(--deep-navy));
-  --terracotta-ink: color-mix(in srgb, var(--muted-terracotta) 66%, var(--deep-navy));
+  --terracotta-ink: color-mix(in srgb, var(--muted-terracotta) 58%, var(--deep-navy));
   --terracotta-glow: color-mix(in srgb, var(--muted-terracotta) 62%, var(--soft-cream));
 
   /* ---- 2. Primitives (aliases, fixed in both themes) ---- */
@@ -186,6 +186,14 @@
   /* THE INK THAT GOES ON `--accent-solid`, one value in both themes: navy on
      terracotta clears AA, cream on terracotta does not. */
   --on-accent: var(--deep-navy);
+  /* THE EDGE EVERY TERRACOTTA FILL DRAWS (`ring-1 ring-accent-edge`, or
+     `border-accent-edge`), one value in both themes. Terracotta on the sand
+     grounds measures under 3:1 (about 2.7:1 on `surface-2`), so a filled
+     control would vanish into a sunk row or track. A navy hairline fixes the
+     PAIRING instead of the colour: on cream and sand it is the boundary
+     (10:1 and up), and on a navy ground it disappears into the ground while
+     the terracotta inside it clears 3:1 on its own. */
+  --accent-edge: var(--deep-navy);
 
   --bronze-sem: var(--sand-ink);
   --lapis-sem: var(--deep-navy);
@@ -193,17 +201,24 @@
   --iris-sem: var(--deep-navy);
   --iris-solid: var(--navy-ink-2);
 
+  /* Danger and info are deepened a step toward navy so their ink still clears
+     AA inside a `/15` tinted badge sitting on the sand `surface-2`. */
   --success: var(--status-success);
   --warning: var(--status-warning);
-  --danger: var(--status-danger);
-  --info: var(--status-info);
+  --danger: color-mix(in srgb, var(--status-danger) 84%, var(--deep-navy));
+  --info: color-mix(in srgb, var(--status-info) 88%, var(--deep-navy));
+  /* The ink on a SOLID status fill: cream on the deep light-theme tones, navy
+     on the bright dark-theme tones. */
+  --on-status: var(--soft-cream);
 
   --focus: var(--terracotta-ink);
 
   /* ---- Data-visualisation series (LIGHT) ----
    * Non-semantic categorical fills, ordered so adjacent series differ in
    * lightness as well as hue. Charts always label their series. */
-  --series-1: var(--muted-terracotta);
+  /* Terracotta INK, not the fill: a series must clear 3:1 on every ground,
+     the sand `surface-2` included. */
+  --series-1: var(--terracotta-ink);
   --series-2: var(--deep-navy);
   --series-3: var(--status-success);
   --series-4: var(--sand-line);
@@ -243,7 +258,10 @@
      colour family. */
   --shell-active: color-mix(in srgb, var(--soft-cream) 14%, var(--shell-lit));
   --shell-active-fg: var(--shell-fg);
-  /* The one warm note on the rail: terracotta as a line, not a fill. */
+  /* The one warm note on the rail: terracotta as a line, not a fill. Text and
+     icons in that warm voice use `--shell-accent`, terracotta lifted toward
+     cream, because the raw terracotta falls under AA on the lit rail rows. */
+  --shell-accent: var(--terracotta-glow);
   --shell-gold: color-mix(in srgb, var(--muted-terracotta) 55%, transparent);
   --shell-gold-soft: color-mix(in srgb, var(--muted-terracotta) 14%, transparent);
   --shell-pool: var(--navy-lit);
@@ -284,6 +302,8 @@
 
   --accent: var(--terracotta-glow);
   --accent-solid: var(--muted-terracotta);
+  /* Same navy edge as light: see :root. Redeclared for theme parity. */
+  --accent-edge: var(--deep-navy);
 
   --bronze-sem: var(--warm-sand);
   --lapis-sem: var(--warm-sand);
@@ -294,6 +314,7 @@
   --warning: var(--status-warning-bright);
   --danger: var(--status-danger-bright);
   --info: var(--status-info-bright);
+  --on-status: var(--deep-navy);
 
   --focus: var(--terracotta-glow);
 
@@ -333,6 +354,7 @@
   --shell-fg-muted: var(--sand-muted);
   --shell-active: color-mix(in srgb, var(--soft-cream) 14%, var(--shell-lit));
   --shell-active-fg: var(--shell-fg);
+  --shell-accent: var(--terracotta-glow);
   --shell-gold: color-mix(in srgb, var(--muted-terracotta) 55%, transparent);
   --shell-gold-soft: color-mix(in srgb, var(--muted-terracotta) 14%, transparent);
   --shell-pool: var(--navy-sunk);

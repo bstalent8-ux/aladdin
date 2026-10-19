@@ -27,5 +27,6 @@
 .shortcut {
   border-color: var(--accent-solid);
   background-color: var(--accent-solid);
+  box-shadow: 0 0 0 1px var(--accent-edge);
   color: var(--on-accent);
 }
