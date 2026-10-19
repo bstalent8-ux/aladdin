@@ -2725,7 +2725,8 @@ export const en = {
       saved: "Photo updated",
       remove: "Remove",
       errorType: "Please choose a JPEG, PNG, or WebP image.",
-      errorSize: "That image is too large. Please choose a smaller file.",
+      errorSize: "That image is empty. Please choose another file.",
+      errorPrepare: "This photo could not be prepared on this device. Try a smaller copy.",
       errorUpload: "We could not upload your photo. Please try again.",
     },
   },
@@ -3304,7 +3305,8 @@ export const en = {
       notCancellable: "This request can no longer be cancelled.",
       maxImages: "Each item can have at most 2 reference images.",
       imageType: "Reference images must be JPEG, PNG or WebP.",
-      imageSize: "A reference image can be at most 5 MB.",
+      imageSize: "This reference image is empty or could not be saved. Try another copy.",
+      imagePrepare: "This photo could not be prepared on this device. Try a smaller copy.",
       offeredInvalid: "The offered quantity must be greater than zero and not more than requested.",
       priceInvalid: "Enter a price in EGP greater than zero with at most 2 decimals.",
       unitMismatch: "The unit must match the requested unit.",
@@ -3460,7 +3462,8 @@ export const en = {
       uploading: "Uploading…",
       none: "No photos yet.",
       errorType: "Use a JPG, PNG or WebP image.",
-      errorSize: "Each photo must be 5 MB or smaller.",
+      errorSize: "This photo is empty or could not be saved. Try another copy.",
+      errorPrepare: "This photo could not be prepared on this device. Try a smaller copy.",
       errorUpload: "The photo could not be uploaded. Try again.",
       errorArchived: "Restore the product before changing its photos.",
     },
@@ -4945,7 +4948,8 @@ export const en = {
       removed: "The Showroom image was removed.",
       hint: "A square picture of your business, such as a logo or storefront. Your team can see it. It is not your personal photo.",
       errorType: "Choose a JPEG, PNG or WebP image.",
-      errorSize: "That file is empty or larger than 10 MB.",
+      errorSize: "That file is empty or could not be saved. Try another copy.",
+      errorPrepare: "This photo could not be prepared on this device. Try a smaller copy.",
       errorUpload: "The image could not be saved. Try again.",
       errorRemove: "The image could not be removed. Try again.",
     },
@@ -5664,7 +5668,8 @@ export const en = {
    */
   assets: {
     form: {
-      limits: "{types} · up to {mb} MB",
+      limitsPhotos: "{types} · large photos are resized automatically",
+      limitsDocuments: "{types} · documents up to {mb} MB · large photos are resized automatically",
     },
     /**
      * Storage-foundation errors (Increment 10). No screen renders these yet —
@@ -5680,6 +5685,7 @@ export const en = {
       invalidPath: "That file could not be identified.",
       notAllowed: "You cannot do that.",
       uploadFailed: "The file could not be saved. Please try again.",
+      prepareFailed: "This photo could not be prepared on this device. Try a smaller copy.",
       gone: "That file is no longer here.",
     },
   },
