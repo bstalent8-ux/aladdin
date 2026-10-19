@@ -72,7 +72,7 @@ Each option was judged on one requirement: deleted or revoked media must be deni
 
 | Option | Revocation | Cost | Verdict |
 |---|---|---|---|
-| **Public CDN bucket** (Mode B: public R2 bucket on a custom domain, edge-cached derived variants, withdraw by delete and purge from a database outbox) | Bounded, not immediate: about 1–2 s on the fast path, up to 60 s from the cron backstop, plus purge propagation, plus a browser TTL of up to 300 s | Lowest per request | **Rejected unless the owner accepts a revocation delay** (plan decision D1). It would change the product contract and the tests that say "immediately". It is kept as optional work package WP10. |
+| **Public CDN bucket** (Mode B: public R2 bucket on a custom domain, edge-cached derived variants, withdraw by delete and purge from a database outbox) | Bounded, not immediate: about 1–2 s on the fast path, up to 60 s from the cron backstop, plus purge propagation, plus a browser TTL of up to 300 s | Lowest per request | **Rejected.** The owner chose immediate revocation on 2026-10-19 (plan decision D1, closed). It would change the product contract and the tests that say "immediately". It is kept as optional work package WP10. |
 | **Signed R2 URLs** (presigned GETs handed to the browser) | A presigned URL stays valid until it expires, whatever happens to the media in the meantime. Suspension and sign-out are not seen. | Low | **Rejected.** It is the same bearer-URL problem as today's Supabase signed URLs. Re-minting per render also defeats browser caching. |
 | **Keep the application proxy** (`/api/media`, `/p/media` through `delivery.ts`) | Next request | Every image byte through Vercel, one function invocation, `getUser` and 2–3 RPCs per image | **Kept as the fallback**, and for Supabase-provider rows. It is not the target, because at the plan's scale case (about 300 GB/month) it is Vercel-bound. |
 | Short-TTL HMAC ticket only | Valid until expiry; suspension not seen | Lowest | Rejected alone. Used here only to bind the URL. |
@@ -85,7 +85,7 @@ Each option was judged on one requirement: deleted or revoked media must be deni
 
 In scope: the five revocable namespaces, the R2 bucket, the `media-edge` Worker, the two edge functions and the `media_edge` role, the WebP variants, edge ticket issuance in the app (`frontend/src/server/storage/edge-ticket.ts`), and the flags `MEDIA_EDGE_DELIVERY_ENABLED` and `MEDIA_EDGE_PUBLIC_ENABLED`.
 
-Out of scope: business-verification documents (PR #88), purchase-request and chat media, and the Mode B public publisher (WP10, only if D1 is approved).
+Out of scope: business-verification documents (PR #88), purchase-request and chat media, and the Mode B public publisher (WP10, dropped: D1 closed on 2026-10-19 in favour of immediate revocation).
 
 ## What is deferred
 
@@ -93,7 +93,7 @@ Out of scope: business-verification documents (PR #88), purchase-request and cha
 - The variant backfill for media migrated from Supabase (`scripts/media-variants.mjs`, not written yet). It must read the R2 copies, so it spends no Supabase egress.
 - The scheduled revocation canary (planned in [media-monitoring.md](../operations/media-monitoring.md)).
 - Deleting Supabase source objects. This needs at least 30 days, a clean `rehash` pass and separate approval.
-- Owner decisions D1 (revocation delay for public media), D2 (whether product images and logos become public; recommendation: no), D3 (egress timing for the bulk copy), D4 (media domain) and D5 (Workers Paid).
+- Owner decision D1 is closed: public media keeps immediate revocation (Mode C), chosen 2026-10-19. Still open: D2 (whether product images and logos become public; recommendation: no), D3 (egress timing for the bulk copy), D4 (media domain) and D5 (Workers Paid).
 
 ## Consequences
 

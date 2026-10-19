@@ -28,7 +28,7 @@ Unfinished:
 - **Revocation canary.** A scheduled staging probe: upload or publish, fetch 200, delete or unpublish, then expect 404 on the next request through both the app route and the Worker. It also needs a canary account and CI secrets. Planned as a canary mode in `supabase/tests/public_media_exposure_test.mjs`.
 - **Hosted steps.** None done: the Worker login role, Hyperdrive, the private bucket, the zone and domain, Workers Paid, the ticket-key secrets, the Vercel env vars, and running the media migrations on hosted projects. Before the Worker role exists, check pg_net `EXECUTE` for `PUBLIC`/`anon` on the hosted projects and revoke it.
 - **Owner decisions:**
-  - **D1:** is a revocation delay acceptable for public media (Mode B public CDN), or does Mode C stay?
+  - **D1 (closed 2026-10-19):** the owner chose immediate revocation, so Mode C stays and Mode B (WP10) is dropped.
   - **D3:** egress timing for the bulk copy (wait for the cycle reset or upgrade to Pro; about 0.29 GB is left).
   - **D2:** should product images and organization logos become public? The recommendation is that both stay private.
   - **D4:** the media domain.
