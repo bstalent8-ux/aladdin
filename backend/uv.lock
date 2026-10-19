@@ -33,7 +33,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pydantic-settings", specifier = ">=2.7" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
-    { name = "redis", specifier = ">=5.2" },
+    { name = "redis", specifier = ">=8.1" },
     { name = "structlog", specifier = ">=24.4" },
     { name = "supabase", specifier = ">=2.10" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
