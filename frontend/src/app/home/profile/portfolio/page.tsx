@@ -52,8 +52,8 @@ export default async function PortfolioPage() {
   const videos = videoEnabled() ? await listManagedVideos({ scope: "portfolio" }) : null;
   return (
     <>
-      <PortfolioManager items={cards} />
-      {videos && <div className="mt-xl"><VideoManager scope="portfolio" videos={videos} canPublish /></div>}
+      <PortfolioManager items={cards} videos={videos ?? []} />
+      {videos && <div className="mt-xl"><VideoManager scope="portfolio" videos={videos} canPublish showList={false} /></div>}
     </>
   );
 }

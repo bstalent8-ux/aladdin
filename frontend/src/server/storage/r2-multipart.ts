@@ -11,7 +11,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { readStorageEnv } from "@/lib/env/storage";
-import { VIDEO_PART_BYTES, videoPartCount, videoPartLength } from "@/lib/media/video-policy";
+import { videoPartCount, videoPartLength } from "@/lib/media/video-policy";
 import { createR2Client } from "./r2-provider";
 
 /**
@@ -100,4 +100,3 @@ export class R2VideoUploads {
   }
 }
 
-export { VIDEO_PART_BYTES };

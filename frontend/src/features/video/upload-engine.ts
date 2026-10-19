@@ -1,5 +1,5 @@
 import {
-  VIDEO_MAX_BYTES, VIDEO_MAX_SECONDS, VIDEO_PARTS_PER_REQUEST, VIDEO_UPLOAD_CONCURRENCY,
+  VIDEO_PARTS_PER_REQUEST, VIDEO_STORAGE_MAX_BYTES, VIDEO_UPLOAD_CONCURRENCY,
   isVideoType, type VideoContentType, type VideoScope,
 } from "@/lib/media/video-policy";
 
@@ -9,18 +9,20 @@ import {
  *
  *   * PROGRESS is per byte (XMLHttpRequest upload events), summed over parts.
  *   * RETRY: each part is retried with backoff (1, 2, 4, 8 s); an expired part
- *     URL is simply re-signed on the next attempt.
+ *     URL is simply re-signed on the next attempt. While the device is offline
+ *     the upload waits for the connection instead of spending its retries.
  *   * RESUME: the upload id is remembered per file (name, size, mtime). Choosing
  *     the same file again asks the server which parts R2 already holds and sends
  *     only the rest. Nothing about the file is stored except that fingerprint.
  */
-export type UploadErrorCode = "type" | "size" | "duration" | "unreadable" | "network" | "server" | "limit"
+export type UploadErrorCode = "type" | "size" | "network" | "server" | "limit"
   | "not_allowed" | "rate_limited" | "aborted";
 export class UploadFailure extends Error {
   constructor(readonly code: UploadErrorCode) { super(code); }
 }
 
-type Plan = { id: string; partBytes: number; partCount: number; uploaded: number[]; state?: string };
+/** `transport` names how the bytes travel; only signed R2 multipart parts exist today (ADR-0020 Rev. 2). */
+type Plan = { id: string; transport?: string; partBytes: number; partCount: number; uploaded: number[]; state?: string };
 type Fetcher = typeof fetch;
 
 const RESUME_KEY = "aladdin.video-upload.v1";
@@ -45,27 +47,14 @@ export function rememberedUpload(file: File): string | null {
   return readResume()[fileFingerprint(file)] ?? null;
 }
 
-/** Type, size and (from the file's own metadata) duration, before any byte is sent. */
-export async function checkVideoFile(file: File, probeDuration: (file: File) => Promise<number | null> = probe): Promise<VideoContentType> {
+/**
+ * Type, and size only against R2's own 5 TiB object limit: there is no product
+ * cap on size or length. Reading the duration needs no check, so it is not read.
+ */
+export function checkVideoFile(file: File): VideoContentType {
   if (!isVideoType(file.type)) throw new UploadFailure("type");
-  if (file.size <= 0 || file.size > VIDEO_MAX_BYTES) throw new UploadFailure("size");
-  const seconds = await probeDuration(file);
-  // A container the browser cannot read is left to the server-side probe.
-  if (seconds !== null && seconds > VIDEO_MAX_SECONDS + 0.5) throw new UploadFailure("duration");
+  if (file.size <= 0 || file.size > VIDEO_STORAGE_MAX_BYTES) throw new UploadFailure("size");
   return file.type;
-}
-
-function probe(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    const url = URL.createObjectURL(file);
-    const done = (value: number | null) => { URL.revokeObjectURL(url); resolve(value); };
-    video.preload = "metadata";
-    video.onloadedmetadata = () => done(Number.isFinite(video.duration) ? video.duration : null);
-    video.onerror = () => done(null);
-    setTimeout(() => done(null), 10_000);
-    video.src = url;
-  });
 }
 
 async function api<T>(fetcher: Fetcher, path: string, init?: { method?: string; body?: unknown }): Promise<T> {
@@ -82,6 +71,17 @@ async function api<T>(fetcher: Fetcher, path: string, init?: { method?: string; 
     throw new UploadFailure(map[body.error ?? ""] ?? "server");
   }
   return body;
+}
+
+/** Resolves true after waiting for the connection to come back, false when it never left. */
+function waitUntilOnline(signal: AbortSignal): Promise<boolean> {
+  if (typeof navigator === "undefined" || navigator.onLine !== false) return Promise.resolve(false);
+  return new Promise((resolve, reject) => {
+    const online = () => { signal.removeEventListener("abort", aborted); resolve(true); };
+    const aborted = () => { window.removeEventListener("online", online); reject(new UploadFailure("aborted")); };
+    window.addEventListener("online", online, { once: true });
+    signal.addEventListener("abort", aborted, { once: true });
+  });
 }
 
 export type PutPart = (url: string, blob: Blob, onProgress: (sent: number) => void, signal: AbortSignal) => Promise<void>;
@@ -102,7 +102,6 @@ export type UploadOptions = {
   file: File; title: string; scope: VideoScope; productId?: string;
   onProgress: (fraction: number) => void; signal: AbortSignal;
   fetcher?: Fetcher; putPart?: PutPart; sleep?: (ms: number) => Promise<void>;
-  probeDuration?: (file: File) => Promise<number | null>;
 };
 
 /** Uploads (or resumes) one file and returns the video id once processing is queued. */
@@ -111,7 +110,7 @@ export async function uploadVideo(options: UploadOptions): Promise<string> {
   const fetcher = options.fetcher ?? fetch.bind(globalThis);
   const putPart = options.putPart ?? xhrPut;
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const contentType = await checkVideoFile(file, options.probeDuration);
+  const contentType = checkVideoFile(file);
 
   let plan: Plan | null = null;
   const previous = rememberedUpload(file);
@@ -124,6 +123,8 @@ export async function uploadVideo(options: UploadOptions): Promise<string> {
       body: { scope: options.scope, productId: options.productId, title: options.title, contentType, bytes: file.size } });
     rememberUpload(file, plan.id);
   }
+  // A provider whose transport this browser code does not speak is refused, never guessed at.
+  if (plan.transport !== undefined && plan.transport !== "r2-multipart") throw new UploadFailure("server");
   const { id, partBytes, partCount } = plan;
   const done = new Set(plan.uploaded);
   const sent = new Map<number, number>();
@@ -158,8 +159,9 @@ export async function uploadVideo(options: UploadOptions): Promise<string> {
         return;
       } catch (error) {
         if (error instanceof UploadFailure && (error.code === "aborted" || error.code === "not_allowed" || error.code === "rate_limited")) throw error;
-        if (attempt >= RETRIES) throw new UploadFailure("network");
         sent.delete(n);
+        if (await waitUntilOnline(signal)) { attempt = -1; continue; }
+        if (attempt >= RETRIES) throw new UploadFailure("network");
         await sleep(1000 * 2 ** attempt);
       }
     }

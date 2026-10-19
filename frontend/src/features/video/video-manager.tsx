@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Card, InlineError, ProgressMeter } from "@/components/ui/primitives";
 import { Button, Input, LabeledField } from "@/components/ui/controls";
 import { useI18n } from "@/lib/i18n/context";
-import { VIDEO_MAX_SECONDS, VIDEO_TITLE_MAX, VIDEO_TYPES, type VideoScope } from "@/lib/media/video-policy";
+import { VIDEO_TITLE_MAX, VIDEO_TYPES, type VideoScope } from "@/lib/media/video-policy";
 import type { ManagedVideo } from "@/server/queries/videos";
 import { VideoPlayer } from "./video-player";
 import { UploadFailure, cancelUpload, rememberUpload, rememberedUpload, uploadVideo, type UploadErrorCode } from "./upload-engine";
@@ -16,29 +16,25 @@ import { UploadFailure, cancelUpload, rememberUpload, rememberedUpload, uploadVi
  * after any change the page re-renders (router.refresh), and while something is
  * processing it refreshes every ten seconds until it is ready.
  */
-export function VideoManager({ scope, productId, videos, canPublish }: {
+export function VideoManager({ scope, productId, videos, canPublish, showList = true }: {
   scope: VideoScope; productId?: string; videos: ManagedVideo[]; canPublish: boolean;
+  /** False where the videos are listed in the shared photo-and-video gallery instead. */
+  showList?: boolean;
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const processing = videos.some((v) => v.state === "processing");
-
-  useEffect(() => {
-    if (!processing) return;
-    const timer = setInterval(() => router.refresh(), 10_000);
-    return () => clearInterval(timer);
-  }, [processing, router]);
+  useProcessingRefresh(showList ? videos : []);
 
   return (
     <section className="flex flex-col gap-lg" data-testid="video-manager" aria-labelledby="video-manager-title">
       <div className="flex flex-col gap-1">
         <h2 id="video-manager-title" className="text-title text-fg">{t("video.title")}</h2>
         <p className="max-w-prose text-body text-fg-secondary">
-          {t(scope === "portfolio" ? "video.subtitlePortfolio" : "video.subtitleProduct", { minutes: String(VIDEO_MAX_SECONDS / 60) })}
+          {t(scope === "portfolio" ? "video.subtitlePortfolio" : "video.subtitleProduct")}
         </p>
       </div>
       <VideoUploader scope={scope} productId={productId} onDone={() => router.refresh()} />
-      {videos.length > 0 && (
+      {showList && videos.length > 0 && (
         <ul className="grid gap-lg sm:grid-cols-2 xl:grid-cols-3">
           {videos.map((video) => (
             <li key={video.id}><VideoCard video={video} canPublish={canPublish} onChange={() => router.refresh()} /></li>
@@ -49,7 +45,22 @@ export function VideoManager({ scope, productId, videos, canPublish }: {
   );
 }
 
-function VideoCard({ video, canPublish, onChange }: { video: ManagedVideo; canPublish: boolean; onChange: () => void }) {
+/** Refreshes the page while a video is still being processed, so its card turns ready. */
+export function useProcessingRefresh(videos: readonly { state: string }[]) {
+  const router = useRouter();
+  const processing = videos.some((v) => v.state === "processing");
+  useEffect(() => {
+    if (!processing) return;
+    const timer = setInterval(() => router.refresh(), 10_000);
+    return () => clearInterval(timer);
+  }, [processing, router]);
+}
+
+export function VideoCard({ video, canPublish, onChange, extra }: {
+  video: ManagedVideo; canPublish: boolean; onChange: () => void;
+  /** Gallery controls (move earlier/later) shown at the end of the action row. */
+  extra?: ReactNode;
+}) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +80,7 @@ function VideoCard({ video, canPublish, onChange }: { video: ManagedVideo; canPu
   return (
     <Card pad="sm" className="flex flex-col gap-sm" >
       {video.state === "ready" && video.playback ? (
-        <VideoPlayer src={video.playback.src} poster={video.playback.poster} title={video.title}
+        <VideoPlayer source={video.playback} title={video.title}
           width={video.width} height={video.height}
           labels={{ play: t("video.play", { title: video.title }), unavailable: t("video.unavailable") }} />
       ) : (
@@ -101,6 +112,7 @@ function VideoCard({ video, canPublish, onChange }: { video: ManagedVideo; canPu
         ) : (
           <Button size="sm" variant="danger" disabled={busy} onClick={() => setConfirming(true)}>{t("video.actions.delete")}</Button>
         )}
+        {extra ? <span className="ms-auto flex items-center gap-1">{extra}</span> : null}
       </div>
       {error && <InlineError>{error}</InlineError>}
     </Card>
@@ -140,7 +152,7 @@ function VideoUploader({ scope, productId, onDone }: { scope: VideoScope; produc
 
   return (
     <Card pad="sm" className="flex flex-col gap-md">
-      <LabeledField label={t("video.file")} htmlFor="video-file" hint={t("video.fileHint", { minutes: String(VIDEO_MAX_SECONDS / 60) })}>
+      <LabeledField label={t("video.file")} htmlFor="video-file" hint={t("video.fileHint")}>
         <Input id="video-file" type="file" accept={VIDEO_TYPES.join(",")} disabled={progress !== null}
           onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null); }} />
       </LabeledField>
@@ -169,7 +181,7 @@ function VideoUploader({ scope, productId, onDone }: { scope: VideoScope; produc
           }}>{t("video.cancelUpload")}</Button>
         )}
       </div>
-      {error && error !== "type" && error !== "size" && error !== "duration" && file && (
+      {error && error !== "type" && error !== "size" && file && (
         <p className="text-caption text-fg-secondary">{t("video.resumeHint")}</p>
       )}
     </Card>

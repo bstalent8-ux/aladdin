@@ -16,15 +16,16 @@ export type ManagedVideo = VideoSummary & {
 
 type Row = {
   id: string; title: string; duration_seconds: number | null; width: number | null; height: number | null;
-  has_poster: boolean;
+  has_poster: boolean; sort_order?: number | null; slot?: number | null; created_at?: string | null;
 };
 
 function summary(row: Row): VideoSummary {
   return { id: row.id, title: row.title, durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
-    width: row.width, height: row.height, hasPoster: row.has_poster };
+    width: row.width, height: row.height, hasPoster: row.has_poster,
+    position: row.sort_order ?? row.slot ?? null, createdAt: row.created_at ?? null };
 }
 
-const MANAGED_COLUMNS = "id, scope, title, visibility, state, duration_seconds, width, height, has_poster, failure_code, created_at" as const;
+const MANAGED_COLUMNS = "id, scope, title, visibility, state, duration_seconds, width, height, has_poster, failure_code, created_at, sort_order, slot" as const;
 
 /**
  * Videos the caller manages: their own portfolio videos, or one product's videos
@@ -40,7 +41,8 @@ export async function listManagedVideos(target: { scope: "portfolio" } | { scope
     if (!identity) return [];
     query = query.eq("owner_user_id", identity.id);
   }
-  const { data, error } = await query.order("created_at", { ascending: true });
+  const { data, error } = await query.order(target.scope === "product" ? "slot" : "sort_order", { ascending: true })
+    .order("created_at", { ascending: true }).order("id", { ascending: true });
   if (error) throw error;
   return Promise.all((data ?? []).map(async (row) => {
     const video = summary(row);

@@ -2300,6 +2300,8 @@ export type Database = {
           lease_until: string | null
           owner_user_id: string
           product_id: string | null
+          provider: string
+          provider_ref: string | null
           publisher_id: string | null
           purged_at: string | null
           ready_at: string | null
@@ -2307,10 +2309,13 @@ export type Database = {
           revision: string | null
           scope: Database["public"]["Enums"]["media_video_scope"]
           size_bytes: number | null
+          slot: number | null
+          sort_order: number | null
           state: Database["public"]["Enums"]["media_video_state"]
           title: string
           updated_at: string
           upload_id: string | null
+          upload_touched_at: string
           uploaded_at: string | null
           visibility: Database["public"]["Enums"]["portfolio_visibility"]
           width: number | null
@@ -2329,6 +2334,8 @@ export type Database = {
           lease_until?: string | null
           owner_user_id: string
           product_id?: string | null
+          provider?: string
+          provider_ref?: string | null
           publisher_id?: string | null
           purged_at?: string | null
           ready_at?: string | null
@@ -2336,10 +2343,13 @@ export type Database = {
           revision?: string | null
           scope: Database["public"]["Enums"]["media_video_scope"]
           size_bytes?: number | null
+          slot?: number | null
+          sort_order?: number | null
           state?: Database["public"]["Enums"]["media_video_state"]
           title: string
           updated_at?: string
           upload_id?: string | null
+          upload_touched_at?: string
           uploaded_at?: string | null
           visibility?: Database["public"]["Enums"]["portfolio_visibility"]
           width?: number | null
@@ -2358,6 +2368,8 @@ export type Database = {
           lease_until?: string | null
           owner_user_id?: string
           product_id?: string | null
+          provider?: string
+          provider_ref?: string | null
           publisher_id?: string | null
           purged_at?: string | null
           ready_at?: string | null
@@ -2365,10 +2377,13 @@ export type Database = {
           revision?: string | null
           scope?: Database["public"]["Enums"]["media_video_scope"]
           size_bytes?: number | null
+          slot?: number | null
+          sort_order?: number | null
           state?: Database["public"]["Enums"]["media_video_state"]
           title?: string
           updated_at?: string
           upload_id?: string | null
+          upload_touched_at?: string
           uploaded_at?: string | null
           visibility?: Database["public"]["Enums"]["portfolio_visibility"]
           width?: number | null
@@ -9155,6 +9170,10 @@ export type Database = {
         Args: { p_direction: string; p_item_id: string }
         Returns: undefined
       }
+      portfolio_media_move: {
+        Args: { p_direction: string; p_id: string; p_kind: string }
+        Returns: undefined
+      }
       portfolio_item_purge: { Args: { p_item_id: string }; Returns: undefined }
       portfolio_item_set_visibility: {
         Args: { p_item_id: string; p_public: boolean }
@@ -9185,6 +9204,10 @@ export type Database = {
         Args: { p_content_type: string; p_product_id: string }
         Returns: string
       }
+      product_media_reorder: {
+        Args: { p_items: Json; p_product_id: string }
+        Returns: undefined
+      }
       product_videos: {
         Args: { p_product_id: string; p_workspace?: string }
         Returns: {
@@ -9192,6 +9215,7 @@ export type Database = {
           has_poster: boolean
           height: number
           id: string
+          slot: number
           title: string
           width: number
         }[]
@@ -9224,10 +9248,12 @@ export type Database = {
       public_portfolio_videos: {
         Args: { p_profile_id: string }
         Returns: {
+          created_at: string
           duration_seconds: number
           has_poster: boolean
           height: number
           id: string
+          sort_order: number
           title: string
           width: number
         }[]
@@ -9729,6 +9755,10 @@ export type Database = {
           p_width: number
         }
         Returns: undefined
+      }
+      video_job_renew: {
+        Args: { p_id: string; p_lease_seconds?: number }
+        Returns: boolean
       }
       video_mark_purged: { Args: { p_id: string }; Returns: undefined }
       video_purge_candidates: {

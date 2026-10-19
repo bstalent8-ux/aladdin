@@ -4,14 +4,14 @@ import { z } from "zod";
 import { readPublicEnv } from "@/lib/env";
 import { readStorageEnv } from "@/lib/env/storage";
 import {
-  VIDEO_MAX_BYTES, VIDEO_PART_BYTES, VIDEO_PARTS_PER_REQUEST, VIDEO_TITLE_MAX, VIDEO_TYPES,
-  isVideoType, videoPartCount, videoPartLength, videoSignatureMatches,
+  VIDEO_PARTS_PER_REQUEST, VIDEO_STORAGE_MAX_BYTES, VIDEO_TITLE_MAX, VIDEO_TYPES,
+  isVideoType, videoPartBytes, videoPartCount, videoPartLength, videoSignatureMatches,
 } from "@/lib/media/video-policy";
 import { readSessionIdentity } from "@/server/auth/session";
 import { cacheKey, withRedis } from "@/server/cache/redis";
 import { consumeRateLimit } from "@/server/cache/rate-limit";
 import { privilegedStorageClient } from "@/server/storage/media";
-import { R2VideoUploads } from "@/server/storage/r2-multipart";
+import { videoUploadStore, type UploadTransport, type VideoUploadStore } from "./provider";
 import { videoEnabled } from "./playback";
 
 /**
@@ -33,7 +33,8 @@ export const beginSchema = z.object({
   productId: UUID.optional(),
   title: z.string().trim().min(1).max(VIDEO_TITLE_MAX),
   contentType: z.enum(VIDEO_TYPES),
-  bytes: z.number().int().positive().max(VIDEO_MAX_BYTES),
+  // No product cap: only R2's own object limit.
+  bytes: z.number().int().positive().max(VIDEO_STORAGE_MAX_BYTES),
 }).refine((v) => (v.scope === "product") === (v.productId !== undefined), { message: "productId belongs to product scope" });
 export const partsSchema = z.object({ parts: z.array(z.number().int().min(1)).min(1).max(VIDEO_PARTS_PER_REQUEST) });
 
@@ -64,9 +65,9 @@ async function resolve(client: SupabaseClient, id: string): Promise<Resolved> {
   return r;
 }
 
-export type UploadPlan = { id: string; partBytes: number; partCount: number; uploaded: number[] };
+export type UploadPlan = { id: string; transport: UploadTransport; partBytes: number; partCount: number; uploaded: number[] };
 
-export async function beginVideoUpload(client: SupabaseClient, input: z.infer<typeof beginSchema>, uploads = new R2VideoUploads()): Promise<UploadPlan> {
+export async function beginVideoUpload(client: SupabaseClient, input: z.infer<typeof beginSchema>, uploads: VideoUploadStore = videoUploadStore()): Promise<UploadPlan> {
   requireVideo();
   // p_product_id is always sent: it has no SQL default, and PostgREST matches functions by argument names.
   const { data: id, error } = await client.rpc("video_upload_begin", { p_scope: input.scope, p_product_id: input.productId ?? null,
@@ -81,27 +82,27 @@ export async function beginVideoUpload(client: SupabaseClient, input: z.infer<ty
       throw new Error("attach failed");
     }
   } catch {
-    // The row would otherwise hold one of the caller's three unfinished slots.
+    // The row would otherwise hold one of the caller's unfinished-upload slots.
     await client.rpc("video_delete", { p_id: id });
     throw new VideoUploadError("unavailable");
   }
-  return { id, partBytes: VIDEO_PART_BYTES, partCount: videoPartCount(input.bytes), uploaded: [] };
+  return { id, transport: "r2-multipart", partBytes: videoPartBytes(input.bytes), partCount: videoPartCount(input.bytes), uploaded: [] };
 }
 
 /** Resume: which parts R2 already holds, so the browser sends only the rest. */
-export async function videoUploadStatus(client: SupabaseClient, id: string, uploads = new R2VideoUploads()): Promise<UploadPlan & { state: string }> {
+export async function videoUploadStatus(client: SupabaseClient, id: string, uploads: VideoUploadStore = videoUploadStore()): Promise<UploadPlan & { state: string }> {
   requireVideo();
   const r = await resolve(client, id);
   if (r.state !== "uploading" || !r.uploadId || r.expired) {
-    return { id, state: r.expired ? "expired" : r.state, partBytes: VIDEO_PART_BYTES, partCount: videoPartCount(r.declaredBytes), uploaded: [] };
+    return { id, state: r.expired ? "expired" : r.state, transport: "r2-multipart", partBytes: videoPartBytes(r.declaredBytes), partCount: videoPartCount(r.declaredBytes), uploaded: [] };
   }
   const parts = await uploads.listParts(id, r.uploadId);
   const uploaded = parts.filter((p) => p.partNumber <= videoPartCount(r.declaredBytes)
     && p.size === videoPartLength(r.declaredBytes, p.partNumber)).map((p) => p.partNumber);
-  return { id, state: r.state, partBytes: VIDEO_PART_BYTES, partCount: videoPartCount(r.declaredBytes), uploaded };
+  return { id, state: r.state, transport: "r2-multipart", partBytes: videoPartBytes(r.declaredBytes), partCount: videoPartCount(r.declaredBytes), uploaded };
 }
 
-export async function signVideoParts(client: SupabaseClient, id: string, parts: number[], uploads = new R2VideoUploads()): Promise<Record<number, string>> {
+export async function signVideoParts(client: SupabaseClient, id: string, parts: number[], uploads: VideoUploadStore = videoUploadStore()): Promise<Record<number, string>> {
   requireVideo();
   const identity = await readSessionIdentity(client);
   if (!identity) throw new VideoUploadError("not_allowed");
@@ -113,7 +114,7 @@ export async function signVideoParts(client: SupabaseClient, id: string, parts: 
   return uploads.signParts(id, r.uploadId, r.declaredBytes, parts);
 }
 
-export async function completeVideoUpload(client: SupabaseClient, id: string, uploads = new R2VideoUploads()): Promise<{ state: "processing" }> {
+export async function completeVideoUpload(client: SupabaseClient, id: string, uploads: VideoUploadStore = videoUploadStore()): Promise<{ state: "processing" }> {
   requireVideo();
   const r = await resolve(client, id);
   if (r.state === "processing") return { state: "processing" };
@@ -133,7 +134,7 @@ export async function completeVideoUpload(client: SupabaseClient, id: string, up
   return { state: "processing" };
 }
 
-export async function deleteVideo(client: SupabaseClient, id: string, uploads = new R2VideoUploads()): Promise<void> {
+export async function deleteVideo(client: SupabaseClient, id: string, uploads: VideoUploadStore = videoUploadStore()): Promise<void> {
   if (!UUID.safeParse(id).success) throw new VideoUploadError("not_found");
   const { data: uploadId, error } = await client.rpc("video_delete", { p_id: id });
   if (error) throw fromDatabase(error);

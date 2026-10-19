@@ -7,7 +7,7 @@ import { requireApprovedShowroomContext } from "@/features/showroom-shell/contex
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { getCatalogProduct, savedProductIds } from "@/server/queries/commerce";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
-import { VideoGallery } from "@/features/video/video-gallery";
+import { mergeMedia } from "@/lib/media/media-order";
 import { loadProductVideos } from "@/server/queries/videos";
 import { listCatalogImages, signProductImageUrls } from "@/server/queries/product-images";
 import { SaveProductButton } from "@/features/commerce/save-product-button";
@@ -37,7 +37,7 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
   // The uploaded photos (RLS: a published product's ready images), signed with the caller's own access.
   const gallery = (await listCatalogImages(supabase, org.organizationId, [product.id])).get(product.id) ?? [];
   const signed = await signProductImageUrls(supabase, gallery.map((g) => g.objectKey), { orgId: org.organizationId });
-  const imageUrls = gallery.map((g) => signed.get(g.objectKey)).filter((u): u is string => Boolean(u));
+  const images = gallery.flatMap((g) => { const url = signed.get(g.objectKey); return url ? [{ id: g.id, url, position: g.slot }] : []; });
 
   const isOwnOrg = product.organization_id === org.organizationId;
   const canRfq = org.canManageSales || org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
@@ -51,7 +51,7 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
     <CatalogProductDetail
       product={{ ...product, id: product.id, category: product.category, unit: product.unit, organization_id: product.organization_id }}
       m={m}
-      imageUrls={imageUrls}
+      media={mergeMedia(images, videos).map((e) => (e.kind === "image" ? { kind: "image" as const, url: e.item.url } : { kind: "video" as const, video: e.item }))}
       isOwnOrg={isOwnOrg}
       canRfq={canRfq}
       /* Full RFQ pages arrive in a later phase; the production request flow is the working one today. */
@@ -64,7 +64,6 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
       }
       extra={<SaveProductButton orgId={org.organizationId} productId={product.id} saved={saved.has(product.id)} />}
     />
-    <div className="mt-xl"><VideoGallery videos={videos} title={t("video.title")} t={t} /></div>
     </>
   );
 }

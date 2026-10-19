@@ -12,7 +12,7 @@ vi.mock("@/server/storage/media", () => ({ privilegedStorageClient: () => ({ rpc
 vi.mock("@/server/storage/r2-multipart", () => ({ R2VideoUploads: class {} }));
 vi.mock("@/lib/env", () => ({ readPublicEnv: mocks.publicEnv }));
 vi.mock("@/lib/env/storage", () => ({ readStorageEnv: mocks.storageEnv }));
-import { VIDEO_PART_BYTES } from "@/lib/media/video-policy";
+import { VIDEO_MIN_PART_BYTES as VIDEO_PART_BYTES } from "@/lib/media/video-policy";
 import {
   beginSchema, beginVideoUpload, completeVideoUpload, deleteVideo, signVideoParts, updateVideo, videoUploadStatus, VideoUploadError,
 } from "./uploads";
@@ -54,18 +54,28 @@ describe("beginSchema", () => {
     expect(beginSchema.safeParse({ ...base, scope: "product" }).success).toBe(false);
     expect(beginSchema.safeParse({ ...base, scope: "product", productId: ID }).success).toBe(true);
   });
-  it("refuses other types and oversize files", () => {
+  it("refuses other types, and sizes only beyond R2's own object limit", () => {
     expect(beginSchema.safeParse({ scope: "portfolio", title: "t", contentType: "video/x-msvideo", bytes: 10 }).success).toBe(false);
-    expect(beginSchema.safeParse({ scope: "portfolio", title: "t", contentType: "video/mp4", bytes: 600 * 1024 * 1024 }).success).toBe(false);
+    expect(beginSchema.safeParse({ scope: "portfolio", title: "t", contentType: "video/mp4", bytes: 600 * 1024 * 1024 }).success).toBe(true);
+    expect(beginSchema.safeParse({ scope: "portfolio", title: "t", contentType: "video/mp4", bytes: 200 * 1024 ** 3 }).success).toBe(true);
+    expect(beginSchema.safeParse({ scope: "portfolio", title: "t", contentType: "video/mp4", bytes: 5 * 1024 ** 4 + 1 }).success).toBe(false);
   });
 });
 
 describe("beginVideoUpload", () => {
+  it("plans larger parts for a file that would need more than 10,000", async () => {
+    const c = client({ video_upload_begin: { data: ID, error: null } });
+    const bytes = 200 * 1024 ** 3;
+    const plan = await beginVideoUpload(c, { scope: "portfolio", title: "t", contentType: "video/mp4", bytes }, uploads());
+    expect(plan.partCount).toBeLessThanOrEqual(10_000);
+    expect(plan.partBytes).toBeGreaterThan(VIDEO_PART_BYTES);
+  });
+
   it("asks the database as the caller first, then opens and attaches the multipart upload", async () => {
     const c = client({ video_upload_begin: { data: ID, error: null } });
     const u = uploads();
     const plan = await beginVideoUpload(c, { scope: "portfolio", title: "t", contentType: "video/mp4", bytes: VIDEO_PART_BYTES * 2 + 1 }, u);
-    expect(plan).toEqual({ id: ID, partBytes: VIDEO_PART_BYTES, partCount: 3, uploaded: [] });
+    expect(plan).toEqual({ id: ID, transport: "r2-multipart", partBytes: VIDEO_PART_BYTES, partCount: 3, uploaded: [] });
     // PostgREST resolves functions by argument names: a portfolio upload must still send p_product_id.
     expect(c.rpc).toHaveBeenCalledWith("video_upload_begin", { p_scope: "portfolio", p_product_id: null, p_title: "t",
       p_content_type: "video/mp4", p_bytes: VIDEO_PART_BYTES * 2 + 1 });

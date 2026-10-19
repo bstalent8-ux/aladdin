@@ -63,6 +63,7 @@ export default async function ShowroomEditProductPage({
       productName={product.name}
       archived={status === "archived"}
       images={images.map((i) => ({ id: i.id, url: signed.get(i.objectKey) ?? null, slot: i.slot }))}
+      videos={videos ?? undefined}
     />
   );
 
@@ -124,7 +125,7 @@ export default async function ShowroomEditProductPage({
         </Card>
       </aside>
       </div>
-      {videos && <Card><VideoManager scope="product" productId={product.id} videos={videos} canPublish={false} /></Card>}
+      {videos && <Card><VideoManager scope="product" productId={product.id} videos={videos} canPublish={false} showList={false} /></Card>}
     </div>
   );
 }

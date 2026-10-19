@@ -10,7 +10,6 @@ import { contentColumnClass } from "@/components/layout/content-column";
 import { PublicProfileView } from "@/features/profile/public-profile";
 import { PublicPortfolio } from "@/features/profile/public-portfolio";
 import { PublicReviews } from "@/features/profile/public-reviews";
-import { VideoGallery } from "@/features/video/video-gallery";
 import { loadPublicPortfolioVideos } from "@/server/queries/videos";
 import { cn } from "@/lib/ui/cn";
 
@@ -80,8 +79,7 @@ export default async function PublicProfilePage({
       {/* Rendered only when there is something published. An empty section would
           tell a visitor that work exists and is being withheld, which is exactly
           the distinction the whole surface refuses to draw. */}
-      <PublicPortfolio items={portfolio} t={t} />
-      <VideoGallery videos={videos} title={t("video.publicTitle")} t={t} />
+      <PublicPortfolio items={portfolio} videos={videos} t={t} />
       {/* Reviews after the work, for the same reason the work comes after the
           identity: a visitor decides who this is, sees what they have done, and
           then reads what other organizations said about it. Rendered only when
