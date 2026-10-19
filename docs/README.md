@@ -114,6 +114,7 @@ The five files above are **persistent project memory and part of the core archit
 - [`guides/frontend-setup.md`](guides/frontend-setup.md)
 - [`guides/backend-setup.md`](guides/backend-setup.md)
 - [`guides/supabase-setup.md`](guides/supabase-setup.md)
+- [`guides/upstash-setup.md`](guides/upstash-setup.md)
 
 ## UI/UX
 
