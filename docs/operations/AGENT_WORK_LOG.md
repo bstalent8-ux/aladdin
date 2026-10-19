@@ -15,6 +15,16 @@ Unfinished / needs the owner:
 - `my_organization_application_slot()` costs ~13 ms locally on every B2B page and evaluates `app.application_slot` twice: a SQL fix, not done here.
 - Pay-as-you-go needs approval once traffic passes about 1,500 page views a day with images still proxied.
 
+## 2026-10-19 — Session revocation coverage and backend production configuration (PR #91)
+
+Branch `claude/media-backend-continuation-2ibvgs`. No hosted write, deploy or merge.
+
+- **Backend config:** `backend/app/config.py` derives the environment from `VERCEL_ENV` when `APP_ENV` is unset or `local` (Production → `production`, Preview → `staging`, unknown → `production`). Required when deployed: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the only values a deployed route reads); service-role key, `DATABASE_URL` and the legacy JWT secret are no longer required. A missing variable no longer raises at import: health answers 503 `misconfigured` with the names, `require_configured` makes every authenticated endpoint answer 503. Names per environment: [vercel-environment-variables.md](../guides/vercel-environment-variables.md). ADR-0009 revised, runbook superseded lines updated.
+- **Revocation audit:** real gaps were Storage API (bucket policies only; BV documents and request images are read, signed, uploaded and deleted with the caller's token) and Realtime postgres_changes (`leads`, `follow_up_tasks`; `realtime.apply_rls` checks RLS only). Fixed by migration `20261019163000` (restrictive `app.jwt_session_is_live()` policies; `authenticated` granted EXECUTE on the helper; permission contract `20261019163000.json`), pgTAP `103_*` (23), `47_*` and `102_*` updated. Already covered: PostgREST (hook), Server Actions and route handlers (every service-role use follows a caller-scoped RPC through the hook; admin-client calls follow network `getUser()`), media Worker (`media_edge_authorize`), FastAPI (`require_active_principal` → `my_account_status`).
+- **Cost:** helper 30–70 µs warm, evaluated once per statement (InitPlan, plan unchanged).
+
+Unfinished / needs the owner: set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for Preview and Production; approve the migration with the others. Merging the video branch needs its `20261019150000.json` contract to include this grant (or this contract to include the video functions), whichever lands second.
+
 ## 2026-10-19 — Media and backend continuation of PRs #88/#89 (stacked branch)
 
 Branch `claude/media-backend-continuation-2ibvgs`, stacked on PR #89 after merging PR #88's last three commits into it locally (conflicts only in this log and RUNTIME_STATE; HEAD side kept). `main` (`bd0de0a`, includes PR #90 legal pages) was audited and is untouched. No hosted write, deploy, merge, DNS or billing change.

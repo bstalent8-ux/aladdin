@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from app import auth
 from app.auth import InvalidToken, Principal, TokenVerifier, require_principal
-from app.config import Settings
+from app.config import Settings, get_settings
 
 URL = "http://127.0.0.1:54321"
 ISSUER = f"{URL}/auth/v1"
@@ -124,6 +124,7 @@ def _app() -> TestClient:
         return {"user": p.user_id}
 
     app.dependency_overrides[auth.get_token_verifier] = lambda: VERIFIER
+    app.dependency_overrides[get_settings] = lambda: SETTINGS
     return TestClient(app)
 
 
