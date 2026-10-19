@@ -16,6 +16,9 @@ import { ownProductStatus } from "@/features/showroom-shell/products/product-inp
 import { effectiveColors } from "@/features/showroom-shell/products/color-items";
 import { ShowroomPageHero, MY_PRODUCTS_HERO_ART } from "@/features/showroom-shell/page-hero";
 import { PackageIcon } from "@/components/ui/icons";
+import { VideoManager } from "@/features/video/video-manager";
+import { listManagedVideos } from "@/server/queries/videos";
+import { videoEnabled } from "@/server/video/playback";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +52,10 @@ export default async function ShowroomEditProductPage({
 
   const images = (await listProductImages(supabase, [product.id])).get(product.id) ?? [];
   const signed = await signProductImageUrls(supabase, images.map((i) => i.objectKey));
+
+  // Videos: only while uploads go to R2 and playback runs at the edge.
+  const videos = canWrite && status !== "archived" && videoEnabled()
+    ? await listManagedVideos({ scope: "product", productId: product.id, workspace: org.organizationId }) : null;
 
   const photoManager = (
     <ImageManager
@@ -117,6 +124,7 @@ export default async function ShowroomEditProductPage({
         </Card>
       </aside>
       </div>
+      {videos && <Card><VideoManager scope="product" productId={product.id} videos={videos} canPublish={false} /></Card>}
     </div>
   );
 }

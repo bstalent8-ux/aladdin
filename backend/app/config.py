@@ -43,6 +43,22 @@ class Settings(BaseSettings):
     # Separates environments that share one Redis database.
     redis_key_env: str = ""
 
+    # --- R2 (video worker only; the private bucket holding originals and HLS) ---
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_private_bucket: str = ""
+    # S3-compatible stand-in for isolated local tests. Refused outside APP_ENV=local.
+    r2_local_s3_endpoint: str = ""
+
+    @property
+    def r2_endpoint(self) -> str:
+        if self.r2_local_s3_endpoint:
+            return self.r2_local_s3_endpoint
+        return (
+            f"https://{self.r2_account_id}.r2.cloudflarestorage.com" if self.r2_account_id else ""
+        )
+
     # --- Server ---
     # Comma-separated browser origins allowed to call the API (CORS).
     allowed_origins: str = "http://localhost:3000"
@@ -62,6 +78,8 @@ class Settings(BaseSettings):
         No silent defaults for secrets in deployed environments; local/dev may
         run without them (e.g. for the health check and unit tests).
         """
+        if self.r2_local_s3_endpoint and self.app_env != "local":
+            raise ValueError("R2_LOCAL_S3_ENDPOINT is only allowed in local isolated tests")
         if self.is_production_like:
             missing = [
                 name

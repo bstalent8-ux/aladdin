@@ -7,6 +7,8 @@ import { requireApprovedShowroomContext } from "@/features/showroom-shell/contex
 import { SHOWROOM_GROUPS, SHOWROOM_ROOT, canNavigate } from "@/features/showroom-shell/navigation";
 import { getCatalogProduct, savedProductIds } from "@/server/queries/commerce";
 import { CatalogProductDetail } from "@/features/commerce/catalog-product-detail";
+import { VideoGallery } from "@/features/video/video-gallery";
+import { loadProductVideos } from "@/server/queries/videos";
 import { listCatalogImages, signProductImageUrls } from "@/server/queries/product-images";
 import { SaveProductButton } from "@/features/commerce/save-product-button";
 
@@ -40,7 +42,12 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
   const isOwnOrg = product.organization_id === org.organizationId;
   const canRfq = org.canManageSales || org.capabilities.includes("rfq.create") || org.capabilities.includes("org.manage");
 
+  // Product videos for this workspace's audience (or the publisher's own members);
+  // the Worker re-checks the same rule on every playlist and segment request.
+  const videos = await loadProductVideos(product.id, org.organizationId);
+
   return (
+    <>
     <CatalogProductDetail
       product={{ ...product, id: product.id, category: product.category, unit: product.unit, organization_id: product.organization_id }}
       m={m}
@@ -57,5 +64,7 @@ export default async function ShowroomCatalogProductPage({ params }: { params: P
       }
       extra={<SaveProductButton orgId={org.organizationId} productId={product.id} saved={saved.has(product.id)} />}
     />
+    <div className="mt-xl"><VideoGallery videos={videos} title={t("video.title")} /></div>
+    </>
   );
 }

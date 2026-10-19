@@ -10,6 +10,8 @@ import { contentColumnClass } from "@/components/layout/content-column";
 import { PublicProfileView } from "@/features/profile/public-profile";
 import { PublicPortfolio } from "@/features/profile/public-portfolio";
 import { PublicReviews } from "@/features/profile/public-reviews";
+import { VideoGallery } from "@/features/video/video-gallery";
+import { loadPublicPortfolioVideos } from "@/server/queries/videos";
 import { cn } from "@/lib/ui/cn";
 
 export const dynamic = "force-dynamic";
@@ -61,12 +63,15 @@ export default async function PublicProfilePage({
   // Only ever the published items of a currently listed profile: the projection
   // itself carries that test, so this page adds no filter of its own and cannot
   // disagree with the media route about what is public.
-  const [portfolio, reviews] = await Promise.all([
+  const [portfolio, reviews, videos] = await Promise.all([
     loadPublicPortfolio(profileId),
     // Unsuppressed reviews of a currently listed professional. The projection
     // carries that test, so this page adds no filter and cannot disagree with
     // the professional's own view of what is public.
     loadPublicReviews(profileId),
+    // Published videos of the same listed profile; the Worker re-checks
+    // publication on every playlist and segment request.
+    loadPublicPortfolioVideos(profileId),
   ]);
 
   return (
@@ -76,6 +81,7 @@ export default async function PublicProfilePage({
           tell a visitor that work exists and is being withheld, which is exactly
           the distinction the whole surface refuses to draw. */}
       <PublicPortfolio items={portfolio} t={t} />
+      <VideoGallery videos={videos} title={t("video.publicTitle")} />
       {/* Reviews after the work, for the same reason the work comes after the
           identity: a visitor decides who this is, sees what they have done, and
           then reads what other organizations said about it. Rendered only when
