@@ -8,8 +8,9 @@ dependencies build on it:
 
 - `require_principal`: a valid, unexpired `authenticated` token;
 - `require_active_principal`: additionally asks the database, as the caller,
-  whether the account is still active (`my_account_status`). Suspension is a
-  database fact, so it applies on the next request even while the JWT lives.
+  whether the account is still active and the session still live
+  (`my_account_status`). Suspension, sign-out, bans and deletion are database
+  facts, so they apply on the next request even while the JWT lives.
 
 Identity is only ever taken from the verified token, never from a request body.
 """
@@ -119,8 +120,13 @@ def account_is_active(principal: Principal) -> bool:
     """The database decides, as the caller (RLS and auth.uid() apply)."""
     result = create_user_client(principal.access_token).rpc("my_account_status").execute()
     data = result.data
-    # Mirrors app.account_is_active: every status except suspended/deactivated.
-    return isinstance(data, dict) and data.get("suspended") is False
+    # Mirrors app.account_is_active (every status except suspended/deactivated) and
+    # app.jwt_session_is_live (the session was not signed out, banned or deleted).
+    return (
+        isinstance(data, dict)
+        and data.get("suspended") is False
+        and data.get("session_active") is not False
+    )
 
 
 def require_active_principal(

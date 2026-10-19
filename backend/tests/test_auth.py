@@ -146,3 +146,30 @@ def test_suspended_account_is_refused_on_the_next_request(monkeypatch: pytest.Mo
     assert client.get("/active", headers=headers).status_code == 200
     monkeypatch.setattr(auth, "account_is_active", lambda p: False)
     assert client.get("/active", headers=headers).status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("status", "active"),
+    [
+        ({"status": "active", "suspended": False, "session_active": True}, True),
+        ({"status": "active", "suspended": False}, True),
+        ({"status": "active", "suspended": False, "session_active": False}, False),
+        ({"status": "suspended", "suspended": True, "session_active": True}, False),
+        (None, False),
+    ],
+)
+def test_account_is_active_reads_suspension_and_session(
+    monkeypatch: pytest.MonkeyPatch, status: dict[str, Any] | None, active: bool
+) -> None:
+    class _Rpc:
+        def execute(self) -> Any:
+            return type("R", (), {"data": status})()
+
+    class _Client:
+        def rpc(self, name: str) -> _Rpc:
+            assert name == "my_account_status"
+            return _Rpc()
+
+    monkeypatch.setattr(auth, "create_user_client", lambda token: _Client())
+    principal = VERIFIER.verify(_es256(_claims()))
+    assert auth.account_is_active(principal) is active
