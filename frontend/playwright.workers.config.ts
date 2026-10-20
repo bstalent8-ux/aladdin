@@ -26,8 +26,10 @@ const env: Record<string, string> = {
   NEXT_PUBLIC_REALTIME_DEBUG: "1",
   SUPABASE_URL: status.API_URL!,
   SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY!,
-  E2E_STUB_TURNSTILE: process.env.E2E_STUB_TURNSTILE ?? "1",
 };
+// The specs read these in the test process: challenges.cloudflare.com is stubbed offline.
+process.env.E2E_STUB_TURNSTILE ??= "1";
+process.env.E2E_TURNSTILE_STUB ??= "1";
 // Runtime variables for workerd. NEXT_PUBLIC_* are also inlined at build time from `env` below.
 writeFileSync(".dev.vars", Object.entries(env).map(([key, value]) => `${key}=${value}`).join("\n") + "\n");
 
