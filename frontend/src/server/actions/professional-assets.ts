@@ -1,7 +1,8 @@
 "use server";
 
 import { mapAssetError } from "@/server/actions/error-mapping";
-import { authorizeMediaUpload, readMediaUrl, removeMedia } from "@/server/storage/media";
+import { authorizeMediaUpload, removeMedia } from "@/server/storage/media";
+import { readableMediaUrl } from "@/server/storage/edge-ticket";
 import type { UploadGrant } from "@/lib/storage/provider-types";
 import { getServerSupabase } from "@/lib/supabase/server";
 import {
@@ -67,8 +68,9 @@ export async function createAssetUploadTicket(
 }
 
 /**
- * Returns only an application URL. Every GET reauthenticates and reauthorizes;
- * this action's authorization is not a bearer grant and no provider token leaves the server.
+ * Returns an application URL, or (edge delivery on, R2 row) a media-Worker URL
+ * with a 60–120 s ticket. Every GET reauthorizes in the database; this action's
+ * authorization is not a bearer grant and no provider token leaves the server.
  *
  * There is no variant that takes a bucket — the namespace is a closed set of two
  * and the bucket is looked up — so no caller can name `professional-certificates`
@@ -85,7 +87,7 @@ export async function createAssetReadUrl(namespace: string, objectPath: string):
   if (error) return { ok: false, code: error };
 
   try {
-    const url = await readMediaUrl(supabase, ns, objectPath);
+    const url = await readableMediaUrl(supabase, ns, objectPath);
     return { ok: true, url };
   } catch { return { ok: false, code: "assets.errors.gone" }; }
 }

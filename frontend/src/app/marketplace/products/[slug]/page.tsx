@@ -5,7 +5,7 @@ import { LiveProduct } from "@/features/marketplace/live/live-product";
 import { MarketplaceShell } from "@/features/marketplace/marketplace-shell";
 import { readPublicEnv } from "@/lib/env";
 import { LOCALE_COOKIE, directionFor, resolveLocale } from "@/lib/i18n/config";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 import { loadPublicProduct } from "@/server/queries/marketplace-public";
 
 export const dynamic = "force-dynamic";

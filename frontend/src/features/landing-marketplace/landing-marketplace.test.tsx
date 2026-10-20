@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 import {
   categoryOrder,
   landingMarketplaceContent,

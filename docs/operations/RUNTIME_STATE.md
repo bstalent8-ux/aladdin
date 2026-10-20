@@ -13,6 +13,50 @@
 - Live: `/marketplace/cart` (guest cart, quotes via the read-only `marketplace_public_cart`, checkout disabled "Coming soon"), Add to cart on `/marketplace/products/[slug]`, `/b2c/seller/areas` + `/b2c/seller/delivery` (showroom chooses where it delivers, then prices each place; pickup switch), reached from the **الماركت / Marketplace** sidebar group. Flag `NEXT_PUBLIC_MARKETPLACE_PREVIEW=true` still gates all of it.
 - Local QA data: Decore Store has 3 delivery-rate rows (test values). Not pushed, not applied to any hosted project. Details: `docs/marketplace/cart-and-delivery.md`.
 
+## Redis, video and palette (draft PRs #92, video PR, #93) — 2026-10-19
+
+- **Stack:** #88 → #89 → #91 → #92 (Redis) → video branch `claude/video-r2-2ibvgs`. Palette #93 is independent, based on `main`. Nothing merged or deployed.
+- **New migration (local only):** `20261019170000_media_videos` (renamed from 20261019150000 so it sorts after the revocation migration 20261019163000; permission contract `supabase/permissions/20261019170000.json`).
+- **Flags (all off):** `REDIS_CACHE_ENABLED=false`, `VIDEO_ENABLED=false`, Worker `VIDEO_ROUTES="off"`; R2 and edge flags unchanged.
+- **Decisions:** [ADR-0019](../decisions/ADR-0019-redis-cache-and-rate-limits.md), [ADR-0020](../decisions/ADR-0020-video-r2-hls.md) — both Proposed. FastAPI next phase: [plan](../architecture/fastapi-next-phase.md), not started.
+- **Hosted dependencies pending approval:** managed Redis, transcode host, R2 CORS and lifecycle rules, Worker video routes, the migration.
+
+## Media/backend continuation (stacked on PR #89) — 2026-10-19
+
+- **Branch** `claude/media-backend-continuation-2ibvgs`, stacked on PR #89 (`claude/r2-rc2-integration-vdrldz`) with PR #88's latest commits merged in. Not merged anywhere; no hosted change.
+- **New migrations (local only):** `20261019120000_historical_media_purge`, `20261019130000_rls_platform_check_initplan`, `20261019140000_data_api_session_revocation` (177 migration files on this branch, counting #88 and #89). Staging (`kkpkgjrweysgvhvkhzun`) still has 164, max `20261017134139`; its `pgrst.db_pre_request` hook is active (`pgrst_hooks.pre_request`).
+- **Revocation and backend config (2026-10-19, same branch):** migration `20261019163000_storage_realtime_session_revocation` (178 files) adds restrictive session-live policies to `storage.objects`, `leads` and `follow_up_tasks`. The backend derives its environment from `VERCEL_ENV`: once this branch deploys, Production `/api/backend/health` answers **503 `misconfigured`** until `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set for the backend ([names](../guides/vercel-environment-variables.md)); the web app is unaffected.
+- **Flags unchanged:** `R2_STORAGE_ENABLED=false`, `R2_PRODUCTION_WRITES_APPROVED=false`, `MEDIA_EDGE_DELIVERY_ENABLED=false`.
+- **Infrastructure facts (audited 2026-10-19):** one Vercel project `aladdin-staging` (Hobby) serves `aladdindecore.com`; DNS on Vercel nameservers; functions ran in `iad1` (this branch sets `cdg1`). FastAPI live at `/api/backend/health` only, `APP_ENV` unset. Cloudflare account has R2 buckets (`aladdin-production-db-backups`, `aladdin-r2-acceptance-20261011-private/-public`), no Workers, no Hyperdrive. Supabase staging Storage: avatars 144 objects / 8.4 MB, portfolio 163 / 259.6 MB (to be purged), certificates 4 / 7.9 MB (kept).
+- Decision: [ADR-0018 Revision 2](../decisions/ADR-0018-r2-edge-media-delivery.md#revision-2--2026-10-19-full-media-architecture).
+
+## R2 media storage and edge delivery (PR #89) — 2026-10-18
+
+- **Branch and PR.** The R2 work is on draft **PR #89** (`claude/r2-rc2-integration-vdrldz`, head `26edd40`), which is open and **not merged**. It includes PR #88. The local snapshot branch `local/r2-rc2-snapshot` has the same head, 29 commits ahead of the local `origin/main` ref (`9d9a1b6`). On `main`, media is still served from Supabase Storage.
+- **Decision.** [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md) is **Proposed** and needs owner approval. It refines [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md).
+- **Flags (code defaults).** `MEDIA_EDGE_DELIVERY_ENABLED=false`, so edge delivery is off and every image URL goes to the app proxy (`/api/media/<ns>`, `/p/media/<itemId>`). `R2_STORAGE_ENABLED=false` and `R2_PRODUCTION_WRITES_APPROVED=false`. `MEDIA_EDGE_PUBLIC_ENABLED` defaults to `true`; it only has an effect once edge delivery is on.
+- **In the code on PR #89:**
+  - the Worker `edge/media-worker/` (`/m` private with a ticket, `/c` conditional public);
+  - ticket issuance in `frontend/src/server/storage/edge-ticket.ts`;
+  - 320/768/1600 WebP variants and pre-upload resizing;
+  - the migration tooling `scripts/media-storage.mjs` and the usage report `scripts/usage-report.mjs`;
+  - local JWT verification for session reads ([auth-session-reads.md](../frontend/auth-session-reads.md));
+  - migrations `20261018100000`–`20261018100003` and `20261019100000_media_edge_authorization.sql`.
+  This is 173 migration files in total.
+- **Hosted steps: none done.** Each needs owner approval:
+  - the Worker login role `media_edge_worker` (member of `media_edge`);
+  - Hyperdrive with query caching disabled;
+  - the private R2 bucket and its `pending/` lifecycle rule;
+  - the Cloudflare zone and media hostname (decision D4);
+  - Workers Paid (D5);
+  - the `TICKET_KEYS` Worker secret;
+  - the Vercel env vars `MEDIA_EDGE_ORIGIN`, `MEDIA_EDGE_TICKET_KID`, `MEDIA_EDGE_TICKET_SECRET`, `MEDIA_EDGE_DELIVERY_ENABLED` and `R2_*`.
+  Steps: [`edge/media-worker/README.md`](../../edge/media-worker/README.md).
+- **Hosted database.** The media migrations have **not** run on any hosted project. Staging (`kkpkgjrweysgvhvkhzun`) had 164 migrations up to `20261017134139` when audited on 2026-10-18. PR #88, `20261018090000/1`, `20261018100000`–`100003` and `20261019100000` are all pending there. No media has been copied to R2.
+- **Supabase egress.** About **0.29 GB is left of the 5 GB** Free quota this cycle (4.71 GB used, owner-reported 2026-10-18). The full bulk copy needs about 0.273 GB, so only an avatar and certificate rehearsal (about 16 MB) fits before the cycle resets or the plan is upgraded to Pro. Going over the quota returns HTTP 402 on every API call. Runbook: [media-monitoring.md](media-monitoring.md).
+- **Security item to check.** On the local stack, `PUBLIC` has `USAGE` on schema `net` and `EXECUTE` on some pg_net functions (`net.http_delete(...)`, `net.worker_restart()` and helpers), so `anon` can call them. The hosted projects have not been checked. Check them and revoke these grants from `PUBLIC` in a separate reviewed change, before the Worker login role is created.
+- **Validation.** Not re-run in the 2026-10-18 docs session. To check: `pnpm --filter @aladdin/media-worker test` and `typecheck` for the Worker. pgTAP `99_media_edge_authorization_test.sql` tests that the next request is denied after delete, unpublish, delisting, suspension, ban and sign-out.
+
 ## Showroom V2 and Admin follow-ups (PR #88) — 2026-10-18
 
 - Same branch and PR as business verification below. Adds: Admin Users "User Type" column/filter (`admin_users_directory`, migration `20261018090000`); Admin Staff search/empty copy; Offers and My Offers re-enabled; unverified secondary phone reservations with password receipts and a Support cooldown override (`20261018090001`, `/admin/phone-cooldowns`, permission `phones.cooldown_override`, Super Admin only by default).

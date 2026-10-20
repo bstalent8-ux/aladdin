@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 import type { CartQuote, CartQuoteLine, CartSeller, PublicCard } from "./public-contract";
 import { LIVE_CART_KEY, useLiveCart } from "./live-cart-store";
 import { LiveCartPage } from "./live-cart-page";

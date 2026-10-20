@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it } from "vitest";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 import { MarketplaceCartProvider, useMarketplaceCart } from "./marketplace-cart";
 import { MarketplaceCartPage } from "./marketplace-cart-page";
 import { deliveryFee } from "./marketplace-delivery";

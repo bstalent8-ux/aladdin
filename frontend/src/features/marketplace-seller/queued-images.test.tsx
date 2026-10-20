@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 
 vi.mock("@/server/actions/marketplace-seller", () => ({}));
 vi.mock("@/lib/supabase/client", () => ({ createBrowserSupabaseClient: () => ({}) }));

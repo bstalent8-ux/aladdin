@@ -10,6 +10,123 @@ Local QA data touched: three delivery-rate rows for Decore Store (Cairo 80, Cair
 
 Open: checkout / orders / payment (Kashier owner) and sign-in at checkout (DL-01/DL-07 say the cart itself needs sign-in and stores variant ids — built cart opens without sign-in and stores slug + SKU); delivery time estimates; header badge counts a withdrawn line; owner review of the reworded trust-strip claims.
 
+## 2026-10-19 — Landing mobile LCP under 2.5 s
+
+Branch `claude/landing-lcp-2ibvgs` (from `claude/video-r2-2ibvgs`). It fixes the one failing page in `performance-2026-10-19.md`. Header logo: `sizes="80px"`, no `priority`, lazy (it was fetched at 1920 px, 104 KB, and preloaded). Footer logo: `sizes="80px"` too. Hero image: `fetchPriority="high"` added to `priority`, and `sizes` capped at 2560 px. Mobile still selects the same 1200 w file, so it looks the same. Fonts: preload only the Latin faces of Readex, Archivo and Reem Kufi (≈ 86 KB, down from 160 KB). The Arabic faces and JetBrains Mono load on use. Arabic pages start their two Arabic faces from an inline `document.fonts.load` script in `<head>`. i18n: `context.tsx` (`useI18n`, new `I18nMessagesProvider`) no longer imports a catalog. The catalog-backed `I18nProvider` moved to `lib/i18n/provider.tsx`, and every layout import was updated. `/` and `/preview/landing` send only the `nav` namespace of the current locale. The bilingual catalog chunk (141 KB) is gone from the Landing page. `landing-messages.test.tsx` checks that the slice renders exactly like the full catalog in en and ar.
+
+Mobile median of 5, interleaved, load 1.5–2.3. Landing en: LCP 3028 → 2148 ms. Landing ar: 2824 → 2184 ms. CLS 0 on both. Transfer: 747 → 481 KB. Auth: 1312 → 1080 ms. Home: 1060 → 1076 ms (noise). Not done: AVIF (it would change encoding app-wide). The mobile hero is drawn `object-fit: cover` wider than the viewport, so a fully "correct" `sizes` would pick a much heavier file. `100vw` stays as a weight cap.
+
+## 2026-10-19 — Image uploads: no cap on originals, ceilings on derivatives
+
+Branch `claude/image-uploads-2ibvgs` (from `claude/video-r2-2ibvgs`, to be merged into it). Owner rule: a picked photo is never refused for its size. `lib/media/resize-image.ts` now always prepares the upload to the namespace's unchanged server cap (avatar/organization 3 MiB, portfolio/product/request 5 MiB, certificate image 10 MiB): header read without decoding, reduced-size decode above 24 MP with an orientation check, quality then long-edge steps, alpha kept, typed failure with a translated "could not be prepared on this device" message. Client-side source caps removed (avatar, organization, product pick, request validation, portfolio `MAX_SOURCE_FACTOR`, installer preview). Server caps, SQL and sharp's 25 MP limit unchanged. Documented in `docs/database/professional-asset-storage.md` §16, with the remaining limits (25 MP server decode on the derivative, browser canvas limits, Supabase Free 50 MB on the rollback path, documents 10 MiB).
+
+Not verified: real-browser behaviour on very large photos (unit tests mock canvas and `createImageBitmap`); purchase-request images still have no browser upload UI.
+
+## 2026-10-19 — Redis (PR #92), video on R2 + HLS (video PR), palette (PR #93)
+
+Branches: `claude/redis-cache-2ibvgs` (draft #92, base #91's branch), `claude/video-r2-2ibvgs` (stacked on #92), `claude/brand-palette-2ibvgs` (draft #93, base main). No hosted change, no paid service.
+
+Done:
+- **Redis (ADR-0019)**: optional, fail-open; reference vocabularies cached 600 s, per-user rate limits (media upload/read, video parts), Python job locks. Never authorization or bytes. Local benchmark: trades 4.48 → 0.47 ms p50, categories 3.53 → 0.39 ms.
+- **Video (ADR-0020)**: migration `20261019150000_media_videos` (pgTAP `103_*` 88 checks), browser → R2 multipart (resume, retry, progress), `backend/app/workers/video_transcode.py` (ffmpeg HLS fMP4 + poster, `--once/--loop/--purge`, `boto3` in the `video-worker` uv group), Worker `/v/` with a Postgres decision per segment, players lazy (poster only until play). Portfolio manager, public profile, product edit and catalog pages wired; all behind `VIDEO_ENABLED=false`.
+- **Isolated E2E** (`frontend/playwright.video.config.ts`, SeaweedFS as R2 stand-in, Worker handler on local HTTPS): R2 photo upload/edge retrieval/delete, rollback with R2 off, and video upload/transcode/play/seek/publish/revoke/delete/purge on desktop and mobile. It caught three bugs, fixed: origin check compared against the bind address, `video_upload_begin` needed `p_product_id` sent explicitly, and the public profile crashed because the player used the client i18n hook.
+- **Palette**: tokens remapped to #071A2D/#D8C7A6/#F2E9D8/#B96F52 with an AA contrast test; colors.json and DESIGN.md synced.
+
+Validation: Vitest 3,995 pass / 24 skipped; typecheck clean; lint 0 errors; Worker 41; backend pytest 74 (incl. real ffmpeg); pgTAP 128 files / 5,693; permission gate 626 PASS; Playwright video config 5/5 + rollback 1/1.
+
+Unfinished / needs the owner:
+- Real R2 untested from here (no network path); run `r2.live.test.ts` against the disposable acceptance buckets after approval.
+- Transcode host not chosen (paid; options in ADR-0020). R2 CORS + abort-multipart lifecycle rule, `VIDEO_ROUTES`, `VIDEO_ALLOWED_ORIGINS`, migration — all need approval.
+- Managed Redis not created (Upstash Free recommended in ADR-0019).
+- The test browser cannot decode H.264, so in-browser playback was verified with VP9 (`--test-codec`, local only); check H.264 playback in Chrome/Safari on a preview.
+
+## 2026-10-19 — Redis: Upstash readiness, fail-safe rate limits, usage monitoring (ADR-0019 Revision 2)
+
+Branch `claude/redis-cache-2ibvgs` (draft PR #92). No hosted call: Upstash is unreachable from the sandbox; everything was tested against local Redis 7.0 and a local TLS proxy.
+
+Done:
+- **Upstash-ready client** (`frontend/src/server/cache/redis.ts`): RESP2 with no client-info or maintenance handshake, so a connection costs 1 command, not 4. `MONITOR` showed `HELLO 3` plus three `CLIENT` commands before. No PING interval and no auto-reconnect (lazy reopen). One retry on a connection idle for 30 s or more. The breaker opens on a connect failure or two failed commands. Backend `app.coordination` likewise: redis-py `protocol=2`, `driver_info=None`, no health-check PING, client closed after the job; `redis>=8.1`.
+- **Fail-safe limits** (`rate-limit.ts`): a per-instance memory window when Redis is off or down, and a local block after a Redis refusal (no more commands spent). The result now carries `source` and has no `skipped` outcome; any test mock returning `{ outcome: "skipped" }` should return `allowed`.
+- **Monitoring**: command/connect counters, monthly projection, `cache.redis_budget` warnings at 50%/80% of `REDIS_MONTHLY_COMMAND_BUDGET`, and `cacheMetrics` in `/api/health`, which no longer PINGs on every probe.
+- **Caching**: re-measured with `pg_stat_statements` over 252 page loads. No new cache is justified: the costly per-page reads are entitlement or authorization. Empty vocabularies are now cached for 300 s.
+- Docs: [upstash-setup.md](../guides/upstash-setup.md), ADR-0019 Revision 2, DECISION_LOG. The guide covers the existing database `alert-bedbug-148148`, Vercel over `rediss://`, REST-only read checks from the cloud environment, a command estimate and the exhaustion risks. REST transport judged not worth adding.
+- Validation: Vitest full suite 3,965 pass / 24 skipped (with `REDIS_TEST_URL`). Four timing tests in `installer-work-production` and `public-image-variants` failed under machine load and pass alone (49/49). Cache tests 24/24 against local Redis and over a local TLS proxy (an untrusted certificate is refused); typecheck clean; lint 0 errors (7 existing warnings); backend pytest 53 pass, ruff clean; production build plus an end-to-end limiter, outage and health run on port 3304.
+
+Unfinished / needs the owner:
+- Check the existing database's plan and region, then set `REDIS_URL` in Vercel Preview, then Production (guide steps 1–4). No live Upstash check run: hosted calls are out of scope for this session.
+- `my_organization_application_slot()` costs ~13 ms locally on every B2B page and evaluates `app.application_slot` twice: a SQL fix, not done here.
+- Pay-as-you-go needs approval once traffic passes about 1,500 page views a day with images still proxied.
+
+## 2026-10-19 — Session revocation coverage and backend production configuration (PR #91)
+
+Branch `claude/media-backend-continuation-2ibvgs`. No hosted write, deploy or merge.
+
+- **Backend config:** `backend/app/config.py` derives the environment from `VERCEL_ENV` when `APP_ENV` is unset or `local` (Production → `production`, Preview → `staging`, unknown → `production`). Required when deployed: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the only values a deployed route reads); service-role key, `DATABASE_URL` and the legacy JWT secret are no longer required. A missing variable no longer raises at import: health answers 503 `misconfigured` with the names, `require_configured` makes every authenticated endpoint answer 503. Names per environment: [vercel-environment-variables.md](../guides/vercel-environment-variables.md). ADR-0009 revised, runbook superseded lines updated.
+- **Revocation audit:** real gaps were Storage API (bucket policies only; BV documents and request images are read, signed, uploaded and deleted with the caller's token) and Realtime postgres_changes (`leads`, `follow_up_tasks`; `realtime.apply_rls` checks RLS only). Fixed by migration `20261019163000` (restrictive `app.jwt_session_is_live()` policies; `authenticated` granted EXECUTE on the helper; permission contract `20261019163000.json`), pgTAP `103_*` (23), `47_*` and `102_*` updated. Already covered: PostgREST (hook), Server Actions and route handlers (every service-role use follows a caller-scoped RPC through the hook; admin-client calls follow network `getUser()`), media Worker (`media_edge_authorize`), FastAPI (`require_active_principal` → `my_account_status`).
+- **Cost:** helper 30–70 µs warm, evaluated once per statement (InitPlan, plan unchanged).
+
+Unfinished / needs the owner: set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for Preview and Production; approve the migration with the others. Merging the video branch needs its `20261019150000.json` contract to include this grant (or this contract to include the video functions), whichever lands second.
+
+## 2026-10-19 — Media and backend continuation of PRs #88/#89 (stacked branch)
+
+Branch `claude/media-backend-continuation-2ibvgs`, stacked on PR #89 after merging PR #88's last three commits into it locally (conflicts only in this log and RUNTIME_STATE; HEAD side kept). `main` (`bd0de0a`, includes PR #90 legal pages) was audited and is untouched. No hosted write, deploy, merge, DNS or billing change.
+
+Done:
+- **Historical media purge** (owner: delete, do not migrate): migration `20261019120000`, pgTAP `100_*` (51), backend job `app/workers/historical_media_purge.py` (dry run default, `--confirm-project`), rehearsed locally against the real Storage API; certificates untouched.
+- **Backend integration**: the FastAPI service was a health-only scaffold with no caller. Added `app/auth` (JWKS verification, suspension and session guard) and made it the home of media jobs. `pyjwt[crypto]` declared (was transitive).
+- **Worker**: content-addressed edge byte cache after DB authorization; `media.aladdindecore.com` via Pages + CNAME (Option B) or a Cloudflare zone (Option A); local workerd E2E for Mode C and Mode P incl. revocation.
+- **Sessions**: migration `20261019140000` makes the PostgREST pre-request hook refuse signed-out, banned and deleted sessions on the next request (pgTAP `102_*`, real PostgREST check); middleware sends such sessions to Sign In; backend guard matches.
+- **Performance**: `vercel.json` `regions: ["cdg1"]` (functions were in iad1, database in Paris); RLS InitPlan for 20 platform-staff policies (migration `20261019130000`, pgTAP `101_*`; 212 ms to 0.75 ms locally, staging measured 260 ms mean); landing role atlas 1.46 MB PNG to 40 kB WebP (mobile LCP 12.5 s to 4.1–5.3 s, desktop 2.3 s to 0.9 s, page weight 2.1 MB to 0.72 MB).
+- **ADR-0018 Revision 2**, ARCHITECTURE_GUIDE, professional-asset-storage §15, backend/AGENTS.md.
+
+Validation: pgTAP 127 files / 5,604 pass after `supabase db reset` (177 migrations); permission gate 609 PASS; Vitest 3,942 pass / 24 skipped; typecheck clean; lint 0 errors (7 existing warnings); backend pytest 48, ruff clean; Worker 30 pass / 1 skipped; Playwright desktop `pr89-media` 2/2, `pr88-admin-showroom` 10/10, `sidebar-mode-sync` 3/3 (with `E2E_STUB_TURNSTILE=1`; Create Account specs cannot run here because Siteverify is unreachable).
+
+Tried and dropped: lazy per-locale message catalogs (first-load JS median 272 to 131 kB) broke the admin users type filter under E2E; not shipped. Both catalogs (~140 kB gzipped) still ship on every page; a per-locale route segment is the safer way.
+
+Unfinished / needs the owner:
+- Approvals: hosted migrations (PR #88 four + #89 six + three here), R2 activation, Worker/Pages + Hyperdrive, DNS CNAME, Workers Paid, Production purge run, merges, deploys.
+- Brand palette: only Showroom V2 and installer surfaces use #071A2D/#D8C7A6/#F2E9D8/#B96F52; landing, auth, `/b2b`, admin, home, settings use the older Aperture tokens (`src/styles/tokens.css`, 89 off-palette hex). A token-layer remap is a visible change on every page and needs design sign-off.
+- Backend Production `APP_ENV` is unset (reports `local`, fail-fast secret check skipped).
+- React #418 (intermittent route-sweep hydration error from 2026-10-01/18) not reproduced in 36 production loads here; still open.
+
+## 2026-10-18 — WP0: R2 media delivery documentation (ADR-0018 proposed)
+
+Branch `local/wp-docs` from `local/r2-rc2-snapshot` (same head as draft PR #89, `26edd40`). Docs only: no code, migration, push or hosted change.
+
+Covers the R2 work on PR #89:
+- the private R2 store;
+- the ticketed `media-edge` Worker, with Postgres authorization on every request through Hyperdrive (caching off);
+- WebP variants (320/768/1600);
+- migration tooling with an egress budget;
+- local JWT session reads;
+- the app proxy fallback while `MEDIA_EDGE_DELIVERY_ENABLED=false`.
+
+Sources: `/mnt/project-files/showroom-admin/r2-delivery-architecture.md` (plan WP0–WP10), `/mnt/project-files/showroom-admin/supabase-usage-audit.md`, `edge/media-worker/README.md`, [media-monitoring.md](media-monitoring.md), [auth-session-reads.md](../frontend/auth-session-reads.md), migrations `20261018100000`–`100003` and `20261019100000`, and the branch git log.
+
+Written:
+- [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md) (**Proposed**, needs owner approval), plus its row in [DECISION_LOG](../decisions/DECISION_LOG.md);
+- a Media Storage & Delivery section in [ARCHITECTURE_GUIDE](../architecture/ARCHITECTURE_GUIDE.md);
+- the current state in [RUNTIME_STATE](RUNTIME_STATE.md);
+- an R2 section in [professional-asset-storage.md](../database/professional-asset-storage.md);
+- a correction in [auth-session-reads.md](../frontend/auth-session-reads.md): `/api/media` calls Auth `getUser` on every private read again since `26edd40`.
+
+`PRODUCT_DIRECTION_GUIDE.md` is unchanged. It says nothing about media privacy that the R2 work contradicts.
+
+Validation: `python3 scripts/check_doc_links.py` reports 0 broken internal links.
+
+Unfinished:
+- **Variant backfill.** `scripts/media-variants.mjs` is not written yet. It must generate thumb/card/full for migrated media from the R2 copies, so that it spends no Supabase egress.
+- **Revocation canary.** A scheduled staging probe: upload or publish, fetch 200, delete or unpublish, then expect 404 on the next request through both the app route and the Worker. It also needs a canary account and CI secrets. Planned as a canary mode in `supabase/tests/public_media_exposure_test.mjs`.
+- **Hosted steps.** None done: the Worker login role, Hyperdrive, the private bucket, the zone and domain, Workers Paid, the ticket-key secrets, the Vercel env vars, and running the media migrations on hosted projects. Before the Worker role exists, check pg_net `EXECUTE` for `PUBLIC`/`anon` on the hosted projects and revoke it.
+- **Owner decisions:**
+  - **D1 (closed 2026-10-19):** the owner chose immediate revocation, so Mode C stays and Mode B (WP10) is dropped.
+  - **D3:** egress timing for the bulk copy (wait for the cycle reset or upgrade to Pro; about 0.29 GB is left).
+  - **D2:** should product images and organization logos become public? The recommendation is that both stay private.
+  - **D4:** the media domain.
+  - **D5:** Workers Paid ($5/month).
+  - Lowering hosted `jwt_expiry` (recommended 1800 s).
+  - Re-enabling the Production `db_pre_request` hook (`20260930100005`).
+
 ## 2026-10-18 — WP8: fewer Supabase Auth requests per page (local JWT verification)
 
 Branch `local/wp-auth` from PR #89 head `ee96b48`. Middleware now reads the session with `auth.getClaims()` (local ES256 verification, same cookie refresh) instead of `auth.getUser()`; `/admin/**` keeps `getUser()`. The `my_account_status` suspension redirect is unchanged except that router prefetches skip it. The matcher skips `/api/media/*`, `/p/media/*` and more static extensions. `server/auth/session.ts` adds `getSessionIdentity()` / `readSessionIdentity(client)` (`cache()`d claims) and makes `getCurrentUser()` a `cache()`d network `getUser()`. Read-only loaders use the claims helper; admin and account-settings pages share one `getCurrentUser()`; Server Actions and auth flows are untouched. Estimated Auth `/user` calls: `/home` 8 → 0, `/b2b/*` 3 → 0, `/admin/users` 3 → 2, private image 2 → 0. Security argument and residual window (revoked, not suspended, session until `exp` ≤ 3600 s on non-admin pages): [auth-session-reads.md](../frontend/auth-session-reads.md).

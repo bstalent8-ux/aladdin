@@ -3560,6 +3560,39 @@ export type Database = {
         }
         Relationships: []
       }
+      media_historical_purge_journal: {
+        Row: {
+          bucket: string
+          namespace: string
+          object_key: string
+          owner_user_id: string | null
+          purged_at: string | null
+          retired_at: string
+          size_bytes: number | null
+          storage_removed_at: string | null
+        }
+        Insert: {
+          bucket: string
+          namespace: string
+          object_key: string
+          owner_user_id?: string | null
+          purged_at?: string | null
+          retired_at?: string
+          size_bytes?: number | null
+          storage_removed_at?: string | null
+        }
+        Update: {
+          bucket?: string
+          namespace?: string
+          object_key?: string
+          owner_user_id?: string | null
+          purged_at?: string | null
+          retired_at?: string
+          size_bytes?: number | null
+          storage_removed_at?: string | null
+        }
+        Relationships: []
+      }
       media_migration_ledger: {
         Row: {
           namespace: string
@@ -3613,6 +3646,7 @@ export type Database = {
           provider: string
           sha256: string | null
           size_bytes: number | null
+          variants: Json
           verified_at: string | null
         }
         Insert: {
@@ -3626,6 +3660,7 @@ export type Database = {
           provider: string
           sha256?: string | null
           size_bytes?: number | null
+          variants?: Json
           verified_at?: string | null
         }
         Update: {
@@ -3639,6 +3674,7 @@ export type Database = {
           provider?: string
           sha256?: string | null
           size_bytes?: number | null
+          variants?: Json
           verified_at?: string | null
         }
         Relationships: [
@@ -3654,6 +3690,133 @@ export type Database = {
             columns: ["owner_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_videos: {
+        Row: {
+          attempts: number
+          content_type: string
+          created_at: string
+          declared_bytes: number
+          deleted_at: string | null
+          duration_seconds: number | null
+          failure_code: string | null
+          has_poster: boolean
+          height: number | null
+          id: string
+          lease_until: string | null
+          owner_user_id: string
+          product_id: string | null
+          provider: string
+          provider_ref: string | null
+          publisher_id: string | null
+          purged_at: string | null
+          ready_at: string | null
+          renditions: string[]
+          revision: string | null
+          scope: Database["public"]["Enums"]["media_video_scope"]
+          size_bytes: number | null
+          slot: number | null
+          sort_order: number | null
+          state: Database["public"]["Enums"]["media_video_state"]
+          title: string
+          updated_at: string
+          upload_id: string | null
+          upload_touched_at: string
+          uploaded_at: string | null
+          visibility: Database["public"]["Enums"]["portfolio_visibility"]
+          width: number | null
+        }
+        Insert: {
+          attempts?: number
+          content_type: string
+          created_at?: string
+          declared_bytes: number
+          deleted_at?: string | null
+          duration_seconds?: number | null
+          failure_code?: string | null
+          has_poster?: boolean
+          height?: number | null
+          id?: string
+          lease_until?: string | null
+          owner_user_id: string
+          product_id?: string | null
+          provider?: string
+          provider_ref?: string | null
+          publisher_id?: string | null
+          purged_at?: string | null
+          ready_at?: string | null
+          renditions?: string[]
+          revision?: string | null
+          scope: Database["public"]["Enums"]["media_video_scope"]
+          size_bytes?: number | null
+          slot?: number | null
+          sort_order?: number | null
+          state?: Database["public"]["Enums"]["media_video_state"]
+          title: string
+          updated_at?: string
+          upload_id?: string | null
+          upload_touched_at?: string
+          uploaded_at?: string | null
+          visibility?: Database["public"]["Enums"]["portfolio_visibility"]
+          width?: number | null
+        }
+        Update: {
+          attempts?: number
+          content_type?: string
+          created_at?: string
+          declared_bytes?: number
+          deleted_at?: string | null
+          duration_seconds?: number | null
+          failure_code?: string | null
+          has_poster?: boolean
+          height?: number | null
+          id?: string
+          lease_until?: string | null
+          owner_user_id?: string
+          product_id?: string | null
+          provider?: string
+          provider_ref?: string | null
+          publisher_id?: string | null
+          purged_at?: string | null
+          ready_at?: string | null
+          renditions?: string[]
+          revision?: string | null
+          scope?: Database["public"]["Enums"]["media_video_scope"]
+          size_bytes?: number | null
+          slot?: number | null
+          sort_order?: number | null
+          state?: Database["public"]["Enums"]["media_video_state"]
+          title?: string
+          updated_at?: string
+          upload_id?: string | null
+          upload_touched_at?: string
+          uploaded_at?: string | null
+          visibility?: Database["public"]["Enums"]["portfolio_visibility"]
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_videos_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_videos_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_videos_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
             referencedColumns: ["id"]
           },
         ]
@@ -10115,6 +10278,52 @@ export type Database = {
         Args: { p_key: string; p_namespace: string; p_owner: string }
         Returns: undefined
       }
+      media_edge_authorize: {
+        Args: {
+          p_expires_at: string
+          p_key: string
+          p_namespace: string
+          p_session: string
+          p_variant: string
+          p_viewer: string
+          p_workspace: string
+        }
+        Returns: Json
+      }
+      media_edge_public: {
+        Args: { p_id: string; p_namespace: string; p_variant: string }
+        Returns: Json
+      }
+      media_edge_video: {
+        Args: {
+          p_expires_at: string
+          p_session: string
+          p_video: string
+          p_viewer: string
+          p_workspace: string
+        }
+        Returns: Json
+      }
+      media_historical_purge_finalize: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      media_historical_purge_inventory: {
+        Args: { p_cutoff: string }
+        Returns: Json
+      }
+      media_historical_purge_retire: {
+        Args: { p_cutoff: string; p_limit?: number }
+        Returns: {
+          bucket: string
+          namespace: string
+          object_key: string
+        }[]
+      }
+      media_historical_purge_storage_removed: {
+        Args: { p_key: string; p_namespace: string }
+        Returns: boolean
+      }
       media_migration_inventory: {
         Args: { p_after?: string; p_limit?: number }
         Returns: {
@@ -10158,6 +10367,15 @@ export type Database = {
         Returns: undefined
       }
       media_storage_metrics: { Args: never; Returns: Json }
+      media_storage_record_variants: {
+        Args: {
+          p_key: string
+          p_namespace: string
+          p_owner: string
+          p_variants: Json
+        }
+        Returns: undefined
+      }
       media_storage_reserve: {
         Args: {
           p_key: string
@@ -10592,6 +10810,10 @@ export type Database = {
         Args: { p_keys: string[]; p_namespace: string; p_workspace?: string }
         Returns: string[]
       }
+      organization_media_read_providers: {
+        Args: { p_keys: string[]; p_namespace: string; p_workspace?: string }
+        Returns: Json
+      }
       organization_media_resolve: {
         Args: {
           p_key: string
@@ -10718,6 +10940,10 @@ export type Database = {
         Args: { p_direction: string; p_item_id: string }
         Returns: undefined
       }
+      portfolio_media_move: {
+        Args: { p_direction: string; p_id: string; p_kind: string }
+        Returns: undefined
+      }
       portfolio_item_purge: { Args: { p_item_id: string }; Returns: undefined }
       portfolio_item_set_visibility: {
         Args: { p_item_id: string; p_public: boolean }
@@ -10748,6 +10974,22 @@ export type Database = {
         Args: { p_content_type: string; p_product_id: string }
         Returns: string
       }
+      product_media_reorder: {
+        Args: { p_items: Json; p_product_id: string }
+        Returns: undefined
+      }
+      product_videos: {
+        Args: { p_product_id: string; p_workspace?: string }
+        Returns: {
+          duration_seconds: number
+          has_poster: boolean
+          height: number
+          id: string
+          slot: number
+          title: string
+          width: number
+        }[]
+      }
       profile_contact_visibility_set: {
         Args: {
           p_show_email: boolean
@@ -10765,9 +11007,26 @@ export type Database = {
         Returns: undefined
       }
       profile_set_username: { Args: { p_username: string }; Returns: undefined }
+      public_media_edge_sources: {
+        Args: { p_ids: string[]; p_namespace: string }
+        Returns: Json
+      }
       public_portfolio_media_key: {
         Args: { p_item_id: string }
         Returns: string
+      }
+      public_portfolio_videos: {
+        Args: { p_profile_id: string }
+        Returns: {
+          created_at: string
+          duration_seconds: number
+          has_poster: boolean
+          height: number
+          id: string
+          sort_order: number
+          title: string
+          width: number
+        }[]
       }
       publisher_offer_save: {
         Args: {
@@ -11240,6 +11499,73 @@ export type Database = {
         Returns: undefined
       }
       username_available: { Args: { p_username: string }; Returns: boolean }
+      video_delete: { Args: { p_id: string }; Returns: string }
+      video_job_claim: {
+        Args: { p_lease_seconds?: number }
+        Returns: {
+          attempts: number
+          content_type: string
+          id: string
+          size_bytes: number
+        }[]
+      }
+      video_job_expire: { Args: never; Returns: number }
+      video_job_fail: {
+        Args: { p_code: string; p_id: string; p_retry: boolean }
+        Returns: undefined
+      }
+      video_job_finish: {
+        Args: {
+          p_duration: number
+          p_has_poster: boolean
+          p_height: number
+          p_id: string
+          p_renditions: string[]
+          p_revision: string
+          p_width: number
+        }
+        Returns: undefined
+      }
+      video_job_renew: {
+        Args: { p_id: string; p_lease_seconds?: number }
+        Returns: boolean
+      }
+      video_mark_purged: { Args: { p_id: string }; Returns: undefined }
+      video_purge_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          revision: string
+          upload_id: string
+        }[]
+      }
+      video_set_visibility: {
+        Args: { p_id: string; p_public: boolean }
+        Returns: undefined
+      }
+      video_update: {
+        Args: { p_id: string; p_title: string }
+        Returns: undefined
+      }
+      video_upload_attach: {
+        Args: { p_id: string; p_upload_id: string }
+        Returns: undefined
+      }
+      video_upload_begin: {
+        Args: {
+          p_bytes: number
+          p_content_type: string
+          p_product_id: string
+          p_scope: string
+          p_title: string
+        }
+        Returns: string
+      }
+      video_upload_complete: {
+        Args: { p_id: string; p_size: number }
+        Returns: undefined
+      }
+      video_upload_resolve: { Args: { p_id: string }; Returns: Json }
     }
     Enums: {
       activity_audience_kind: "organization_type" | "persona_type"
@@ -11312,6 +11638,13 @@ export type Database = {
         | "proposal_pending"
         | "decision_pending"
       lead_status: "active" | "won" | "lost" | "archived"
+      media_video_scope: "portfolio" | "product"
+      media_video_state:
+        | "uploading"
+        | "processing"
+        | "ready"
+        | "failed"
+        | "deleted"
       membership_status: "invited" | "active" | "suspended" | "revoked"
       network_referral_origin: "known_organization" | "new_showroom"
       network_referral_status: "pending" | "joined" | "cancelled"
@@ -11627,6 +11960,14 @@ export const Constants = {
         "decision_pending",
       ],
       lead_status: ["active", "won", "lost", "archived"],
+      media_video_scope: ["portfolio", "product"],
+      media_video_state: [
+        "uploading",
+        "processing",
+        "ready",
+        "failed",
+        "deleted",
+      ],
       membership_status: ["invited", "active", "suspended", "revoked"],
       network_referral_origin: ["known_organization", "new_showroom"],
       network_referral_status: ["pending", "joined", "cancelled"],

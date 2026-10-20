@@ -11,6 +11,8 @@ import { verifyMediaBytes } from "./validation";
 import { generateImageVariants, variantManifest, type VariantManifest } from "./public-image-variants";
 import type { StorageProvider } from "@/lib/storage/provider-types";
 import { applicationMediaUrl } from "@/lib/storage/media-url";
+import { readSessionIdentity } from "@/server/auth/session";
+import { consumeRateLimit } from "@/server/cache/rate-limit";
 
 const descriptor = z.object({ provider: z.enum(["supabase", "r2"]), contentType: z.string(),
   reserved: z.boolean(), state: z.enum(["pending", "ready", "deleted"]), owner: z.string().uuid().nullable() });
@@ -43,6 +45,11 @@ function requireWriteApproval(provider: StorageProviderName) {
 
 export async function authorizeMediaUpload(client: SupabaseClient, namespace: MediaNamespace, key: string, expectedBytes?: number) {
   const media = await resolveMedia(client, namespace, key, "upload");
+  // An extra per-user brake ahead of the reservation quota (Redis, or per-instance memory when Redis is down).
+  const identity = await readSessionIdentity(client);
+  if (identity && (await consumeRateLimit("media-upload", identity.id)).outcome === "limited") {
+    throw new Error("upload rate limited");
+  }
   const env = readStorageEnv();
   // Existing R2 records remain R2 when routing is disabled. Reserve is authoritative and rejects provider changes.
   const provider = media.reserved ? media.provider : env.R2_STORAGE_ENABLED ? "r2" : "supabase";
@@ -118,6 +125,14 @@ export async function verifyPendingMedia(client: SupabaseClient, namespace: Medi
     p_size: verified.size, p_content_type: verified.contentType, p_sha256: verified.sha256,
   });
   if (error) throw new Error("verification receipt refused");
+  // Variants are disposable: an unrecorded manifest only means originals are served
+  // until the backfill records it. Edge URLs are issued only for recorded variants.
+  if (variants && Object.keys(variants).length > 0) {
+    const { error: variantError } = await admin.rpc("media_storage_record_variants", {
+      p_namespace: namespace, p_key: key, p_owner: pending.owner, p_variants: variants,
+    });
+    if (variantError) console.warn(JSON.stringify({ event: "media.variants_unrecorded", namespace }));
+  }
   console.info(JSON.stringify({ event: "media.verified", namespace, provider: pending.provider, bytes: verified.size, variants: variants ? Object.keys(variants).length : 0 }));
   return variants;
 }

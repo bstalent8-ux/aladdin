@@ -266,8 +266,8 @@ select is(
     'request_images_insert_authorized',
     'request_images_select_owner',
     'request_images_select_viewer',
-    'revocable_media_backend_reads'
-
+    'revocable_media_backend_reads',
+    'storage_objects_session_live'
   ],
   'Exact policy set includes the reviewed five-bucket restrictive boundary'
 );

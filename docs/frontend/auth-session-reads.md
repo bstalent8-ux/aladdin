@@ -12,7 +12,8 @@ Source evidence: `/mnt/project-files/showroom-admin/supabase-usage-audit.md` (fi
 | Middleware `my_account_status` RPC | Every product-surface request | Every product-surface request except router prefetches (`next-router-prefetch`, `Sec-Purpose`/`Purpose: prefetch`, GET/HEAD only) |
 | Middleware matcher | Ran on `/api/media/*`, `/p/media/*`, fonts, css/js, txt/xml | Skips them. Media routes authorize every request themselves through the caller's client (RLS). |
 | `server/auth/session.ts` | Uncached `getCurrentUser()` | `getSessionIdentity()` / `readSessionIdentity(client)`: `cache()`d `getClaims()` identity `{ id, email, phone, sessionId, expiresAt }`. `getCurrentUser()`: `cache()`d `getUser()`, network-validated. |
-| Read-only loaders (`server/queries/{context,identity,onboarding,trades,registration,platform,business-setup,personal-home,activities,sales-persona,professional-profile}.ts`, `b2b/activity`, `api/media/[namespace]`) | One `getUser()` each, no dedupe | `readSessionIdentity(supabase)`: one local verification per render |
+| Read-only loaders (`server/queries/{context,identity,onboarding,trades,registration,platform,business-setup,personal-home,activities,sales-persona,professional-profile}.ts`, `b2b/activity`) | One `getUser()` each, no dedupe | `readSessionIdentity(supabase)`: one local verification per render |
+| `api/media/[namespace]` (private media proxy) | `getUser()` per image | Still `getUser()` per image (changed back in `26edd40`), so that sign-out, a ban or session revocation denies the next read. The edge Worker makes the same check in the database, so this call ends for R2 rows once `MEDIA_EDGE_DELIVERY_ENABLED=true` ([ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md)). |
 | Admin (`server/authorization/admin.ts`, `/admin/users`, `/admin/users/[id]`, `/admin/staff`, `/admin/settings`) and account-settings pages (`/home/settings`, `/b2b/settings`, showroom settings) | Several `getUser()` per render | One shared `getCurrentUser()` per render (still network-validated) |
 | Server Actions (password, email, phone, secondary phone, sign-out, registration, invitations, availability, service areas, portfolio, professional assets) | `getUser()` | Unchanged: always network-validated |
 
@@ -27,10 +28,10 @@ Counted as `GET /auth/v1/user` calls for one full navigation by a signed-in user
 | `/home` (personal) | 8 (middleware 1; layout: mandatory-setup 2, sales persona 1, personal home 1, header identity 1; page: registration state 1, admin check 1) | 0 |
 | `/b2b/*` (non-Showroom org) | 3 (middleware, workspace context, header identity) | 0 |
 | Showroom frame pages | 3 | 0 |
-| `/home/settings` | 9 | 2 (`getCurrentUser` + `loadMyIdentity`); 1 once `profile-identity.ts` uses `getCurrentUser()` |
+| `/home/settings` | 9 | 1 (`loadMyIdentity` shares the cached `getCurrentUser()` since `73b1a75`) |
 | `/admin/users` | 3 | 2 (middleware + one shared `getCurrentUser`) |
 | Each RSC navigation or prefetch | ≥ 1 | 0 |
-| Each private image via `/api/media` | 2 | 0 |
+| Each private image via `/api/media` | 2 | 1 (`26edd40`); 0 through the edge Worker |
 
 Token refresh adds about one Auth request per active session per `jwt_expiry`. That is unchanged.
 
@@ -49,7 +50,7 @@ Token refresh adds about one Auth request per active session per `jwt_expiry`. T
 ## Call sites deliberately unchanged
 
 - Sign-in / sign-up / finish-registration / suspended pages and `server/actions/{auth,auth-password-preview,registration,invitations}.ts`, `server/auth/phone-password.ts`: these are auth flows owned by the sign-in thread, or they are mutations.
-- Media-owned files: `server/queries/profile-identity.ts` (`loadMyIdentity`, line 41) should move to `getCurrentUser()`, because it serves the account-settings pages and shows email and phone. `server/actions/professional-assets.ts` stays on `getUser()` (mutation).
+- Media-owned files: `server/queries/profile-identity.ts` (`loadMyIdentity`) now uses the shared `getCurrentUser()` (`73b1a75`), so it stays network-validated without a second call. `server/actions/professional-assets.ts` stays on `getUser()` (mutation).
 
 ## Tests
 

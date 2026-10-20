@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/provider";
 import { LandingMarketplaceGate } from "./landing-marketplace-gate";
 import { LandingMarketplaceLoader } from "./landing-marketplace-loader";
 

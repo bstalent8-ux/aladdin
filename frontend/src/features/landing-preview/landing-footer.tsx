@@ -17,7 +17,7 @@ export function LandingFooter({ anchorBase = "" }: { anchorBase?: string } = {})
     <footer className={styles.footer} data-landing-preview-part="Footer">
       <div className={styles.columns}>
         <div className={styles.brand}>
-          <Image src="/preview/landing/aladdin-logo-2026.png" alt="Aladdin" width={720} height={773} className={styles.logo} />
+          <Image src="/preview/landing/aladdin-logo-2026.png" alt="Aladdin" width={720} height={773} sizes="80px" className={styles.logo} />
           <p>{t.footerDescription}</p>
         </div>
         {columns.map((column) => <nav key={column.title} aria-label={column.title}>

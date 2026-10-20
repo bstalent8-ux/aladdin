@@ -66,7 +66,9 @@ export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0
       else if (open) { setOpen(false); menu.current?.focus(); }
     }}>
       <a className={styles.brand} href={`${anchorBase}#landing-top`} aria-label="Aladdin">
-        <Image src="/preview/landing/aladdin-logo-2026.png" alt="" width={720} height={773} priority />
+        {/* Drawn at most 80x72 CSS px (`.brand img`), so `sizes` lets the browser pick a small file instead of the
+            1920 px one. No `priority`: the hero image, not the logo, is the LCP element. */}
+        <Image src="/preview/landing/aladdin-logo-2026.png" alt="" width={720} height={773} sizes="80px" />
       </a>
       <Button ref={menu} className={styles.menu} variant="ghost" aria-label={t.menu} aria-expanded={open} aria-controls="preview-navigation" onClick={() => setOpen(!open)}>
         {open ? <XIcon size={20} /> : <MenuIcon size={20} />}<span>{t.menu}</span>
