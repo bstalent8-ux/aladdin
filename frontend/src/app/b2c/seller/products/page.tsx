@@ -399,7 +399,7 @@ export default async function MarketplaceProductsPage({
                       aria-current={n === page ? "page" : undefined}
                       className={cn(
                         "grid h-8 min-w-8 place-items-center rounded-sm border px-2 text-label tabular-nums",
-                        n === page ? "border-accent-solid bg-accent-solid text-on-accent" : "text-fg-secondary hover:bg-surface-2",
+                        n === page ? "border-accent-edge bg-accent-solid text-on-accent" : "text-fg-secondary hover:bg-surface-2",
                       )}
                     >
                       {formatCount(n, locale)}

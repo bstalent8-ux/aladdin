@@ -55,7 +55,7 @@ export function QueuedImages({ files, onChange, disabled }: { files: File[]; onC
         }}
         className={cn(
           "flex flex-col items-center justify-center gap-sm rounded-md border-2 border-dashed px-md py-lg text-center",
-          dragOver ? "border-accent-solid bg-accent-solid/10" : "border-strong bg-surface-2/40",
+          dragOver ? "border-accent bg-accent-solid/10" : "border-strong bg-surface-2/40",
         )}
       >
         <UploadIcon size={22} />
@@ -98,7 +98,7 @@ export function QueuedImages({ files, onChange, disabled }: { files: File[]; onC
               {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview, never uploaded yet */}
               <img src={p.url} alt={p.file.name} className="aspect-square w-full object-cover" />
               {i === 0 ? (
-                <span className="absolute start-2 top-2 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent">
+                <span className="absolute start-2 top-2 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent ring-1 ring-accent-edge">
                   {t("marketplaceSeller.image.cover")}
                 </span>
               ) : null}

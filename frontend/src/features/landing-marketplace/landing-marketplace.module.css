@@ -17,7 +17,7 @@
 .tab svg { flex: none; color: var(--stone); }
 .tab:hover { border-color: var(--lumen); }
 .tab:focus-visible, .addToCart:focus-visible, .more:focus-visible { outline: 2px solid var(--shell-deep); outline-offset: 3px; }
-.tabActive { background: var(--lumen); border-color: var(--lumen); color: var(--on-accent); }
+.tabActive { background: var(--lumen); border-color: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .tabActive svg { color: inherit; }
 
 .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; padding: 0; margin: 0; list-style: none; }
@@ -30,9 +30,9 @@
 .flashStack { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; display: grid; gap: 6px; justify-items: start; }
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; line-height: 1.5; }
 .badgeFlash { background: var(--shell-deep); color: var(--limestone); }
-.badgeSpecial { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; background: var(--lumen); color: var(--on-accent); }
+.badgeSpecial { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .timer { display: flex; gap: 6px; }
-.timerCell { display: grid; justify-items: center; min-width: 38px; padding: 2px 4px 3px; border-radius: 6px; background: var(--lumen); color: var(--on-accent); }
+.timerCell { display: grid; justify-items: center; min-width: 38px; padding: 2px 4px 3px; border-radius: 6px; background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .timerCell strong { font-size: .9375rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .timerCell small { font-size: .625rem; line-height: 1.2; }
 
@@ -44,7 +44,7 @@
 .was { font-size: .875rem; color: var(--stone); text-decoration: line-through; }
 .unitNote { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--stone); }
 .addToCart { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 40px; margin-block-start: auto; padding: 6px 10px; border: 1px solid var(--lumen); border-radius: 8px; background: transparent; color: var(--lumen-ink); font-size: .875rem; font-weight: 600; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
-.card:hover .addToCart, .card:focus-within .addToCart, .addToCart:hover { background: var(--lumen); color: var(--on-accent); }
+.card:hover .addToCart, .card:focus-within .addToCart, .addToCart:hover { background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .notice { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--stone); text-align: center; }
 .empty { margin: 0; padding-block: 32px; text-align: center; color: var(--stone); }
 
@@ -52,7 +52,7 @@
 .more { display: inline-flex; align-items: center; gap: 14px; min-height: 48px; padding: 8px 12px 8px 24px; border: 0; border-radius: 999px; background: var(--shell-deep); color: var(--limestone); font-size: 1rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: transform .15s ease; }
 .section[dir="rtl"] .more { padding: 8px 24px 8px 12px; }
 .more:hover { transform: translateY(-1px); }
-.moreIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: var(--lumen); color: var(--on-accent); }
+.moreIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .section[dir="rtl"] .moreIcon svg { transform: scaleX(-1); }
 .previewNote { margin: 16px 0 0; text-align: center; font-size: .75rem; line-height: 1.5; color: var(--stone); }
 

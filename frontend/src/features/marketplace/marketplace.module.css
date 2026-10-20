@@ -40,7 +40,7 @@
 .tab { flex: none; min-height: 40px; padding: 6px 16px; border: 1px solid var(--quartz-line); border-radius: 10px; background: var(--quartz-raised); color: var(--ink); font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
 .tab:hover { border-color: var(--lumen); }
 .tab:focus-visible, .addToCart:focus-visible, .pill:focus-visible, .clear:focus-visible, .panelToggle:focus-visible, .chips button:focus-visible { outline: 2px solid var(--shell-deep); outline-offset: 2px; }
-.tabActive { background: var(--lumen); border-color: var(--lumen); color: var(--on-accent); }
+.tabActive { background: var(--lumen); border-color: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 
 .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
 .panel { position: sticky; inset-block-start: 16px; padding: 16px; border: 1px solid var(--quartz-line); border-radius: 12px; background: var(--quartz-raised); }
@@ -76,7 +76,7 @@
 .badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; line-height: 1.5; }
 .badgeFlash { background: var(--shell-deep); color: var(--limestone); }
 .badgeBest { inset-block-start: auto; inset-block-end: 10px; background: var(--sand); color: var(--shell-deep); }
-.badgeSpecial { background: var(--lumen); color: var(--on-accent); }
+.badgeSpecial { background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .cardBody { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
 .cardTitle { margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.35; }
 .cardTitle a:hover { text-decoration: underline; }
@@ -114,7 +114,7 @@
 .pills { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--quartz-line-strong); border-radius: 10px; background: var(--quartz-raised); color: var(--ink); font: inherit; font-size: .875rem; cursor: pointer; }
 .pill:disabled { opacity: .45; cursor: not-allowed; }
-.pillActive { border-color: var(--lumen); background: var(--lumen); color: var(--on-accent); }
+.pillActive { border-color: var(--lumen); background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .priceBox { display: grid; gap: 6px; padding: 16px; border: 1px solid var(--quartz-line); border-radius: 12px; background: var(--quartz-raised); }
 .bigPrice { display: flex; align-items: baseline; gap: 12px; margin: 0; }
 .bigPrice strong { font-size: 1.75rem; color: var(--lumen-deep); }
@@ -122,7 +122,7 @@
 .sku { margin: 0; font-size: .8125rem; color: var(--stone); }
 .qty { display: inline-flex; align-items: center; gap: 12px; font-size: .875rem; }
 .qty input { width: 110px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--quartz-line); border-radius: 8px; background: var(--plaster); color: var(--ink); font: inherit; }
-.addToCart { min-height: 48px; border: 0; border-radius: 10px; background: var(--lumen); color: var(--on-accent); font: inherit; font-weight: 700; cursor: pointer; }
+.addToCart { min-height: 48px; border: 0; border-radius: 10px; background: var(--lumen); color: var(--on-accent); font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 0 0 1px var(--accent-edge); }
 .addToCart:disabled { background: var(--sand); color: var(--stone); cursor: not-allowed; }
 .notice { margin: 0; min-height: 1.2em; font-size: .8125rem; color: var(--stone); }
 .specs dl { margin: 12px 0 0; display: grid; gap: 0; border: 1px solid var(--quartz-line); border-radius: 12px; overflow: hidden; background: var(--quartz-raised); }

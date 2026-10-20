@@ -73,7 +73,7 @@
 .card { display: grid; gap: 14px; padding: 28px; }
 .card h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
 .card > p { margin: 0; font-size: .9375rem; line-height: 1.8; }
-.cardAccent { background: var(--lumen); border-color: var(--lumen); color: #fff; }
+.cardAccent { background: var(--lumen); border-color: var(--lumen); color: #fff; box-shadow: 0 0 0 1px var(--accent-edge); }
 .cardAccent h2, .cardAccent > p { color: #fff; }
 .cardAccent .cardIcon { background: color-mix(in srgb, #fff 22%, var(--lumen)); color: #fff; }
 .cardButton { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: fit-content; max-width: 100%; min-height: 44px; padding: 8px 22px; border-radius: 999px; background: var(--plaster); color: var(--ink); font-weight: 600; font-size: .9375rem; }

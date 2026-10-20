@@ -61,7 +61,7 @@ export function AttributeInput({
                 onClick={() => onChange(on ? selected.filter((k) => k !== o.key) : [...selected, o.key])}
                 className={cn(
                   "rounded-pill border px-3 py-1 text-label transition-colors",
-                  on ? "border-accent-solid bg-accent-solid/15 text-accent" : "text-fg-secondary hover:bg-surface-2",
+                  on ? "border-accent bg-accent-solid/15 text-accent" : "text-fg-secondary hover:bg-surface-2",
                 )}
               >
                 {ar ? o.nameAr : o.nameEn}

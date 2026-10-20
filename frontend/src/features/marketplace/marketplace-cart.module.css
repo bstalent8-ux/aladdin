@@ -68,7 +68,7 @@
 .suggSeller { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .75rem; color: var(--stone); }
 .suggFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-start: 4px; }
 .suggFoot strong { color: var(--lumen-deep); }
-.suggCart { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--lumen); color: var(--on-accent); cursor: pointer; }
+.suggCart { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--lumen); color: var(--on-accent); cursor: pointer; box-shadow: 0 0 0 1px var(--accent-edge); }
 .suggCart:disabled { background: var(--sand); color: var(--stone); cursor: not-allowed; }
 .suggCart:focus-visible, .suggFav:focus-visible { outline: 2px solid var(--shell-deep); outline-offset: 2px; }
 
@@ -101,7 +101,7 @@
 .warn { margin: 0; font-size: .8125rem; color: var(--lumen-deep); font-weight: 600; }
 .actions { display: grid; gap: 10px; }
 .checkout, .secondary, .primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 8px 22px; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
-.checkout, .primary { border: 0; background: var(--lumen); color: var(--on-accent); }
+.checkout, .primary { border: 0; background: var(--lumen); color: var(--on-accent); box-shadow: 0 0 0 1px var(--accent-edge); }
 .checkout:disabled { background: var(--sand); color: var(--stone); cursor: not-allowed; }
 .secondary { border: 1px solid var(--lumen); background: transparent; color: var(--lumen-deep); }
 .checkout:focus-visible, .secondary:focus-visible, .primary:focus-visible { outline: 2px solid var(--shell-deep); outline-offset: 2px; }

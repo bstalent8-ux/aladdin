@@ -129,7 +129,7 @@ export function ImagesPanel({
         }}
         className={cn(
           "flex flex-col items-center justify-center gap-sm rounded-md border-2 border-dashed px-md py-lg text-center",
-          dragOver ? "border-accent-solid bg-accent-solid/10" : "border-strong bg-surface-2/40",
+          dragOver ? "border-accent bg-accent-solid/10" : "border-strong bg-surface-2/40",
         )}
       >
         <UploadIcon size={22} />
@@ -172,14 +172,14 @@ export function ImagesPanel({
       ) : (
         <ul className="grid grid-cols-2 gap-md tablet:grid-cols-3 desktop:grid-cols-4">
           {items.map((img, index) => (
-            <li key={img.id} className={cn("flex flex-col gap-xs rounded-md border bg-surface p-xs", img.isPrimary && "border-accent-solid")}>
+            <li key={img.id} className={cn("flex flex-col gap-xs rounded-md border bg-surface p-xs", img.isPrimary && "border-accent")}>
               <div className="relative aspect-square overflow-hidden rounded-sm bg-surface-2">
                 {img.url ? (
                   // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL of a private object
                   <img src={img.url} alt="" className="h-full w-full object-cover" />
                 ) : null}
                 {img.isPrimary ? (
-                  <span className="absolute start-1 top-1 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent">
+                  <span className="absolute start-1 top-1 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent ring-1 ring-accent-edge">
                     {t("marketplaceSeller.image.primary")}
                   </span>
                 ) : null}

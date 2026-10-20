@@ -17,12 +17,12 @@
 .navigation { display: flex; align-items: center; justify-content: center; gap: 24px; min-width: 0; }
 .navigation > a, .faq > summary, .signIn { display: flex; align-items: center; min-height: 44px; white-space: nowrap; font-size: .8125rem; font-weight: 500; }
 .navigation > a, .faq > summary { position: relative; cursor: pointer; }
-.navigation > a:hover, .faq > summary:hover, .signIn:hover { color: var(--bronze); }
-.home::after { content: ""; position: absolute; bottom: 0; inset-inline: 0; height: 2px; background: var(--lumen); }
+.navigation > a:hover, .faq > summary:hover, .signIn:hover { color: var(--bronze-ink); }
+.home::after { content: ""; position: absolute; bottom: 0; inset-inline: 0; height: 2px; background: var(--lumen); box-shadow: 0 0 0 1px var(--accent-edge); }
 .actions { display: flex; align-items: center; gap: 16px; }
 .language { display: inline-flex; align-items: center; gap: 4px; padding-inline-end: 8px; border-inline-end: 1px solid var(--line-light); }
-.language button { padding: 0; min-height: 44px; color: var(--limestone); }
-.register { min-height: 44px; padding: 8px; gap: 8px; border-radius: 999px; background: var(--lumen); color: var(--on-accent); white-space: nowrap; }
+.language button { padding: 0; min-height: 44px; color: var(--ink); }
+.register { min-height: 44px; padding: 8px; gap: 8px; border-radius: 999px; background: var(--lumen); box-shadow: 0 0 0 1px var(--accent-edge); color: var(--basalt); white-space: nowrap; }
 .arrow { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: var(--plaster); color: var(--ink); }
 .registerWrap { position: relative; }
 .registerMenu { position: absolute; inset-block-start: calc(100% + 12px); left: auto; right: 0; z-index: 40; width: min(360px, calc(100vw - 32px)); padding: 12px; border: 1px solid var(--line-light); border-radius: 18px; background: var(--plaster); color: var(--ink); box-shadow: var(--shadow-overlay); }
@@ -36,7 +36,7 @@ a.registerItem:focus-visible { box-shadow: inset 0 0 0 2px var(--lumen-ink); }
 .registerItemSoon { opacity: .6; cursor: not-allowed; }
 .soon { padding: 1px 8px; border-radius: 999px; background: var(--sand); font-size: .6875rem; font-weight: 600; }
 .cart { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--limestone); cursor: pointer; }
-.cartBadge { position: absolute; inset-block-start: 2px; inset-inline-end: 0; display: grid; place-items: center; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 999px; background: var(--lumen); color: var(--on-accent); font-size: .6875rem; font-weight: 700; line-height: 1; }
+.cartBadge { position: absolute; inset-block-start: 2px; inset-inline-end: 0; display: grid; place-items: center; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 999px; background: var(--lumen); color: var(--on-accent); font-size: .6875rem; font-weight: 700; line-height: 1; box-shadow: 0 0 0 1px var(--accent-edge); }
 .cart:hover { color: var(--bronze); }
 .menu { display: none; }
 .faq { position: relative; }
