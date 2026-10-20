@@ -1,0 +1,66 @@
+# Aladdin - Cloudflare Workers frontend PREVIEW (workers.dev), ADR-0021.
+#
+# Manual only. Builds the app with OpenNext for the `preview` environment in frontend/wrangler.jsonc
+# (Worker `aladdin-frontend-preview`, workers.dev, no custom domain) and uploads it. It never touches
+# Vercel, DNS, aladdindecore.com, the live Supabase project or any Production resource.
+#
+# SAFE BY DEFAULT: nothing is uploaded unless the GitHub Environment `cloudflare-preview` has the variable
+# CLOUDFLARE_PREVIEW_ENABLED set to exactly "true". Without it the run builds and bundles only.
+#
+# GitHub Environment `cloudflare-preview` (restrict it to the branches you allow):
+#   secrets:   CLOUDFLARE_API_TOKEN   (Workers Scripts:Edit on this account only; see docs/guides/cloudflare-frontend.md)
+#   variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PREVIEW_ENABLED,
+#              NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (the ISOLATED acceptance project only),
+#              NEXT_PUBLIC_TURNSTILE_SITE_KEY (optional)
+# Runtime secrets (service-role key, R2 keys, ticket secret, Redis REST token, ...) are NOT in GitHub: an operator
+# sets them once on the Worker with `wrangler secret put --env preview` (the guide lists them).
+
+name: Cloudflare frontend preview
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-frontend-preview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: cloudflare-frontend-preview
+    runs-on: ubuntu-latest
+    environment: cloudflare-preview
+    env:
+      NEXT_PUBLIC_APP_ENV: staging
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm (corepack, pinned to packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+      - name: Refuse the live Supabase project
+        run: |
+          case "$NEXT_PUBLIC_SUPABASE_URL" in
+            *kkpkgjrweysgvhvkhzun*) echo "The preview must use the isolated acceptance project, never the live one"; exit 1 ;;
+            "") echo "NEXT_PUBLIC_SUPABASE_URL is not set on the cloudflare-preview environment"; exit 1 ;;
+          esac
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter frontend cf:build
+      - name: Bundle (dry run)
+        working-directory: frontend
+        run: pnpm exec wrangler deploy --env preview --dry-run --outdir "$RUNNER_TEMP/worker"
+      - name: Upload to workers.dev
+        if: vars.CLOUDFLARE_PREVIEW_ENABLED == 'true'
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy --env preview

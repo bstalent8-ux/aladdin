@@ -58,6 +58,36 @@ jobs:
       - run: pnpm --filter @aladdin/media-worker typecheck
       - run: pnpm --filter @aladdin/media-worker test
 
+  # The same app built for Cloudflare Workers (OpenNext, ADR-0021). Builds and bundles only:
+  # no Cloudflare account, no deploy. Catches anything that breaks the Workers runtime build.
+  frontend-cloudflare:
+    name: frontend-cloudflare
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_APP_ENV: staging
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # wrangler 4 requires Node 22
+      - name: Enable pnpm (corepack, pinned to packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter frontend cf:build
+      - name: Bundle the Worker (dry run, no upload) and keep it under the 64 MiB limit
+        working-directory: frontend
+        run: pnpm exec wrangler deploy --env preview --dry-run --outdir "$RUNNER_TEMP/worker"
+      - name: The Worker bundle must not contain the native sharp module
+        working-directory: frontend
+        run: |
+          if grep -rl "sharp-linux\|@img/sharp" "$RUNNER_TEMP/worker" .open-next/server-functions 2>/dev/null | grep -q .; then
+            echo "sharp leaked into the Worker bundle"; exit 1
+          fi
+
   backend:
     name: backend
     runs-on: ubuntu-latest
