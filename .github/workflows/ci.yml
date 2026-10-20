@@ -81,11 +81,17 @@ jobs:
       - name: Bundle the Worker (dry run, no upload) and keep it under the 64 MiB limit
         working-directory: frontend
         run: pnpm exec wrangler deploy --env preview --dry-run --outdir "$RUNNER_TEMP/worker"
-      - name: The Worker bundle must not contain the native sharp module
+      # next.config.ts swaps server/storage/image-processing/runtime.ts for runtime.workers.ts
+      # (Cloudflare Images binding) when ALADDIN_BUILD_TARGET=workers, set by open-next.config.ts.
+      - name: The Worker bundle must not contain sharp, and must use the Images engine
         working-directory: frontend
         run: |
-          if grep -rl "sharp-linux\|@img/sharp" "$RUNNER_TEMP/worker" .open-next/server-functions 2>/dev/null | grep -q .; then
+          # Bundled code only (worker.js and OpenNext's handler); copied package sources may mention sharp in messages.
+          if grep -lE "sharp-linux|@img/sharp|node_modules/sharp/" "$RUNNER_TEMP/worker/worker.js" .open-next/server-functions/default/frontend/handler.mjs; then
             echo "sharp leaked into the Worker bundle"; exit 1
+          fi
+          if ! grep -q 'cloudflare-images' "$RUNNER_TEMP/worker/worker.js"; then
+            echo "the Worker bundle does not carry the Cloudflare Images engine (image-processing/runtime.workers.ts)"; exit 1
           fi
 
   backend:
