@@ -9,7 +9,7 @@
 
 ## Sync with all uploaded work — 2026-10-20 (local only)
 
-- Branch `feat/public-marketplace-20261011` contains origin/main `bd0de0a` and the tips of PRs #88, #89, #91, #92, #93, #94, #95; base checkout is at origin/main. Local QA stack: 191 migrations applied (through `20261019170000`), Marketplace data intact. Nothing pushed.
+- Branch `feat/public-marketplace-20261011` contains origin/main `bd0de0a` the tips of PRs #88, #89, #91, #92, #93, #94, #95 and branch `claude/cloudflare-workers-2ibvgs`; base checkout is at origin/main. Local QA stack: 191 migrations applied (through `20261019170000`), Marketplace data intact. Nothing pushed.
 
 ## Marketplace cart and delivery prices — 2026-10-19 (local only)
 
