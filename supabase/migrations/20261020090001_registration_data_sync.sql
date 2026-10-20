@@ -28,7 +28,7 @@
 -- Every rewrite of a live function refuses to run unless the text to replace occurs exactly once (same
 -- technique as 20261015090053), so a body that drifted can never be half-patched silently.
 
-create function pg_temp.patch(p_fn regprocedure, p_pattern text, p_replacement text, p_expect int default 1)
+create or replace function pg_temp.patch(p_fn regprocedure, p_pattern text, p_replacement text, p_expect int default 1)
 returns void language plpgsql as $$
 declare v_def text := pg_get_functiondef(p_fn); v_n int;
 begin
