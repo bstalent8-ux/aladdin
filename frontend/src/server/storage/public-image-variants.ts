@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import sharp from "sharp";
+import type Sharp from "sharp";
 import { MEDIA_VARIANTS, MEDIA_VARIANT_WIDTH, type MediaVariant } from "@/lib/media/image-variants";
 import { verifyMediaBytes, withMediaProcessingSlot } from "./validation";
 
@@ -36,12 +36,14 @@ export function variantManifest(variants: readonly ImageVariant[]): VariantManif
  * one at a time so peak memory is one decoded source plus one output.
  */
 export async function generateImageVariants(verifiedBytes: Uint8Array): Promise<ImageVariant[]> {
+  // Loaded on use (native module): see content-validation.mjs.
+  const { default: sharp } = await import("sharp");
   return withMediaProcessingSlot(async () => {
     const source = sharp(verifiedBytes, { limitInputPixels: 25_000_000, failOn: "warning" }).rotate();
     const variants: ImageVariant[] = [];
     for (const variant of MEDIA_VARIANTS) {
       const resized = source.clone().resize({ width: MEDIA_VARIANT_WIDTH[variant], withoutEnlargement: true });
-      let output: { data: Buffer; info: sharp.OutputInfo } | undefined;
+      let output: { data: Buffer; info: Sharp.OutputInfo } | undefined;
       for (const quality of QUALITY_STEPS) {
         output = await resized.clone().webp({ quality, effort: 4 }).toBuffer({ resolveWithObject: true });
         if (output.data.byteLength <= VARIANT_MAX_BYTES) break;

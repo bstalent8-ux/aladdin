@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 
 let activeDecoders = 0;
@@ -17,6 +16,9 @@ export async function verifyMediaBytes(bytes, contentType, maxBytes) {
     const pdf = await PDFDocument.load(bytes, { ignoreEncryption: false, throwOnInvalidObject: true });
     if (pdf.getPageCount() === 0) throw new Error("empty PDF");
   } else {
+    // Loaded on use: sharp is a native module, and a top-level import would make every
+    // route that imports this file fail to load where it cannot run (Cloudflare workerd).
+    const { default: sharp } = await import("sharp");
     const image = sharp(bytes, { limitInputPixels: 25_000_000, failOn: "warning" });
     const metadata = await image.metadata();
     const types = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
