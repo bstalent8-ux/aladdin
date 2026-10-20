@@ -20,6 +20,14 @@ Local QA data touched: three delivery-rate rows for Decore Store (Cairo 80, Cair
 
 Open: checkout / orders / payment (Kashier owner) and sign-in at checkout (DL-01/DL-07 say the cart itself needs sign-in and stores variant ids — built cart opens without sign-in and stores slug + SKU); delivery time estimates; header badge counts a withdrawn line; owner review of the reworded trust-strip claims.
 
+## 2026-10-20 — Redis on Cloudflare Workers: Upstash REST transport (ADR-0019 revision)
+
+Branch `claude/cf-redis-2ibvgs` (from `claude/cloudflare-workers-2ibvgs`). `withRedis` callers now use a small command interface with two transports: TCP (`@redis/client`, unchanged for Vercel/Node) and Upstash REST over `fetch` (`REDIS_REST_URL`/`REDIS_REST_TOKEN`; it wins when set). On Workers with only `REDIS_URL`, TCP is refused and Redis counts as unavailable, because in `workerd` a connection reused across requests hangs (`Cannot perform I/O on behalf of a different request`). Evidence and reasoning: ADR-0019 "Workers runtime". The usage clock now starts on first use, because the Workers clock reads 0 during module init.
+
+Validation: `vitest run src/server/cache` 38 pass (24 without `REDIS_TEST_URL`); with `REDIS_TEST_URL` against local Redis (db 0, db 5, and a password-protected instance) all pass; typecheck clean; eslint clean on the touched paths. Real `redis.ts`/`rate-limit.ts` ran in `wrangler dev` against a scratch REST shim.
+
+Not verified: real Upstash from Cloudflare's edge; the full OpenNext app build with Redis enabled.
+
 ## 2026-10-19 — Landing mobile LCP under 2.5 s
 
 Branch `claude/landing-lcp-2ibvgs` (from `claude/video-r2-2ibvgs`). It fixes the one failing page in `performance-2026-10-19.md`. Header logo: `sizes="80px"`, no `priority`, lazy (it was fetched at 1920 px, 104 KB, and preloaded). Footer logo: `sizes="80px"` too. Hero image: `fetchPriority="high"` added to `priority`, and `sizes` capped at 2560 px. Mobile still selects the same 1200 w file, so it looks the same. Fonts: preload only the Latin faces of Readex, Archivo and Reem Kufi (≈ 86 KB, down from 160 KB). The Arabic faces and JetBrains Mono load on use. Arabic pages start their two Arabic faces from an inline `document.fonts.load` script in `<head>`. i18n: `context.tsx` (`useI18n`, new `I18nMessagesProvider`) no longer imports a catalog. The catalog-backed `I18nProvider` moved to `lib/i18n/provider.tsx`, and every layout import was updated. `/` and `/preview/landing` send only the `nav` namespace of the current locale. The bilingual catalog chunk (141 KB) is gone from the Landing page. `landing-messages.test.tsx` checks that the slice renders exactly like the full catalog in en and ar.
