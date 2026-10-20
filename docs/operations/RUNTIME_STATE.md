@@ -7,6 +7,10 @@
 - Local data: Decore Store holds 795 draft products (786 from the real file + 9 QA), 0 published; `media_verification_ready=false`.
 - Details and acceptance numbers: `docs/marketplace/catalog-launch.md`.
 
+## Sync with all uploaded work — 2026-10-20 (local only)
+
+- Branch `feat/public-marketplace-20261011` contains origin/main `bd0de0a` and the tips of PRs #88, #89, #91, #92, #93, #94, #95; base checkout is at origin/main. Local QA stack: 191 migrations applied (through `20261019170000`), Marketplace data intact. Nothing pushed.
+
 ## Marketplace cart and delivery prices — 2026-10-19 (local only)
 
 - Same branch/worktree. Migration **12** `20261019090002_marketplace_delivery_and_cart.sql` applied to the local QA stack (184 migrations); clean-from-zero build + full pgTAP verified (134 files / 6,327 tests).
