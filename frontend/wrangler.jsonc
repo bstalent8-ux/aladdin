@@ -12,6 +12,8 @@
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "aladdin-frontend" }],
   "images": { "binding": "IMAGES" },
   "observability": { "enabled": true },
+  // The deployed version id keys the edge cache of optimized images (cloudflare/worker.ts).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Local (`wrangler dev`) reads its variables from .dev.vars (never committed).
   "workers_dev": false,
 
@@ -24,6 +26,7 @@
       "preview_urls": true,
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "aladdin-frontend-preview" }],
       "images": { "binding": "IMAGES" },
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "NEXT_PUBLIC_APP_ENV": "staging",
         "REDIS_KEY_ENV": "cf-preview"
@@ -36,6 +39,7 @@
       "workers_dev": false,
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "aladdin-frontend-production" }],
       "images": { "binding": "IMAGES" },
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "NEXT_PUBLIC_APP_ENV": "production"
       }

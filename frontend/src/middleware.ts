@@ -47,6 +47,15 @@ export async function middleware(request: NextRequest) {
     },
   );
 
+  // Every redirect below carries the cookies the Supabase client wrote on
+  // `response` (a refreshed session, or a cleared one): the browser must not
+  // keep a refresh token the Auth server has already rotated.
+  const redirectWithSession = (url: URL) => {
+    const redirect = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    return redirect;
+  };
+
   const path = request.nextUrl.pathname;
   const prefetch = isPrefetchRequest(request.method, request.headers);
 
@@ -82,7 +91,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/sign-in";
     url.searchParams.set("next", path + request.nextUrl.search);
-    return NextResponse.redirect(url);
+    return redirectWithSession(url);
   }
 
   // A suspended account (PD-010) is refused by the database on every data
@@ -105,22 +114,20 @@ export async function middleware(request: NextRequest) {
       url.pathname = "/auth/sign-in";
       url.search = "";
       if (productSurface) url.searchParams.set("next", path + request.nextUrl.search);
-      const redirect = NextResponse.redirect(url);
-      for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-      return redirect;
+      return redirectWithSession(url);
     }
     const suspended = status?.suspended === true;
     if (suspended && productSurface) {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/suspended";
       url.search = "";
-      return NextResponse.redirect(url);
+      return redirectWithSession(url);
     }
     if (!suspended && path === "/auth/suspended") {
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
       url.search = "";
-      return NextResponse.redirect(url);
+      return redirectWithSession(url);
     }
   }
 
@@ -132,7 +139,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/onboarding";
     url.search = "";
-    return NextResponse.redirect(url);
+    return redirectWithSession(url);
   }
 
   return response;

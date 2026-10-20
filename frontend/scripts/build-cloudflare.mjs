@@ -35,4 +35,14 @@ try {
 } finally {
   writeFileSync(middleware, original);
 }
+
+// Static-asset headers (Workers Static Assets `_headers`). Hashed build files never
+// change, so browsers and the edge may keep them for a year, as Vercel serves them.
+if (status === 0) {
+  writeFileSync(fileURLToPath(new URL("../.open-next/assets/_headers", import.meta.url)), [
+    "/_next/static/*",
+    "  Cache-Control: public, max-age=31536000, immutable",
+    "",
+  ].join("\n"));
+}
 process.exit(status);
