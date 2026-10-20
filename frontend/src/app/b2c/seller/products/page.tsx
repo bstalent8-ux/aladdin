@@ -15,6 +15,7 @@ import {
   StorefrontIcon,
   PlusIcon,
   UploadIcon,
+  TruckIcon,
   PackageIcon,
   BadgeCheckIcon,
   FileTextIcon,
@@ -168,6 +169,10 @@ export default async function MarketplaceProductsPage({
         subtitle={t.subtitle}
         toolbar={
           <div className="flex flex-wrap items-center gap-sm">
+            <ButtonLink href="/b2c/seller/delivery" variant="outline">
+              <TruckIcon size={16} />
+              {t.delivery.link}
+            </ButtonLink>
             <ButtonLink href="/b2c/seller/imports" variant="outline">
               <UploadIcon size={16} />
               {t.bulkUpload}

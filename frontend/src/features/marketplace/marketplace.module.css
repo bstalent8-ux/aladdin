@@ -2,7 +2,8 @@
    landing page uses): --plaster ground, --quartz-* surfaces/lines, --lumen gold,
    --shell-deep navy, --ink/--stone text. Data colours (color swatches) arrive as
    inline styles from the shared Color Catalog. */
-.page { min-height: 100vh; background: var(--plaster); color: var(--ink); }
+/* Same width as the home page: one 2560px boundary, the home page's side gutter for the body, and its 5px header inset. */
+.page { --landing-preview-container-max: 2560px; --landing-preview-gutter: clamp(16px, 2.2vw, 48px); min-height: 100vh; background: var(--plaster); color: var(--ink); }
 .container { width: 100%; max-width: var(--landing-preview-container-max); margin-inline: auto; padding-inline: var(--landing-preview-gutter); }
 .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
@@ -163,6 +164,7 @@
 .gridList .cardBody { flex: 1; }
 @media (max-width: 767px) { .gridList .cardMedia { width: 120px; } .grid.gridList { grid-template-columns: 1fr; } }
 .headerSlot { padding-block: 12px 0; }
+.headerBand { padding-inline: 5px; }
 .galleryNav { position: absolute; inset-block-start: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 999px; background: rgb(255 255 255 / .92); color: var(--shell-deep); box-shadow: 0 2px 8px rgb(0 0 0 / .2); cursor: pointer; }
 .galleryNavLeft { left: 10px; }
 .galleryNavRight { right: 10px; }

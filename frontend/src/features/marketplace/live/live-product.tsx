@@ -3,32 +3,20 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { AttrValue, PublicAttribute, PublicProduct } from "./public-contract";
-import type { Locale } from "../marketplace-types";
-import { fmtEgp, fmtNum, liveCopy } from "./live-copy";
+import { liveCartCopy } from "./live-cart-copy";
+import { useLiveCart } from "./live-cart-store";
+import type { PublicProduct } from "./public-contract";
+import { fmtEgp, liveCopy } from "./live-copy";
+import { attributeText as valueText, labelOf as label } from "./live-format";
 import styles from "../marketplace.module.css";
-
-function label(o: { name_ar: string; name_en: string }, locale: Locale) {
-  return (locale === "ar" ? o.name_ar : o.name_en) || o.name_ar || o.name_en;
-}
-
-function valueText(a: PublicAttribute, locale: Locale): string {
-  const v: AttrValue = a.value;
-  const t = liveCopy[locale];
-  if (v === null || v === undefined) return "—";
-  if (typeof v === "boolean") return v ? t.yes : t.no;
-  if (typeof v === "number") {
-    const unit = locale === "ar" ? a.unit_ar : a.unit_en;
-    return unit ? `${fmtNum(v, locale)} ${unit}` : fmtNum(v, locale);
-  }
-  if (typeof v === "string") return v;
-  return label(v, locale);
-}
 
 /** Live product page: real gallery (approved images only), variant choice, honest non-purchasable state. */
 export function LiveProduct({ product }: { product: PublicProduct }) {
   const { locale, t: tr } = useI18n();
   const t = liveCopy[locale];
+  const c = liveCartCopy[locale];
+  const cart = useLiveCart();
+  const [added, setAdded] = useState<"added" | "cart_full" | null>(null);
   const [sku, setSku] = useState(product.variants[0]?.sku ?? "");
   const variant = product.variants.find((v) => v.sku === sku) ?? product.variants[0];
 
@@ -139,9 +127,20 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
               <p className={`${styles.stock} ${variant.purchasable ? styles.stockIn : styles.stockOut}`}>
                 {variant.purchasable ? t.inStock : t.outOfStock}
               </p>
-              <button type="button" className={styles.addToCart} disabled>
-                {t.purchaseSoon}
+              <button
+                type="button"
+                className={styles.addToCart}
+                disabled={!variant.purchasable}
+                onClick={() => setAdded(cart.add(product.slug, variant.sku))}
+              >
+                {variant.purchasable ? (cart.has(product.slug, variant.sku) ? c.inCart : c.addToCart) : t.outOfStock}
               </button>
+              {added === "cart_full" ? <p className={styles.sku} role="status">{c.cartFull}</p> : null}
+              {added === "added" && cart.has(product.slug, variant.sku) ? (
+                <p className={styles.sku} role="status">
+                  {c.addedToCart} · <Link href="/marketplace/cart">{c.viewCart}</Link>
+                </p>
+              ) : null}
               <p className={styles.notice}>{t.honestNote}</p>
             </div>
           ) : null}

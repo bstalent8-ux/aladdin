@@ -80,3 +80,40 @@ export type PublicProduct = {
 export const PUBLIC_PAGE_SIZE = 24;
 export const PUBLIC_SORTS = ["newest", "price_asc", "price_desc"] as const;
 export type PublicSort = (typeof PUBLIC_SORTS)[number];
+
+/* ---------- guest cart (Migration 12) ---------- */
+
+/** Most lines the cart quote accepts (the RPC refuses more); the cart refuses to grow past it. */
+export const CART_MAX_LINES = 50;
+/** One line never asks for more than this, whatever the showroom stocks (matches the RPC's availability cap). */
+export const CART_MAX_QTY = 9999;
+
+/** A cart line as the browser stores it: the product and variant are named by their public slug and SKU. */
+export type CartRef = { slug: string; sku: string };
+export type StoredCartLine = CartRef & { qty: number };
+
+export type CartQuoteLine =
+  | ({ status: "unavailable" } & CartRef)
+  | ({
+      status: "ok";
+      name_ar: string;
+      name_en: string;
+      brand: string | null;
+      selling_unit: string;
+      price_egp: number;
+      /** how many the showroom can supply right now (capped at CART_MAX_QTY) */
+      available: number;
+      /** index into `sellers` */
+      seller: number;
+      image_id: string | null;
+      attributes: PublicAttribute[];
+    } & CartRef);
+
+export type CartDelivery =
+  | { status: "available"; fee_egp: number }
+  | { status: "not_available" }
+  | { status: "needs_area" };
+
+export type CartSeller = { index: number; name: string; pickup_available: boolean; delivery: CartDelivery };
+
+export type CartQuote = { lines: CartQuoteLine[]; sellers: CartSeller[] };

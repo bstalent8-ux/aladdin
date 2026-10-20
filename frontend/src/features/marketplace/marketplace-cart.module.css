@@ -125,3 +125,13 @@
 .suggPrice { display: grid; gap: 0; }
 .suggPrice del { font-size: .75rem; color: var(--stone); }
 .suggCartOn { background: var(--shell-deep); }
+
+/* ---------- live cart additions ---------- */
+.lineOff { opacity: .72; }
+.lineNote { margin: 0; font-weight: 600; color: var(--lumen-deep); }
+.sellerFees { display: grid; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; font-size: .8125rem; }
+.sellerFees li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sellerFees li span { display: inline-flex; align-items: center; gap: 6px; color: var(--stone); }
+.sellerFees li strong { color: var(--lumen-deep); }
+.soon { margin-inline-start: 4px; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--stone) 18%, transparent); font-size: .75rem; font-weight: 700; }
+.linkButton { padding: 0; border: 0; background: none; color: var(--lumen-ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }

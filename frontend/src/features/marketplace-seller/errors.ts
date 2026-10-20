@@ -62,6 +62,13 @@ export const KNOWN_ERROR_CODES = new Set([
   "one_primary_image",
   "upload_failed",
   "file_too_large",
+  "delivery_invalid",
+  "delivery_too_many",
+  "delivery_fee_invalid",
+  "delivery_location_invalid",
+  "delivery_duplicate",
+  "delivery_area_unknown",
+  "pickup_invalid",
 ]);
 
 export function errorKey(code: string): string {

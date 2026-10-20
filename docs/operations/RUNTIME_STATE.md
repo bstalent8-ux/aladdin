@@ -7,6 +7,12 @@
 - Local data: Decore Store holds 795 draft products (786 from the real file + 9 QA), 0 published; `media_verification_ready=false`.
 - Details and acceptance numbers: `docs/marketplace/catalog-launch.md`.
 
+## Marketplace cart and delivery prices — 2026-10-19 (local only)
+
+- Same branch/worktree. Migration **12** `20261019090002_marketplace_delivery_and_cart.sql` applied to the local QA stack (184 migrations); clean-from-zero build + full pgTAP verified (134 files / 6,327 tests).
+- Live: `/marketplace/cart` (guest cart, quotes via the read-only `marketplace_public_cart`, checkout disabled "Coming soon"), Add to cart on `/marketplace/products/[slug]`, `/b2c/seller/areas` + `/b2c/seller/delivery` (showroom chooses where it delivers, then prices each place; pickup switch), reached from the **الماركت / Marketplace** sidebar group. Flag `NEXT_PUBLIC_MARKETPLACE_PREVIEW=true` still gates all of it.
+- Local QA data: Decore Store has 3 delivery-rate rows (test values). Not pushed, not applied to any hosted project. Details: `docs/marketplace/cart-and-delivery.md`.
+
 ## Showroom V2 and Admin follow-ups (PR #88) — 2026-10-18
 
 - Same branch and PR as business verification below. Adds: Admin Users "User Type" column/filter (`admin_users_directory`, migration `20261018090000`); Admin Staff search/empty copy; Offers and My Offers re-enabled; unverified secondary phone reservations with password receipts and a Support cooldown override (`20261018090001`, `/admin/phone-cooldowns`, permission `phones.cooldown_override`, Super Admin only by default).

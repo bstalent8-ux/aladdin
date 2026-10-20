@@ -23,6 +23,10 @@
 
 /* the type list grows with the catalogue: one scrollable row, ~7 visible on desktop */
 .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(118px, calc((100% - 72px) / 7)); gap: 12px; margin-block: 20px 0; overflow-x: auto; padding-block-end: 6px; scrollbar-width: thin; }
+/* live storefront: two centred rows of types, all visible (wrapping further on narrow screens) */
+.stripRows { display: grid; gap: 12px; margin-block: 20px 0; }
+.stripRow { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.stripRow > .stripItem { flex: 0 0 clamp(112px, 9vw, 160px); }
 .stripItem { display: grid; grid-template-rows: 1fr auto; gap: 8px; padding: 8px; border: 1px solid var(--quartz-line); border-radius: 14px; background: var(--quartz-raised); color: var(--ink); font: inherit; font-size: .875rem; font-weight: 700; text-align: center; cursor: pointer; }
 .stripItem:hover { border-color: var(--lumen); }
 .stripItem:focus-visible { outline: 2px solid var(--shell-deep); outline-offset: 2px; }
@@ -120,6 +124,8 @@
   .hero { min-height: 0; padding: 24px 16px; }
   .heroArt { display: none; }
   .strip { grid-auto-columns: minmax(104px, 30%); gap: 8px; }
+  .stripRows, .stripRow { gap: 8px; }
+  .stripRow > .stripItem { flex: 0 0 calc((100% - 16px) / 3); }
   .flash { justify-content: center; text-align: center; }
   .heading { font-size: 1.25rem; }
 }

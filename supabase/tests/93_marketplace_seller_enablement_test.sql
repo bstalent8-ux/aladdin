@@ -80,8 +80,8 @@ select is(
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname like '%marketplace%' and has_function_privilege('anon', p.oid, 'execute')),
-  array['marketplace_public_catalog', 'marketplace_public_catalog_page', 'marketplace_public_facets', 'marketplace_public_product'],
-  'A5. anon can execute exactly the two public-read functions');
+  array['marketplace_public_cart', 'marketplace_public_catalog', 'marketplace_public_catalog_page', 'marketplace_public_facets', 'marketplace_public_product'],
+  'A5. anon can execute exactly the public-read functions (catalog, page, facets, product — and the cart read from Migration 12)');
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
           unnest(array['anon', 'authenticated', 'service_role']) r

@@ -2252,6 +2252,44 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_delivery_rates: {
+        Row: {
+          area_key: string | null
+          created_at: string
+          fee_egp: number | null
+          governorate_key: string
+          id: string
+          seller_organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          area_key?: string | null
+          created_at?: string
+          fee_egp?: number | null
+          governorate_key: string
+          id?: string
+          seller_organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          area_key?: string | null
+          created_at?: string
+          fee_egp?: number | null
+          governorate_key?: string
+          id?: string
+          seller_organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_delivery_rates_seller_organization_id_fkey"
+            columns: ["seller_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_image_moderation_events: {
         Row: {
           action: string
@@ -9895,6 +9933,10 @@ export type Database = {
         Args: { p_archive?: boolean; p_product_id: string }
         Returns: string
       }
+      marketplace_public_cart: {
+        Args: { p_area?: string; p_governorate?: string; p_lines: Json }
+        Returns: Json
+      }
       marketplace_public_catalog: {
         Args: {
           p_limit?: number
@@ -9947,6 +9989,18 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: string
       }
+      marketplace_seller_delivery_areas_save: {
+        Args: { p_areas: Json; p_organization_id: string }
+        Returns: Json
+      }
+      marketplace_seller_delivery_get: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
+      marketplace_seller_delivery_prices_save: {
+        Args: { p_organization_id: string; p_prices: Json }
+        Returns: Json
+      }
       marketplace_seller_image_confirm_upload: {
         Args: { p_image_id: string }
         Returns: Json
@@ -9977,6 +10031,10 @@ export type Database = {
       }
       marketplace_seller_import_step: {
         Args: { p_job: string; p_payload?: Json; p_step: string }
+        Returns: Json
+      }
+      marketplace_seller_pickup_set: {
+        Args: { p_enabled: boolean; p_organization_id: string }
         Returns: Json
       }
       marketplace_seller_product_get: {

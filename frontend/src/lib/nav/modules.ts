@@ -68,6 +68,8 @@ export type NavKey =
   // Selling to consumers on the public Marketplace. Not a membership capability:
   // it appears only for an organization a platform admin approved as a seller.
   | "marketplaceProducts"
+  | "marketplaceAreas"
+  | "marketplaceDelivery"
   // Business — running the organization itself
   | "points"
   | "projects"
@@ -152,6 +154,8 @@ export const NAV_CAPS: Record<NavKey, string[] | null> = {
   followUps: SALES,
   products: ["catalog.write", "catalog.publish"],
   marketplaceProducts: [MARKETPLACE_SELL_ENTITLEMENT],
+  marketplaceAreas: [MARKETPLACE_SELL_ENTITLEMENT],
+  marketplaceDelivery: [MARKETPLACE_SELL_ENTITLEMENT],
 
   // Points is the caller's OWN standing on the platform, not an organization
   // record, so no capability could gate it and none does. The page is SHIPPED —
@@ -177,7 +181,7 @@ export const NAV_CAPS: Record<NavKey, string[] | null> = {
  * make `activity.read` untruthful. Keep this exemption narrow and deliberate;
  * every other module continues to inherit the existing blanket unlock.
  */
-const EXACT_CAPABILITY_NAV_KEYS: ReadonlySet<NavKey> = new Set(["activity", "marketplaceProducts"]);
+const EXACT_CAPABILITY_NAV_KEYS: ReadonlySet<NavKey> = new Set(["activity", "marketplaceProducts", "marketplaceAreas", "marketplaceDelivery"]);
 
 /**
  * Canonical order within each section, per stance; sections render in this order.
@@ -197,7 +201,7 @@ const BUYER_SECTIONS: { section: NavSection; keys: NavKey[] }[] = [
   { section: "selling", keys: ["customers", "leads", "followUps", "products"] },
   // B2C — only ever reachable with the admin-granted seller entitlement, and only
   // a showroom (buyer stance) can be approved, so the seller layout has no copy.
-  { section: "marketplace", keys: ["marketplaceProducts"] },
+  { section: "marketplace", keys: ["marketplaceProducts", "marketplaceAreas", "marketplaceDelivery"] },
   { section: "business", keys: ["points", "projects", "team", "reports", "activity", "settings"] },
 ];
 

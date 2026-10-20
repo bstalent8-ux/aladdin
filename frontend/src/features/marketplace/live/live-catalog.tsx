@@ -8,9 +8,9 @@ import { Select } from "@/components/ui/controls";
 import { FilterIcon, GridIcon, ListIcon, PackageIcon } from "@/components/ui/icons";
 import type { Facets, PublicCard, PublicPage, PublicSort } from "./public-contract";
 import { PUBLIC_PAGE_SIZE, PUBLIC_SORTS } from "./public-contract";
-import { typeImage } from "../marketplace-sections";
-import type { Locale, TypeKey } from "../marketplace-types";
+import type { Locale } from "../marketplace-types";
 import { fmtEgp, fmtNum, liveCopy } from "./live-copy";
+import { ALL_PRODUCTS_TYPES, HERO_TYPES, typeCover } from "./type-covers";
 import styles from "../marketplace.module.css";
 import store from "../marketplace-store.module.css";
 
@@ -26,17 +26,6 @@ export type CatalogParams = {
   /** attribute key → option keys */
   attrs: Record<string, string[]>;
 };
-
-/** Database type key → the cover photo of the approved storefront design (same type, older key spelling). */
-const COVER_KEY: Record<string, TypeKey> = {
-  wall_panel: "panels",
-  poster: "posters",
-  interior_door: "interior_doors",
-  armored_door: "armored_doors",
-  curtain: "curtains",
-  paint: "paints",
-};
-const coverOf = (key: string) => typeImage((COVER_KEY[key] ?? key) as TypeKey);
 
 export function catalogHref(p: CatalogParams, patch: Partial<CatalogParams> = {}) {
   const n = { ...p, page: 1, ...patch };
@@ -164,7 +153,48 @@ export function LiveCatalog({ locale, dir, params, page, facets }: { locale: Loc
   if (params.inStock) chips.push({ id: "stock", label: t.inStockOnly, patch: { inStock: false } });
   if (params.q) chips.push({ id: "q", label: `“${params.q}”`, patch: { q: "" } });
 
-  const heroArt = ["wood_alternative", "marble_alternative", "cornice"].map(coverOf).filter((x): x is string => Boolean(x));
+  const heroArt = HERO_TYPES.map(typeCover).filter((x): x is string => Boolean(x));
+
+  const stripItems = [
+    <button
+      key="all"
+      type="button"
+      className={`${store.stripItem} ${!params.type && !params.category ? store.stripItemActive : ""}`}
+      aria-pressed={!params.type && !params.category}
+      onClick={() => go({ type: "", category: "", attrs: {} })}
+    >
+      <span className={`${store.stripMedia} ${store.stripMosaic}`}>
+        {ALL_PRODUCTS_TYPES.map((k) => {
+          const src = typeCover(k);
+          return src ? (
+            <span key={k} className={store.mosaicCell}>
+              <Image src={src} alt="" fill unoptimized sizes="60px" />
+            </span>
+          ) : null;
+        })}
+      </span>
+      <span>{t.allProducts}</span>
+    </button>,
+    ...types.map((ty) => {
+      const src = typeCover(ty.key);
+      const on = params.type === ty.key;
+      return (
+        <button
+          key={ty.key}
+          type="button"
+          className={`${store.stripItem} ${on ? store.stripItemActive : ""}`}
+          aria-pressed={on}
+          onClick={() => go({ type: ty.key, category: ty.category, attrs: {} })}
+        >
+          <span className={store.stripMedia}>{src ? <Image src={src} alt="" fill unoptimized sizes="120px" /> : <PackageIcon size={26} aria-hidden="true" />}</span>
+          <span>
+            {name(ty, locale)} <span className="text-[var(--stone)]">({fmtNum(ty.count, locale)})</span>
+          </span>
+        </button>
+      );
+    }),
+  ];
+  const stripRows = [stripItems.slice(0, Math.ceil(stripItems.length / 2)), stripItems.slice(Math.ceil(stripItems.length / 2))];
 
   return (
     <div className={styles.browser} dir={dir}>
@@ -195,43 +225,13 @@ export function LiveCatalog({ locale, dir, params, page, facets }: { locale: Loc
         </div>
       </section>
 
-      <div className={store.strip} role="group" aria-label={t.categories}>
-        <button
-          type="button"
-          className={`${store.stripItem} ${!params.type && !params.category ? store.stripItemActive : ""}`}
-          aria-pressed={!params.type && !params.category}
-          onClick={() => go({ type: "", category: "", attrs: {} })}
-        >
-          <span className={`${store.stripMedia} ${store.stripMosaic}`}>
-            {["wallpaper", "marble_alternative", "wall_panel", "curtain"].map((k) => {
-              const src = coverOf(k);
-              return src ? (
-                <span key={k} className={store.mosaicCell}>
-                  <Image src={src} alt="" fill unoptimized sizes="60px" />
-                </span>
-              ) : null;
-            })}
-          </span>
-          <span>{t.allProducts}</span>
-        </button>
-        {types.map((ty) => {
-          const src = coverOf(ty.key);
-          const on = params.type === ty.key;
-          return (
-            <button
-              key={ty.key}
-              type="button"
-              className={`${store.stripItem} ${on ? store.stripItemActive : ""}`}
-              aria-pressed={on}
-              onClick={() => go({ type: ty.key, category: ty.category, attrs: {} })}
-            >
-              <span className={store.stripMedia}>{src ? <Image src={src} alt="" fill unoptimized sizes="120px" /> : <PackageIcon size={26} aria-hidden="true" />}</span>
-              <span>
-                {name(ty, locale)} <span className="text-[var(--stone)]">({fmtNum(ty.count, locale)})</span>
-              </span>
-            </button>
-          );
-        })}
+      {/* Every type is visible at once: two centred rows (the second is the shorter one), wrapping further on narrow screens — nothing scrolls out of sight. */}
+      <div className={store.stripRows} role="group" aria-label={t.categories}>
+        {stripRows.map((row, i) => (
+          <div key={i} className={store.stripRow}>
+            {row}
+          </div>
+        ))}
       </div>
 
       <div className={store.body}>

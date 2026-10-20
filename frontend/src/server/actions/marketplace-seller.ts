@@ -234,3 +234,63 @@ export async function finishPendingImageRemovalsAction(productId: string): Promi
   revalidatePath(PRODUCTS_PATH);
   return failed > 0 ? { ok: false, code: "delete_incomplete" } : { ok: true, finished, failed };
 }
+
+/* ---------- delivery areas, delivery prices and pickup (Migration 12) ---------- */
+
+const AREAS_PATH = "/b2c/seller/areas";
+const DELIVERY_PATH = "/b2c/seller/delivery";
+
+/** A place a showroom delivers to: a governorate (`area_key` null) or one area inside it. */
+export type DeliveryPlace = { governorate_key: string; area_key: string | null };
+/** A place with its price; `fee_egp` null = covered but not priced yet. */
+export type DeliveryRate = DeliveryPlace & { fee_egp: number | null };
+
+/**
+ * Sets WHERE the showroom delivers (replaces the set of places; the price of a place that stays is kept,
+ * a new place starts unpriced, a place left out is removed). An empty list = delivers nowhere.
+ */
+export async function saveSellerAreasAction(
+  organizationId: string,
+  places: DeliveryPlace[],
+): Promise<SellerResult<{ saved: number }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("marketplace_seller_delivery_areas_save", {
+    p_organization_id: organizationId,
+    p_areas: places as unknown as Json,
+  });
+  if (error || !data) return { ok: false, ...fail(error) };
+  revalidatePath(AREAS_PATH);
+  revalidatePath(DELIVERY_PATH);
+  return { ok: true, saved: Number((data as { saved?: number }).saved ?? places.length) };
+}
+
+/** Sets WHAT the showroom charges for places it already covers (null clears a price). */
+export async function saveSellerPricesAction(
+  organizationId: string,
+  prices: DeliveryRate[],
+): Promise<SellerResult<{ saved: number }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("marketplace_seller_delivery_prices_save", {
+    p_organization_id: organizationId,
+    p_prices: prices as unknown as Json,
+  });
+  if (error || !data) return { ok: false, ...fail(error) };
+  revalidatePath(AREAS_PATH);
+  revalidatePath(DELIVERY_PATH);
+  return { ok: true, saved: Number((data as { saved?: number }).saved ?? prices.length) };
+}
+
+/** Turns "pick up from the showroom" on or off for buyers' carts. */
+export async function setSellerPickupAction(
+  organizationId: string,
+  enabled: boolean,
+): Promise<SellerResult<{ pickupAvailable: boolean }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("marketplace_seller_pickup_set", {
+    p_organization_id: organizationId,
+    p_enabled: enabled,
+  });
+  if (error || !data) return { ok: false, ...fail(error) };
+  revalidatePath(DELIVERY_PATH);
+  return { ok: true, pickupAvailable: Boolean((data as { pickup_available?: boolean }).pickup_available) };
+}

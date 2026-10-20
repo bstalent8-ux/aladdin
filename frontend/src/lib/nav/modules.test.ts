@@ -9,7 +9,9 @@ import {
 } from "./modules";
 
 /** The modules `org.manage` must NOT unlock: each needs its own exact grant. */
-const EXACT_GATED = new Set(["activity", "marketplaceProducts"]);
+/** The B2C seller group, in menu order: products, then where the showroom delivers, then what it charges. */
+const MARKETPLACE_KEYS = ["marketplaceProducts", "marketplaceAreas", "marketplaceDelivery"] as const;
+const EXACT_GATED = new Set(["activity", "marketplaceProducts", "marketplaceAreas", "marketplaceDelivery"]);
 import { ROLE_PRESETS } from "@/lib/org/roles";
 
 /**
@@ -66,12 +68,14 @@ describe("allowedNavKeys", () => {
     );
   });
 
-  it("shows Marketplace products ONLY with the admin-granted seller entitlement", () => {
+  it("shows the Marketplace items (products, delivery areas, delivery prices) ONLY with the admin-granted seller entitlement", () => {
     // Owning a showroom is eligibility, never authorization to sell on the Marketplace.
-    expect(allowedNavKeys(["org.manage"])).not.toContain("marketplaceProducts");
-    expect(allowedNavKeys(ROLE_PRESETS.catalog_manager)).not.toContain("marketplaceProducts");
-    expect(allowedNavKeys(["catalog.write", "catalog.publish"])).not.toContain("marketplaceProducts");
-    expect(allowedNavKeys(["org.manage", MARKETPLACE_SELL_ENTITLEMENT])).toContain("marketplaceProducts");
+    for (const key of MARKETPLACE_KEYS) {
+      expect(allowedNavKeys(["org.manage"])).not.toContain(key);
+      expect(allowedNavKeys(ROLE_PRESETS.catalog_manager)).not.toContain(key);
+      expect(allowedNavKeys(["catalog.write", "catalog.publish"])).not.toContain(key);
+      expect(allowedNavKeys(["org.manage", MARKETPLACE_SELL_ENTITLEMENT])).toContain(key);
+    }
   });
 
   it("puts Marketplace products in its OWN B2C group, never under B2B Sales", () => {
@@ -79,7 +83,7 @@ describe("allowedNavKeys", () => {
     const selling = sections.find((s) => s.section === "selling");
     const marketplace = sections.find((s) => s.section === "marketplace");
     expect(selling?.keys).not.toContain("marketplaceProducts");
-    expect(marketplace?.keys).toEqual(["marketplaceProducts"]);
+    expect(marketplace?.keys).toEqual(MARKETPLACE_KEYS);
     // The group sits after B2B Sales and before running the business.
     const order = sections.map((s) => s.section);
     expect(order.indexOf("marketplace")).toBe(order.indexOf("selling") + 1);
@@ -91,9 +95,9 @@ describe("allowedNavKeys", () => {
   });
 
   it("never offers Marketplace products to a supply-side organization", () => {
-    expect(allowedNavKeys(["org.manage", MARKETPLACE_SELL_ENTITLEMENT], "seller")).not.toContain(
-      "marketplaceProducts",
-    );
+    for (const key of MARKETPLACE_KEYS) {
+      expect(allowedNavKeys(["org.manage", MARKETPLACE_SELL_ENTITLEMENT], "seller")).not.toContain(key);
+    }
   });
 
   it("gates people-ops behind org.members.manage", () => {
@@ -211,7 +215,7 @@ describe("seller stance", () => {
     // same keys, in different places.
     const seller = new Set<string>(navOrder("seller"));
     // ...except Marketplace selling, which only a showroom can be approved for.
-    const buyer = new Set<string>(NAV_ORDER.filter((k) => k !== "marketplaceProducts"));
+    const buyer = new Set<string>(NAV_ORDER.filter((k) => !(MARKETPLACE_KEYS as readonly string[]).includes(k)));
     for (const k of buyer) expect(seller.has(k)).toBe(true);
     expect([...seller].filter((k) => !buyer.has(k))).toEqual(["buyers"]);
   });
