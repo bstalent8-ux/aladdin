@@ -17,7 +17,23 @@ export const LEGAL_UPDATED_AT = "2026-10-17";
 
 export type LegalBlock = { kind: "p"; text: string } | { kind: "list"; items: string[] } | { kind: "steps"; items: string[] };
 export type LegalSection = { id: string; heading: string; blocks: LegalBlock[] };
-export type LegalDocument = { title: string; intro: string; updatedLabel: string; contentsLabel: string; sections: LegalSection[] };
+export type LegalDocument = {
+  title: string;
+  intro: string;
+  updatedLabel: string;
+  contentsLabel: string;
+  /** "Email us at" / "راسلنا على" — label above the contact address in the closing band. */
+  writeToUs: string;
+  /** Label of the closing band's contact button. */
+  contactLabel: string;
+  /** ISO date of this document's last update; defaults to LEGAL_UPDATED_AT. */
+  updatedAt?: string;
+  /** Shown as a pill under the intro (a draft that is not final legal text). */
+  notice?: string;
+  /** A short line shown over the photo card beside the contents. */
+  aside?: string;
+  sections: LegalSection[];
+};
 
 const p = (text: string): LegalBlock => ({ kind: "p", text });
 const list = (...items: string[]): LegalBlock => ({ kind: "list", items });
@@ -27,6 +43,8 @@ const privacyEn: LegalDocument = {
   title: "Privacy Policy",
   updatedLabel: "Last updated",
   contentsLabel: "On this page",
+  writeToUs: "Email us at",
+  contactLabel: "Contact us",
   intro:
     "Aladdin (aladdindecore.com) is a platform that connects showrooms, suppliers, manufacturers, importers, contractors, engineers, installers and their customers in Egypt's finishing, construction and interior-design sector. This policy explains what personal data we collect, why, who processes it for us, how long we keep it and the choices you have.",
   sections: [
@@ -169,6 +187,8 @@ const privacyAr: LegalDocument = {
   title: "سياسة الخصوصية",
   updatedLabel: "آخر تحديث",
   contentsLabel: "محتويات الصفحة",
+  writeToUs: "راسلنا على",
+  contactLabel: "تواصل معنا",
   intro:
     "علاء الدين (aladdindecore.com) منصة تربط المعارض والموردين والمصنّعين والمستوردين والمقاولين والمهندسين والصنايعية وعملاءهم في قطاع التشطيبات والبناء والتصميم الداخلي في مصر. توضح هذه السياسة البيانات الشخصية التي نجمعها، ولماذا، ومن يعالجها لصالحنا، ومدة الاحتفاظ بها، والخيارات المتاحة لك.",
   sections: [
@@ -303,6 +323,8 @@ const deletionEn: LegalDocument = {
   title: "Data Deletion Instructions",
   updatedLabel: "Last updated",
   contentsLabel: "On this page",
+  writeToUs: "Email us at",
+  contactLabel: "Contact us",
   intro:
     "You can ask us to delete your Aladdin account and the personal data linked to it at any time, whether you signed up with email, phone number, Google or Facebook. This page explains how, what is deleted and how long it takes.",
   sections: [
@@ -379,6 +401,8 @@ const deletionAr: LegalDocument = {
   title: "تعليمات حذف البيانات",
   updatedLabel: "آخر تحديث",
   contentsLabel: "محتويات الصفحة",
+  writeToUs: "راسلنا على",
+  contactLabel: "تواصل معنا",
   intro:
     "يمكنك أن تطلب منا حذف حسابك في علاء الدين والبيانات الشخصية المرتبطة به في أي وقت، سواء سجّلت بالبريد الإلكتروني أو رقم الهاتف أو Google أو Facebook. توضح هذه الصفحة الطريقة، وما يتم حذفه، والمدة المطلوبة.",
   sections: [
@@ -449,9 +473,72 @@ const deletionAr: LegalDocument = {
   ],
 };
 
+/**
+ * Terms of Service. DRAFT: the website had no Terms text; this is the text of the approved page layout
+ * (D:\projects\Layout\pages\terms & condition.jpeg), 14 sections, kept short. It is NOT reviewed legal text and
+ * is flagged as such on the page (`notice`) until the final reviewed Terms replace it.
+ */
+const termsEn: LegalDocument = {
+  title: "Terms of Service",
+  updatedLabel: "Last updated",
+  contentsLabel: "On this page",
+  writeToUs: "Email us at",
+  contactLabel: "Contact us",
+  updatedAt: "2026-10-18",
+  notice: "Draft pending legal review — this text is not final.",
+  aside: "We are building a more trusted, more professional environment for interior design and décor.",
+  intro:
+    "These terms set out the rules that govern your use of the Aladdin platform and its services, to ensure a safe, trusted and fair experience for all users.",
+  sections: [
+    { id: "about", heading: "1. Get to know Aladdin", blocks: [p("Aladdin is a digital platform that connects business owners, designers and suppliers in interior design and décor.")] },
+    { id: "who-can-use", heading: "2. Who can use Aladdin", blocks: [p("The platform is available to individuals and qualified entities in line with the applicable requirements. You must be 18 years or older.")] },
+    { id: "account", heading: "3. Your account", blocks: [p("You are responsible for keeping your account and sign-in details confidential, and for all activity carried out through your account.")] },
+    { id: "verification", heading: "4. Verifying businesses and their content", blocks: [p("We review and verify businesses to ensure trust and quality on the platform.")] },
+    { id: "dealing", heading: "5. Dealing with other users", blocks: [p("When you deal with other parties through the platform, you agree to do so in a safe and respectful way that complies with applicable laws.")] },
+    { id: "content", heading: "6. Content you publish", blocks: [p("You keep all rights to the content you publish on the platform, and you grant us a limited licence to use it in providing the services.")] },
+    { id: "acceptable-use", heading: "7. Acceptable use", blocks: [p("The platform must be used lawfully and ethically, and must not be misused or used to publish harmful or misleading content.")] },
+    { id: "fees", heading: "8. Fees", blocks: [p("Some services may require fees, which are clearly explained before you subscribe or complete a given transaction.")] },
+    { id: "intellectual-property", heading: "9. Intellectual property", blocks: [p("All intellectual property rights in the platform and its content are owned by Aladdin or by their respective rights holders.")] },
+    { id: "termination", heading: "10. Ending your account", blocks: [p("We may suspend or end any account that breaches these terms or applicable laws.")] },
+    { id: "disclaimer", heading: "11. Disclaimer of liability", blocks: [p("We provide our services as they are, and we are not liable for any damage arising from use of the platform or from interactions between users.")] },
+    { id: "changes", heading: "12. Changes to the terms", blocks: [p("We may update these terms from time to time, and we will notify you of material changes through the platform or by email.")] },
+    { id: "governing-law", heading: "13. Governing law", blocks: [p("These terms are governed by and interpreted in accordance with the laws of the Arab Republic of Egypt.")] },
+    { id: "contact", heading: "14. Contact us", blocks: [p(`If you have any question about these terms, please contact us at ${PRIVACY_CONTACT_EMAIL}.`)] },
+  ],
+};
+
+const termsAr: LegalDocument = {
+  title: "شروط الخدمة",
+  updatedLabel: "آخر تحديث",
+  contentsLabel: "محتويات الصفحة",
+  writeToUs: "راسلنا على",
+  contactLabel: "تواصل معنا",
+  updatedAt: "2026-10-18",
+  notice: "مسودة قيد المراجعة القانونية — هذا النص غير نهائي.",
+  aside: "نبني بيئة أكثر موثوقية واحترافية لقطاع التصميم الداخلي والديكور.",
+  intro:
+    "توضح هذه الشروط القواعد التي تنظم استخدامك لمنصة علاء الدين وخدماتها، بما يضمن تجربة آمنة وموثوقة وعادلة لجميع المستخدمين.",
+  sections: [
+    { id: "about", heading: "١. تعرّف على علاء الدين", blocks: [p("علاء الدين منصة رقمية تربط بين أصحاب الأنشطة التجارية والمصممين والموردين في مجال التصميم الداخلي والديكور.")] },
+    { id: "who-can-use", heading: "٢. من يمكنه استخدام علاء الدين", blocks: [p("يُتاح استخدام المنصة للأفراد والجهات المؤهلة وفقًا للمتطلبات المعمول بها. ويجب أن يكون عمرك ١٨ عامًا أو أكثر.")] },
+    { id: "account", heading: "٣. حسابك", blocks: [p("أنت مسؤول عن الحفاظ على سرية حسابك وبيانات الدخول الخاصة بك وجميع الأنشطة التي تتم من خلاله.")] },
+    { id: "verification", heading: "٤. توثيق الأنشطة التجارية ومحتواها", blocks: [p("نقوم بمراجعة وتوثيق الأنشطة التجارية لضمان الموثوقية والجودة في المنصة.")] },
+    { id: "dealing", heading: "٥. التعامل مع المستخدمين", blocks: [p("عند التعامل مع أطراف آخرين عبر المنصة، فإنك توافق على أن ذلك يتم بطرق آمنة ومحترمة وبما يتماشى مع القوانين المعمول بها.")] },
+    { id: "content", heading: "٦. المحتوى الذي تنشره", blocks: [p("أنت تحتفظ بكافة حقوق المحتوى الذي تنشره على المنصة، وتمنحنا ترخيصًا محدودًا لاستخدامه في إطار تقديم الخدمات.")] },
+    { id: "acceptable-use", heading: "٧. الاستخدام المقبول", blocks: [p("يجب استخدام المنصة بطريقة قانونية وأخلاقية، وعدم إساءة استخدامها أو نشر أي محتوى ضار أو مضلل.")] },
+    { id: "fees", heading: "٨. الرسوم", blocks: [p("قد تتطلب بعض الخدمات رسومًا يتم توضيحها بشكل شفاف قبل الاشتراك أو إتمام عملية معينة.")] },
+    { id: "intellectual-property", heading: "٩. الملكية الفكرية", blocks: [p("جميع حقوق الملكية الفكرية الخاصة بالمنصة ومحتواها مملوكة لعلاء الدين أو لأصحاب حقوقها المعنيين.")] },
+    { id: "termination", heading: "١٠. إنهاء الحساب", blocks: [p("يحق لنا إيقاف أو إنهاء أي حساب في حال مخالفة هذه الشروط أو القوانين المعمول بها.")] },
+    { id: "disclaimer", heading: "١١. إخلاء المسؤولية", blocks: [p("نقدم خدماتنا كما هي، ولا نتحمل مسؤولية أي أضرار ناتجة عن استخدام المنصة أو التفاعلات بين المستخدمين.")] },
+    { id: "changes", heading: "١٢. التغييرات على الشروط", blocks: [p("قد نقوم بتحديث هذه الشروط من وقت لآخر، وسيتم إشعارك بالتغييرات الجوهرية من خلال المنصة أو عبر البريد الإلكتروني.")] },
+    { id: "governing-law", heading: "١٣. القانون الواجب التطبيق", blocks: [p("تخضع هذه الشروط وتُفسَّر وفقًا لقوانين جمهورية مصر العربية.")] },
+    { id: "contact", heading: "١٤. تواصل معنا", blocks: [p(`إذا كان لديك أي استفسار حول هذه الشروط، يرجى التواصل معنا عبر ${PRIVACY_CONTACT_EMAIL}.`)] },
+  ],
+};
 const DOCUMENTS = {
   privacy: { en: privacyEn, ar: privacyAr },
   dataDeletion: { en: deletionEn, ar: deletionAr },
+  terms: { en: termsEn, ar: termsAr },
 } as const;
 
 export type LegalDocumentKey = keyof typeof DOCUMENTS;

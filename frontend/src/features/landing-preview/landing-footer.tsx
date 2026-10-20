@@ -11,7 +11,7 @@ export function LandingFooter({ anchorBase = "" }: { anchorBase?: string } = {})
   const t = landingBlockContent[locale];
   const columns = [
     { title: t.quickLinks, links: [[t.how, `${anchorBase}#how-it-works`], [t.rolesTitle, `${anchorBase}#audience`], [t.videos, `${anchorBase}#platform`], [t.brands, `${anchorBase}#brands`]] },
-    { title: t.account, links: [[t.register, "/auth/sign-up"], [t.signIn, "/auth/sign-in"], [t.privacy, "/legal/privacy"], [t.terms, "/legal/terms"]] },
+    { title: t.account, links: [[t.register, "/auth/sign-up"], [t.signIn, "/sign-in"], [t.privacy, "/legal/privacy"], [t.terms, "/legal/terms"], [t.dataDeletion, "/legal/data-deletion"]] },
   ];
   return (
     <footer className={styles.footer} data-landing-preview-part="Footer">
