@@ -584,7 +584,7 @@ Preparation runs when the original is over the byte ceiling, over the long edge,
 
 Remaining technical limits, stated rather than imposed silently:
 
-- **Server decode limit, 25 MP** (sharp `limitInputPixels` in `content-validation.mjs` and `public-image-variants.ts`) with at most two concurrent decodes per instance. It applies to the derivative only; the largest derivative is 3200 x 3200 = 10.24 MP, and `fitWithin` also clamps to 25 MP.
+- **Server decode limit, 25 MP** (sharp `limitInputPixels` in `image-processing/sharp-verify.mjs` and `sharp-processor.ts`; on Cloudflare Workers the same bound is checked with the Images binding, see [cloudflare-workers-runtime-notes.md](../architecture/cloudflare-workers-runtime-notes.md)) with at most two concurrent decodes per instance. It applies to the derivative only; the largest derivative is 3200 x 3200 = 10.24 MP, and `fitWithin` also clamps to 25 MP.
 - **Browser canvas and decode limits.** Older iPhones cap canvas area (about 16.7 MP) and memory; a source the device cannot decode even at reduced size gets the message above. Derivatives stay at or under 3200 px on the long edge, inside every current canvas limit.
 - **Supabase Free global file limit, 50 MB**, on the rollback path (`R2_STORAGE_ENABLED=false`). Derivatives are at most 10 MiB, so images never reach it.
 - **Documents are not images.** Certificate PDFs and business-verification documents (PDF or image) keep their 10 MiB limit, checked before upload; they are not re-encoded.

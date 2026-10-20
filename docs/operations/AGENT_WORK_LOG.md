@@ -1,3 +1,13 @@
+## 2026-10-20 — Workers media runtime: image engine seam (sharp on Node, Images binding on Workers)
+
+Branch `claude/cf-media-runtime-2ibvgs` (from `claude/cloudflare-workers-2ibvgs`). No hosted call. Findings and design: [cloudflare-workers-runtime-notes.md](../architecture/cloudflare-workers-runtime-notes.md).
+
+- Before: in the Workers build, 38 of 163 routes returned 500 at module load because `media.ts` imported sharp statically. Upload finalize was unreachable.
+- `server/storage/image-processing/`: one `ImageProcessor` interface. Node uses sharp. Workers uses `env.IMAGES`: container check, `info()`, then one thumb transform as the full decode, reused as the thumb variant (3 transforms per R2 upload). Error 9422 fails the upload, logs `media.images_quota_exceeded` and is counted in `/api/health` `imageMetrics`. The engine is swapped at build time (`ALADDIN_BUILD_TARGET=workers` from `open-next.config.ts`, `next.config.ts` module replacement, separate webpack cache). The CI sharp check now looks at the bundled code only and requires the Images engine.
+- Verified: Vitest 4,063 pass / 38 skipped; typecheck clean; lint 0 errors; `scripts/media-storage.test.mjs` 15/15; Node → Workers → Node build sequence (sharp in Node, absent from the Worker); `wrangler deploy --dry-run` bundle clean. On base `82d23c7`, `playwright.workers-media.config.ts` passed 3/3 under `wrangler dev`: large JPEG, EXIF JPEG, video multipart.
+
+Unfinished / needs the owner: E2E not re-run after rebasing onto `bdfab08`, because the local Docker daemon (Supabase, S3 stand-in) went down mid-session. Images plan (Free 5,000/month) and a quota alert. Behaviour only checkable on real Cloudflare (quality, 9422, decoder leniency) is listed in the notes.
+
 ## 2026-10-20 — Redis on Cloudflare Workers: Upstash REST transport (ADR-0019 revision)
 
 Branch `claude/cf-redis-2ibvgs` (from `claude/cloudflare-workers-2ibvgs`). `withRedis` callers now use a small command interface with two transports: TCP (`@redis/client`, unchanged for Vercel/Node) and Upstash REST over `fetch` (`REDIS_REST_URL`/`REDIS_REST_TOKEN`; it wins when set). On Workers with only `REDIS_URL`, TCP is refused and Redis counts as unavailable, because in `workerd` a connection reused across requests hangs (`Cannot perform I/O on behalf of a different request`). Evidence and reasoning: ADR-0019 "Workers runtime". The usage clock now starts on first use, because the Workers clock reads 0 during module init.
