@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { AVATAR_BUCKET } from "@/lib/storage/avatar-assets";
+import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
 
 /** How long a signed avatar read URL lives. Minted per render, never stored. */
 const AVATAR_READ_URL_SECONDS = 300;
@@ -15,6 +16,8 @@ export type MyIdentity = {
   phoneCountryIso2: string | null;
   phoneNational: string | null;
   phoneE164: string | null;
+  /** The phone is also this account's sign-in key (phone + password accounts): changing it needs the current password. */
+  phoneIsLoginKey: boolean;
   avatarUrl: string | null;
 };
 
@@ -59,6 +62,7 @@ export const loadMyIdentity = cache(async function loadMyIdentity(): Promise<MyI
     phoneCountryIso2: profile.phone_country_iso2,
     phoneNational: profile.phone_national,
     phoneE164: profile.phone_e164,
+    phoneIsLoginKey: isCraftsmanLoginAlias(user.email),
     avatarUrl,
   };
 });

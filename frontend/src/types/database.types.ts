@@ -7403,6 +7403,15 @@ export type Database = {
         Args: { p_active: boolean; p_branch_id: string }
         Returns: undefined
       }
+      branch_location_set: {
+        Args: {
+          p_branch_id: string
+          p_city: string
+          p_city_custom: string
+          p_governorate: string
+        }
+        Returns: undefined
+      }
       branch_set_locality: {
         Args: { p_branch_id: string; p_locality_id: string }
         Returns: undefined
@@ -8317,6 +8326,10 @@ export type Database = {
       }
       organization_description_set: {
         Args: { p_description: string; p_org_id: string }
+        Returns: string
+      }
+      organization_legal_name_set: {
+        Args: { p_legal_name: string; p_org_id: string }
         Returns: string
       }
       organization_identity_change_request: {

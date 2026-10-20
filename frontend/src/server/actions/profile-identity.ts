@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { readPublicEnv } from "@/lib/env";
+import { craftsmanLoginAlias, isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
+import { isCanonicalPhoneTaken, rekeyLoginAlias } from "@/lib/supabase/admin-server";
+import { phoneAuthLimit } from "@/server/auth/phone-auth-limit";
 
 /**
  * The identity fields every audience shares — display name, phone, avatar —
@@ -14,10 +20,12 @@ import { getServerSupabase } from "@/lib/supabase/server";
 
 export type IdentityFieldState = { ok: boolean; code?: string };
 
-const REVALIDATE_PATHS = ["/home", "/home/settings", "/home/profile", "/home/profile/edit"] as const;
+const REVALIDATE_PATHS = ["/home/settings", "/home/profile", "/home/profile/edit", "/settings/profile", "/showroom/settings", "/b2b/settings"] as const;
 
 function revalidateIdentity() {
   for (const path of REVALIDATE_PATHS) revalidatePath(path);
+  // The header shows the display name; it lives in the /home layout, which only a layout revalidation refreshes.
+  revalidatePath("/home", "layout");
 }
 
 export async function setDisplayNameAction(
@@ -64,6 +72,73 @@ export async function setPhoneAction(
       ok: false,
       code: error.code === "23505" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error",
     };
+  }
+  revalidateIdentity();
+  return { ok: true };
+}
+
+/**
+ * Change the phone of a phone + password account. Here the phone is also the sign-in key (an internal login
+ * alias derived from it), and the database refuses to move a profile phone away from its alias. So the change
+ * is a re-key: prove the CURRENT password, check the new number is free, move the alias, then the profile
+ * phone - and put the alias back if the profile write fails. The old number stops signing in, the new one
+ * starts, and the profile (which Admin reads) carries the new number.
+ */
+export async function changeLoginPhoneAction(
+  _prev: IdentityFieldState,
+  fd: FormData,
+): Promise<IdentityFieldState> {
+  const countryIso2 = String(fd.get("countryIso2") ?? "").trim();
+  const national = String(fd.get("national") ?? "").trim();
+  const e164 = String(fd.get("e164") ?? "").trim();
+  const password = String(fd.get("currentPassword") ?? "");
+  if (!e164 || !countryIso2 || !national) return { ok: false, code: "profileIdentity.phone.error" };
+  if (!password) return { ok: false, code: "profileIdentity.phone.passwordRequired" };
+
+  const supabase = await getServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !isCraftsmanLoginAlias(user.email)) return { ok: false, code: "profileIdentity.phone.error" };
+  const oldAlias = user.email!.trim().toLowerCase();
+
+  let newAlias: string;
+  try {
+    newAlias = craftsmanLoginAlias(e164);
+  } catch {
+    return { ok: false, code: "profileIdentity.phone.error" };
+  }
+  if (newAlias === oldAlias) return { ok: true };
+
+  // Password guesses are throttled exactly like a sign-in for this account.
+  const limited = await phoneAuthLimit("sign-in", oldAlias, await headers());
+  if (limited !== "allowed") return { ok: false, code: "profileIdentity.phone.rateLimited" };
+
+  // Proof of the current password through a stateless client: the caller's own session cookies are untouched.
+  const env = readPublicEnv();
+  const verifier = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const proof = await verifier.auth.signInWithPassword({ email: oldAlias, password });
+  if (proof.error) return { ok: false, code: "profileIdentity.phone.wrongPassword" };
+  await verifier.auth.signOut({ scope: "local" });
+
+  try {
+    if (await isCanonicalPhoneTaken(e164)) return { ok: false, code: "profileIdentity.phone.unavailable" };
+  } catch {
+    return { ok: false, code: "profileIdentity.phone.error" };
+  }
+
+  const moved = await rekeyLoginAlias(user.id, newAlias);
+  if (!moved.ok) {
+    return { ok: false, code: moved.reason === "exists" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error" };
+  }
+  const { error } = await supabase.rpc("profile_set_phone", { p_country_iso2: countryIso2, p_national: national, p_e164: e164 });
+  if (error) {
+    // The alias and the profile phone must agree; undo the alias move so the old number keeps working.
+    const restored = await rekeyLoginAlias(user.id, oldAlias);
+    if (!restored.ok) console.error("phone re-key: could not restore the previous login alias");
+    return { ok: false, code: error.code === "23505" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error" };
   }
   revalidateIdentity();
   return { ok: true };
