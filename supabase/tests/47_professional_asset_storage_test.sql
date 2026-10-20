@@ -227,8 +227,8 @@ select ok(
 select is(
   (select count(*)::int from pg_policies
     where schemaname = 'storage' and tablename = 'objects'),
-  32,
-  'Thirty-two policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261015090004), the four request-images policies (Purchase Requests, 20261015090020), the four organization-images policies (Showroom profile image, 20261015090043), the business-verification document policies (bv_documents_*, PR #88/#89) and the Marketplace policies (marketplace-product-images: three from Migration 06, the moderator select of Migration 09, and the import-assets insert)'
+  33,
+  'Thirty-three policies on storage.objects: three each for certificates/portfolio/avatars, plus two public doors, plus the four product-images policies (Own Products, 20261015090004), the four request-images policies (Purchase Requests, 20261015090020), the four organization-images policies (Showroom profile image, 20261015090043), the business-verification document policies (bv_documents_*, PR #88/#89) and the Marketplace policies (marketplace-product-images: three from Migration 06, the moderator select of Migration 09, and the import-assets insert) plus the restrictive session-liveness policy (storage_objects_session_live, 20261019163000)'
 );
 
 select is(
