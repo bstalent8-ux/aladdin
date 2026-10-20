@@ -82,6 +82,7 @@ export function isSignedOutEntryPath(path: string): boolean {
     path === "/auth/sign-up" ||
     path === "/installer/sign-in" ||
     path === "/installer/sign-up" ||
+    path === "/sign-in" ||
     path === "/showroom/sign-in" ||
     path === "/showroom/sign-up"
   );

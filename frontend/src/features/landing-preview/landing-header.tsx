@@ -92,7 +92,7 @@ export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0
           </a>
         ) : null}
         <span className={styles.language}><LanguageSwitch /><GlobeIcon size={14} aria-hidden="true" /></span>
-        <a className={styles.signIn} href="/auth/sign-in" dir={dir}>{t.signIn}</a>
+        <a className={styles.signIn} href="/sign-in" dir={dir}>{t.signIn}</a>
         <div className={styles.registerWrap} ref={signup}>
           <Button ref={registerButton} variant="accent" className={styles.register} aria-haspopup="true" aria-expanded={signupOpen} aria-controls="register-menu" onClick={() => setSignupOpen(!signupOpen)}>
             <span dir={dir}>{t.register}</span><span className={styles.arrow}><ArrowUpRightIcon size={16} aria-hidden="true" /></span>
