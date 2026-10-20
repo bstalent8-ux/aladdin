@@ -187,6 +187,7 @@ No Kubernetes, Kafka, RabbitMQ, Redis, Elasticsearch/OpenSearch, event sourcing,
 - [ADR-0005 — Python Data Access (supabase-py; SQLAlchemy deferred)](../decisions/ADR-0005-python-data-access.md)
 - [ADR-0018 — Media delivery: R2 primary store, ticketed edge Worker (Proposed)](../decisions/ADR-0018-r2-edge-media-delivery.md)
 - [ADR-0020 — Video: R2 originals, HLS transcoding worker, per-request edge authorization (Proposed)](../decisions/ADR-0020-video-r2-hls.md)
+- [ADR-0021 — Next.js frontend on Cloudflare Workers (OpenNext), Vercel kept as rollback (Proposed)](../decisions/ADR-0021-cloudflare-workers-frontend.md)
 - Full index: [DECISION_LOG.md](../decisions/DECISION_LOG.md)
 
 ## Architecture-Change Process

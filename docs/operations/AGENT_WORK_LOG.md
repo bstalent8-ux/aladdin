@@ -1,3 +1,9 @@
+## 2026-10-20 — Cloudflare Workers frontend (ADR-0021), lead
+
+Branch `claude/cloudflare-workers-2ibvgs` (from the video branch, PR #94 head). OpenNext 1.20.12 + wrangler 4.151.2, Next 15.5.28. `pnpm cf:build` (Edge middleware for Workers only), `cloudflare/worker.ts` (`/api/backend` proxy to `BACKEND_ORIGIN`, `/_next/image` cache, HSTS), `wrangler.jsonc` local/preview/production envs, `playwright.workers.config.ts`, CI job `frontend-cloudflare`, manual preview workflow. Merged: Redis REST (`claude/cf-redis-2ibvgs`), image engine seam (`claude/cf-media-runtime-2ibvgs`), perf report (`claude/cf-perf-2ibvgs`, sharp-lazy commit dropped). Fixed: middleware redirects now carry refreshed session cookies; duplicate reads on `/home` and `/showroom/home`. vinext 1.2.1 trialled and rejected for production (beta, Vite).
+
+Unfinished: workers.dev preview and its E2E (needs a Cloudflare token and the migrated acceptance project); Workers Paid approval; DNS move and cutover.
+
 ## 2026-10-20 — Workers media runtime: image engine seam (sharp on Node, Images binding on Workers)
 
 Branch `claude/cf-media-runtime-2ibvgs` (from `claude/cloudflare-workers-2ibvgs`). No hosted call. Findings and design: [cloudflare-workers-runtime-notes.md](../architecture/cloudflare-workers-runtime-notes.md).

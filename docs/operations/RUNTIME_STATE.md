@@ -1,5 +1,10 @@
 # Runtime State
 
+## Cloudflare Workers frontend (draft PR, ADR-0021) — 2026-10-20
+
+- Branch `claude/cloudflare-workers-2ibvgs` (stacked on the video branch): the frontend also builds for Cloudflare Workers with OpenNext (`pnpm cf:build`), runs in workerd locally, and CI builds both. **Nothing is deployed to Cloudflare**; Vercel still serves `aladdindecore.com` and FastAPI; DNS is still on Vercel nameservers.
+- Pending owner approval: workers.dev preview on the isolated acceptance project, Workers Paid ($5/month), DNS move, traffic switch ([cutover plan](cloudflare-frontend-cutover-plan.md)).
+
 ## Redis, video and palette (draft PRs #92, video PR, #93) — 2026-10-19
 
 - **Stack:** #88 → #89 → #91 → #92 (Redis) → video branch `claude/video-r2-2ibvgs`. Palette #93 is independent, based on `main`. Nothing merged or deployed.
