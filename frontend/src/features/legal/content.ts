@@ -474,9 +474,8 @@ const deletionAr: LegalDocument = {
 };
 
 /**
- * Terms of Service. DRAFT: the website had no Terms text; this is the text of the approved page layout
- * (D:\projects\Layout\pages\terms & condition.jpeg), 14 sections, kept short. It is NOT reviewed legal text and
- * is flagged as such on the page (`notice`) until the final reviewed Terms replace it.
+ * Terms of Service: the published text (PR #90). The page layout fields (aside photo line, closing contact band) follow the
+ * approved layout in D:projectsLayoutpages.
  */
 const termsEn: LegalDocument = {
   title: "Terms of Service",
@@ -485,25 +484,131 @@ const termsEn: LegalDocument = {
   writeToUs: "Email us at",
   contactLabel: "Contact us",
   updatedAt: "2026-10-18",
-  notice: "Draft pending legal review — this text is not final.",
   aside: "We are building a more trusted, more professional environment for interior design and décor.",
   intro:
-    "These terms set out the rules that govern your use of the Aladdin platform and its services, to ensure a safe, trusted and fair experience for all users.",
+    "These Terms govern your use of Aladdin, the website and web application at aladdindecore.com that connects showrooms, suppliers, manufacturers, importers, contractors, engineers, installers and their customers in Egypt's finishing, construction and interior-design sector. By creating an account or using Aladdin you agree to these Terms and to our Privacy Policy.",
   sections: [
-    { id: "about", heading: "1. Get to know Aladdin", blocks: [p("Aladdin is a digital platform that connects business owners, designers and suppliers in interior design and décor.")] },
-    { id: "who-can-use", heading: "2. Who can use Aladdin", blocks: [p("The platform is available to individuals and qualified entities in line with the applicable requirements. You must be 18 years or older.")] },
-    { id: "account", heading: "3. Your account", blocks: [p("You are responsible for keeping your account and sign-in details confidential, and for all activity carried out through your account.")] },
-    { id: "verification", heading: "4. Verifying businesses and their content", blocks: [p("We review and verify businesses to ensure trust and quality on the platform.")] },
-    { id: "dealing", heading: "5. Dealing with other users", blocks: [p("When you deal with other parties through the platform, you agree to do so in a safe and respectful way that complies with applicable laws.")] },
-    { id: "content", heading: "6. Content you publish", blocks: [p("You keep all rights to the content you publish on the platform, and you grant us a limited licence to use it in providing the services.")] },
-    { id: "acceptable-use", heading: "7. Acceptable use", blocks: [p("The platform must be used lawfully and ethically, and must not be misused or used to publish harmful or misleading content.")] },
-    { id: "fees", heading: "8. Fees", blocks: [p("Some services may require fees, which are clearly explained before you subscribe or complete a given transaction.")] },
-    { id: "intellectual-property", heading: "9. Intellectual property", blocks: [p("All intellectual property rights in the platform and its content are owned by Aladdin or by their respective rights holders.")] },
-    { id: "termination", heading: "10. Ending your account", blocks: [p("We may suspend or end any account that breaches these terms or applicable laws.")] },
-    { id: "disclaimer", heading: "11. Disclaimer of liability", blocks: [p("We provide our services as they are, and we are not liable for any damage arising from use of the platform or from interactions between users.")] },
-    { id: "changes", heading: "12. Changes to the terms", blocks: [p("We may update these terms from time to time, and we will notify you of material changes through the platform or by email.")] },
-    { id: "governing-law", heading: "13. Governing law", blocks: [p("These terms are governed by and interpreted in accordance with the laws of the Arab Republic of Egypt.")] },
-    { id: "contact", heading: "14. Contact us", blocks: [p(`If you have any question about these terms, please contact us at ${PRIVACY_CONTACT_EMAIL}.`)] },
+    {
+      id: "about",
+      heading: "1. About Aladdin",
+      blocks: [
+        p("Aladdin helps people and businesses find each other, share needs and requests, exchange quotations and follow up on projects. Aladdin is a platform that connects users. Unless we clearly say otherwise, we do not sell, supply, install or guarantee the products and services that users offer, and we are not a party to agreements made between users."),
+        p("Aladdin is currently offered as a pilot release. Features may be added, changed or removed as the service develops."),
+      ],
+    },
+    {
+      id: "eligibility",
+      heading: "2. Who can use Aladdin",
+      blocks: [
+        list(
+          "You must be at least 18 years old and able to enter into a binding agreement.",
+          "If you register or act for a business, you confirm that you are authorised to act for it, and the business is also bound by these Terms.",
+          "You may not use Aladdin if we have previously suspended or removed your account, unless we agree otherwise.",
+        ),
+      ],
+    },
+    {
+      id: "accounts",
+      heading: "3. Your account",
+      blocks: [
+        list(
+          "One person has one Aladdin account. You can sign in with email and password, phone and password, or Google or Facebook; these all lead to the same account.",
+          "Give accurate information and keep it up to date, including your name, contact details, account type and any business details.",
+          "Keep your password private and do not share your account. You are responsible for activity on your account. Tell us at once at " + PRIVACY_CONTACT_EMAIL + " if you think someone else has accessed it.",
+          "A business account is a business you create or join. People in a business act within the role and permissions the business gives them.",
+        ),
+      ],
+    },
+    {
+      id: "verification",
+      heading: "4. Verification and reviews of businesses",
+      blocks: [
+        p("We may ask businesses and professionals for information to verify them, and we may approve, limit or decline a business or profile. A verified badge means we checked the information we asked for at that time. It is not an endorsement or a guarantee of the quality of anyone's work, products or prices."),
+      ],
+    },
+    {
+      id: "dealings",
+      heading: "5. Dealings between users",
+      blocks: [
+        list(
+          "Requests, quotations, offers, prices and job posts are made by users, not by Aladdin. Check details, prices, quality, licences and delivery terms directly with the other party before you agree to anything.",
+          "Any purchase, contract, payment, delivery, installation or warranty is between you and the other user. Aladdin does not process payments between users.",
+          "If you have a dispute with another user, try to resolve it with them first. You may report it to us and we may help where we reasonably can, but we are not obliged to resolve it.",
+        ),
+      ],
+    },
+    {
+      id: "content",
+      heading: "6. Your content",
+      blocks: [
+        p("You keep ownership of the content you add, such as profile and business details, photos, products, prices, offers, requests, quotations, reviews and messages. You give Aladdin a non-exclusive, royalty-free licence to host, store, display, reproduce and adapt that content only as needed to run, show and improve the service, for as long as it is on Aladdin."),
+        p("You are responsible for your content. You confirm that you have the right to share it and that it is accurate, lawful and does not infringe anyone's rights. Reviews must reflect your real experience."),
+      ],
+    },
+    {
+      id: "acceptable-use",
+      heading: "7. Acceptable use",
+      blocks: [
+        p("You must not:"),
+        list(
+          "post false, misleading or fraudulent information, prices, reviews or business details, or pretend to be another person or business;",
+          "post illegal, offensive, harassing or discriminatory content, or content you do not have the rights to;",
+          "send spam or unsolicited advertising, or use other users' contact details for anything other than the dealing they were shared for;",
+          "collect data from Aladdin by scraping, bots or other automated means without our written permission;",
+          "try to access accounts or data that are not yours, interfere with the security or operation of Aladdin, or get around limits or protections we use;",
+          "use Aladdin in breach of any applicable law.",
+        ),
+      ],
+    },
+    {
+      id: "fees",
+      heading: "8. Fees",
+      blocks: [
+        p("Creating an account and using Aladdin's current features is free. If we introduce paid plans or features, we will show the price and terms before you choose them, and you will not be charged unless you agree."),
+      ],
+    },
+    {
+      id: "our-rights",
+      heading: "9. Aladdin's intellectual property",
+      blocks: [
+        p("The Aladdin name, logo, design and software belong to Aladdin or its licensors. You may use them only to use the service as these Terms allow."),
+      ],
+    },
+    {
+      id: "suspension",
+      heading: "10. Suspension and ending your account",
+      blocks: [
+        p(`You can stop using Aladdin at any time and ask us to delete your account as described at ${SITE_URL}/legal/data-deletion.`),
+        p("We may remove content, limit features, or suspend or close an account if we reasonably believe these Terms or the law have been broken, to protect users or the platform, or if we are required to. Where appropriate we will tell you why and how to contact us about it."),
+      ],
+    },
+    {
+      id: "disclaimers",
+      heading: "11. Disclaimers and limitation of liability",
+      blocks: [
+        p("We work to keep Aladdin available, accurate and secure, but it is provided as it is and as available. We do not guarantee that it will always be uninterrupted or error-free, or that information posted by users is correct."),
+        p("To the extent the law allows, Aladdin is not liable for indirect or consequential losses, lost profits, or losses arising from dealings between users or from content posted by users. Nothing in these Terms limits any liability that cannot be limited under Egyptian law."),
+      ],
+    },
+    {
+      id: "changes",
+      heading: "12. Changes to these Terms",
+      blocks: [
+        p("We may update these Terms. We will change the date at the top of this page, and tell you in the app or by email before an important change takes effect. If you keep using Aladdin after that, the updated Terms apply."),
+      ],
+    },
+    {
+      id: "law",
+      heading: "13. Governing law",
+      blocks: [
+        p("These Terms are governed by the laws of the Arab Republic of Egypt. Disputes that cannot be settled amicably will be decided by the competent courts of Cairo, Egypt."),
+      ],
+    },
+    {
+      id: "contact",
+      heading: "14. Contact us",
+      blocks: [p(`Email ${PRIVACY_CONTACT_EMAIL} with any question about these Terms. Our Privacy Policy at ${SITE_URL}/legal/privacy explains how we handle your data.`)],
+    },
   ],
 };
 
@@ -514,25 +619,131 @@ const termsAr: LegalDocument = {
   writeToUs: "راسلنا على",
   contactLabel: "تواصل معنا",
   updatedAt: "2026-10-18",
-  notice: "مسودة قيد المراجعة القانونية — هذا النص غير نهائي.",
   aside: "نبني بيئة أكثر موثوقية واحترافية لقطاع التصميم الداخلي والديكور.",
   intro:
-    "توضح هذه الشروط القواعد التي تنظم استخدامك لمنصة علاء الدين وخدماتها، بما يضمن تجربة آمنة وموثوقة وعادلة لجميع المستخدمين.",
+    "تنظّم هذه الشروط استخدامك لعلاء الدين، الموقع والتطبيق على aladdindecore.com الذي يربط المعارض والموردين والمصنّعين والمستوردين والمقاولين والمهندسين والصنايعية وعملاءهم في قطاع التشطيبات والبناء والتصميم الداخلي في مصر. بإنشاء حساب أو استخدام علاء الدين فإنك توافق على هذه الشروط وعلى سياسة الخصوصية.",
   sections: [
-    { id: "about", heading: "١. تعرّف على علاء الدين", blocks: [p("علاء الدين منصة رقمية تربط بين أصحاب الأنشطة التجارية والمصممين والموردين في مجال التصميم الداخلي والديكور.")] },
-    { id: "who-can-use", heading: "٢. من يمكنه استخدام علاء الدين", blocks: [p("يُتاح استخدام المنصة للأفراد والجهات المؤهلة وفقًا للمتطلبات المعمول بها. ويجب أن يكون عمرك ١٨ عامًا أو أكثر.")] },
-    { id: "account", heading: "٣. حسابك", blocks: [p("أنت مسؤول عن الحفاظ على سرية حسابك وبيانات الدخول الخاصة بك وجميع الأنشطة التي تتم من خلاله.")] },
-    { id: "verification", heading: "٤. توثيق الأنشطة التجارية ومحتواها", blocks: [p("نقوم بمراجعة وتوثيق الأنشطة التجارية لضمان الموثوقية والجودة في المنصة.")] },
-    { id: "dealing", heading: "٥. التعامل مع المستخدمين", blocks: [p("عند التعامل مع أطراف آخرين عبر المنصة، فإنك توافق على أن ذلك يتم بطرق آمنة ومحترمة وبما يتماشى مع القوانين المعمول بها.")] },
-    { id: "content", heading: "٦. المحتوى الذي تنشره", blocks: [p("أنت تحتفظ بكافة حقوق المحتوى الذي تنشره على المنصة، وتمنحنا ترخيصًا محدودًا لاستخدامه في إطار تقديم الخدمات.")] },
-    { id: "acceptable-use", heading: "٧. الاستخدام المقبول", blocks: [p("يجب استخدام المنصة بطريقة قانونية وأخلاقية، وعدم إساءة استخدامها أو نشر أي محتوى ضار أو مضلل.")] },
-    { id: "fees", heading: "٨. الرسوم", blocks: [p("قد تتطلب بعض الخدمات رسومًا يتم توضيحها بشكل شفاف قبل الاشتراك أو إتمام عملية معينة.")] },
-    { id: "intellectual-property", heading: "٩. الملكية الفكرية", blocks: [p("جميع حقوق الملكية الفكرية الخاصة بالمنصة ومحتواها مملوكة لعلاء الدين أو لأصحاب حقوقها المعنيين.")] },
-    { id: "termination", heading: "١٠. إنهاء الحساب", blocks: [p("يحق لنا إيقاف أو إنهاء أي حساب في حال مخالفة هذه الشروط أو القوانين المعمول بها.")] },
-    { id: "disclaimer", heading: "١١. إخلاء المسؤولية", blocks: [p("نقدم خدماتنا كما هي، ولا نتحمل مسؤولية أي أضرار ناتجة عن استخدام المنصة أو التفاعلات بين المستخدمين.")] },
-    { id: "changes", heading: "١٢. التغييرات على الشروط", blocks: [p("قد نقوم بتحديث هذه الشروط من وقت لآخر، وسيتم إشعارك بالتغييرات الجوهرية من خلال المنصة أو عبر البريد الإلكتروني.")] },
-    { id: "governing-law", heading: "١٣. القانون الواجب التطبيق", blocks: [p("تخضع هذه الشروط وتُفسَّر وفقًا لقوانين جمهورية مصر العربية.")] },
-    { id: "contact", heading: "١٤. تواصل معنا", blocks: [p(`إذا كان لديك أي استفسار حول هذه الشروط، يرجى التواصل معنا عبر ${PRIVACY_CONTACT_EMAIL}.`)] },
+    {
+      id: "about",
+      heading: "١. عن علاء الدين",
+      blocks: [
+        p("يساعد علاء الدين الأفراد والأنشطة التجارية على الوصول إلى بعضهم، وعرض الاحتياجات والطلبات، وتبادل عروض الأسعار، ومتابعة المشروعات. علاء الدين منصة تربط بين المستخدمين؛ وما لم نذكر غير ذلك صراحةً فنحن لا نبيع أو نورّد أو نركّب أو نضمن المنتجات والخدمات التي يقدّمها المستخدمون، ولسنا طرفًا في الاتفاقات التي تتم بينهم."),
+        p("يُقدَّم علاء الدين حاليًا كإصدار تجريبي، وقد تُضاف خصائص أو تتغير أو تُزال مع تطور الخدمة."),
+      ],
+    },
+    {
+      id: "eligibility",
+      heading: "٢. من يمكنه استخدام علاء الدين",
+      blocks: [
+        list(
+          "يجب ألا يقل عمرك عن ١٨ عامًا وأن تكون أهلًا لإبرام اتفاق ملزم.",
+          "إذا سجّلت نشاطًا تجاريًا أو تصرفت نيابةً عنه فأنت تؤكد أنك مخوّل بذلك، ويلتزم النشاط أيضًا بهذه الشروط.",
+          "لا يجوز لك استخدام علاء الدين إذا سبق أن أوقفنا حسابك أو أزلناه، إلا إذا وافقنا على غير ذلك.",
+        ),
+      ],
+    },
+    {
+      id: "accounts",
+      heading: "٣. حسابك",
+      blocks: [
+        list(
+          "لكل شخص حساب واحد في علاء الدين. يمكنك الدخول بالبريد الإلكتروني وكلمة المرور، أو رقم الهاتف وكلمة المرور، أو Google أو Facebook، وكلها تؤدي إلى الحساب نفسه.",
+          "قدّم معلومات صحيحة وحدّثها باستمرار، بما فيها اسمك وبيانات التواصل ونوع الحساب وبيانات النشاط التجاري.",
+          "حافظ على سرية كلمة المرور ولا تشارك حسابك مع غيرك؛ فأنت مسؤول عن النشاط الذي يتم من خلاله. أبلغنا فورًا على " + PRIVACY_CONTACT_EMAIL + " إذا شككت أن أحدًا دخل إلى حسابك.",
+          "حساب النشاط التجاري هو نشاط تنشئه أو تنضم إليه، ويتصرف أعضاؤه في حدود الدور والصلاحيات التي يمنحها لهم النشاط.",
+        ),
+      ],
+    },
+    {
+      id: "verification",
+      heading: "٤. توثيق الأنشطة التجارية ومراجعتها",
+      blocks: [
+        p("قد نطلب من الأنشطة التجارية والمهنيين معلومات لتوثيقهم، وقد نقبل نشاطًا أو ملفًا أو نقيّده أو نرفضه. شارة التوثيق تعني أننا تحققنا من المعلومات التي طلبناها في ذلك الوقت، ولا تعني تزكية أو ضمانًا لجودة عمل أي أحد أو منتجاته أو أسعاره."),
+      ],
+    },
+    {
+      id: "dealings",
+      heading: "٥. التعامل بين المستخدمين",
+      blocks: [
+        list(
+          "الطلبات وعروض الأسعار والعروض والأسعار وإعلانات الوظائف يقدّمها المستخدمون وليس علاء الدين. تحقق من التفاصيل والأسعار والجودة والتراخيص وشروط التسليم مباشرةً مع الطرف الآخر قبل الاتفاق على أي شيء.",
+          "أي شراء أو تعاقد أو دفع أو تسليم أو تركيب أو ضمان يكون بينك وبين المستخدم الآخر. لا يتولى علاء الدين تحصيل المدفوعات بين المستخدمين.",
+          "إذا نشأ خلاف مع مستخدم آخر فحاول حله معه أولًا. يمكنك إبلاغنا به، وقد نساعد قدر استطاعتنا، لكننا غير ملزمين بحله.",
+        ),
+      ],
+    },
+    {
+      id: "content",
+      heading: "٦. المحتوى الخاص بك",
+      blocks: [
+        p("تظل مالكًا للمحتوى الذي تضيفه، مثل بيانات الملف والنشاط والصور والمنتجات والأسعار والعروض والطلبات وعروض الأسعار والتقييمات والرسائل. وتمنح علاء الدين ترخيصًا غير حصري وبدون مقابل لاستضافة هذا المحتوى وتخزينه وعرضه ونسخه وتعديل شكله فقط بالقدر اللازم لتشغيل الخدمة وعرضها وتحسينها، طوال وجوده على علاء الدين."),
+        p("أنت مسؤول عن المحتوى الخاص بك، وتؤكد أن لك الحق في نشره وأنه صحيح وقانوني ولا يعتدي على حقوق أحد. ويجب أن تعكس التقييمات تجربتك الحقيقية."),
+      ],
+    },
+    {
+      id: "acceptable-use",
+      heading: "٧. الاستخدام المقبول",
+      blocks: [
+        p("لا يجوز لك:"),
+        list(
+          "نشر معلومات أو أسعار أو تقييمات أو بيانات نشاط كاذبة أو مضللة أو احتيالية، أو انتحال صفة شخص أو نشاط آخر؛",
+          "نشر محتوى غير قانوني أو مسيء أو فيه تحرش أو تمييز، أو محتوى لا تملك حقوقه؛",
+          "إرسال رسائل مزعجة أو إعلانات غير مطلوبة، أو استخدام بيانات تواصل المستخدمين الآخرين لغير التعامل الذي شاركوها من أجله؛",
+          "جمع البيانات من علاء الدين بالنسخ الآلي أو البرامج الآلية أو أي وسيلة آلية دون إذن كتابي منا؛",
+          "محاولة الوصول إلى حسابات أو بيانات ليست لك، أو التأثير على أمان علاء الدين أو تشغيله، أو التحايل على الحدود أو وسائل الحماية التي نستخدمها؛",
+          "استخدام علاء الدين بما يخالف أي قانون معمول به.",
+        ),
+      ],
+    },
+    {
+      id: "fees",
+      heading: "٨. الرسوم",
+      blocks: [
+        p("إنشاء الحساب واستخدام خصائص علاء الدين الحالية مجاني. وإذا أضفنا باقات أو خصائص مدفوعة فسنعرض السعر والشروط قبل أن تختارها، ولن يُخصم منك أي مبلغ دون موافقتك."),
+      ],
+    },
+    {
+      id: "our-rights",
+      heading: "٩. الملكية الفكرية لعلاء الدين",
+      blocks: [
+        p("اسم علاء الدين وشعاره وتصميمه وبرمجياته مملوكة لعلاء الدين أو للجهات المرخِّصة لها، ولا يجوز لك استخدامها إلا لاستخدام الخدمة كما تسمح هذه الشروط."),
+      ],
+    },
+    {
+      id: "suspension",
+      heading: "١٠. إيقاف الحساب وإنهاؤه",
+      blocks: [
+        p(`يمكنك التوقف عن استخدام علاء الدين في أي وقت وطلب حذف حسابك كما هو موضح على ${SITE_URL}/legal/data-deletion.`),
+        p("قد نزيل محتوى أو نقيّد خصائص أو نوقف حسابًا أو نغلقه إذا اعتقدنا بشكل معقول أن هذه الشروط أو القانون قد خولفت، أو لحماية المستخدمين أو المنصة، أو إذا أُلزمنا بذلك. وعند الاقتضاء سنوضح لك السبب وكيف تتواصل معنا بشأنه."),
+      ],
+    },
+    {
+      id: "disclaimers",
+      heading: "١١. إخلاء المسؤولية وحدودها",
+      blocks: [
+        p("نعمل على أن يكون علاء الدين متاحًا ودقيقًا وآمنًا، لكنه يُقدَّم بحالته وحسب إتاحته، ولا نضمن أن يعمل دائمًا دون انقطاع أو أخطاء، أو أن تكون المعلومات التي ينشرها المستخدمون صحيحة."),
+        p("في الحدود التي يسمح بها القانون، لا يتحمل علاء الدين المسؤولية عن الخسائر غير المباشرة أو التبعية أو فوات الأرباح، أو الخسائر الناتجة عن التعامل بين المستخدمين أو عن المحتوى الذي ينشرونه. ولا يحدّ أي شيء في هذه الشروط من مسؤولية لا يجوز الحد منها وفق القانون المصري."),
+      ],
+    },
+    {
+      id: "changes",
+      heading: "١٢. التغييرات على هذه الشروط",
+      blocks: [
+        p("قد نحدّث هذه الشروط، وعندها سنغيّر التاريخ أعلى الصفحة ونبلغك داخل التطبيق أو بالبريد قبل سريان أي تغيير جوهري. واستمرارك في استخدام علاء الدين بعد ذلك يعني سريان الشروط المحدّثة."),
+      ],
+    },
+    {
+      id: "law",
+      heading: "١٣. القانون الواجب التطبيق",
+      blocks: [
+        p("تخضع هذه الشروط لقوانين جمهورية مصر العربية، وتختص محاكم القاهرة المختصة بنظر أي نزاع لا يُحل وديًا."),
+      ],
+    },
+    {
+      id: "contact",
+      heading: "١٤. تواصل معنا",
+      blocks: [p(`راسلنا على ${PRIVACY_CONTACT_EMAIL} لأي سؤال عن هذه الشروط. وتوضح سياسة الخصوصية على ${SITE_URL}/legal/privacy كيف نتعامل مع بياناتك.`)],
+    },
   ],
 };
 const DOCUMENTS = {

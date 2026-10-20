@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithI18n } from "@/test/render";
 import { LegalDocumentView, headingText, sectionSummary } from "./legal-document";
@@ -32,13 +32,14 @@ describe("published legal documents", () => {
     expect(document.querySelectorAll("main details")).toHaveLength(0);
   });
 
-  it.each(["en", "ar"] as const)("renders the %s Terms of Service, flagged as a draft pending legal review", (locale) => {
+  it.each(["en", "ar"] as const)("renders the %s Terms of Service in the approved layout, with the contact email and a link to privacy", (locale) => {
     const doc = legalDocument("terms", locale);
     renderWithI18n(<LegalDocumentView documentKey="terms" />, locale);
     expect(screen.getByRole("heading", { level: 1, name: doc.title })).toBeInTheDocument();
-    expect(doc.sections).toHaveLength(14);
-    expect(document.querySelectorAll("main details")).toHaveLength(14);
-    expect(within(screen.getByRole("note")).getByText(doc.notice!)).toBeInTheDocument();
+    expect(doc.sections.length).toBeGreaterThan(0);
+    expect(document.querySelectorAll("main details")).toHaveLength(doc.sections.length);
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(screen.getAllByText(new RegExp(PRIVACY_CONTACT_EMAIL)).length).toBeGreaterThan(0);
     expect(document.querySelector('a[href="/legal/privacy"]')).toBeInTheDocument();
   });
 
