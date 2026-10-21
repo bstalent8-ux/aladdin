@@ -15,10 +15,18 @@
 # Runtime secrets (service-role key, R2 keys, ticket secret, Redis REST token, ...) are NOT in GitHub: an operator
 # sets them once on the Worker with `wrangler secret put --env preview` (the guide lists them).
 
+# The Supabase URL and anon key default to the isolated acceptance project (both are public values).
+#
+# Runs on pushes to the migration branch as well as manually: GitHub only offers the manual button for
+# workflows on the default branch, and this one stays off `main` until the migration is accepted.
+
 name: Cloudflare frontend preview
 
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/cloudflare-workers-2ibvgs]
+    paths: ["frontend/**", ".github/workflows/cloudflare-frontend-preview.yml"]
 
 concurrency:
   group: cloudflare-frontend-preview
@@ -34,8 +42,9 @@ jobs:
     environment: cloudflare-preview
     env:
       NEXT_PUBLIC_APP_ENV: staging
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # aladdin-r2-acceptance (nxossqhdfltcqdwvbewi) unless the environment overrides it.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://nxossqhdfltcqdwvbewi.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54b3NzcWhkZmx0Y3Fkd3ZiZXdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3MjYxMjMsImV4cCI6MjEwNzMwMjEyM30.bhRRGiQK3astY9HTAUKlQBtPKuqKvPGbOycoVo9QT64' }}
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -63,4 +72,18 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler deploy --env preview
+        # Server code reads the public Supabase values at runtime too.
+        run: |
+          pnpm exec wrangler deploy --env preview \
+            --var "NEXT_PUBLIC_SUPABASE_URL:$NEXT_PUBLIC_SUPABASE_URL" \
+            --var "NEXT_PUBLIC_SUPABASE_ANON_KEY:$NEXT_PUBLIC_SUPABASE_ANON_KEY" | tee "$RUNNER_TEMP/deploy.log"
+          grep -oE 'https://[a-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/deploy.log" | head -1 > "$RUNNER_TEMP/preview-url"
+      - name: Smoke check the preview
+        if: vars.CLOUDFLARE_PREVIEW_ENABLED == 'true'
+        run: |
+          url=$(cat "$RUNNER_TEMP/preview-url")
+          echo "Preview: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          for path in /api/health / /auth/sign-in /legal/terms /showroom; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url$path" || true)
+            echo "$path -> $code" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
