@@ -1,0 +1,18 @@
+        k         |                h                 |  len   
+------------------+----------------------------------+--------
+ buckets          | 88b2744e8e709e59fae2602a0f65cbc9 |    489
+ columns          | 3c8dc40fde38c4320794363572b249b8 |  78476
+ constraints      | 2b05bd212bd0d4963fff31acfb8a782d | 109674
+ default_acl      | 4c62674cb950aa5b4a0005e9f6626e94 |    708
+ functions        | d822072e7a9c96ca27e68dee7b305e9e | 102198
+ indexes          | 0da34e444f028b7e4e02b4af3a8695a6 |  42603
+ policies         | 944bdb3334299a3c48dfe865a1c3d047 |  30779
+ rls              | 0e0c8674c48a680a5ef47bb87482f940 |   3431
+ roles            | 43e42e414d7b118117a47ffda2814eea |     14
+ seeded_rowcounts | 5a3cd5dd0f519829567ad86616586023 |    202
+ table_acl        | 3ad6de4e6395e55d9352af923add2f90 |  13547
+ triggers         | ca6134adbaef798da22edd28321a4547 |  28419
+ types            | 5bdfd377b7e3892adde6b407c70fc11a |   3525
+ views            | ab7fd8ac5b7e7686fc1e05d30d6b9ed3 |   2316
+(14 rows)
+
