@@ -6,8 +6,8 @@
 
 ## Decision
 
-1. **Adapter: OpenNext (`@opennextjs/cloudflare` 1.20.12)**, which runs the output of the real `next build` in the Workers runtime. Not vinext.
-2. **Next.js 15.5.22 → 15.5.28** (patch, the adapter's minimum). No Next.js 16 upgrade.
+1. **Adapter: OpenNext (`@opennextjs/cloudflare` 1.20.13)**, which runs the output of the real `next build` in the Workers runtime. Not vinext.
+2. **Next.js 15.5.22 → 16.4.2** (owner decision, 2026-10-21). Next.js 15's two-year support window ended on 2026-10-21, and OpenNext refuses an unsupported version without an override flag. The owner chose the upgrade over the flag. See "Next.js 16 upgrade" below.
 3. **Middleware runs on the Edge runtime on Workers** and stays on the Node runtime on Vercel. `pnpm cf:build` switches the one `runtime` line for the Workers build and restores it.
 4. **One Worker entry (`frontend/cloudflare/worker.ts`)** wraps the OpenNext handler. It does what the Vercel platform did:
    - forwards `/api/backend/*` to `BACKEND_ORIGIN` (FastAPI), same path and headers, so browsers stay same-origin;
@@ -17,6 +17,15 @@
    - images: sharp on Node, the Cloudflare Images binding on Workers;
    - Redis: TCP on Node, Upstash REST on Workers. TCP is refused on Workers, because a socket cannot be reused across requests there.
 6. **Vercel stays deployable and untouched** until final acceptance. Both builds run in CI.
+
+## Next.js 16 upgrade (2026-10-21)
+
+What changed, for both hosts:
+- **Bundler:** `next build` defaults to Turbopack in 16. The build stays on webpack (`next build --webpack`), because the Workers build swaps the image engine with a webpack plugin in `next.config.ts`. Moving to Turbopack is a separate change.
+- **Middleware:** 16 deprecates `middleware.ts` in favour of `proxy.ts`, which is Node-only. The Workers build needs Edge middleware, so the file keeps its name; the build prints a deprecation warning only.
+- **ESLint:** `eslint-config-next` 16 is a native flat config, so `FlatCompat` (`@eslint/eslintrc`) is gone. It also turns on the React Compiler rules of `eslint-plugin-react-hooks` 7. Code written before the upgrade breaks 44 of them, so they warn until a cleanup PR fixes them.
+- **TypeScript:** `next build` set `jsx: "react-jsx"` and added `.next/dev/types` to `tsconfig.json`; `next-env.d.ts` now imports the route types.
+- **No source changes were needed** for async request APIs, images, caching or routing: typecheck is clean and the 4,065 unit tests pass unchanged. React stays 19.2.8.
 
 ## Why OpenNext and not vinext
 

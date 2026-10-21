@@ -4,7 +4,7 @@
  *
  * The one source difference between the two hosts is the middleware runtime:
  *   * Vercel Services cannot host Edge output, so `src/middleware.ts` declares
- *     `runtime = "nodejs"` (the Vercel build, `next build`, is untouched).
+ *     `runtime = "nodejs"` (the Vercel build, `next build --webpack`, is untouched).
  *   * On Workers, Node.js middleware is experimental and unsupported by OpenNext
  *     and Cloudflare; Edge middleware is the supported path. The middleware only
  *     uses WebCrypto, fetch and cookies, so it is Edge-compatible as written.
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const middleware = fileURLToPath(new URL("../src/middleware.ts", import.meta.url));
 const NODE = 'export const runtime = "nodejs";';
-// Next.js 15 spells the Edge runtime this way inside middleware ("edge" is rejected).
+// Next.js 15 and 16 spell the Edge runtime this way inside middleware ("edge" is rejected).
 const EDGE = 'export const runtime = "experimental-edge";';
 
 const original = readFileSync(middleware, "utf8");

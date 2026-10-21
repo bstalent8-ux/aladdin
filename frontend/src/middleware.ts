@@ -149,7 +149,9 @@ export async function middleware(request: NextRequest) {
 // need for the Edge runtime: it verifies a JWT with WebCrypto, makes at most a
 // token refresh / admin getUser() / status RPC round trip to Supabase, and
 // reads/writes cookies — all of which the Node runtime supports.
-// Node.js middleware is stable as of Next.js 15.5 (installed: 15.5.22).
+// Node.js middleware is stable as of Next.js 15.5. Next 16 deprecates the file name in
+// favour of `proxy.ts`, which is Node-only; the Workers build needs this file on the Edge
+// runtime (scripts/build-cloudflare.mjs), so it stays `middleware.ts` for now.
 export const runtime = "nodejs";
 
 export const config = {
