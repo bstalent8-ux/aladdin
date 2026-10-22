@@ -11,7 +11,7 @@
 -- pgrst_hooks.pre_request) also asks `app.jwt_session_is_live()`: the token's
 -- `session_id` must still exist in auth.sessions for the same user, not be past its
 -- `not_after`, and the user must be neither deleted nor banned. It is the same rule
--- media_edge_authorize already applies (20261019100000). One primary-key lookup per
+-- media_edge_authorize already applies (20261021090009). One primary-key lookup per
 -- request, inside the hook that already runs on every request.
 --
 -- `my_account_status` stays reachable, as for suspension, and now reports

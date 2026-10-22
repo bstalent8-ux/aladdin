@@ -1,6 +1,6 @@
 -- Session revocation beyond the Data API: Supabase Storage and Realtime.
 --
--- 20261019140000 made PostgREST refuse a signed-out, banned or deleted session on its
+-- 20261021090013 made PostgREST refuse a signed-out, banned or deleted session on its
 -- next request, through the db_pre_request hook. That hook runs only in PostgREST.
 -- Two other Supabase services accept the same access token and evaluate RLS as
 -- `authenticated` without it, so an ended session kept working there until the JWT

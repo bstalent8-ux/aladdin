@@ -8,6 +8,9 @@
 -- ones, and a business filter (Showroom, Supplier, ...) was not accepted at all, so the page silently
 -- showed everyone.
 --
+-- Ordered after 20261020090001_registration_data_sync (main): rows and the detail keep its
+-- `registered_account` key (app.registered_account), so Admin readers written for either shape agree.
+--
 -- THE FIX (read-only functions; no table, data, grant or policy changes):
 --   1. app.user_account_type(user) derives the one account a person registered as, from what the
 --      database already holds, in this order:
@@ -203,7 +206,7 @@ begin
       'username', p.username,
       'email', app.user_facing_email(au.email),
       'phone', p.phone_e164,
-      'account_type', app.user_account_type(u.id),
+      'account_type', app.user_account_type(u.id), 'registered_account', app.registered_account(u.id),
       'status', u.status,
       'is_verified', u.is_verified,
       'created_at', u.created_at,
@@ -310,7 +313,7 @@ begin
     'bio', p.bio,
     'email', app.user_facing_email(au.email),
     'phone', p.phone_e164,
-    'account_type', app.user_account_type(u.id),
+    'account_type', app.user_account_type(u.id), 'registered_account', app.registered_account(u.id),
     'status', u.status,
     'is_verified', u.is_verified,
     'locale', u.locale,

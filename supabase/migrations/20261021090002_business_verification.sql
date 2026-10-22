@@ -14,7 +14,7 @@
 --                                             contact visibility, public directory listing) are unchanged.
 --        organizations.business_verified_at   NEW: set ONLY by an approved business verification. Every
 --                                             user-facing "verified" OUTPUT below now reads it.
---   2. verification_type 'business' (20261017160000): an ACTIVE organization's org.manage holder submits it
+--   2. verification_type 'business' (20261021090001): an ACTIVE organization's org.manage holder submits it
 --      with at least one document; one open request per organization; history is kept forever.
 --   3. Documents live in a PRIVATE bucket, keyed <org>/<uuid>.<ext>. Only the organization's org.manage
 --      holders and Admin verification reviewers can read them; nobody can overwrite them; a document is

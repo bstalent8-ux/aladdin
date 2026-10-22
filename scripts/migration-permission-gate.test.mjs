@@ -4,8 +4,9 @@ import {spawn} from 'node:child_process';
 import {client,contract,inventory,compare,apply,assertAtomic} from './migration-permission-gate.mjs';
 const container=process.env.PERMISSION_TEST_CONTAINER;
 test('transaction boundaries cannot bypass gate',()=>{
- for(const s of ['COMMIT;','/* nested /* comment */ */ END;','START TRANSACTION;','\\i other.sql','PREPARE TRANSACTION \'x\';'])assert.throws(()=>assertAtomic(s));
+ for(const s of ['COMMIT;','/* nested /* comment */ */ END;','START TRANSACTION;','\\i other.sql','PREPARE TRANSACTION \'x\';','select 1;\n  begin isolation level serializable;','select 1; end'])assert.throws(()=>assertAtomic(s));
  assert.doesNotThrow(()=>assertAtomic("DO $x$ BEGIN RAISE NOTICE 'COMMIT'; END $x$; -- COMMIT\n select 'begin';"));
+ assert.doesNotThrow(()=>assertAtomic("update t set a = case when b ~ '^x$' then b end, c = case when d then 1 else 2 end where true;"));
 });
 test('exact signatures and actionable privilege errors',()=>{
  const c=contract();const wrong=structuredClone(c);wrong[0].effective.anon=!wrong[0].effective.anon;
