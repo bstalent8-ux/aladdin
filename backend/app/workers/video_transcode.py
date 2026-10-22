@@ -642,17 +642,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"purged": purge(jobs, store, limit=500)}))
         return 0
     redis_client = None
-    if settings.redis_url:
-        import redis
+    if settings.redis_active_url:
+        from app.coordination import connect
 
-        # A blocking pop needs a socket timeout longer than its own wait.
-        redis_client = redis.Redis.from_url(
-            settings.redis_url,
-            socket_connect_timeout=2,
-            socket_timeout=45,
-            health_check_interval=30,
-        )
-    loop(jobs, store, redis_client, queue_key(settings.redis_key_env or settings.app_env))
+        # The budget-tuned handshake (no CLIENT SETINFO, no health-check PING):
+        # idle, the worker costs one BLPOP per wait (ADR-0019 command estimate).
+        redis_client = connect(settings.redis_active_url, socket_timeout=45)
+    loop(jobs, store, redis_client, queue_key(settings.redis_namespace))
     return 0
 
 
