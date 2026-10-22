@@ -2,7 +2,7 @@
 
 **Status:** Proposed · 2026-10-22 · owner brief "complete Aladdin's infrastructure migration from Vercel to Cloudflare … FastAPI" (section 8: prefer Cloudflare Containers, evaluate Python Workers, a managed container only as a fallback). **Needs owner approval** for every hosted step: the preview deploy, Workers Paid (already required by [ADR-0021](ADR-0021-cloudflare-workers-frontend.md)), the production deploy and the cutover.
 
-**Refines:** [ADR-0009](ADR-0009-vercel-services-deployment.md) (Vercel Services hosts both services) for the **backend**, as ADR-0021 did for the frontend. After cutover FastAPI runs in a Cloudflare Container; until then Vercel keeps serving it and stays the rollback. [ADR-0001](ADR-0001-approved-architecture.md) is unchanged: FastAPI is still the specialized AI/document/worker service, not the CRUD backend, and the app code is the same on every host.
+**Refines:** [ADR-0009](ADR-0009-vercel-services-deployment.md) (Vercel Services hosts both services) for the **backend**, as ADR-0021 did for the frontend. After cutover FastAPI runs in a Cloudflare Container; until then Vercel keeps serving it and stays the rollback. **Supersedes in part** [ADR-0021](ADR-0021-cloudflare-workers-frontend.md): its "FastAPI stays on Vercel" and "Not decided here: the FastAPI migration" lines are decided here; the rest of ADR-0021 stands. [ADR-0001](ADR-0001-approved-architecture.md) is unchanged: FastAPI is still the specialized AI/document/worker service, not the CRUD backend, and the app code is the same on every host.
 
 ## Decision
 
