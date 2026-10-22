@@ -1,12 +1,11 @@
 import { cookies } from "next/headers";
 import { LOCALE_COOKIE, resolveLocale, directionFor } from "@/lib/i18n/config";
 import { I18nMessagesProvider } from "@/lib/i18n/context";
-import { pickMessages } from "@/lib/i18n/translate";
 import { LandingHero } from "@/features/landing-preview/landing-hero";
 import { LandingEcosystem } from "@/features/landing-preview/landing-ecosystem";
 import { LandingMarketplaceGate } from "@/features/landing-marketplace/landing-marketplace-gate";
 import { LandingMotion } from "@/features/landing-preview/landing-motion";
-import { LANDING_MESSAGE_NAMESPACES } from "@/features/landing-preview/landing-messages";
+import { landingMessages } from "@/features/landing-preview/landing-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +29,7 @@ export default async function RootPage() {
     <I18nMessagesProvider
       locale={locale}
       dir={directionFor(locale)}
-      messages={pickMessages(locale, LANDING_MESSAGE_NAMESPACES)}
+      messages={landingMessages(locale)}
     >
       <LandingMotion>
         <LandingHero />
