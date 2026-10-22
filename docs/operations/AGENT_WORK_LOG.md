@@ -6806,3 +6806,11 @@ Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
 Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.
 
 Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](https://github.com/hmohamed080/aladdin/pull/84) verified OPEN/DRAFT targeting main. Additional journey rerun aborted due stalled Docker, not counted as pass; final non-mutating contrast/layout2/2passed and typecheckpassed. Preview3341HTTP200, localAPI63321; original14hashesunchanged. External untracked frontend/e2e/auth-captcha.spec.ts appeared and remains excluded/preserved. No merge/deployment/worktree cleanup. Native quota and direct contact metadata remain merge blockers.
+
+## 2026-10-22 — FastAPI on Cloudflare Containers (ADR-0022, draft PR)
+
+- Built `edge/backend-worker` (Worker + `BackendContainer`, `@cloudflare/containers` 0.3.7) on top of #97; optional `BACKEND` service binding in the frontend proxy (agreed with the #97 thread); backend fails closed on Cloudflare without `APP_ENV`; Dockerfile compiles bytecode, pins uv, fixes the health-check path.
+- Measured locally: 59 MB RSS; ready in 26.5 s on 1/16 vCPU and 4.5 s on 1/4 vCPU (41.1 s / 8.2 s before bytecode); binding → container 200 through `wrangler dev`.
+- **Unfinished:** preview deploy and real cold-start/latency numbers (owner approval, Workers Paid); bind `BACKEND` in `frontend/wrangler.jsonc` after the backend preview exists; production at cutover.
+- Sandbox notes: Docker Hub rate-limits (use `mirror.gcr.io/library/...`), ghcr blobs are blocked, builds need a local base image that trusts the proxy CA (never shipped); `wrangler dev` with containers works with `dockerd` started by hand.
+

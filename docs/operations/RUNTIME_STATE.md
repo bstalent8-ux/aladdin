@@ -1,5 +1,10 @@
 # Runtime State
 
+## FastAPI on Cloudflare Containers (draft PR, ADR-0022) — 2026-10-22
+
+- Branch `claude/project-thread-ea9qxg`, stacked on the frontend Workers branch `claude/cloudflare-workers-2ibvgs` (#97). New Worker `edge/backend-worker` (`aladdin-backend`, environments `preview`/`production`) runs `backend/Dockerfile` in a Cloudflare Container; the frontend Worker prefers a `BACKEND` service binding over `BACKEND_ORIGIN`. **Nothing is deployed**; the frontend `wrangler.jsonc` does not bind `BACKEND` yet, so behaviour is unchanged; Vercel still serves FastAPI.
+- Pending owner approval: the preview deploy on the acceptance project, then production at cutover. Costs and measurements in ADR-0022.
+
 ## Cloudflare Workers frontend (draft PR, ADR-0021) — 2026-10-20
 
 - Branch `claude/cloudflare-workers-2ibvgs` (stacked on the video branch): the frontend also builds for Cloudflare Workers with OpenNext (`pnpm cf:build`), runs in workerd locally, and CI builds both. **Nothing is deployed to Cloudflare**; Vercel still serves `aladdindecore.com` and FastAPI; DNS is still on Vercel nameservers.
