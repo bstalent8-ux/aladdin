@@ -1,5 +1,10 @@
 # Runtime State
 
+## Cloudflare migration, PR #97 — 2026-10-22 (later)
+
+- Branch `claude/cloudflare-workers-2ibvgs`: Next.js 16.4.2; R2/DNS/cutover, cost, security, Redis and video audits merged in. Status report and GO/NO-GO: [cloudflare-migration-status-2026-10-22.md](cloudflare-migration-status-2026-10-22.md). **Production NO-GO.**
+- Preview Worker `aladdin-frontend-preview` is deployed but unreachable (workers.dev TLS certificate not issued). Vercel still serves everything; DNS unchanged.
+
 ## Cloudflare R2, credentials, DNS and 15-stage cutover (read-only audit) — 2026-10-22
 
 - Branch `claude/cf-r2-cutover-2ibvgs` (local, from PR #97 `claude/cloudflare-workers-2ibvgs`), docs only. Nothing hosted was changed.
