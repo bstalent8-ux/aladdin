@@ -27,6 +27,12 @@ export const cacheEnvSchema = z.object({
   APP_ENV: z.enum(["local", "staging", "production"]).default("local"),
 }).superRefine((env, ctx) => {
   if (!env.REDIS_CACHE_ENABLED) return;
+  // Each deployed environment names its own key namespace, so two deployments
+  // that share one database (Vercel Preview and the Workers preview are both
+  // "staging") can never read each other's entries.
+  if (env.APP_ENV !== "local" && !env.REDIS_KEY_ENV) {
+    ctx.addIssue({ code: "custom", path: ["REDIS_KEY_ENV"], message: "REDIS_KEY_ENV is required outside local when REDIS_CACHE_ENABLED=true" });
+  }
   if (Boolean(env.REDIS_REST_URL) !== Boolean(env.REDIS_REST_TOKEN)) {
     ctx.addIssue({ code: "custom", path: [env.REDIS_REST_URL ? "REDIS_REST_TOKEN" : "REDIS_REST_URL"], message: "REDIS_REST_URL and REDIS_REST_TOKEN are set together" });
   }

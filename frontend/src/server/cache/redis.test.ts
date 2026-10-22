@@ -29,10 +29,19 @@ describe("cache settings", () => {
     expect(() => cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true" })).toThrow();
   });
   it("requires TLS for hosted Redis but allows loopback", () => {
-    expect(() => cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "redis://cache.example.com:6379", APP_ENV: "production" })).toThrow();
-    expect(cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "rediss://default:x@cache.example.com:6379", APP_ENV: "production" }).REDIS_URL).toContain("rediss://");
-    expect(cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "redis://127.0.0.1:6379", APP_ENV: "staging" }).REDIS_CACHE_ENABLED).toBe(true);
+    const keyEnv = { REDIS_KEY_ENV: "production" };
+    expect(() => cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "redis://cache.example.com:6379", APP_ENV: "production", ...keyEnv })).toThrow(/TLS/);
+    expect(cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "rediss://default:x@cache.example.com:6379", APP_ENV: "production", ...keyEnv }).REDIS_URL).toContain("rediss://");
+    expect(cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "redis://127.0.0.1:6379", APP_ENV: "staging", ...keyEnv }).REDIS_CACHE_ENABLED).toBe(true);
     expect(() => cacheEnvSchema.parse({ REDIS_CACHE_ENABLED: "true", REDIS_URL: "http://127.0.0.1:6379" })).toThrow();
+  });
+  it("requires each deployed environment to name its own key namespace", () => {
+    const on = { REDIS_CACHE_ENABLED: "true", REDIS_URL: "rediss://default:x@cache.example.com:6379" };
+    expect(() => cacheEnvSchema.parse({ ...on, APP_ENV: "staging" })).toThrow(/REDIS_KEY_ENV is required/);
+    expect(() => cacheEnvSchema.parse({ ...on, APP_ENV: "production", REDIS_KEY_ENV: "Prod:1" })).toThrow();
+    expect(cacheEnvSchema.parse({ ...on, APP_ENV: "local" }).REDIS_KEY_ENV).toBeUndefined();
+    // Off, nothing is required: the shipped default stays valid everywhere.
+    expect(cacheEnvSchema.parse({ APP_ENV: "production" }).REDIS_CACHE_ENABLED).toBe(false);
   });
 });
 
