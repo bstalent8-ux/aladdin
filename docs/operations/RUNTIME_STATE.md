@@ -6,6 +6,24 @@
 - Hosted: unchanged. Acceptance `nxossqhdfltcqdwvbewi` has 105 migrations (drifted, rebuild pending approval); Production `kkpkgjrweysgvhvkhzun` must be rehearsed with `scripts/hosted-db/production-rehearsal.sh` before any push.
 - Backups must use `scripts/hosted-db/` (`db dump` alone loses storage policies, the auth trigger and exact grants).
 
+## Cloudflare migration, PR #97 — 2026-10-22 (later)
+
+- Branch `claude/cloudflare-workers-2ibvgs`: Next.js 16.4.2; R2/DNS/cutover, cost, security, Redis and video audits merged in. Status report and GO/NO-GO: [cloudflare-migration-status-2026-10-22.md](cloudflare-migration-status-2026-10-22.md). **Production NO-GO.**
+- Preview Worker `aladdin-frontend-preview` is deployed but unreachable (workers.dev TLS certificate not issued). Vercel still serves everything; DNS unchanged.
+
+## Cloudflare R2, credentials, DNS and 15-stage cutover (read-only audit) — 2026-10-22
+
+- Branch `claude/cf-r2-cutover-2ibvgs` (local, from PR #97 `claude/cloudflare-workers-2ibvgs`), docs only. Nothing hosted was changed.
+- Cloudflare account, read 2026-10-22:
+  - **Worker:** one, `aladdin-frontend-preview`, deployed on `bstalent9.workers.dev`.
+  - **R2 buckets:** `aladdin-r2-acceptance-20261011-private`, `aladdin-r2-acceptance-20261011-public` and `aladdin-production-db-backups`. All are WEUR, Standard class. Their CORS, lifecycle and public-access settings are not readable through the MCP tools.
+  - **Not present:** Hyperdrive, the media Worker, and a production media bucket.
+- DNS for `aladdindecore.com` is still on Vercel: 11 records, Zoho MX, SPF and DKIM, **no DMARC**, wildcard to Vercel. Export: [dns-records-aladdindecore-2026-10-22.md](dns-records-aladdindecore-2026-10-22.md).
+- New docs:
+  - [R2 audit and prepared rules](r2/README.md), not applied;
+  - [credentials checklist](cloudflare-credentials-checklist.md);
+  - [cutover plan](cloudflare-frontend-cutover-plan.md), now 15 stages.
+
 ## Cloudflare Workers frontend (draft PR, ADR-0021) — 2026-10-20
 
 - Branch `claude/cloudflare-workers-2ibvgs` (stacked on the video branch): the frontend also builds for Cloudflare Workers with OpenNext (`pnpm cf:build`), runs in workerd locally, and CI builds both. **Nothing is deployed to Cloudflare**; Vercel still serves `aladdindecore.com` and FastAPI; DNS is still on Vercel nameservers.

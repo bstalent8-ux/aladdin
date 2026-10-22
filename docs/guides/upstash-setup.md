@@ -76,7 +76,9 @@ Redeploy a Preview deployment so it picks up the variables.
 
 After Preview has run cleanly for a few days (step 5), add the same names for **Production**, with `REDIS_KEY_ENV=production`. Preview and Production then share the one Free database, kept apart by the key prefix (`aladdin:preview:…` and `aladdin:production:…`), and share its 500,000 commands.
 
-The backend reads the same `REDIS_URL` and `REDIS_KEY_ENV` for job locks. With `REDIS_URL` unset, background jobs simply run without a cross-process lock.
+The backend reads the same `REDIS_CACHE_ENABLED`, `REDIS_URL` and `REDIS_KEY_ENV` for job locks and the video queue wake-up. With the switch off, `REDIS_URL` unset, or Redis unreachable, background jobs run without a cross-process lock (one `job_lock.redis_unavailable` log line) and the video worker polls.
+
+`REDIS_KEY_ENV` is **required** in every deployed environment while Redis is on (the web app's and the backend's settings both refuse the configuration without it), so two deployments that both count as `staging` (Vercel Preview and the Workers preview, `cf-preview`) never share keys.
 
 ### This cloud coding environment
 
@@ -109,6 +111,7 @@ Never put the URL or token in `.env.local` files that could be committed, and ne
 Two sources, and the Upstash one is authoritative:
 
 - **Upstash console → database → Usage / Metrics.** Shows monthly commands against the plan limit, daily commands, storage, bandwidth and connections. Under **Account → Billing** (paid plans) set a **budget**; at the cap Upstash rate-limits the database instead of billing more.
+- **Monthly budget control (owner setting).** On Free nothing is billed: at 500,000 commands Upstash refuses commands and the app falls back as in an outage. If the database ever moves to pay-as-you-go, set the database's **monthly budget to $5** first (about 2.5M commands at $0.20 per 100K, enough for 5,000 page views a day with edge delivery off), and set `REDIS_MONTHLY_COMMAND_BUDGET` to the same command count so the app's 50% / 80% warnings measure against it. Raising either needs owner approval.
 - **App logs (Vercel → Logs), per server instance:**
   - `cache.redis_budget` with `thresholdPercent` 50 or 80: this one instance, extrapolated from at least 15 minutes of traffic, would use that share of `REDIS_MONTHLY_COMMAND_BUDGET` on its own. Several instances run at once, so the real total is higher: open the Upstash dashboard when you see it.
   - `cache.redis_unavailable`: Redis failed twice in a row, or a connection could not be opened. The app falls back for 5 seconds and tries again. One line per outage, not per request.
@@ -127,6 +130,11 @@ What one event costs:
 | New connection (cold server instance) | 1 (AUTH) |
 | `/api/health` | 0 if Redis was used in the last minute on that instance, else 1 (PING) |
 | Repeated requests from a user already refused | 0 (refused in memory until the window ends) |
+| Video upload completed (wake the transcode worker) | 1 (`LPUSH`) |
+| Backend job lock (historical purge, one run) | 1 AUTH + 1 `SET NX` + 1 per batch (extend) + 1 release |
+| Video transcode worker, idle (`--loop`) | 1 `BLPOP` per 30 s wait: ~86,400 a month per running worker (17% of Free), plus 1 AUTH per reconnect |
+
+The worker's idle cost is the largest fixed item: run `--loop` only where Redis is on, and count each extra worker as another ~86,000 a month.
 
 Monthly estimates (30 days). Assumptions: 10 private images per page view through the proxy; 10% of page views show a vocabulary (1.5 on average) and most of those refill it; uploads 20 / 50 / 250 a day; 3,000 / 4,000 / 6,000 cold starts. Not included: an uptime monitor on `/api/health` (up to ~43,000 more, see risk 3).
 

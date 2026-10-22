@@ -10,6 +10,36 @@ Branch `claude/project-thread-lz98jd` (from `claude/cloudflare-workers-2ibvgs`, 
 
 Unfinished / needs the owner: approval and an owner-run backup for the Acceptance rebuild; the Production rehearsal run (read-only); Hyperdrive and real Cloudflare tests (token and allowed domains still missing). Not touched: any hosted database.
 
+## 2026-10-22 — R2 audit, credentials checklist, DNS export, 15-stage cutover plan
+
+Branch `claude/cf-r2-cutover-2ibvgs` (local, from PR #97). Docs only. Every hosted call was read-only:
+- Cloudflare MCP: `r2_buckets_list`, `r2_bucket_get`, `workers_list`, `workers_get_worker`, `hyperdrive_configs_list`;
+- Vercel MCP: `get_domain` and `get_records` for team `aladdin8`.
+
+There were no Supabase calls, and no change to Cloudflare, Vercel, GitHub or DNS.
+
+- `docs/operations/r2/`:
+  - the bucket audit;
+  - CORS (PUT only, private bucket, ETag exposed) for acceptance and production;
+  - lifecycle rules: `pending/` deleted after 2 days, multipart aborted after 7 days;
+  - the requirement map to code and tests, with what still needs real R2.
+- `docs/operations/cloudflare-credentials-checklist.md`: every name per environment, token scopes, setup locations, and what already exists.
+- `docs/operations/dns-records-aladdindecore-2026-10-22.md`: 11 records, a BIND snippet, proxying flags.
+- `docs/operations/cloudflare-frontend-cutover-plan.md`: rewritten to the owner's 15 stages, each with entry and exit criteria, rollback and approval gate.
+
+Findings:
+- **No DMARC record.**
+- **CAA lacks `ssl.com`.**
+- **The registrar is not Vercel** and was not identified.
+- **No Hyperdrive and no media Worker exist.**
+- **The public acceptance bucket is unused by code.**
+- **FastAPI off Vercel needs an explicit `APP_ENV`**: unset means `local`.
+- **R2 bucket settings are not readable through the MCP tools.**
+
+Validation: `python3 scripts/check_doc_links.py`; the JSON files parse.
+
+Unfinished: everything in the plan; it needs the owner's approval stage by stage.
+
 ## 2026-10-20 — Cloudflare Workers frontend (ADR-0021), lead
 
 Branch `claude/cloudflare-workers-2ibvgs` (from the video branch, PR #94 head). OpenNext 1.20.12 + wrangler 4.151.2, Next 15.5.28. `pnpm cf:build` (Edge middleware for Workers only), `cloudflare/worker.ts` (`/api/backend` proxy to `BACKEND_ORIGIN`, `/_next/image` cache, HSTS), `wrangler.jsonc` local/preview/production envs, `playwright.workers.config.ts`, CI job `frontend-cloudflare`, manual preview workflow. Merged: Redis REST (`claude/cf-redis-2ibvgs`), image engine seam (`claude/cf-media-runtime-2ibvgs`), perf report (`claude/cf-perf-2ibvgs`, sharp-lazy commit dropped). Fixed: middleware redirects now carry refreshed session cookies; duplicate reads on `/home` and `/showroom/home`. vinext 1.2.1 trialled and rejected for production (beta, Vite).
@@ -6818,3 +6848,6 @@ Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
 Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.
 
 Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](https://github.com/hmohamed080/aladdin/pull/84) verified OPEN/DRAFT targeting main. Additional journey rerun aborted due stalled Docker, not counted as pass; final non-mutating contrast/layout2/2passed and typecheckpassed. Preview3341HTTP200, localAPI63321; original14hashesunchanged. External untracked frontend/e2e/auth-captcha.spec.ts appeared and remains excluded/preserved. No merge/deployment/worktree cleanup. Native quota and direct contact metadata remain merge blockers.
+
+### Cloudflare migration, PR #97 — 2026-10-22
+Merged five audit branches (cost, R2/DNS/credentials/cutover, video on Containers, security, Redis) into `claude/cloudflare-workers-2ibvgs`, fixed stale E2E specs and classified the 51 shared Node/Workers failures. Validated: frontend typecheck, lint (0 errors), targeted unit suites, `cf:build` + `wrangler deploy --dry-run`; backend pytest and ruff. Unfinished: everything hosted (preview unreachable on a workers.dev certificate), Sign In CAPTCHA decision, 17 Showroom RC2 spec drifts for product review. See [status report](cloudflare-migration-status-2026-10-22.md).

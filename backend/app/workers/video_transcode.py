@@ -26,6 +26,12 @@ database decides which job runs.
     uv run --group video-worker python -m app.workers.video_transcode --once
     uv run --group video-worker python -m app.workers.video_transcode --loop
     uv run --group video-worker python -m app.workers.video_transcode --purge
+    uv run --group video-worker python -m app.workers.video_transcode --drain
+
+``--drain`` is for hosts that start the worker on demand and bill while it runs
+(Cloudflare Containers, docs/architecture/video-transcode-cloudflare-containers.md):
+it processes every claimable video, purges, and exits. On SIGTERM it stops ffmpeg,
+releases the job for a retry and exits.
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ import hashlib
 import json
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -606,6 +613,44 @@ def loop(
         time.sleep(idle_seconds)
 
 
+class Terminated(Exception):
+    """The host asked the worker to stop (SIGTERM). Raised inside the running job, so
+    ffmpeg is killed, the job is released for a retry and the temp files are removed."""
+
+
+def stop_on_sigterm() -> Callable[[], bool]:
+    """Turns the first SIGTERM into Terminated in the main thread. As PID 1 in a
+    container, Python would otherwise ignore SIGTERM until the platform's SIGKILL."""
+    stopping = threading.Event()
+
+    def handler(_signum: int, _frame: object) -> None:
+        if not stopping.is_set():
+            stopping.set()
+            raise Terminated()
+
+    signal.signal(signal.SIGTERM, handler)
+    return stopping.is_set
+
+
+def drain(
+    jobs: JobClient,
+    store: VideoStore,
+    codec: str = "h264",
+    stop: Callable[[], bool] = lambda: False,
+) -> dict[str, int]:
+    """Every claimable video, then the purge, then return: the container exits and
+    stops billing. The database still decides which job runs (SKIP LOCKED leases)."""
+    counts = {"ready": 0, "rejected": 0, "retry": 0, "purged": 0}
+    while not stop():
+        result = process_one(jobs, store, codec=codec)
+        if result is None:
+            break
+        counts[result.outcome] += 1
+    if not stop():
+        counts["purged"] = purge(jobs, store, limit=500)
+    return counts
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -614,6 +659,9 @@ def main(argv: list[str] | None = None) -> int:
         "--loop", action="store_true", help="keep processing; wake on the Redis queue"
     )
     mode.add_argument("--purge", action="store_true", help="remove deleted and expired videos")
+    mode.add_argument(
+        "--drain", action="store_true", help="process every waiting video, purge, then exit"
+    )
     parser.add_argument(
         "--test-codec",
         choices=["vp9"],
@@ -641,18 +689,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.purge:
         print(json.dumps({"purged": purge(jobs, store, limit=500)}))
         return 0
+    if args.drain:
+        stopping = stop_on_sigterm()
+        try:
+            counts = drain(jobs, store, codec=codec, stop=stopping)
+        except Terminated:
+            # Between jobs: nothing is held that the lease would not release.
+            counts = {}
+        log.info("video.drained", **counts, terminated=stopping())
+        print(json.dumps({**counts, "terminated": stopping()}))
+        return 1 if counts.get("retry") else 0
     redis_client = None
-    if settings.redis_url:
-        import redis
+    if settings.redis_active_url:
+        from app.coordination import connect
 
-        # A blocking pop needs a socket timeout longer than its own wait.
-        redis_client = redis.Redis.from_url(
-            settings.redis_url,
-            socket_connect_timeout=2,
-            socket_timeout=45,
-            health_check_interval=30,
-        )
-    loop(jobs, store, redis_client, queue_key(settings.redis_key_env or settings.app_env))
+        # The budget-tuned handshake (no CLIENT SETINFO, no health-check PING):
+        # idle, the worker costs one BLPOP per wait (ADR-0019 command estimate).
+        redis_client = connect(settings.redis_active_url, socket_timeout=45)
+    loop(jobs, store, redis_client, queue_key(settings.redis_namespace))
     return 0
 
 
