@@ -139,3 +139,26 @@ Not verified from the build sandbox: a live connection to Upstash (unreachable f
 Also found: on Workers the clock reads 0 while a module initialises, so the budget counter's start time is now set on first use.
 
 **Owner decisions.** Store `REDIS_REST_URL`/`REDIS_REST_TOKEN` (from the existing database's REST tab; no new account) as Worker variables/secrets when Redis is enabled on Workers; consider whether the database's region suits Cloudflare's edge; the 500 ms REST timeout is a code constant.
+
+## Audit 2026-10-22 (owner brief, section 6)
+
+The existing implementation was checked against the brief. Status: **Met** means it already held. **Fixed** means this audit closed a gap (with tests). Line numbers are as of this revision.
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Workers config: `REDIS_REST_URL`, `REDIS_REST_TOKEN`, `REDIS_KEY_ENV`, `REDIS_CACHE_ENABLED` | Met | `frontend/src/lib/env/cache.ts:14-29`, `frontend/src/server/cache/redis.ts:255`, `redis-commands.ts:56` |
+| FastAPI uses `REDIS_URL` over TLS | **Fixed**: the backend accepted any URL; it now refuses non-`rediss://` outside local (loopback excepted) | `backend/app/config.py:166`; test `backend/tests/test_coordination.py:75` |
+| Reference-data caching works | Met | `frontend/src/server/cache/reference.ts:37`; real-Redis tests in `redis.test.ts` |
+| Rate limiting works | Met | `frontend/src/server/cache/rate-limit.ts:85` |
+| Background-job coordination works | Met (locks, video wake-up list) | `backend/app/coordination/__init__.py:100`, `frontend/src/server/video/uploads.ts:133`, `backend/app/workers/video_transcode.py:602` |
+| Each environment has its own key namespace | **Fixed**: the namespace fell back to `APP_ENV`, so two deployments that are both `staging` and share a database could share keys. `REDIS_KEY_ENV` is now required outside local while Redis is on, in both services | `frontend/src/lib/env/cache.ts:34`, `backend/app/config.py:157`, `redis.ts:367`, `coordination/__init__.py:41` |
+| Cache hit/miss metrics | Met (per-instance counters on `/api/health`, structured `cache.*` log events) | `reference.ts:46,51`, `redis.ts:111` |
+| No new paid service | Met | Existing Upstash Free database; no new dependency |
+| Degrades safely when Redis is unavailable (web app) | Met | `redis.ts:213` (breaker), `rate-limit.ts:101` (memory window), `redis.ts:263` (TCP on Workers refused) |
+| Degrades safely when Redis is unavailable (backend) | **Fixed**: an unreachable Redis made `job_lock` raise and fail the job, contrary to the table above. The lock now degrades to unlocked, and `extend()` mid-job returns False instead of raising | `coordination/__init__.py:125,85`; tests `test_coordination.py:45,61` |
+| No permission or authorization decision cached | Met; **guard added**: a static test lists the only Redis callers, namespaces and writes, and fails if authorization/session code imports the cache | `reference.ts:39`; `frontend/src/server/cache/redis-guards.test.ts:34,42,50` |
+| No private media bytes in Redis | Met; **guard added** (the only writes are `setEx` of vocabularies, `eval` counters, `lPush` of job ids) | `redis-guards.test.ts:55` |
+| Usage monitoring and monthly budget controls | Met for the web app (`redis.ts:228`, `/api/health`); **fixed** in the docs: the command estimate lacked the backend (idle video worker ~86,400 commands a month), and a concrete Upstash budget setting is now documented. The worker's own Redis client also sent `CLIENT SETINFO` and health-check PINGs; it now uses the budget-tuned `connect()` | `docs/guides/upstash-setup.md:114,120-137`; `video_transcode.py:650` |
+| Disabled in Production until acceptance (flag default off) | Met for the web app; **fixed** for the backend, which used Redis whenever `REDIS_URL` was set. It now honours the same `REDIS_CACHE_ENABLED` switch (default false); a guard test checks `.env.example` and every `wrangler.jsonc` environment | `backend/app/config.py:56`, `cache.ts:14`; tests `test_coordination.py:32`, `redis-guards.test.ts:67` |
+
+**Live check.** `curl -s https://alert-bedbug-148148.upstash.io/ping` from the coding sandbox on 2026-10-22: **not reachable**. The agent proxy refused the CONNECT tunnel (`403`, `connect_rejected`), so no PING reached Upstash and the database's state was not verified from here.

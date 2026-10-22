@@ -381,3 +381,57 @@ def test_test_codec_is_refused_outside_local(
     )
     assert vt.main(["--once", "--test-codec", "vp9"]) == 2
     assert "only allowed" in capsys.readouterr().err
+
+
+def test_drain_processes_until_idle_then_purges(tmp_path: Path):
+    jobs = FakeJobs(
+        claim=[{"id": VIDEO_ID, "content_type": "video/mp4", "size_bytes": 5, "attempts": 1}]
+    )
+    counts = vt.drain(jobs, DirStore(tmp_path))  # the original is missing: one retry
+    assert counts == {"ready": 0, "rejected": 0, "retry": 1, "purged": 0}
+    names = [n for n, _ in jobs.calls]
+    assert names.count("video_job_claim") == 2  # stops at the first empty claim
+    assert names[-1] == "video_purge_candidates"
+
+
+def test_drain_stops_before_claiming_when_asked(tmp_path: Path):
+    jobs = FakeJobs(
+        claim=[{"id": VIDEO_ID, "content_type": "video/mp4", "size_bytes": 5, "attempts": 1}]
+    )
+    assert vt.drain(jobs, DirStore(tmp_path), stop=lambda: True)["purged"] == 0
+    assert jobs.calls == []
+
+
+def test_sigterm_stops_ffmpeg_and_raises_inside_the_job():
+    import os
+    import signal
+    import threading
+
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        stopping = vt.stop_on_sigterm()
+        threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGTERM)).start()
+        started = time.monotonic()
+        with pytest.raises(vt.Terminated):
+            vt.run(["sleep", "30"], 60)  # stands in for ffmpeg
+        assert stopping() and time.monotonic() - started < 10
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+def test_a_job_terminated_mid_transcode_is_released_for_retry(tmp_path: Path):
+    store = DirStore(tmp_path / "bucket")
+    store.put(f"video/{VIDEO_ID}/original", b"12345")
+    jobs = FakeJobs(
+        claim=[{"id": VIDEO_ID, "content_type": "video/mp4", "size_bytes": 5, "attempts": 1}]
+    )
+
+    def runner(_args: Any, _timeout: int) -> subprocess.CompletedProcess[bytes]:
+        raise vt.Terminated()
+
+    work = tmp_path / "work"
+    work.mkdir()
+    result = vt.process_one(jobs, store, runner=runner, workdir=work)
+    assert result is not None and result.outcome == "retry" and result.detail == "Terminated"
+    assert jobs.last("video_job_fail")["p_retry"] is True
+    assert list(work.iterdir()) == []  # temp files removed

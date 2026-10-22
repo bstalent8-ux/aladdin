@@ -26,6 +26,7 @@ describe("containerEnv", () => {
   it("copies only the allowlisted request-path variables", () => {
     const env = containerEnv({
       ...base,
+      REDIS_CACHE_ENABLED: "true",
       REDIS_URL: "rediss://default:pw@redis.example:6379",
       SUPABASE_SERVICE_ROLE_KEY: "service-role",
       DATABASE_URL: "postgres://postgres:pw@db/postgres",
@@ -34,7 +35,7 @@ describe("containerEnv", () => {
       BACKEND_CONTAINER: { idFromName() {} },
       SOMETHING_ELSE: "x",
     });
-    expect(env).toEqual({ ...base, REDIS_URL: "rediss://default:pw@redis.example:6379" });
+    expect(env).toEqual({ ...base, REDIS_CACHE_ENABLED: "true", REDIS_URL: "rediss://default:pw@redis.example:6379" });
   });
 
   it("never lists a privileged credential", () => {

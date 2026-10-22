@@ -79,7 +79,7 @@ function setEnv(values: Record<string, string | undefined>) {
 describe("REST settings", () => {
   const on = { REDIS_CACHE_ENABLED: "true" };
   it("accepts the pair alone, without REDIS_URL", () => {
-    const env = cacheEnvSchema.parse({ ...on, REDIS_REST_URL: URL_, REDIS_REST_TOKEN: TOKEN, APP_ENV: "production" });
+    const env = cacheEnvSchema.parse({ ...on, REDIS_REST_URL: URL_, REDIS_REST_TOKEN: TOKEN, APP_ENV: "production", REDIS_KEY_ENV: "production" });
     expect(env.REDIS_REST_URL).toBe(URL_);
   });
   it("needs both halves of the pair", () => {

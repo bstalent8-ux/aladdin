@@ -35,7 +35,7 @@ describe("backend proxy (Cloudflare frontend)", () => {
     expect(sent.method).toBe("POST");
     expect(sent.redirect).toBe("manual");
     expect(sent.headers.get("authorization")).toBe("Bearer jwt");
-    expect(sent.headers.get("cookie")).toBe("sb=1");
+    expect(sent.headers.get("cookie")).toBeNull();
     expect(sent.headers.get("connection")).toBeNull();
     expect(sent.headers.get("x-forwarded-host")).toBe("aladdindecore.com");
     expect(sent.headers.get("x-forwarded-proto")).toBe("https");

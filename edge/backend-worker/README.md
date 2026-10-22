@@ -51,8 +51,9 @@ deploy fail while a required one is missing.
 | `SUPABASE_URL` | var / secret | acceptance project (var) | secret, set at cutover | JWT issuer and JWKS |
 | `SUPABASE_ANON_KEY` | secret | required | required | Caller-scoped account and session check |
 | `BACKEND_INSTANCES` | var | `1` | `2` | Pool size, 1..8 |
+| `REDIS_CACHE_ENABLED` | var | unset | unset | `true` turns Redis on; then `REDIS_URL` must be `rediss://` and `REDIS_KEY_ENV` set (backend refuses to start otherwise) |
 | `REDIS_URL` | secret | optional | optional | `rediss://`; job locks only (ADR-0019) |
-| `REDIS_KEY_ENV` | var | `cf-preview` | unset | Separates environments sharing one Redis |
+| `REDIS_KEY_ENV` | var | `cf-preview` | `production` when Redis is on | Separates environments sharing one Redis |
 | `ALLOWED_ORIGINS` | var | unset | `https://aladdindecore.com,…` | CORS; the binding path is same-origin anyway |
 | `OPENAI_API_KEY` | secret | optional | optional | Only when an AI endpoint ships |
 | `SUPABASE_JWT_SECRET` | secret | optional | optional | Legacy HS256 projects only |

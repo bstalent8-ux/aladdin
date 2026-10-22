@@ -19,7 +19,8 @@ const APP_ENVS = new Set(["local", "staging", "production"]);
  * The only Worker variables and secrets copied into the container, by name.
  *
  * Request path only: the Supabase URL and anon key (JWT issuer, JWKS and the
- * caller-scoped `my_account_status` check), CORS origins, optional Redis and
+ * caller-scoped `my_account_status` check), CORS origins, optional Redis (off
+ * unless REDIS_CACHE_ENABLED=true; then rediss:// and REDIS_KEY_ENV are required) and
  * OpenAI. Never the service-role key, DATABASE_URL or R2 keys: nothing on a
  * request path uses them (Settings.missing_configuration), and the media jobs
  * that do run on an operator machine or the separate transcode container. A
@@ -31,6 +32,7 @@ export const CONTAINER_ENV_NAMES = [
   "SUPABASE_ANON_KEY",
   "SUPABASE_JWT_SECRET",
   "ALLOWED_ORIGINS",
+  "REDIS_CACHE_ENABLED",
   "REDIS_URL",
   "REDIS_KEY_ENV",
   "OPENAI_API_KEY",
