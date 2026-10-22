@@ -1,7 +1,7 @@
 # R2 storage and direct image delivery: audit and architecture plan
 
 Date: 2026-10-18. Branch audited: `/home/claude/r2wt` (draft PR #89; it includes PR #88). Hosted data: `kkpkgjrweysgvhvkhzun` (aladdin-staging). Everything was read-only: SELECT-only SQL on metadata and log queries. No object was downloaded, and no setting, code or billing was changed.
-Inputs: `AGENTS.md`, ADR-0017, `ARCHITECTURE_GUIDE.md`, `frontend/src/server/storage/*`, `app/api/media/[namespace]`, `app/p/media/[itemId]`, `scripts/media-storage.mjs`, migrations `20261021090005`–`100003`, PR #88 `20261021090002_business_verification.sql`, `supabase-usage-audit.md`. `.notes/inputs.md` does not exist.
+Inputs: `AGENTS.md`, ADR-0017, `ARCHITECTURE_GUIDE.md`, `frontend/src/server/storage/*`, `app/api/media/[namespace]`, `app/p/media/[itemId]`, `scripts/media-storage.mjs`, migrations `20261021090005`–`20261021090008`, PR #88 `20261021090002_business_verification.sql`, `supabase-usage-audit.md`. `.notes/inputs.md` does not exist.
 
 ---
 
@@ -20,7 +20,7 @@ Inputs: `AGENTS.md`, ADR-0017, `ARCHITECTURE_GUIDE.md`, `frontend/src/server/sto
 
 ## 1. Inventory and classification (hosted staging, 2026-10-18)
 
-Hosted staging has **164 migrations, up to `20261017134139`**. PR #88 (`20261021090001/1`), `20261021090003/1` and the four R2 migrations (`20261021090005`–`100003`) are **not applied**. The `business-verification-documents` bucket therefore does not exist on staging yet, and neither do `media_storage_locations` or the ledger.
+Hosted staging has **164 migrations, up to `20261017134139`**. PR #88 (`20261021090001`–`20261021090002`), `20261021090003`–`20261021090004` and the four R2 migrations (`20261021090005`–`20261021090008`) are **not applied**. The `business-verification-documents` bucket therefore does not exist on staging yet, and neither do `media_storage_locations` or the ledger.
 
 | Bucket / namespace | Objects | Bytes | MIME | Referenced by | Who can read today (RC2 + PR #89) | Class |
 |---|---|---|---|---|---|---|
@@ -155,7 +155,7 @@ All of these are DB checks evaluated on each Worker request.
 
 **Pipeline** (all of these exist in PR #89; additions are marked ✚):
 
-1. **Apply migrations** to staging (owner approval): PR #88, `20261021090003/1`, `20261021090005`–`100003`, and the new WP1 migration. Run the permission gate first.
+1. **Apply migrations** to staging (owner approval): PR #88, `20261021090003`–`20261021090004`, `20261021090005`–`20261021090008`, and the new WP1 migration. Run the permission gate first.
 2. **Inventory**: `node scripts/media-storage.mjs --project kkpkgjrweysgvhvkhzun` (dry-run) → `media_source_inventory_summary` (orphans and missing references; staging has 0 orphans today).
    - ✚ Print a `bytesToCopy` estimate from `storage.objects.metadata.size`.
 3. **Copy**, one row at a time:
@@ -214,7 +214,7 @@ Logs: moving image bytes to the Worker also removes `getUser` and 2–3 RPCs per
    - **Verified compatible with PR #89:**
      - `revocable_media_backend_reads` lists only the five revocable buckets, so the BV `SELECT` policy still applies.
      - `media_metadata`, the inventory, the migration and cleanup functions, the `buckets` map in `scripts/media-storage.mjs` and the `MediaNamespace` type do not include BV.
-     - The migration-100003 check asserts exactly the five revocable buckets and ignores BV.
+     - The migration-20261021090008 check asserts exactly the five revocable buckets and ignores BV.
    - Not changing: the route has no size bound or fetch timeout. I note it as a separate PR #88 follow-up, not part of this work.
 2. **`purchase-request-images`**: independent grant model, caller-signed 300 s URLs direct from Supabase (0 objects now). Candidate for a later move to Mode P with an explicit ADR (ADR-0017 excludes it).
 3. **Legacy Supabase sources** of the five namespaces: kept ≥ 30 days as the rollback source. Any `provider='supabase'` row continues through `delivery.ts`. The Supabase upload branch in `browser-upload.ts` stays reachable while `R2_STORAGE_ENABLED=false`.
@@ -286,7 +286,7 @@ Code paths:
 | **WP10 (optional, D1) Mode B publisher** | Public bucket, epoch tokens, outbox triggers, cron withdraw + purge | `supabase/migrations/…_media_public_outbox.sql`, `edge/media-worker/src/publisher.ts` | Withdrawal ≤ bound, purge verified, republish gets a new URL | D1 = yes |
 
 **Hosted steps that need owner approval** (none have been done):
-1. Supabase staging: apply PR #88, `20261021090003/1`, `20261021090005`–`100003` and WP1 migrations, through the permission gate.
+1. Supabase staging: apply PR #88, `20261021090003`–`20261021090004`, `20261021090005`–`20261021090008` and WP1 migrations, through the permission gate.
 2. Create a Postgres login role `media_edge` with EXECUTE only on the two edge functions; store its password only in Hyperdrive.
 3. Cloudflare: account; zone for the media domain (D4, full setup on Free); R2 buckets `aladdin-media-private` (plus `-public` only if Mode B); R2 lifecycle rule expiring `pending/` after 2 days; bucket-scoped R2 tokens (app read/write private; migration token time-limited).
 4. Workers Paid plan (D5); deploy `media-edge` on `media.<domain>`; secrets (`TICKET_KEYS`); Hyperdrive config with caching **disabled**; R2 binding.

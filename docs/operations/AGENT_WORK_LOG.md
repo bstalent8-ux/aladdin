@@ -1,3 +1,15 @@
+## 2026-10-22 — Consolidated database baseline, tested backup/restore, Production rehearsal
+
+Branch `claude/project-thread-lz98jd` (from `claude/cloudflare-workers-2ibvgs`, PR #97 head). Details: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
+
+- Main's `20261020090001_registration_data_sync` failed on the PR stack, because `admin_users_account_type` had already rewritten `admin_users_list`. The 15 PR-only migrations moved to `20261021090001`..`15` (order kept) so a fresh replay matches `db push` onto main. Main's file is untouched. `admin_users_account_type` keeps `registered_account`.
+- Contracts for main's 3 new functions. The permission gate accepts `CASE ... END`.
+- Local: 5,791/5,791 pgTAP (two resets); upgrade gate 17/17 atomic; lint 0 errors; phone parity 0 mismatches; 3 concurrency proofs; fresh and upgrade fingerprints equal.
+- Found that a `db dump` restore drops the `storage.objects` policies, the auth trigger and the `media_edge` membership, and widens anon/authenticated grants. Added `scripts/hosted-db/security-tail.sql`. With it, the restore is exact (fingerprint, 145 tables of row counts, 5,791 pgTAP on the restored copy).
+- `production-rehearsal.sh` was tested in its local test mode on a Production-like copy. Restore exact, 15 applied, schema equal to the baseline, rows only added where expected.
+
+Unfinished / needs the owner: approval and an owner-run backup for the Acceptance rebuild; the Production rehearsal run (read-only); Hyperdrive and real Cloudflare tests (token and allowed domains still missing). Not touched: any hosted database.
+
 ## 2026-10-20 — Cloudflare Workers frontend (ADR-0021), lead
 
 Branch `claude/cloudflare-workers-2ibvgs` (from the video branch, PR #94 head). OpenNext 1.20.12 + wrangler 4.151.2, Next 15.5.28. `pnpm cf:build` (Edge middleware for Workers only), `cloudflare/worker.ts` (`/api/backend` proxy to `BACKEND_ORIGIN`, `/_next/image` cache, HSTS), `wrangler.jsonc` local/preview/production envs, `playwright.workers.config.ts`, CI job `frontend-cloudflare`, manual preview workflow. Merged: Redis REST (`claude/cf-redis-2ibvgs`), image engine seam (`claude/cf-media-runtime-2ibvgs`), perf report (`claude/cf-perf-2ibvgs`, sharp-lazy commit dropped). Fixed: middleware redirects now carry refreshed session cookies; duplicate reads on `/home` and `/showroom/home`. vinext 1.2.1 trialled and rejected for production (beta, Vite).

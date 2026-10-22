@@ -1,5 +1,11 @@
 # Runtime State
 
+## Consolidated database baseline (draft PR) — 2026-10-22
+
+- Branch `claude/project-thread-lz98jd` (from the Workers branch, PR #97 head): 180 migrations = main's `20261020090001_registration_data_sync` (byte-identical) plus the PR stack, with the 15 PR-only migrations renamed to `20261021090001`..`15` so they run after main's. Mapping, verification and the Production plan: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
+- Hosted: unchanged. Acceptance `nxossqhdfltcqdwvbewi` has 105 migrations (drifted, rebuild pending approval); Production `kkpkgjrweysgvhvkhzun` must be rehearsed with `scripts/hosted-db/production-rehearsal.sh` before any push.
+- Backups must use `scripts/hosted-db/` (`db dump` alone loses storage policies, the auth trigger and exact grants).
+
 ## Cloudflare Workers frontend (draft PR, ADR-0021) — 2026-10-20
 
 - Branch `claude/cloudflare-workers-2ibvgs` (stacked on the video branch): the frontend also builds for Cloudflare Workers with OpenNext (`pnpm cf:build`), runs in workerd locally, and CI builds both. **Nothing is deployed to Cloudflare**; Vercel still serves `aladdindecore.com` and FastAPI; DNS is still on Vercel nameservers.
@@ -44,7 +50,7 @@
   - the `TICKET_KEYS` Worker secret;
   - the Vercel env vars `MEDIA_EDGE_ORIGIN`, `MEDIA_EDGE_TICKET_KID`, `MEDIA_EDGE_TICKET_SECRET`, `MEDIA_EDGE_DELIVERY_ENABLED` and `R2_*`.
   Steps: [`edge/media-worker/README.md`](../../edge/media-worker/README.md).
-- **Hosted database.** The media migrations have **not** run on any hosted project. Staging (`kkpkgjrweysgvhvkhzun`) had 164 migrations up to `20261017134139` when audited on 2026-10-18. PR #88, `20261021090003/1`, `20261021090005`–`100003` and `20261021090009` are all pending there. No media has been copied to R2.
+- **Hosted database.** The media migrations have **not** run on any hosted project. Staging (`kkpkgjrweysgvhvkhzun`) had 164 migrations up to `20261017134139` when audited on 2026-10-18. PR #88, `20261021090003`–`20261021090004`, `20261021090005`–`20261021090008` and `20261021090009` are all pending there. No media has been copied to R2.
 - **Supabase egress.** About **0.29 GB is left of the 5 GB** Free quota this cycle (4.71 GB used, owner-reported 2026-10-18). The full bulk copy needs about 0.273 GB, so only an avatar and certificate rehearsal (about 16 MB) fits before the cycle resets or the plan is upgraded to Pro. Going over the quota returns HTTP 402 on every API call. Runbook: [media-monitoring.md](media-monitoring.md).
 - **Security item to check.** On the local stack, `PUBLIC` has `USAGE` on schema `net` and `EXECUTE` on some pg_net functions (`net.http_delete(...)`, `net.worker_restart()` and helpers), so `anon` can call them. The hosted projects have not been checked. Check them and revoke these grants from `PUBLIC` in a separate reviewed change, before the Worker login role is created.
 - **Validation.** Not re-run in the 2026-10-18 docs session. To check: `pnpm --filter @aladdin/media-worker test` and `typecheck` for the Worker. pgTAP `99_media_edge_authorization_test.sql` tests that the next request is denied after delete, unpublish, delisting, suspension, ban and sign-out.
@@ -53,7 +59,7 @@
 
 - Same branch and PR as business verification below. Adds: Admin Users "User Type" column/filter (`admin_users_directory`, migration `20261021090003`); Admin Staff search/empty copy; Offers and My Offers re-enabled; unverified secondary phone reservations with password receipts and a Support cooldown override (`20261021090004`, `/admin/phone-cooldowns`, permission `phones.cooldown_override`, Super Admin only by default).
 - None of `20261021090001`, `20261021090002`, `20261021090003`, `20261021090004` is applied to any hosted project. Owner approval required.
-- R2 RC2 worktree (device, uncommitted) was snapshotted and merged onto main + this PR in a separate local branch (not pushed). R2 migrations renamed to `20261021090005`–`100003` so they sort after main's newest; exact permission contracts added for every intervening migration.
+- R2 RC2 worktree (device, uncommitted) was snapshotted and merged onto main + this PR in a separate local branch (not pushed). R2 migrations renamed to `20261021090005`–`20261021090008` so they sort after main's newest; exact permission contracts added for every intervening migration.
 - Validation: real local Supabase stack (supabase/postgres 17): pgTAP 123 files / 5,447 checks pass, exact permission gate passes, concurrency scripts pass. Browser E2E not yet run.
 
 ## Business verification (Verified badge) — 2026-10-17
