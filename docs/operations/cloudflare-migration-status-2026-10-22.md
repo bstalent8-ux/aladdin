@@ -57,6 +57,7 @@ See [cloudflare-credentials-checklist.md](cloudflare-credentials-checklist.md). 
 
 - #97 (this, draft): frontend on Workers, audits, docs.
 - #98 (draft, FastAPI thread): FastAPI on Containers, stacked on #97.
+- #100 (draft, DB thread): brings main's `20261020090001_registration_data_sync` into the stack by renaming the 15 PR-only migrations to `20261021090001..15`. The stack must merge together; new migrations go after `20261021090015`. Details: `docs/operations/database-baseline-2026-10-22.md` on that branch.
 - Earlier stack #88 → #89 → #91 → #92 → #94, plus #93 and #95: unchanged, not merged.
 
 ## 8. Test evidence
