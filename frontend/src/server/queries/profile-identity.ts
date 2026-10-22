@@ -14,6 +14,8 @@ export type MyIdentity = {
   phoneCountryIso2: string | null;
   phoneNational: string | null;
   phoneE164: string | null;
+  /** The phone is also this account's sign-in key (phone + password accounts): changing it needs the current password. */
+  phoneIsLoginKey: boolean;
   avatarUrl: string | null;
   /** A phone + password (Craftsman) account: its main phone is its login and cannot be moved here. */
   phoneLogin: boolean;
@@ -73,6 +75,7 @@ export const loadMyIdentity = cache(async function loadMyIdentity(): Promise<MyI
     phoneCountryIso2: profile.phone_country_iso2,
     phoneNational: profile.phone_national,
     phoneE164: profile.phone_e164,
+    phoneIsLoginKey: isCraftsmanLoginAlias(user.email),
     avatarUrl,
     phoneLogin: isCraftsmanLoginAlias(user.email),
     secondaryPhone: mapSecondaryPhone(secondary),

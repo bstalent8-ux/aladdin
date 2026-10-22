@@ -193,6 +193,14 @@ Evidence (local prod build, server `TZ=UTC`, Chromium `timezoneId=Africa/Cairo`,
 
 Open: a separate, rare **HTML-type** #418 (4 and 6 loads per 1,046, mostly the Admin shell at `/admin`, also `/home/profile/edit`, `/b2b/suppliers`) is NOT fixed and not root-caused. It does not reproduce in `next dev` (126 loads) or with a DOM mutation recorder attached (0/752), and the recovered DOM matches the server HTML, so it looks like a timing race rather than different markup. Also noted, not changed: `follow-up-edit-form.tsx` builds its `datetime-local` default from the runtime zone (server UTC vs browser), and several components still format numbers with a bare `ar-EG` tag (identical in Node 22 and Chromium 141 today).
 
+## 2026-10-20 — Registration data: saved, editable, and visible to Admin
+
+Branch `fix/registration-account-sync` from `main` @ `bd0de0a`; worktree `D:/projects/aladdin-wt-registration-sync`. Audited every field of the Showroom and Installer sign-ups against Settings and the Admin Dashboard. Found and fixed: (1) business contact stored twice (`organizations.contact_*` vs `organization_contacts`) with no editor for the registered values; (2) legal name and branch governorate/city had no edit path; (3) Admin showed no account type for a new Installer (declared persona vs `primary_account_type`) and could not read activities; (4) the registration review step hid phone, e-mail, activity and description. Migration `20261020090001_registration_data_sync.sql`, pgTAP 87 (43/43; 82, 91, 92, 93, 22, 71, 86 still green on the scratch DB), new Settings contact / legal-name / location UI, Admin Registration-details card. Details: `docs/frontend/registration-data-sync.md`.
+
+Follow-up same day: real-browser run of both sign-ups (see doc), Installer phone re-key with current password, Installer header refreshed through layout revalidation, Admin organizations list shows phone and city. pgTAP 87 now 45/45.
+
+Open: not pushed, migration not applied to any hosted database. pgTAP 60 fails on the scratch DB for an unrelated avatar-storage reason (also fails without this migration).
+
 ## 2026-10-18 — Terms of Service published
 
 Branch `claude/auth-oauth-email-g90ajg` restarted from `main` @ `9d9a1b6` after PR #87 merged. `/legal/terms` renders the real bilingual Terms through `LegalDocumentView`; per-document updated dates. See [legal-pages.md](../frontend/legal-pages.md).

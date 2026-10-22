@@ -181,6 +181,22 @@ async function createPhonePasswordUser(params: { loginAlias: string; password: s
   return { ok: true, userId: data.user.id };
 }
 
+/**
+ * Re-keys a phone-login account: the internal login alias (the auth email) follows the account's new phone.
+ * Only called after the caller proved the current password, and always paired with `profile_set_phone`
+ * (whose DB guard requires the alias and the profile phone to agree). Returns the reason on failure so the
+ * caller can restore the previous alias.
+ */
+export async function rekeyLoginAlias(userId: string, newAlias: string): Promise<{ ok: true } | { ok: false; reason: "exists" | "failed" }> {
+  const admin = getAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { email: newAlias, email_confirm: true });
+  if (!error) return { ok: true };
+  const code = (error as { code?: string }).code;
+  if (code === "email_exists" || code === "user_already_exists") return { ok: false, reason: "exists" };
+  console.error(`phone re-key: alias update failed (code ${code ?? "unknown"})`);
+  return { ok: false, reason: "failed" };
+}
+
 /** Compensating delete for a user THIS flow just created. Returns false (after a safe diagnostic) if it could not. */
 export async function deleteCraftsmanPasswordUser(userId: string): Promise<boolean> {
   const admin = getAdminClient();
