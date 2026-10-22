@@ -85,7 +85,14 @@ jobs:
           url=$(cat "$RUNNER_TEMP/preview-url")
           if [ -z "$url" ]; then echo "The deploy printed no workers.dev URL"; exit 1; fi
           echo "Preview: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          # A new workers.dev name can take a minute or two to resolve.
+          for attempt in $(seq 1 18); do
+            health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url/api/health" || true)
+            [ "$health" = "200" ] && break
+            sleep 10
+          done
           for path in /api/health / /auth/sign-in /legal/terms /showroom; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url$path" || true)
             echo "$path -> $code" | tee -a "$GITHUB_STEP_SUMMARY"
           done
+          if [ "$health" != "200" ]; then echo "/api/health never returned 200 (last: $health)"; exit 1; fi
