@@ -95,4 +95,9 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url$path" || true)
             echo "$path -> $code" | tee -a "$GITHUB_STEP_SUMMARY"
           done
-          if [ "$health" != "200" ]; then echo "/api/health never returned 200 (last: $health)"; exit 1; fi
+          if [ "$health" != "200" ]; then
+            echo "/api/health never returned 200 (last: $health)"
+            getent hosts "${url#https://}" || echo "the workers.dev name does not resolve"
+            curl -sS -o /dev/null --max-time 20 "$url/api/health" || true
+            exit 1
+          fi
