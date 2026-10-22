@@ -43,6 +43,9 @@ export function backendRequest(request: Request, target: URL): Request {
   const url = new URL(`${incoming.pathname}${incoming.search}`, target);
   const headers = new Headers(request.headers);
   for (const name of HOP_BY_HOP) headers.delete(name);
+  // FastAPI authenticates the Authorization bearer only; the session cookies (which
+  // hold the refresh token) never leave for another origin (security audit 2026-10-22).
+  headers.delete("cookie");
   // What a Vercel rewrite tells the service about the original request.
   headers.set("x-forwarded-host", incoming.host);
   headers.set("x-forwarded-proto", incoming.protocol.replace(":", ""));
