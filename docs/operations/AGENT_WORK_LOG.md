@@ -6916,3 +6916,9 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - `pip-audit`: upgraded pyjwt 2.13.0 → 2.15.1 (15 advisories, auth path), cryptography, h2, multidict, certifi; 0 known after; backend 106 passed.
 - Dry runs for `preview`/`production` pass; image 396 MB, non-root, no secrets; cold start median 5.2 s at 1/4 vCPU; prices unchanged.
 - **Unfinished:** gates in [fastapi-preview-prerequisites.md](fastapi-preview-prerequisites.md): frontend preview HTTPS, Acceptance rebuild, then separate approvals for Workers Paid and the preview.
+
+## 2026-10-24 — #98 merged into #103, backend preview wired, Installer migrations on Acceptance
+
+- Merged #98 into `claude/project-thread-724t0d` and added the `BACKEND` service binding to the frontend `preview` env only. Redeployed the frontend preview (run 40100666573); `/api/backend/health` answers from the container.
+- Applied `20261024090002..11` to Acceptance (owner approved). Rehearsed first on a local DB reset to `20261024090001`, including a CRLF copy: all apply, 688 function permission contracts pass. Each migration ran inside a DO block that strips CR, checks the md5 of the repository file, executes it and records it, so a paste error aborts instead of drifting.
+- **Unfinished:** latency numbers (the sandbox cannot reach workers.dev); an authenticated backend route to test refusal against; the `schema_migrations.statements` placeholder for `20261024090001` on Acceptance (metadata only); Production stays untouched until the owner's GO after the stack merges.
