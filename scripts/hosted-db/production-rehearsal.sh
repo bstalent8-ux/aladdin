@@ -94,6 +94,7 @@ lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-after.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-after.txt"
 
 # 5. Report: counts and hashes only.
+SCHEMA=same
 {
   echo "Production rehearsal $(date -u +%FT%TZ), baseline $SHA"
   echo "Production history: $(wc -l < "$OUT/history-production.txt") versions; pending: $(wc -l < "$OUT/pending.txt")"
@@ -101,10 +102,16 @@ lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-after.txt"
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
   then echo "Schema after the push equals the tested baseline."
-  else echo "Schema after the push differs from the tested baseline in:"; diff <(sort "$KIT/local-noseed-fingerprint.txt") <(sort "$OUT/fingerprint-after.txt") | grep '^>' | cut -d'|' -f1; fi
+  else SCHEMA=differs; echo "Schema after the push differs from the tested baseline in:"; diff <(sort "$KIT/local-noseed-fingerprint.txt") <(sort "$OUT/fingerprint-after.txt") | grep '^>' | cut -d'|' -f1; fi
   echo "Tables whose row count changed (table: before -> after):"
   join -t'|' <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-restored.txt" | sort -t'|' -k1,1) <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-after.txt" | sort -t'|' -k1,1) \
     | awk -F'|' '$2!=$3 {print "  "$1": "$2" -> "$3}'
   echo "Tables that disappeared:"; comm -23 <(cut -d: -f1 "$OUT/rowcounts-restored.txt" | sort) <(cut -d: -f1 "$OUT/rowcounts-after.txt" | sort) | sed 's/^/  /'
-} | tee "$OUT/REPORT.txt"
+} > "$OUT/REPORT.txt"
+cat "$OUT/REPORT.txt"
 echo "Share $OUT/REPORT.txt with Claude (it has no row data). Keep $B private; it holds Production data."
+if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || [ "$SCHEMA" != same ]; then
+  echo "REHEARSAL FAILED: restore=$RESTORE, migration up exit=$UP, schema=$SCHEMA. Production push is NO-GO."
+  exit 1
+fi
+echo "Rehearsal passed: restore exact, migrations applied, schema equals the tested baseline."

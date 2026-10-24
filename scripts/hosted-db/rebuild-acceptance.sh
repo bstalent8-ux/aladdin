@@ -80,11 +80,12 @@ sb db reset --linked --no-seed
 # 3. Verify: migration history and schema fingerprint against the tested local replay.
 sb migration list --linked | tee "$BACKUP/migration-list-after.txt" | tail -3
 fp > "$BACKUP/fingerprint-after.txt"
-if diff "$HERE/local-noseed-fingerprint.txt" "$BACKUP/fingerprint-after.txt"; then
-  echo "Schema fingerprint MATCHES the locally tested baseline."
-else
-  echo "Schema fingerprint DIFFERS from the tested baseline (categories above). Tell Claude before using acceptance."
+if ! diff "$HERE/local-noseed-fingerprint.txt" "$BACKUP/fingerprint-after.txt"; then
+  echo "FAILED: the schema fingerprint DIFFERS from the tested baseline (categories above)."
+  echo "Acceptance is NO-GO. Tell Claude in the thread before using it."
+  echo "If you need the old state back: bash $BACKUP/restore-acceptance.sh $BACKUP"
+  exit 1
 fi
-echo "Done. Tell Claude in the thread; it re-checks through the Supabase connection."
-echo "If anything is wrong: bash $BACKUP/restore-acceptance.sh $BACKUP"
+echo "Schema fingerprint MATCHES the locally tested baseline."
+echo "Tell Claude in the thread; it re-checks through the Supabase connection."
 echo "Afterwards you can remove the temporary checkout with: git worktree remove $WT"
