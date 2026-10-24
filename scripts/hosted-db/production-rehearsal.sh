@@ -12,8 +12,8 @@ export LC_ALL=C
 
 PROD="kkpkgjrweysgvhvkhzun"
 BRANCH="claude/project-thread-lz98jd"
-SHA="c7d34c648639f4f5a3ecd74b31f8067c829a8674"
-MANIFEST="5a26a710d5f54cb0a4eeed5435c93bf873a44517a202afd8af214b1036277e37"
+SHA="e27358c1c27a2697ebe71fb55f8c5e335076d55e"
+MANIFEST="76353b2d7555f6b1b124c58e31a005c21efaa4a40668d2edfe71e0d9584ed183"
 HERE="$(cd "$(dirname "$0")" && pwd)"; KIT="${KIT:-$HERE}"; [ -s "$KIT/security-tail.sql" ] || KIT="$HERE/../acceptance-rebuild"
 OUT="${HOME}/aladdin-production-rehearsal-$(date +%Y%m%d-%H%M%S)"
 sb() { pnpm exec supabase "$@"; }
