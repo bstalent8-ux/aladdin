@@ -1,5 +1,10 @@
 # Runtime State
 
+## Rebuilt Installer + Next 16.4.3 branch — 2026-10-24
+
+- Branch `claude/project-thread-724t0d` = PR #101 + `main` (#96) + Installer work + Next 16.4.3; supersedes PR #102 (`chore/next-16`), which must not be merged or pushed to any database. 191 migrations; Installer migrations are `20261024090002..11`.
+- Acceptance has `20261024090001` applied (2026-10-24); Production has 165 migrations, latest `20261020090001` (PR #96 applied).
+
 ## Consolidated database baseline (draft PR) — 2026-10-22
 
 - Branch `claude/project-thread-lz98jd` (from the Workers branch, PR #97 head): 180 migrations = main's `20261020090001_registration_data_sync` (byte-identical) plus the PR stack, with the 15 PR-only migrations renamed to `20261021090001`..`15` so they run after main's. Mapping, verification and the Production plan: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).

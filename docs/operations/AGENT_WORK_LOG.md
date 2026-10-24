@@ -1,3 +1,11 @@
+## 2026-10-24 — Installer work and Next 16.4.3 rebuilt on the consolidated stack (replaces PR #102)
+
+Branch `claude/project-thread-724t0d` from PR #101 (`506ec9b`, = #97 + privilege fix). PR #102 (`chore/next-16`) was built on `integration/approved-features-20261019`, which forked from an old #97 point: it lacked 34 stack commits, used the retired 2026101x migration versions, edited the already-applied `20261020090001`, and numbered its Installer migrations `20261021090000..09`, colliding with the stack's `20261021090001..15` already on Acceptance. This branch: merges `main` (#96; same conflict resolutions as the integration branch), ports `9cc8eb8`, `5f18086`, `5dc6779` and `ec0b082`, renumbers the Installer migrations to `20261024090002..11`, drops the no-op #96/#88 reconcile migration and the edit to `20261020090001`, and carries the integration's permission contracts under the new versions. The Redis guard test now allows `REDIS_CACHE_ENABLED` only in the workers.dev preview (owner choice 2026-10-24).
+
+Validation (cloud sandbox): typecheck clean; lint 0 errors (58 warnings); Vitest 4,307 passed; permission gate upgrade replay passes every migration through `20261024090011`; fresh `db reset` + 688 exact function contracts; pgTAP 141 files / 6,290 tests pass; installer phone-change and last-owner concurrency proofs pass; migration policy clean against `main`. Not run: Playwright E2E, Cloudflare build.
+
+Hosted: Acceptance `nxossqhdfltcqdwvbewi` got `20261024090001` applied on 2026-10-24 (owner approved), GO/NO-GO re-check pending. The Installer migrations `20261024090002..11` are not applied anywhere hosted. Production `kkpkgjrweysgvhvkhzun` untouched (165 migrations, latest `20261020090001`).
+
 ## 2026-10-22 — Consolidated database baseline, tested backup/restore, Production rehearsal
 
 Branch `claude/project-thread-lz98jd` (from `claude/cloudflare-workers-2ibvgs`, PR #97 head). Details: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
