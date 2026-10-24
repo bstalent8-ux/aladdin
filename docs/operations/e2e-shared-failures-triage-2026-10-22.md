@@ -15,6 +15,19 @@ This file classifies the 51 so each one has an owner. Runs were local (sandbox, 
 
 Total: 21 + 1 + 8 + 2 + 2 + 17 = 51.
 
+## Where the Turnstile group runs now (2026-10-24)
+
+The CAPTCHA-dependent suites run in GitHub Actions, in `.github/workflows/auth-captcha-e2e.yml` (job `auth-captcha-e2e`). A GitHub runner can reach Cloudflare, so the real widget and the real Siteverify call run there. The job:
+
+- runs on push to `claude/cloudflare-workers-2ibvgs`, on manual dispatch, and on pull requests to `main` that touch the auth, CAPTCHA, env or E2E files it lists;
+- starts a local Supabase stack on the runner (`supabase start` + `db reset`) and runs `chromium-desktop` against the Node build (`next build` + `next start`, from `frontend/playwright.config.ts`);
+- runs `auth-password-preview`, `profile-completion`, `installer-phone-auth` and `recovery-replay`. It leaves out the Sign In "renders no Turnstile widget" test (waiting on the owner decision) and the profile-completion "seeded account" block (waiting on product review);
+- uses Cloudflare's public test keys and `NEXT_PUBLIC_APP_ENV=local`, and sets both E2E stubs (`E2E_STUB_TURNSTILE`, `E2E_TURNSTILE_STUB`) to `0`. It reads no repository secrets. A first step calls Siteverify with the test secret and saves Cloudflare's reply as an artifact (`siteverify-test-key.json`), including the hostname it returns.
+
+Hostname: the app accepts a test-key result (`metadata.result_with_testing_key: true`) before it checks the hostname or action, and only when `NEXT_PUBLIC_APP_ENV=local` (`frontend/src/server/auth/turnstile.ts`). So `TURNSTILE_ALLOWED_HOSTNAMES` does not decide this job. It is set to `127.0.0.1,localhost` in the job env only. No application code was changed.
+
+Only the installer phone sign-up calls Siteverify from the app. Create Account and Forgot Password pass the token to GoTrue, where `[auth.captcha]` is off. In the sandbox those flows fail earlier: the widget script never loads, so no token is minted.
+
 ## How to reproduce
 
 ```bash
