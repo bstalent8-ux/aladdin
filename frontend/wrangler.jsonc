@@ -35,6 +35,11 @@
         "REDIS_CACHE_ENABLED": "true",
         "REDIS_REST_URL": "https://alert-bedbug-148148.upstash.io",
         "REDIS_KEY_ENV": "cf-preview",
+        // R2 (stage 2): the acceptance private bucket only. R2_ACCOUNT_ID comes from the
+        // deploy workflow; the bucket-scoped keys and SUPABASE_SERVICE_ROLE_KEY are Worker secrets.
+        "R2_STORAGE_ENABLED": "false",
+        "R2_PRODUCTION_WRITES_APPROVED": "false",
+        "R2_PRIVATE_BUCKET": "aladdin-r2-acceptance-20261011-private",
         // Siteverify must report this hostname, or the CAPTCHA check fails closed.
         "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev"
       }
