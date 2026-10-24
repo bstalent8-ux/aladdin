@@ -81,6 +81,9 @@ jobs:
           grep -oE 'https://[a-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/deploy.log" | head -1 > "$RUNNER_TEMP/preview-url"
       - name: Smoke check the preview
         if: vars.CLOUDFLARE_PREVIEW_ENABLED == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           url=$(cat "$RUNNER_TEMP/preview-url")
           if [ -z "$url" ]; then echo "The deploy printed no workers.dev URL"; exit 1; fi
@@ -91,10 +94,28 @@ jobs:
             [ "$health" = "200" ] && break
             sleep 10
           done
+          # Stream the Worker's own logs while the pages are requested, so a 5xx
+          # comes with its exception instead of Next.js's generic error page.
+          tail_log="$RUNNER_TEMP/tail.jsonl"
+          (cd frontend && exec timeout 120 pnpm exec wrangler tail --env preview --format json > "$tail_log" 2> "$RUNNER_TEMP/tail.err") &
+          tail_pid=$!
+          sleep 10
+          server_errors=0
           for path in /api/health / /auth/sign-in /legal/terms /showroom; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url$path" || true)
             echo "$path -> $code" | tee -a "$GITHUB_STEP_SUMMARY"
+            case "$code" in 5*|000) server_errors=$((server_errors + 1)) ;; esac
           done
+          sleep 5
+          kill "$tail_pid" 2>/dev/null || true
+          wait "$tail_pid" 2>/dev/null || true
+          if [ "$server_errors" -gt 0 ]; then
+            echo "Worker exceptions and error logs during the smoke check:"
+            jq -r '(.exceptions // [])[] | "exception \(.name): \(.message)"' "$tail_log" 2>/dev/null | sort | uniq -c | head -20 || true
+            jq -r '(.logs // [])[] | select(.level == "error") | .message | map(tostring) | join(" ")' "$tail_log" 2>/dev/null \
+              | cut -c1-400 | sort | uniq -c | head -20 || true
+            [ -s "$tail_log" ] || { echo "wrangler tail captured nothing:"; tail -5 "$RUNNER_TEMP/tail.err"; }
+          fi
           if [ "$health" != "200" ]; then
             echo "/api/health never returned 200 (last: $health)"
             host="${url#https://}"
@@ -115,5 +136,9 @@ jobs:
             done
             curl -sS --max-time 20 https://www.cloudflare.com/cdn-cgi/trace | grep -E "^(colo|loc|tls|http)=" || true
             curl -sS -o /dev/null --max-time 20 "$url/api/health" || true
+            exit 1
+          fi
+          if [ "$server_errors" -gt 0 ]; then
+            echo "$server_errors page(s) returned a server error"
             exit 1
           fi
