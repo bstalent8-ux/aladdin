@@ -4,7 +4,7 @@ Branch `claude/project-thread-724t0d` from PR #101 (`506ec9b`, = #97 + privilege
 
 Validation (cloud sandbox): typecheck clean; lint 0 errors (58 warnings); Vitest 4,307 passed; permission gate upgrade replay passes every migration through `20261024090011`; fresh `db reset` + 688 exact function contracts; pgTAP 141 files / 6,290 tests pass; installer phone-change and last-owner concurrency proofs pass; migration policy clean against `main`. Not run: Playwright E2E, Cloudflare build.
 
-Hosted: Acceptance `nxossqhdfltcqdwvbewi` got `20261024090001` applied on 2026-10-24 (owner approved), GO/NO-GO re-check pending. The Installer migrations `20261024090002..11` are not applied anywhere hosted. Production `kkpkgjrweysgvhvkhzun` untouched (165 migrations, latest `20261020090001`).
+Hosted: Acceptance `nxossqhdfltcqdwvbewi` got `20261024090001` applied on 2026-10-24 (owner approved). Re-check: fingerprint matches the 181-migration local baseline except the expected `roles` row (`media_edge_worker`); advisors unchanged in kind. **Acceptance GO.** The Installer migrations `20261024090002..11` are not applied anywhere hosted. Production `kkpkgjrweysgvhvkhzun` untouched (165 migrations, latest `20261020090001`).
 
 ## 2026-10-22 — Consolidated database baseline, tested backup/restore, Production rehearsal
 

@@ -3,7 +3,7 @@
 ## Rebuilt Installer + Next 16.4.3 branch — 2026-10-24
 
 - Branch `claude/project-thread-724t0d` = PR #101 + `main` (#96) + Installer work + Next 16.4.3; supersedes PR #102 (`chore/next-16`), which must not be merged or pushed to any database. 191 migrations; Installer migrations are `20261024090002..11`.
-- Acceptance has `20261024090001` applied (2026-10-24); Production has 165 migrations, latest `20261020090001` (PR #96 applied).
+- Acceptance has `20261024090001` applied (2026-10-24, 181 migrations) and is **GO**: the hosted fingerprint matches `scripts/hosted-db/local-noseed-fingerprint.txt` in 14 of 15 categories, and the only difference is the expected `roles` (Acceptance-only `media_edge_worker` LOGIN role, no password). Security advisors show nothing new (6 anon SECURITY DEFINER = the reviewed public RPC allowlist; 9 mutable search_path helpers also exist on Production). Production has 165 migrations, latest `20261020090001` (PR #96 applied).
 
 ## Consolidated database baseline (draft PR) — 2026-10-22
 
