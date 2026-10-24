@@ -1,3 +1,21 @@
+## 2026-10-24 — Video transcode: originals larger than the Container disk
+
+Branch `claude/cf-video-large-2ibvgs` (local, from `claude/cloudflare-workers-2ibvgs`). This is code and docs only, with nothing deployed. Details: [video-transcode-cloudflare-containers.md](../architecture/video-transcode-cloudflare-containers.md#does-a-long-video-fit).
+
+**Changes in `backend/app/workers/video_transcode.py`:**
+- Finished HLS segments are uploaded to the revision prefix while ffmpeg runs, then deleted locally. Playlists are still uploaded last.
+- An original larger than the free disk minus 1 GiB is read from R2 through a presigned GET URL for that one object. The URL lives as long as the run's own timeout plus 5 min, at most 7 days. The input allows only `https,tls,tcp` and the forced demuxer, with reconnect flags, and the URL is redacted from logs.
+- An original that fits is still read from local disk only.
+- The ceiling moves from ≈ 7.5 GB to R2's 5 TiB object limit and a 7-day wall time per job.
+- **Bug found and fixed** while testing against SeaweedFS: an expired URL or network error during ffprobe was rejected as `invalid_media`. It is now a retry.
+
+**Validation:**
+- `uv run pytest`: 118 passed, 3 skipped (Redis).
+- `ruff check` and `ruff format --check` are clean.
+- A real ffmpeg transcode over local HTTP Range passed, and so did a real S3 API run on SeaweedFS.
+
+**Unfinished:** real R2 and Container tests, the bookworm image (ffmpeg 5.1), a multi-GB original, and a mid-transcode connection drop.
+
 ## 2026-10-22 — Consolidated database baseline, tested backup/restore, Production rehearsal
 
 Branch `claude/project-thread-lz98jd` (from `claude/cloudflare-workers-2ibvgs`, PR #97 head). Details: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
