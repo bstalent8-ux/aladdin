@@ -59,7 +59,7 @@ Branch with the fixes: `claude/cf-security-2ibvgs` (not pushed).
   - `global_fetch_strictly_public` is on in `wrangler.jsonc`.
   - Tests: `backend-proxy.test.ts`.
 - **Session revocation.**
-  - `db_pre_request` refuses ended sessions on every PostgREST request (migrations `20261019140000_data_api_session_revocation.sql` and `20261019163000_storage_realtime_session_revocation.sql`).
+  - `db_pre_request` refuses ended sessions on every PostgREST request (migrations `20261021090013_data_api_session_revocation.sql` and `20261021090014_storage_realtime_session_revocation.sql`).
   - The middleware calls `my_account_status` on product surfaces and clears stale cookies.
   - Admin paths use `getUser()`.
   - The media proxy uses `getUser()` per read.

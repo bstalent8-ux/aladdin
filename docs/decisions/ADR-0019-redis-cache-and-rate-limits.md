@@ -25,7 +25,7 @@ Redis is an **accelerator and counter store**, never an authority.
 
 ### Why only reference vocabularies are cached
 
-The audit (2026-10-19) found no other cross-user hot reads. Every other page reads data that RLS filters per caller, and caching it would mean caching a permission decision. The measured staging bottleneck (a 260 ms per-row role check) was fixed in SQL instead (`20261019130000_rls_platform_check_initplan.sql`).
+The audit (2026-10-19) found no other cross-user hot reads. Every other page reads data that RLS filters per caller, and caching it would mean caching a permission decision. The measured staging bottleneck (a 260 ms per-row role check) was fixed in SQL instead (`20261021090012_rls_platform_check_initplan.sql`).
 
 Each cached loader filters explicitly (`is_active = true`), so a support user, whose policy also returns retired rows, can never fill an entry other callers are served. A caller without a verified session never touches the cache. An empty result is kept for 300 s only.
 

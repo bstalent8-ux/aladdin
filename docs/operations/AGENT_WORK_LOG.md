@@ -1,3 +1,15 @@
+## 2026-10-22 — Consolidated database baseline, tested backup/restore, Production rehearsal
+
+Branch `claude/project-thread-lz98jd` (from `claude/cloudflare-workers-2ibvgs`, PR #97 head). Details: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
+
+- Main's `20261020090001_registration_data_sync` failed on the PR stack, because `admin_users_account_type` had already rewritten `admin_users_list`. The 15 PR-only migrations moved to `20261021090001`..`15` (order kept) so a fresh replay matches `db push` onto main. Main's file is untouched. `admin_users_account_type` keeps `registered_account`.
+- Contracts for main's 3 new functions. The permission gate accepts `CASE ... END`.
+- Local: 5,791/5,791 pgTAP (two resets); upgrade gate 17/17 atomic; lint 0 errors; phone parity 0 mismatches; 3 concurrency proofs; fresh and upgrade fingerprints equal.
+- Found that a `db dump` restore drops the `storage.objects` policies, the auth trigger and the `media_edge` membership, and widens anon/authenticated grants. Added `scripts/hosted-db/security-tail.sql`. With it, the restore is exact (fingerprint, 145 tables of row counts, 5,791 pgTAP on the restored copy).
+- `production-rehearsal.sh` was tested in its local test mode on a Production-like copy. Restore exact, 15 applied, schema equal to the baseline, rows only added where expected.
+
+Unfinished / needs the owner: approval and an owner-run backup for the Acceptance rebuild; the Production rehearsal run (read-only); Hyperdrive and real Cloudflare tests (token and allowed domains still missing). Not touched: any hosted database.
+
 ## 2026-10-22 — R2 audit, credentials checklist, DNS export, 15-stage cutover plan
 
 Branch `claude/cf-r2-cutover-2ibvgs` (local, from PR #97). Docs only. Every hosted call was read-only:
@@ -6836,6 +6848,9 @@ Per instruction: no full E2E, no pgTAP, no Lighthouse, no persona matrix.
 Standards: CTA contrast and stale shared-module documentation corrected. Spec: quotation accepted transitions now enforce seller eligibility; RFQ remains open on denial and rejection allowed, verified by3newpgTAP assertions. Sequential taskDB119/119; focusedauth114/114. Direct business contact RPC country metadata validation remains missing, confirmed by rolled-back synthetic diagnostic; added as second merge blocker alongside native quota. No hosted writes. Reviewed build/renderedcontrast/screenshots checked before final push.
 
 Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](https://github.com/hmohamed080/aladdin/pull/84) verified OPEN/DRAFT targeting main. Additional journey rerun aborted due stalled Docker, not counted as pass; final non-mutating contrast/layout2/2passed and typecheckpassed. Preview3341HTTP200, localAPI63321; original14hashesunchanged. External untracked frontend/e2e/auth-captcha.spec.ts appeared and remains excluded/preserved. No merge/deployment/worktree cleanup. Native quota and direct contact metadata remain merge blockers.
+
+### Cloudflare migration, PR #97 — 2026-10-22
+Merged five audit branches (cost, R2/DNS/credentials/cutover, video on Containers, security, Redis) into `claude/cloudflare-workers-2ibvgs`, fixed stale E2E specs and classified the 51 shared Node/Workers failures. Validated: frontend typecheck, lint (0 errors), targeted unit suites, `cf:build` + `wrangler deploy --dry-run`; backend pytest and ruff. Unfinished: everything hosted (preview unreachable on a workers.dev certificate), Sign In CAPTCHA decision, 17 Showroom RC2 spec drifts for product review. See [status report](cloudflare-migration-status-2026-10-22.md).
 
 ## 2026-10-22 — FastAPI on Cloudflare Containers (ADR-0022, draft PR)
 

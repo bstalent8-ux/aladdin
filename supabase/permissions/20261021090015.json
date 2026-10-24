@@ -1,5 +1,5 @@
 {
- "version": "20261019170000",
+ "version": "20261021090015",
  "source": "local supabase/postgres:17 replay of the migration on the exact RC2 baseline plus every later migration",
  "publicRPCs": [
   "public.invitation_lookup(text)",
@@ -22910,6 +22910,113 @@
     "supabase_storage_admin": false
    },
    "signature": "public.video_upload_resolve(uuid)",
+   "schemaUsage": {
+    "anon": true,
+    "service_role": true,
+    "authenticated": true,
+    "authenticator": true,
+    "dashboard_user": true,
+    "supabase_auth_admin": true,
+    "supabase_storage_admin": true
+   }
+  },
+  {
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=\"\""
+   ],
+   "grants": [
+    {
+     "role": "postgres",
+     "grantable": false
+    }
+   ],
+   "definer": true,
+   "effective": {
+    "anon": false,
+    "service_role": false,
+    "authenticated": false,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
+   },
+   "signature": "app.registered_account(uuid)",
+   "schemaUsage": {
+    "anon": true,
+    "service_role": false,
+    "authenticated": true,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
+   }
+  },
+  {
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=\"\""
+   ],
+   "grants": [
+    {
+     "role": "authenticated",
+     "grantable": false
+    },
+    {
+     "role": "postgres",
+     "grantable": false
+    }
+   ],
+   "definer": true,
+   "effective": {
+    "anon": false,
+    "service_role": false,
+    "authenticated": true,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
+   },
+   "signature": "public.branch_location_set(uuid,text,text,text)",
+   "schemaUsage": {
+    "anon": true,
+    "service_role": true,
+    "authenticated": true,
+    "authenticator": true,
+    "dashboard_user": true,
+    "supabase_auth_admin": true,
+    "supabase_storage_admin": true
+   }
+  },
+  {
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=\"\""
+   ],
+   "grants": [
+    {
+     "role": "authenticated",
+     "grantable": false
+    },
+    {
+     "role": "postgres",
+     "grantable": false
+    }
+   ],
+   "definer": true,
+   "effective": {
+    "anon": false,
+    "service_role": false,
+    "authenticated": true,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
+   },
+   "signature": "public.organization_legal_name_set(uuid,text)",
    "schemaUsage": {
     "anon": true,
     "service_role": true,
