@@ -215,6 +215,14 @@ Validation: typecheck clean; lint 0 errors; Vitest 294 files, all passing (one i
 
 Open: owner decisions on the badge backfill, Offers/My Offers re-enable, invitation revoke/hashing, purchase-request UI, Points/staff-invite Preview buttons; the 30-day phone cooldown was not found in code or docs; hosted GoTrue CAPTCHA gap stays with the Auth owner.
 
+## 2026-10-20 — Registration data: saved, editable, and visible to Admin
+
+Branch `fix/registration-account-sync` from `main` @ `bd0de0a`; worktree `D:/projects/aladdin-wt-registration-sync`. Audited every field of the Showroom and Installer sign-ups against Settings and the Admin Dashboard. Found and fixed: (1) business contact stored twice (`organizations.contact_*` vs `organization_contacts`) with no editor for the registered values; (2) legal name and branch governorate/city had no edit path; (3) Admin showed no account type for a new Installer (declared persona vs `primary_account_type`) and could not read activities; (4) the registration review step hid phone, e-mail, activity and description. Migration `20261020090001_registration_data_sync.sql`, pgTAP 87 (43/43; 82, 91, 92, 93, 22, 71, 86 still green on the scratch DB), new Settings contact / legal-name / location UI, Admin Registration-details card. Details: `docs/frontend/registration-data-sync.md`.
+
+Follow-up same day: real-browser run of both sign-ups (see doc), Installer phone re-key with current password, Installer header refreshed through layout revalidation, Admin organizations list shows phone and city. pgTAP 87 now 45/45.
+
+Open: not pushed, migration not applied to any hosted database. pgTAP 60 fails on the scratch DB for an unrelated avatar-storage reason (also fails without this migration).
+
 ## 2026-10-18 — Terms of Service published
 
 Branch `claude/auth-oauth-email-g90ajg` restarted from `main` @ `9d9a1b6` after PR #87 merged. `/legal/terms` renders the real bilingual Terms through `LegalDocumentView`; per-document updated dates. See [legal-pages.md](../frontend/legal-pages.md).
