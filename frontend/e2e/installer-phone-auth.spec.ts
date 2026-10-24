@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { randomInt } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
 import { IDENTITIES, signIn } from "./helpers/auth";
 
@@ -78,6 +79,16 @@ async function attemptSignIn(page: Page, phone: string, password: string): Promi
 }
 
 test.describe("installer phone + password auth", () => {
+  // phone_auth_consume_limit allows 10 sign-ups per IP per 15 minutes, and this file alone registers more than
+  // that. Under NEXT_PUBLIC_APP_ENV=local the app takes the client IP from X-Forwarded-For, so each test sends its
+  // own address and counts against its own bucket. The per-phone limit is unaffected.
+  test.beforeEach(async ({ page, baseURL }) => {
+    const ip = `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
+    await page.route(`${baseURL}/**`, (route) =>
+      route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": ip } }),
+    );
+  });
+
   test("sign-up creates a normal installer/technician account and lands on /home", async ({ page }) => {
     const phone = uniquePhone();
     const name = `صنايعي اختبار ${phone.slice(-4)}`;
