@@ -1,4 +1,4 @@
-# Cloudflare migration status (2026-10-22)
+# Cloudflare migration status (2026-10-22, updated 2026-10-24)
 
 The owner brief's section 14 report for the frontend, R2, credentials/CI, Redis, video, security, cost and cutover sections (PR #97, branch `claude/cloudflare-workers-2ibvgs`). DB baseline, the media edge Worker and Hyperdrive belong to the "Cloudflare acceptance test" thread; FastAPI on Containers belongs to PR #98. Updated in place as work lands.
 
@@ -11,15 +11,20 @@ The owner brief's section 14 report for the frontend, R2, credentials/CI, Redis,
 | Next.js | 16.4.2 (owner decision 2026-10-21), webpack build | [ADR-0021](../decisions/ADR-0021-cloudflare-workers-frontend.md) "Next.js 16 upgrade" |
 | Vercel build | still green on every push (rollback path intact) | Vercel check on PR #97 |
 | Workers build | `pnpm cf:build` and `wrangler deploy --dry-run` pass on the current head | local, 2026-10-22 |
-| Preview Worker | `aladdin-frontend-preview` deployed by the GitHub workflow, **unreachable**: TLS handshake fails for every name under `bstalent9.workers.dev` (Cloudflare has not issued the certificate) | workflow run 39735790450, `curl: (35) … alert handshake failure` |
-| Workers Builds | a dashboard Git connection on the preview Worker fails every push in 0 s; not created by this PR | FastAPI thread report |
+| Preview Worker | `aladdin-frontend-preview` deployed by the GitHub workflow and **reachable** since 2026-10-24 (the workers.dev certificate was issued; no support ticket needed). `/api/health`, `/`, `/auth/sign-in`, `/legal/terms` return 200, `/showroom` 307 | workflow run 40077176318 |
+| Workers Builds | a dashboard Git connection on the preview Worker fails every push in 0 s; not created by this PR. Owner decision 2026-10-24: GitHub Actions is the only deploy path, so the owner disconnects it | FastAPI thread report |
 | Desktop E2E | Workers (Next 16) fails exactly the same 51 tests as Node (Next 15); no host regression | [triage](e2e-shared-failures-triage-2026-10-22.md) |
+| Migrations | #97 contains #100's 180-migration baseline (PR-only migrations renamed to `20261021090001..15`); CI fails if a retired version returns (`supabase/permissions/retired-versions.json`) | fast-forward to #100 `a6dcf79` |
 | Unit tests | frontend 4,069 pass; backend 104 pass, 3 skipped (real Redis) | agent runs and local re-run 2026-10-22 |
 
 ## 2. Completed
 
 - Next.js 16 upgrade with OpenNext 1.20.13; ESLint flat config; React Compiler rules as warnings.
-- Preview workflow: fails loudly on deploy errors, waits for the name, prints TLS diagnostics.
+- Preview workflow: fails loudly on deploy errors, waits for the name, prints TLS diagnostics, fails on any 5xx and prints the Worker's exceptions from `wrangler tail`.
+- Fixed the preview's 500s: an empty `NEXT_PUBLIC_TURNSTILE_SITE_KEY` variable was inlined as `""` and failed env validation; the build now leaves it unset.
+- `TURNSTILE_ALLOWED_HOSTNAMES` for the preview pinned in `wrangler.jsonc`.
+- pyjwt 2.15.1 and the audited backend dependency bumps ported from #98.
+- CAPTCHA-dependent E2E suites run on a GitHub runner with Cloudflare's public test keys (`.github/workflows/auth-captcha-e2e.yml`).
 - E2E: stale installer, Country picker, avatar and recovery-replay specs fixed; all 51 shared failures classified.
 - Security audit: 4 fixes (spoofable client IP for phone-auth throttling, spoofable host/proto, refresh-token cookie forwarded to FastAPI, missing frame/nosniff headers). [Report](security-audit-cloudflare-2026-10-22.md).
 - Redis audit: backend `rediss://` only, shared `REDIS_CACHE_ENABLED` switch, fail-safe job lock, required `REDIS_KEY_ENV`, guard tests against permission or media caching. [ADR-0019 audit](../decisions/ADR-0019-redis-cache-and-rate-limits.md).
@@ -31,18 +36,17 @@ The owner brief's section 14 report for the frontend, R2, credentials/CI, Redis,
 
 ## 3. In progress
 
-- Nothing running in this thread; waiting on the blockers below.
+- Video transcoding for originals larger than about 7.5 GB (stream the input from R2 instead of downloading it).
 
 ## 4. Blockers
 
 | Blocker | Who | Unblocks |
 |---|---|---|
-| workers.dev certificate not issued for `bstalent9` | Cloudflare (support ticket) or owner | every hosted test below |
-| Workers Builds Git connection failing on every push | owner: disconnect unless intended | clean PR checks |
+| Workers Builds Git connection failing on every push | owner: disconnect (decided 2026-10-24) | clean PR checks |
 | Sign In shows Turnstile; docs say it must not | owner decision | auth-password-preview :635 |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is empty in the `cloudflare-preview` environment | owner | Turnstile on the preview |
 | Worker runtime secrets (Supabase acceptance, R2, Upstash REST, media tickets) not set | owner, with the [checklist](cloudflare-credentials-checklist.md) | real E2E, Redis, media on the preview |
-| Sandbox cannot reach Upstash, workers.dev or Turnstile | environment | real-provider checks must run in CI or by the owner |
+| Sandbox cannot reach Upstash, workers.dev or Turnstile | environment | real-provider checks run in CI (preview smoke, CAPTCHA E2E) or by the owner |
 
 ## 5. Dependencies on the DB / acceptance thread
 
@@ -62,7 +66,7 @@ See [cloudflare-credentials-checklist.md](cloudflare-credentials-checklist.md). 
 
 ## 8. Test evidence
 
-All local unless stated. Real-provider tests have not run: the preview is unreachable.
+All local unless stated. The preview smoke check runs on every push. Full E2E and security regression on the preview wait for the Worker secrets.
 
 ## 9. Architecture
 
@@ -78,4 +82,4 @@ ADR-0021 (frontend on Workers), ADR-0022 in #98 (FastAPI on Containers), ADR-001
 
 ## 12. GO / NO-GO
 
-**NO-GO for Production.** Needed first: a reachable preview, full E2E and security regression on it with real Turnstile, Supabase acceptance, R2 and Redis, real Workers performance numbers, and the owner approvals (Workers Paid, Images plan, DNS move, traffic switch).
+**NO-GO for Production.** Needed first: full E2E and security regression on it with real Turnstile, Supabase acceptance, R2 and Redis, real Workers performance numbers, and the owner approvals (Workers Paid, Images plan, DNS move, traffic switch).

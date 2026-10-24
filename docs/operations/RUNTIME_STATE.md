@@ -9,7 +9,7 @@
 ## Cloudflare migration, PR #97 — 2026-10-22 (later)
 
 - Branch `claude/cloudflare-workers-2ibvgs`: Next.js 16.4.2; R2/DNS/cutover, cost, security, Redis and video audits merged in. Status report and GO/NO-GO: [cloudflare-migration-status-2026-10-22.md](cloudflare-migration-status-2026-10-22.md). **Production NO-GO.**
-- Preview Worker `aladdin-frontend-preview` is deployed but unreachable (workers.dev TLS certificate not issued). Vercel still serves everything; DNS unchanged.
+- 2026-10-24: preview Worker `aladdin-frontend-preview` is reachable and serves pages (smoke run 40077176318). Runtime secrets (Supabase acceptance, R2, Upstash REST, Turnstile) are not set yet. GitHub Actions is the only preview deploy path; the dashboard Workers Builds connection is to be disconnected by the owner. #97 contains #100's 180-migration baseline. Vercel still serves everything; DNS unchanged.
 
 ## Cloudflare R2, credentials, DNS and 15-stage cutover (read-only audit) — 2026-10-22
 

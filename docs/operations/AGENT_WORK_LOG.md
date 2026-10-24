@@ -6851,3 +6851,6 @@ Final packaging: implementation05c4eec8 and reviewfix4ae03891 pushed; [PR84](htt
 
 ### Cloudflare migration, PR #97 — 2026-10-22
 Merged five audit branches (cost, R2/DNS/credentials/cutover, video on Containers, security, Redis) into `claude/cloudflare-workers-2ibvgs`, fixed stale E2E specs and classified the 51 shared Node/Workers failures. Validated: frontend typecheck, lint (0 errors), targeted unit suites, `cf:build` + `wrangler deploy --dry-run`; backend pytest and ruff. Unfinished: everything hosted (preview unreachable on a workers.dev certificate), Sign In CAPTCHA decision, 17 Showroom RC2 spec drifts for product review. See [status report](cloudflare-migration-status-2026-10-22.md).
+
+### Cloudflare migration, PR #97 — 2026-10-24
+Preview became reachable (certificate issued). Fixed its 500s (empty `NEXT_PUBLIC_TURNSTILE_SITE_KEY` inlined as `""`), made the smoke check fail on 5xx with `wrangler tail` evidence, pinned `TURNSTILE_ALLOWED_HOSTNAMES`, fast-forwarded to #100's 180-migration baseline, ported pyjwt 2.15.1, added `auth-captcha-e2e.yml` (CAPTCHA suites on a GitHub runner with Cloudflare's public test keys). Unfinished: Worker secrets (owner), Workers Builds disconnect (owner), Sign In CAPTCHA decision, 17 Showroom RC2 spec drifts, transcoding originals over 7.5 GB (in progress).
