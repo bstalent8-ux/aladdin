@@ -61,10 +61,12 @@ jobs:
             const preview = t.slice(t.indexOf("\"preview\": {"), t.indexOf("\"production\": {"));
             if (!preview.includes("https://nxossqhdfltcqdwvbewi.supabase.co")) { console.error("preview SUPABASE_URL is not the acceptance project"); process.exit(1); }
             if (preview.includes("kkpkgjrweysgvhvkhzun")) { console.error("preview must never point at the live project"); process.exit(1); }'
-          payload=$(printf '%s' "$ACCEPTANCE_ANON_KEY" | cut -d. -f2 | tr '_-' '/+')
-          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
-          ref=$(printf '%s' "$payload" | base64 -d | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.stdout.write(j.ref+":"+j.role)})')
-          [ "$ref" = "nxossqhdfltcqdwvbewi:anon" ] || { echo "SUPABASE_ANON_KEY is not the acceptance anon key ($ref)"; exit 1; }
+          # The key must be accepted by the acceptance project itself (works for a legacy JWT anon key and a
+          # new sb_publishable_ key alike); a key from any other project gets 401 here.
+          case "$ACCEPTANCE_ANON_KEY" in sb_secret_*|"") echo "SUPABASE_ANON_KEY must be the acceptance anon/publishable key"; exit 1 ;; esac
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $ACCEPTANCE_ANON_KEY" \
+            https://nxossqhdfltcqdwvbewi.supabase.co/auth/v1/settings)
+          [ "$status" = "200" ] || { echo "SUPABASE_ANON_KEY is not accepted by the acceptance project (HTTP $status)"; exit 1; }
       - run: pnpm install --frozen-lockfile --filter @aladdin/backend-worker
       - run: pnpm --dir edge/backend-worker test
       - name: Bundle (dry run, builds the image)
