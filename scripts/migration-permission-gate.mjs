@@ -12,6 +12,13 @@ export function verifyBaseline(){
  const frozen=JSON.parse(fs.readFileSync(path.join(root,'supabase/permissions/baseline.json'),'utf8'));
  if(frozen.length!==163)throw Error('Reviewed RC2 baseline must contain163 migrations');
  for(const item of frozen){if(!/^\d{14}_[a-z0-9_]+\.sql$/.test(item.file)||crypto.createHash('sha256').update(fs.readFileSync(path.join(root,'supabase/migrations',item.file))).digest('hex')!==item.sha256)throw Error(`Historical migration changed: ${item.file}; append a new migration instead`);}
+ verifyRetired(fs.readdirSync(path.join(root,'supabase/migrations')).filter(f=>f.endsWith('.sql')));
+}
+// Versions renamed once must never come back (a merge of an older branch would replay them twice).
+export function verifyRetired(files){
+ const {versions}=JSON.parse(fs.readFileSync(path.join(root,'supabase/permissions/retired-versions.json'),'utf8'));
+ const back=files.filter(f=>Object.hasOwn(versions,f.slice(0,14)));
+ if(back.length)throw Error(`Retired migration versions reintroduced: ${back.join(', ')}; they now live at ${back.map(f=>versions[f.slice(0,14)]).join(', ')}`);
 }
 
 // Tokenize SQL boundaries, not SQL bodies. Database inspection is the authority.
