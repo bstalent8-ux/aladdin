@@ -4,6 +4,10 @@
 
 - Branch `claude/project-thread-724t0d` = PR #101 + `main` (#96) + Installer work + Next 16.4.3; supersedes PR #102 (`chore/next-16`), which must not be merged or pushed to any database. 191 migrations; Installer migrations are `20261024090002..11`.
 - Acceptance has `20261024090001` applied (2026-10-24, 181 migrations) and is **GO**: the hosted fingerprint matches `scripts/hosted-db/local-noseed-fingerprint.txt` in 14 of 15 categories, and the only difference is the expected `roles` (Acceptance-only `media_edge_worker` LOGIN role, no password). Security advisors show nothing new (6 anon SECURITY DEFINER = the reviewed public RPC allowlist; 9 mutable search_path helpers also exist on Production). Production has 165 migrations, latest `20261020090001` (PR #96 applied).
+## FastAPI on Cloudflare Containers (draft PR, ADR-0022) — 2026-10-22
+
+- Branch `claude/project-thread-ea9qxg`, stacked on the frontend Workers branch `claude/cloudflare-workers-2ibvgs` (#97), which now contains the #100 database baseline (180 migrations). #98 adds no migrations. New Worker `edge/backend-worker` (`aladdin-backend`, environments `preview`/`production`) runs `backend/Dockerfile` in a Cloudflare Container; the frontend Worker prefers a `BACKEND` service binding over `BACKEND_ORIGIN`. **Nothing is deployed**; the frontend `wrangler.jsonc` does not bind `BACKEND` yet, so behaviour is unchanged; Vercel still serves FastAPI.
+- 2026-10-24: owner chose to hold the preview until the frontend preview's HTTPS works (Option B). Gates and the two separate approvals (Workers Paid, then the Acceptance-only preview): [fastapi-preview-prerequisites.md](fastapi-preview-prerequisites.md). pyjwt upgraded to 2.15.1 (audit). Costs and measurements in ADR-0022.
 
 ## Consolidated database baseline (draft PR) — 2026-10-22
 
