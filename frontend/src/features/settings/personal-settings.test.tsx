@@ -151,7 +151,9 @@ describe("PersonalSettings", () => {
     phoneNational: null,
     phoneE164: null,
     phoneIsLoginKey: false,
+    phoneVerified: false,
     avatarUrl: null,
+    coverUrl: null,
     phoneLogin: false,
     secondaryPhone: null,
   };
