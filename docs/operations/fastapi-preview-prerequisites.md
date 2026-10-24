@@ -1,13 +1,13 @@
 # FastAPI container preview: prerequisites and approvals
 
-**Status (2026-10-24):** on hold by the owner's choice (Option B) until the frontend preview is reachable over HTTPS. Nothing is deployed. Design and numbers: [ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md). Worker: [`edge/backend-worker`](../../edge/backend-worker/README.md). PR #98, stacked on #97 (which now contains #100).
+**Status (2026-10-24):** on hold by the owner's choice (Option B). Gate 1 cleared 08:16 UTC; waiting on gate 2. Nothing is deployed. Design and numbers: [ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md). Worker: [`edge/backend-worker`](../../edge/backend-worker/README.md). PR #98, stacked on #97 (which now contains #100).
 
 ## Gates, in order
 
 | # | Gate | Owner of the step | State |
 |---|---|---|---|
-| 1 | `aladdin-frontend-preview` serves pages over HTTPS on workers.dev (TLS issued, preview workflow green) | Frontend Workers thread / Cloudflare Support | **Blocked** (TLS handshake fails) |
-| 2 | Acceptance `nxossqhdfltcqdwvbewi` rebuilt to the 180-migration baseline (#100). FastAPI's auth calls `public.my_account_status`, whose session-revocation form is in `20261021090013`/`…14`; on the drifted 105-migration project authenticated calls cannot be tested faithfully | Acceptance thread, separate owner approval | Pending |
+| 1 | `aladdin-frontend-preview` serves pages over HTTPS on workers.dev (TLS issued, preview workflow green) | Frontend Workers thread | **Done** 2026-10-24 (run 40077176318; `/`, `/api/health` 200; `/api/backend/health` 503 until a backend is bound) |
+| 2 | Acceptance `nxossqhdfltcqdwvbewi` rebuilt to the 180-migration baseline (#100). FastAPI's auth calls `public.my_account_status`, whose session-revocation form is in `20261021090013`/`…14`; on the drifted 105-migration project authenticated calls cannot be tested faithfully | Acceptance thread, separate owner approval | **In progress**: 180 migrations applied 2026-10-24, but grant/ACL fingerprints still differ; Acceptance NO-GO until fixed |
 | 3 | **Approval A: Workers Paid** on the Cloudflare account ($5/month base, shared with the frontend). Containers are not available on Free | Owner (billing) | Not requested yet |
 | 4 | **Approval B: isolated FastAPI preview** on Acceptance only, as below | Owner | Not requested yet |
 
