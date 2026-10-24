@@ -62,7 +62,13 @@ jobs:
             "") echo "NEXT_PUBLIC_SUPABASE_URL is not set on the cloudflare-preview environment"; exit 1 ;;
           esac
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter frontend cf:build
+      - name: Build for Workers
+        # An unset repository variable arrives as an empty string, which the env
+        # schema rejects (an optional key must be absent or non-empty) and Next.js
+        # inlines into the bundle, so every page would 500. Drop empty ones.
+        run: |
+          [ -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" ] || unset NEXT_PUBLIC_TURNSTILE_SITE_KEY
+          pnpm --filter frontend cf:build
       - name: Bundle (dry run)
         working-directory: frontend
         run: pnpm exec wrangler deploy --env preview --dry-run --outdir "$RUNNER_TEMP/worker"
