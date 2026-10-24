@@ -1,6 +1,6 @@
 # FastAPI container preview: prerequisites and approvals
 
-**Status (2026-10-24):** on hold by the owner's choice (Option B) until the frontend preview is reachable over HTTPS. Nothing is deployed. Design and numbers: [ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md). Worker: [`edge/backend-worker`](../../edge/backend-worker/README.md). PR #98, stacked on #100 → #97.
+**Status (2026-10-24):** on hold by the owner's choice (Option B) until the frontend preview is reachable over HTTPS. Nothing is deployed. Design and numbers: [ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md). Worker: [`edge/backend-worker`](../../edge/backend-worker/README.md). PR #98, stacked on #97 (which now contains #100).
 
 ## Gates, in order
 
