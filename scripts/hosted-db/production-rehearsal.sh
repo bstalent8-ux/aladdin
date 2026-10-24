@@ -17,7 +17,7 @@ MANIFEST="5a26a710d5f54cb0a4eeed5435c93bf873a44517a202afd8af214b1036277e37"
 HERE="$(cd "$(dirname "$0")" && pwd)"; KIT="${KIT:-$HERE}"; [ -s "$KIT/security-tail.sql" ] || KIT="$HERE/../acceptance-rebuild"
 OUT="${HOME}/aladdin-production-rehearsal-$(date +%Y%m%d-%H%M%S)"
 sb() { pnpm exec supabase "$@"; }
-rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const r=JSON.parse(b).rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
+rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
 for f in schema-fingerprint.sql security-tail.sql rowcounts.sql local-noseed-fingerprint.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
 
 if [ -n "${REHEARSAL_SOURCE_DB_URL:-}" ]; then
@@ -25,7 +25,7 @@ if [ -n "${REHEARSAL_SOURCE_DB_URL:-}" ]; then
   SRC=(--db-url "$REHEARSAL_SOURCE_DB_URL"); WT="$(pwd)"
 else
   git fetch -q origin "$BRANCH"
-  WT="$(mktemp -d)/aladdin-rehearsal"; git worktree add -q --detach "$WT" "$SHA"; cd "$WT"
+  WT="$(mktemp -d)/aladdin-rehearsal"; git -c core.autocrlf=false -c core.eol=lf worktree add -q --detach "$WT" "$SHA"; cd "$WT"
   [ "$(git rev-parse HEAD)" = "$SHA" ] || { echo "wrong commit"; exit 1; }
   pnpm install --frozen-lockfile >/dev/null
   read -r -s -p "Production database password (input hidden; only read access is used): " SUPABASE_DB_PASSWORD; echo
@@ -34,7 +34,7 @@ else
   [ "$(cat supabase/.temp/project-ref)" = "$PROD" ] || { echo "not linked to Production: stopping"; exit 1; }
   SRC=(--linked)
 fi
-[ "$(cd supabase/migrations && shasum -a 256 *.sql | shasum -a 256 | cut -d' ' -f1)" = "$MANIFEST" ] \
+[ "$(cd supabase/migrations && shasum -a 256 *.sql | tr -d '\r' | sed 's/ \*/  /' | shasum -a 256 | cut -d' ' -f1)" = "$MANIFEST" ] \
   || { echo "migration files differ from the tested baseline: stopping"; exit 1; }
 
 # 1. Backup Production (read-only), owner-only permissions.

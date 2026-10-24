@@ -8,7 +8,7 @@ set -euo pipefail
 REF="nxossqhdfltcqdwvbewi"; FORBIDDEN="kkpkgjrweysgvhvkhzun"
 BK="$(cd "${1:?backup directory}" && pwd)"
 sb() { pnpm exec supabase "$@"; }
-rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const r=JSON.parse(b).rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
+rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
 
 ( cd "$BK" && shasum -a 256 -c SHA256SUMS --quiet ) || { echo "backup checksum mismatch: stopping"; exit 1; }
 read -r -s -p "Session pooler URI for aladdin-r2-acceptance (input hidden): " DB_URL; echo
