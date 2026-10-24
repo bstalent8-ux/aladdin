@@ -1,4 +1,4 @@
-import { test, type Page } from "@playwright/test";
+import { test } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import sharp from "sharp";
 import { OUT, RUN, admin, expect, fixtureClient, fixtureSession, perf, scenario, uiSignIn } from "./audit-helpers";
@@ -122,10 +122,12 @@ test.describe.serial("Journey C — seller products", () => {
     const f = JSON.parse(readFileSync(FIX, "utf8"));
     const c = await fixtureClient(f.showroomUserId);
     const id = f.fixtureProductId as string;
-    const get = async () => (await c.rpc("marketplace_seller_product_get", { p_product_id: id })).data as Record<string, any>;
+    type Variant = { sku: string; price_egp: number | string } & Record<string, unknown>;
+    type Product = { attributes: Record<string, unknown>; variants: Variant[] } & Record<string, unknown>;
+    const get = async () => (await c.rpc("marketplace_seller_product_get", { p_product_id: id })).data as Product;
     await scenario({ journey: J, id: "C11", scenario: "Edit price and attribute", role: "fixture owner", data: "price 650→690, pattern change", expected: "saved and read back" }, async () => {
       const cur = await get();
-      const payload = { ...cur, organization_id: f.fixtureOrgId, attributes: { ...cur.attributes, pattern_wallpaper: "geometric" }, variants: cur.variants.map((v: any) => (v.sku === f.skuA ? { ...v, price_egp: 690 } : v)) };
+      const payload = { ...cur, organization_id: f.fixtureOrgId, attributes: { ...cur.attributes, pattern_wallpaper: "geometric" }, variants: cur.variants.map((v) => (v.sku === f.skuA ? { ...v, price_egp: 690 } : v)) };
       const t0 = Date.now();
       const { error } = await c.rpc("marketplace_seller_product_save", { p_payload: payload });
       const ms = Date.now() - t0;
@@ -133,7 +135,7 @@ test.describe.serial("Journey C — seller products", () => {
       perf({ kind: "rpc", action: "marketplace_seller_product_save (edit, 2 variants)", ms });
       const after = await get();
       expect(after.attributes.pattern_wallpaper).toBe("geometric");
-      expect(Number(after.variants.find((v: any) => v.sku === f.skuA).price_egp)).toBe(690);
+      expect(Number(after.variants.find((v) => v.sku === f.skuA)!.price_egp)).toBe(690);
       return `saved in ${ms} ms; read back pattern=geometric, price=690`;
     });
     await scenario({ journey: J, id: "C12", scenario: "Duplicate SKU rejected (second product reusing SKU)", role: "fixture owner", data: f.skuA, expected: "mp:sku_taken" }, async () => {

@@ -1,4 +1,4 @@
-import { test, type Page } from "@playwright/test";
+import { test } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { OUT, RUN, admin, adminUserClient, anon, expect, fixtureClient, perf, scenario, uiSignIn } from "./audit-helpers";
 

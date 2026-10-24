@@ -9,8 +9,6 @@ const DIR = `${OUT}/scripts/import-fixture`;
 const sheetInput = (page: Page) => page.locator('input[type="file"][accept=".xlsx,.csv"]');
 const imageInput = (page: Page) => page.locator('input[type="file"][accept*=".zip"]');
 const productCount = async () => (await admin.from("marketplace_products").select("id", { count: "exact", head: true }).eq("seller_organization_id", fx.fixtureOrgId)).count ?? 0;
-const statOf = async (page: Page, label: string) =>
-  (await page.locator("div", { hasText: new RegExp(`^${label}`) }).locator("p").nth(1).first().innerText().catch(() => "?")).trim();
 
 async function prepare(page: Page) {
   await page.goto("/b2c/seller/imports");
