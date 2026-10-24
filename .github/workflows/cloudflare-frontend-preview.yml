@@ -97,7 +97,23 @@ jobs:
           done
           if [ "$health" != "200" ]; then
             echo "/api/health never returned 200 (last: $health)"
-            getent hosts "${url#https://}" || echo "the workers.dev name does not resolve"
+            host="${url#https://}"
+            account_host="${host#*.}"
+            # Evidence for a Cloudflare support ticket: DNS from two resolvers, the
+            # TLS handshake per protocol for the Worker and the bare account name,
+            # and which Cloudflare colo the runner reached.
+            getent hosts "$host" || echo "the workers.dev name does not resolve"
+            for resolver in 1.1.1.1 8.8.8.8; do
+              echo "DNS via $resolver: $(dig +short "$host" @"$resolver" | tr '\n' ' ')"
+            done
+            for name in "$host" "$account_host"; do
+              for proto in -tls1_2 -tls1_3; do
+                echo "--- openssl $proto $name"
+                echo | timeout 20 openssl s_client -connect "$name:443" -servername "$name" "$proto" 2>&1 \
+                  | grep -E "alert|subject=|issuer=|Verify return|Protocol|Cipher is|no peer certificate" || true
+              done
+            done
+            curl -sS --max-time 20 https://www.cloudflare.com/cdn-cgi/trace | grep -E "^(colo|loc|tls|http)=" || true
             curl -sS -o /dev/null --max-time 20 "$url/api/health" || true
             exit 1
           fi
