@@ -76,7 +76,7 @@ Deployed on `https://aladdin-frontend-preview.bstalent9.workers.dev` (Worker ID 
 | `SUPABASE_SERVICE_ROLE_KEY` | **secret** | acceptance project → API keys | **acceptance project only**, never the live one | ❔ |
 | `AUTH_PASSWORD_PREVIEW_GRANT_SECRET` | **secret** | generate 32 random bytes (`.env.example`) | its own value, not the Vercel one | ❔ |
 | `TURNSTILE_SECRET_KEY` | **secret** | Turnstile widget | pair of `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | ❔ |
-| `TURNSTILE_ALLOWED_HOSTNAMES` | var | `aladdin-frontend-preview.bstalent9.workers.dev` | add to `env.preview.vars` | ⬜ |
+| `TURNSTILE_ALLOWED_HOSTNAMES` | var | `aladdin-frontend-preview.bstalent9.workers.dev` | in `env.preview.vars` | ✅ in config |
 | `BACKEND_ORIGIN` | var | FastAPI preview origin (https), from the containers thread | unset → `/api/backend` answers 503 | ⬜ |
 | `R2_STORAGE_ENABLED` | var | `true` only at stage 2 | | ⬜ |
 | `R2_PRODUCTION_WRITES_APPROVED` | var | `false` (preview is `staging`) | | ⬜ |
