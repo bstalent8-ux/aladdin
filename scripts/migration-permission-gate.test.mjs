@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {client,contract,inventory,compare,apply,assertAtomic} from './migration-permission-gate.mjs';
+import {client,contract,inventory,compare,apply,assertAtomic,verifyRetired} from './migration-permission-gate.mjs';
 const container=process.env.PERMISSION_TEST_CONTAINER;
 test('transaction boundaries cannot bypass gate',()=>{
  for(const s of ['COMMIT;','/* nested /* comment */ */ END;','START TRANSACTION;','\\i other.sql','PREPARE TRANSACTION \'x\';','select 1;\n  begin isolation level serializable;','select 1; end'])assert.throws(()=>assertAtomic(s));
@@ -71,4 +71,8 @@ test('actual PostgreSQL atomic permission matrix',{skip:!container},async()=>{
  await ready;assert.equal(read().some(f=>f.signature.includes('permission_visibility')),false);await complete;
  assert.equal(read().some(f=>f.signature.includes('permission_visibility')),false);
  assert.deepEqual(compare(read(),base),[]);
+});
+test('renamed migration versions cannot be reintroduced',()=>{
+ assert.throws(()=>verifyRetired(['20261019170000_media_videos.sql']),/20261021090015/);
+ assert.doesNotThrow(()=>verifyRetired(['20261021090015_media_videos.sql']));
 });

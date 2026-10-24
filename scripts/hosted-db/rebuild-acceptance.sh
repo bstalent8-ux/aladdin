@@ -17,7 +17,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 BACKUP="${HOME}/aladdin-acceptance-backup-$(date +%Y%m%d-%H%M%S)"
 MODE="${1:-}"
 sb() { pnpm exec supabase "$@"; }
-rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const r=JSON.parse(b).rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
+rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
 fp() { sb db query --linked -f "$HERE/schema-fingerprint.sql" --output-format json 2>/dev/null | rows '`${x.k}|${x.h}|${x.len}`'; }
 
 [ "$REF" != "$FORBIDDEN" ] || { echo "refusing: forbidden ref"; exit 1; }
@@ -28,10 +28,10 @@ done
 # Separate worktree, so your current checkout and uncommitted work are untouched.
 git fetch -q origin "$BRANCH"
 WT="$(mktemp -d)/aladdin-acceptance"
-git worktree add -q --detach "$WT" "$SHA"
+git -c core.autocrlf=false -c core.eol=lf worktree add -q --detach "$WT" "$SHA"
 cd "$WT"
 [ "$(git rev-parse HEAD)" = "$SHA" ] || { echo "wrong commit"; exit 1; }
-[ "$(cd supabase/migrations && shasum -a 256 *.sql | shasum -a 256 | cut -d' ' -f1)" = "$MANIFEST" ] \
+[ "$(cd supabase/migrations && shasum -a 256 *.sql | tr -d '\r' | sed 's/ \*/  /' | shasum -a 256 | cut -d' ' -f1)" = "$MANIFEST" ] \
   || { echo "migration files differ from the tested baseline: stopping"; exit 1; }
 COUNT="$(ls supabase/migrations/*.sql | wc -l | tr -d ' ')"
 echo "Baseline $SHA: $COUNT migrations."
