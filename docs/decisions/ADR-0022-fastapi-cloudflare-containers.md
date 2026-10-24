@@ -41,6 +41,7 @@ Docker with CPU quotas matching the instance types, image `backend/Dockerfile`, 
 
 - Memory: 59 MB RSS at idle (60 MB peak); `basic`'s 1 GiB leaves room for AI/document work, `lite`'s 256 MiB would fit today but its cold start does not.
 - End to end through `wrangler dev` (workerd + Docker): a binding call from a frontend-like Worker to `aladdin-backend-preview` returned 200 from FastAPI; cold 1.8 s on a full CPU, warm 19 ms. The container environment held only the allowlisted names plus the runtime's `CLOUDFLARE_*`; a service-role key placed in `.dev.vars` did not reach it.
+- Re-measured 2026-10-24 after the dependency upgrades below: 4.5–5.8 s at 1/4 vCPU over 6 runs (median 5.2 s), 40–52 MB RSS, image 396 MB. Exact preview prerequisites and approvals: [fastapi-preview-prerequisites.md](../operations/fastapi-preview-prerequisites.md).
 - Not measured yet (needs the approved preview): real cold start on Cloudflare, Worker → container latency in WEUR, Supabase round trips from the container.
 
 ## Costs (Workers Paid, October 2026 rates)
@@ -63,6 +64,7 @@ The $5 Workers Paid fee is shared with the frontend (ADR-0021). Durable Object a
 - Identity still comes only from the verified Supabase JWT inside FastAPI (`app.auth`); the Worker adds no trust and strips hop-by-hop headers in the frontend proxy. Supabase RLS applies to every caller-scoped query.
 - Secrets are Worker secrets (`wrangler secret put`), checked at deploy by `secrets.required`; none in Git. Errors to callers are JSON without internals; details go to Workers Logs.
 - The container runs as the non-root `appuser` (uid 10001).
+- Dependency audit 2026-10-24 (`pip-audit` on the locked runtime set): pyjwt 2.13.0 had 15 advisories on the JWKS/JWT path `app.auth` uses; upgraded to 2.15.1 (and the floor raised to `>=2.15.1`), with cryptography 50.0.2, h2 4.4.1, multidict 6.9.1, certifi 2026.10.23. 0 known advisories after.
 
 ## Rollout and rollback
 

@@ -64,6 +64,8 @@ needs them.
 
 ## Approved-preview checklist (owner runs, or approves an agent to run)
 
+Gates and approvals before this list: [fastapi-preview-prerequisites.md](../../docs/operations/fastapi-preview-prerequisites.md).
+
 1. Acceptance project only (`nxossqhdfltcqdwvbewi`), never `kkpkgjrweysgvhvkhzun`.
 2. `pnpm exec wrangler secret put SUPABASE_ANON_KEY --env preview`
 3. `pnpm exec wrangler deploy --env preview` (builds and pushes the image to Cloudflare's registry; the first container provisioning takes a few minutes).

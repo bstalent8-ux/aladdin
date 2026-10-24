@@ -6859,3 +6859,10 @@ Merged five audit branches (cost, R2/DNS/credentials/cutover, video on Container
 - **Unfinished:** preview deploy and real cold-start/latency numbers (owner approval, Workers Paid); bind `BACKEND` in `frontend/wrangler.jsonc` after the backend preview exists; production at cutover.
 - Sandbox notes: Docker Hub rate-limits (use `mirror.gcr.io/library/...`), ghcr blobs are blocked, builds need a local base image that trusts the proxy CA (never shipped); `wrangler dev` with containers works with `dockerd` started by hand.
 
+
+## 2026-10-24 — FastAPI preview prep on hold (Option B), PR #98
+
+- Merged #100 (180-migration baseline, retired-version gate) into #98 and retargeted #98 onto #100; #98 adds no migrations and none of the 15 old versions remain.
+- `pip-audit`: upgraded pyjwt 2.13.0 → 2.15.1 (15 advisories, auth path), cryptography, h2, multidict, certifi; 0 known after; backend 106 passed.
+- Dry runs for `preview`/`production` pass; image 396 MB, non-root, no secrets; cold start median 5.2 s at 1/4 vCPU; prices unchanged.
+- **Unfinished:** gates in [fastapi-preview-prerequisites.md](fastapi-preview-prerequisites.md): frontend preview HTTPS, Acceptance rebuild, then separate approvals for Workers Paid and the preview.
