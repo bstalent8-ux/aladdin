@@ -211,10 +211,17 @@ mkdir -p "$OUT/restore"
 grep -E '^(GRANT|REVOKE) .* ON PARAMETER ' "$B/roles.sql" > "$OUT/restore/roles-parameters.sql" || true
 grep -vE '^(GRANT|REVOKE) .* ON PARAMETER ' "$B/roles.sql" > "$OUT/restore/roles.sql"
 cp "$OUT/.migrations-schema.sql" "$OUT/restore/migrations-schema.sql"
+# Backups taken before the generator skipped them name the CLI's temporary login role (cli_login_postgres, present on
+# Production only while the CLI is connected) in their REVOKE lists. Create it as a NOLOGIN placeholder for the tail
+# and drop it again in the same transaction; the backup file itself is left as it is.
+{ grep -o 'cli_login_[A-Za-z0-9_]*' "$B/security-tail.out.sql" || true; } | sort -u > "$OUT/restore/transient-roles.txt"
+sed 's/.*/create role "&" nologin;/' "$OUT/restore/transient-roles.txt" > "$OUT/restore/pre-tail.sql"
+sed 's/.*/drop role "&";/' "$OUT/restore/transient-roles.txt" > "$OUT/restore/post-tail.sql"
 dk cp "$(hp "$B")" "$C:/tmp/bk"; dk cp "$(hp "$OUT/restore")" "$C:/tmp/rx"
 dk exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
   -f /tmp/rx/roles.sql -f /tmp/bk/schema.sql -f /tmp/rx/migrations-schema.sql -c 'SET session_replication_role = replica' \
-  -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' -f /tmp/bk/security-tail.out.sql >/dev/null
+  -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' \
+  -f /tmp/rx/pre-tail.sql -f /tmp/bk/security-tail.out.sql -f /tmp/rx/post-tail.sql >/dev/null
 dk exec "$C" psql -U supabase_admin -d postgres -q --single-transaction -v ON_ERROR_STOP=1 -f /tmp/rx/roles-parameters.sql >/dev/null
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-restored.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-restored.txt"
@@ -242,6 +249,7 @@ SCHEMA=same
   echo "Auth/Storage schema versus Production: $AUTHSTORAGE"
   echo "Restore of the backup: $RESTORE (public/app schema fingerprint, the row count of every restored table, parameter grants)"
   echo "Parameter grants replayed as supabase_admin: $(grep -c . "$OUT/restore/roles-parameters.sql" || true)"
+  echo "CLI temporary login roles named in the security tail (local placeholder, dropped again): $(tr '\n' ' ' < "$OUT/restore/transient-roles.txt")"
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
   then echo "Schema after the push equals the tested baseline."
