@@ -6922,3 +6922,10 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Merged #98 into `claude/project-thread-724t0d` and added the `BACKEND` service binding to the frontend `preview` env only. Redeployed the frontend preview (run 40100666573); `/api/backend/health` answers from the container.
 - Applied `20261024090002..11` to Acceptance (owner approved). Rehearsed first on a local DB reset to `20261024090001`, including a CRLF copy: all apply, 688 function permission contracts pass. Each migration ran inside a DO block that strips CR, checks the md5 of the repository file, executes it and records it, so a paste error aborts instead of drifting.
 - **Unfinished:** latency numbers (the sandbox cannot reach workers.dev); an authenticated backend route to test refusal against; the `schema_migrations.statements` placeholder for `20261024090001` on Acceptance (metadata only); Production stays untouched until the owner's GO after the stack merges.
+
+## 2026-10-25 — R2 on the workers.dev preview (stage 2, first half)
+
+- Owner approved R2 for the preview. `R2_STORAGE_ENABLED=true` in `env.preview` only (bucket `aladdin-r2-acceptance-20261011-private`, `R2_PRODUCTION_WRITES_APPROVED=false`, account ID from the workflow). Redeployed (run 40105354885, smoke green).
+- Bucket checked in the dashboard: CORS already matches `docs/operations/r2/cors-acceptance-private.json`; r2.dev URL disabled; no custom domain; one lifecycle rule `expire-acceptance-pending` (pending/, 1 day). The 7-day multipart-abort rule is still to be added by the owner.
+- Real upload by the owner (avatar, 57,902-byte JPEG): `media_storage_locations` row with provider `r2`, sha256 receipt, verified 3 s after reservation, variant manifest (thumb 320, card/full 512); no new Supabase Storage object.
+- **Unfinished:** media Worker + Hyperdrive (edge delivery), cross-tenant/revocation checks against real R2, multipart abort rule, Production rehearsal (owner runs `scripts/hosted-db/production-rehearsal.sh`, pinned to 2ce6e10; local test mode passed).
