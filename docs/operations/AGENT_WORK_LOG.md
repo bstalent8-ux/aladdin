@@ -7009,3 +7009,9 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Bucket checked in the dashboard: CORS already matches `docs/operations/r2/cors-acceptance-private.json`; r2.dev URL disabled; no custom domain; one lifecycle rule `expire-acceptance-pending` (pending/, 1 day). The 7-day multipart-abort rule is still to be added by the owner.
 - Real upload by the owner (avatar, 57,902-byte JPEG): `media_storage_locations` row with provider `r2`, sha256 receipt, verified 3 s after reservation, variant manifest (thumb 320, card/full 512); no new Supabase Storage object.
 - **Unfinished:** media Worker + Hyperdrive (edge delivery), cross-tenant/revocation checks against real R2, multipart abort rule, Production rehearsal (owner runs `scripts/hosted-db/production-rehearsal.sh`, pinned to 2ce6e10; local test mode passed).
+
+### 2026-10-25 — Phase B: 26 migrations applied to Production
+
+- Owner GO for Phase B (12:37Z). Owner ran it themselves: manifest `f76c64c2…`, `migration list` (165 + 26 local-only), dry run (exactly 26), `db push --linked` (all applied; a post-push CLI `failed to cache migrations catalog` timeout warning only), then `scripts/hosted-db/production-post-migration-check.sh` → PASS at 12:59:03Z (191 versions, latest `20261024090011`, 9 known CRLF-only function bodies).
+- Claude (read-only): advisors before/after saved under `/mnt/project-files/reports/phase-b/` — security 300→369, performance 191→221, nothing resolved, every new finding on an object created by the 26 migrations (6 anon security-definer findings are the intended public read RPCs). Supabase edge/auth logs: no 5xx; Postgres: no errors; Vercel runtime errors: none.
+- **Unfinished:** owner smoke test with a real account (sign in, dashboard, registration); Phase C (production config, retarget/merge #103 after turning off Vercel auto-assign) needs a separate GO. Not approved: main merge, deploys, DNS, cutover.
