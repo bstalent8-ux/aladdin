@@ -38,6 +38,8 @@ select gen_random_uuid(), u.id, t::auth.one_time_token_type, md5(u.id::text || t
 from auth.users u, unnest(array['confirmation_token','recovery_token','reauthentication_token']) t;
 insert into storage.objects (bucket_id, name, owner_id, metadata) select 'avatars', 'u/' || id || '/a.png', id::text, '{"size":1}' from auth.users;
 SQL
+# Production's history table has three more columns than the local CLI creates; mirror that.
+dk exec "$SRC" psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 -c 'alter table supabase_migrations.schema_migrations add column if not exists created_by text, add column if not exists idempotency_key text, add column if not exists rollback text[]'
 dk exec "$SRC" psql -U supabase_admin -d postgres -q -v ON_ERROR_STOP=1 -c 'GRANT SET ON PARAMETER "log_min_messages" TO "supabase_realtime_admin"'
 echo "Source ready: $(dk exec "$SRC" psql -U postgres -d postgres -At -c "select format('%s users, %s one-time tokens (%s with expires_at), %s storage objects', (select count(*) from auth.users), (select count(*) from auth.one_time_tokens), (select count(expires_at) from auth.one_time_tokens), (select count(*) from storage.objects))")"
 REHEARSAL_SOURCE_DB_URL="postgresql://postgres:postgres@127.0.0.1:${P}22/postgres?sslmode=disable" REHEARSAL_VERSIONS_DIR="$S/supabase/.temp" \

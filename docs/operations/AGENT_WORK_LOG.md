@@ -1,3 +1,22 @@
+## 2026-10-25 (later) — Rehearsal: 6-column migration history, `--resume-backup`, fail-closed backup validation
+
+The owner's Windows run (`10223cc`) passed the Auth/Storage preflight but failed the restore: Production's `supabase_migrations.schema_migrations` has 6 columns (`version`, `statements`, `name`, `created_by`, `idempotency_key`, `rollback`), and the script created only 3. Fixes in `production-rehearsal.sh`:
+- **History table:** the local `supabase_migrations` tables are now built from the backup's own COPY column lists. A column with no known type fails closed.
+- **`--resume-backup <folder>`:** reuses an earlier backup without any link, password or query. The earlier folder is only read, and results go to a new `-resumed-*` folder.
+- **Fail-closed validation before any stack starts:**
+  - SHA256SUMS verification and the exact four-file list;
+  - the saved checksum copy is identical;
+  - every metadata file is present: fingerprints (all categories), row counts, Auth/Storage columns with markers, parameter grants, three version pins and migration history;
+  - per-table row counts counted from `data.sql` equal Production's counts;
+  - the history in `data.sql` equals `history-production.txt`;
+  - `backup-meta.txt` (new; baseline SHA and manifest) is checked when present.
+- **Unchanged:** the checksums are re-verified after the rehearsal, the git fetch falls back offline to the pinned commit, and the Git Bash fixes are kept.
+
+Local evidence:
+- The self-test with a 6-column source history passes.
+- `--resume-backup` on a copy without `backup-meta.txt` passes with no source database running, and the backup files stay byte-identical.
+- A tampered copy (edited schema.sql, missing columns file, edited history) fails validation, listing all four problems, before any stack starts.
+
 ## 2026-10-25 — Production rehearsal: restore blocked by older local Auth/Storage, fixed by pinning hosted versions
 
 The owner's Windows run of `production-rehearsal.sh` failed during the restore, one Auth/Storage error at a time (first four missing Auth tables, then `auth.one_time_tokens.expires_at` with 61 rows). **Root cause:** `supabase start` used the CLI 2.110.0 default images (gotrue v2.193.0, storage-api v1.66.4, postgres 17.6.1.143). Production runs newer services: Auth has 82 migrations up to `20260831180000`, Storage has 74 migrations up to `revoke-grants-to-unused-operations`, and Postgres is 17.6.1.155. The script stopped the stack from inheriting the `link` version pins when it deleted `supabase/.temp` before starting it.
