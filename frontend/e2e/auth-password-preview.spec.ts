@@ -7,9 +7,15 @@ import {
   newMessageSubjectsFor,
   registerWithPassword,
   selectAccountType,
+  stubTurnstileWhenOffline,
   waitForCaptchaToken,
 } from "./helpers/auth";
 import { createConfirmedAccount } from "./helpers/fixtures";
+
+// Offline sandboxes only (E2E_STUB_TURNSTILE=1); a no-op in CI, where the real widget runs.
+test.beforeEach(async ({ page }) => {
+  await stubTurnstileWhenOffline(page);
+});
 
 /**
  * Real, no-bypass E2E coverage for the password auth flow, now CANONICAL at
@@ -530,7 +536,9 @@ test.describe("Refresh / interruption behavior (§Refresh, back, interruption)",
     // Hard refresh — this component holds step state only in React memory
     // (no URL/cookie step marker), so a refresh deliberately lands back at
     // Step 1. Never crashes, never asks to re-enter a password it doesn't have.
-    await page.reload({ waitUntil: "commit" });
+    // Wait for the reloaded page to finish loading: fields typed into the server-rendered HTML before React
+    // hydrates are reset by hydration, which made this resubmission flaky (empty name and email).
+    await page.reload({ waitUntil: "load" });
     await expect(page.getByLabel(/email address|البريد الإلكتروني/i)).toBeVisible();
     await expect(page.getByLabel(/one-time code|الرمز لمرة واحدة/i)).toHaveCount(0);
 

@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { randomInt } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
-import { IDENTITIES, signIn } from "./helpers/auth";
+import { IDENTITIES, signIn, TURNSTILE_STUB_DELAY_MS } from "./helpers/auth";
 
 /**
  * Installer/Technician phone + password flow (docs/frontend/installer-phone-auth.md),
@@ -36,7 +36,7 @@ async function stubTurnstile(page: Page): Promise<void> {
   await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js**", (route) =>
     route.fulfill({
       contentType: "application/javascript",
-      body: `window.turnstile={render:function(el,o){setTimeout(function(){o.callback("XXXX.DUMMY.TOKEN.XXXX")},50);return "w"},remove:function(){}};`,
+      body: `window.turnstile={render:function(el,o){setTimeout(function(){o.callback("XXXX.DUMMY.TOKEN.XXXX")},${Math.max(50, TURNSTILE_STUB_DELAY_MS)});return "w"},remove:function(){}};`,
     }),
   );
 }
@@ -289,7 +289,8 @@ test.describe("installer phone + password auth", () => {
     const phone = uniquePhone();
     await register(page, "صنايعي خروج", phone);
     await page.goto("/home/settings");
-    await page.getByRole("button", { name: /تسجيل الخروج|Sign out|Log out/ }).filter({ visible: true }).first().click();
+    // The installer shell's own label is "تسجيل خروج" (installer-sidebar.tsx); the shared shells say "تسجيل الخروج".
+    await page.getByRole("button", { name: /تسجيل الخروج|تسجيل خروج|Sign out|Log out/ }).filter({ visible: true }).first().click();
     await page.waitForURL(/\/installer\/sign-in$/, { waitUntil: "commit" });
     // …and the session is really gone.
     await page.goto("/home");
@@ -304,7 +305,15 @@ test.describe("installer phone + password auth", () => {
       // The server's raw answer, redirects NOT followed — a document request and
       // a client-navigation (RSC) request. Neither may carry the alias.
       for (const headers of [{}, { RSC: "1" }] as Record<string, string>[]) {
-        const res = await page.request.get(path, { maxRedirects: 0, headers });
+        let res = await page.request.get(path, { maxRedirects: 0, headers });
+        // Next 16 first answers an RSC request that lacks its `_rsc` cache-busting parameter with a 307 to the SAME
+        // path plus that parameter, before any page code runs (a real client navigation always sends it). Follow
+        // that one hop so the assertion below is about the page's own answer.
+        const cacheBusting = res.headers().location;
+        if (headers.RSC && res.status() === 307 && cacheBusting?.startsWith(`${path}?_rsc`)) {
+          expect(await res.text(), `${path} cache-busting hop leaked the alias`).not.toContain(ALIAS_MARKER);
+          res = await page.request.get(cacheBusting, { maxRedirects: 0, headers });
+        }
         expect(await res.text(), `${path} response leaked the alias`).not.toContain(ALIAS_MARKER);
         if (res.status() >= 300 && res.status() < 400) expect(res.headers().location).toBe("/home/settings");
       }
