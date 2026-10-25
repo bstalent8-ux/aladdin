@@ -39,6 +39,9 @@ logs/
 node_modules/
 .pnp.*
 .next/
+# Extra build folders for side-by-side production builds (performance and review runs); never source.
+.next-perf/
+.next-review/
 out/
 build/
 dist/
@@ -101,3 +104,10 @@ htmlcov/
 .coverage
 playwright-report/
 test-results/
+
+# Cloudflare Workers build (OpenNext / wrangler)
+.open-next/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+cloudflare-env.d.ts

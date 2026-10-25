@@ -35,6 +35,9 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   "entryAuth.oauthConsentPrefix",
   "entryAuth.emailPlaceholder",
   "entryAuth.error.oauth",
+  // Video: file-format names (MP4, MOV, WebM) are what the file picker shows.
+  "video.fileHint",
+  "video.error.type",
   // Admin: a permission VOCABULARY token ("resource.action" is the literal shape
   // of every permission key, e.g. users.read) and the fixed date-entry FORMAT
   // hint (DD/MM/YYYY — the field is LTR by design, so the hint stays literal).
@@ -58,6 +61,9 @@ const LATIN_IN_ARABIC_WHITELIST = new Set<string>([
   "commerce.canonicalCategories.spc_flooring",
   "showroomProducts.fields.codeHint",
   "showroomProducts.images.errorType",
+  // Business verification: PDF/JPG/PNG/WebP are file format names.
+  "businessVerification.owner.documentsBody",
+  "businessVerification.errors.fileType",
   // Purchase request reference images: the accepted image format names (JPEG / PNG / WebP).
   "purchaseRequests.errors.imageType",
   "showroomProducts.fields.colorHex",

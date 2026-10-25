@@ -1,5 +1,122 @@
 # Runtime State
 
+## Rebuilt Installer + Next 16.4.3 branch — 2026-10-24
+
+- Branch `claude/project-thread-724t0d` = PR #101 + `main` (#96) + Installer work + Next 16.4.3; supersedes PR #102 (`chore/next-16`), which must not be merged or pushed to any database. 191 migrations; Installer migrations are `20261024090002..11`.
+- Acceptance has `20261024090001` applied (2026-10-24, 181 migrations) and is **GO**: the hosted fingerprint matches `scripts/hosted-db/local-noseed-fingerprint.txt` in 14 of 15 categories, and the only difference is the expected `roles` (Acceptance-only `media_edge_worker` LOGIN role, no password). Security advisors show nothing new (6 anon SECURITY DEFINER = the reviewed public RPC allowlist; 9 mutable search_path helpers also exist on Production). Production has 165 migrations, latest `20261020090001` (PR #96 applied).
+- 2026-10-24 (later): Acceptance now has the Installer migrations `20261024090002..11` (owner approved; the owner ran the md5-guarded script in the SQL Editor because the MCP approval prompt cannot be shown in the project app). 191 migrations; every recorded statement's md5 equals the repository file. Fingerprint: 14 of 15 categories equal the local no-seed replay at `20261024090011`; `roles` differs as before (`media_edge_worker`). Advisors: no new lint type; the additions are the five private `app` tables (RLS on, no policy, by design) and the contracted cover/portfolio RPCs (3 anon public-profile reads, 14 authenticated).
+- 2026-10-25 12:13Z **Phase A done:** fresh read-only Production backup + rehearsal PASS (restore exact, 26 migrations apply, only the 9 known CRLF function bodies differ), encrypted backup recovery-checked and copied to R2 `aladdin-production-db-backups/phase-a/`. Production still 165 migrations; Phase B (apply) awaits the owner's GO.
+- 2026-10-25 12:59Z **Phase B done:** owner pushed the 26 migrations (`20261021090001…015`, `20261024090001…011`) to Production `kkpkgjrweysgvhvkhzun` from `2ce6e10`; Production now 191 migrations, latest `20261024090011`. `production-post-migration-check.sh`: PASS (only the 9 known CRLF bodies differ). Advisors: all new findings belong to objects from the 26 migrations; no 5xx in logs. Production app code unchanged (Vercel `main` @ `a9723a0`); no main merge, deploy or DNS change. Owner smoke test with a real account pending; Phase C needs its own GO.
+- 2026-10-25 (run 5, commit `6f62eeb`): the Production rehearsal **PASSED** on the owner's PC with `--resume-backup ~/aladdin-production-rehearsal-20261025-114703` (Production not contacted, backup checksums unchanged). Restore exact in all 15 fingerprint categories; 26 migrations applied (exit 0); schema equals the 191 baseline apart from CRLF line endings already in 9 Production function bodies. Production itself is still 165 migrations; applying the 26 needs the owner's GO.
+- 2026-10-25: the Production rehearsal (`scripts/hosted-db/production-rehearsal.sh`) now runs the throwaway stack on Production's own Auth/Storage/Postgres versions (from `supabase link`) and refuses to restore unless every Auth/Storage table and column matches Production. Local test: PASS (faithful restore). The owner's Windows rerun is pending; Production is still 165 migrations, 26 pending.
+- FastAPI preview is live: Worker `aladdin-backend-preview` (Cloudflare Containers, Acceptance only). The frontend preview, deployed from this branch (which now includes #98), binds it as `BACKEND`; `/api/backend/health` returns `{"status":"ok","env":"staging"}`. No authenticated backend route exists yet, so sign-in refusal through the backend is untested.
+
+## FastAPI on Cloudflare Containers (draft PR, ADR-0022) — 2026-10-22
+
+- Branch `claude/project-thread-ea9qxg`, stacked on the frontend Workers branch `claude/cloudflare-workers-2ibvgs` (#97), which now contains the #100 database baseline (180 migrations). #98 adds no migrations. New Worker `edge/backend-worker` (`aladdin-backend`, environments `preview`/`production`) runs `backend/Dockerfile` in a Cloudflare Container; the frontend Worker prefers a `BACKEND` service binding over `BACKEND_ORIGIN`. **Nothing is deployed**; the frontend `wrangler.jsonc` does not bind `BACKEND` yet, so behaviour is unchanged; Vercel still serves FastAPI.
+- 2026-10-24: owner chose to hold the preview until the frontend preview's HTTPS works (Option B). Gates and the two separate approvals (Workers Paid, then the Acceptance-only preview): [fastapi-preview-prerequisites.md](fastapi-preview-prerequisites.md). pyjwt upgraded to 2.15.1 (audit). Costs and measurements in ADR-0022.
+
+## Consolidated database baseline (draft PR) — 2026-10-22
+
+- Branch `claude/project-thread-lz98jd` (from the Workers branch, PR #97 head): 180 migrations = main's `20261020090001_registration_data_sync` (byte-identical) plus the PR stack, with the 15 PR-only migrations renamed to `20261021090001`..`15` so they run after main's. Mapping, verification and the Production plan: [database-baseline-2026-10-22.md](database-baseline-2026-10-22.md).
+- Hosted: unchanged. Acceptance `nxossqhdfltcqdwvbewi` has 105 migrations (drifted, rebuild pending approval); Production `kkpkgjrweysgvhvkhzun` must be rehearsed with `scripts/hosted-db/production-rehearsal.sh` before any push.
+- Backups must use `scripts/hosted-db/` (`db dump` alone loses storage policies, the auth trigger and exact grants).
+
+- 2026-10-24: acceptance was rebuilt to the 180 baseline by the owner; its ACL fingerprint failed because of hosted default privileges. Fix migration `20261024090001_revoke_platform_default_privileges` (181 files) is tested locally, not yet applied to acceptance. Acceptance is **NO-GO** until it is applied and the fingerprint matches. A `media_edge_worker` LOGIN role exists on acceptance only, with no password.
+## Cloudflare migration, PR #97 — 2026-10-22 (later)
+
+- Branch `claude/cloudflare-workers-2ibvgs`: Next.js 16.4.2; R2/DNS/cutover, cost, security, Redis and video audits merged in. Status report and GO/NO-GO: [cloudflare-migration-status-2026-10-22.md](cloudflare-migration-status-2026-10-22.md). **Production NO-GO.**
+- 2026-10-24: preview Worker `aladdin-frontend-preview` is reachable and serves pages (smoke run 40077176318). Runtime secrets (Supabase acceptance, R2, Upstash REST, Turnstile) are not set yet. GitHub Actions is the only preview deploy path; the dashboard Workers Builds connection is to be disconnected by the owner. #97 contains #100's 180-migration baseline. Vercel still serves everything; DNS unchanged.
+
+## Cloudflare R2, credentials, DNS and 15-stage cutover (read-only audit) — 2026-10-22
+
+- Branch `claude/cf-r2-cutover-2ibvgs` (local, from PR #97 `claude/cloudflare-workers-2ibvgs`), docs only. Nothing hosted was changed.
+- Cloudflare account, read 2026-10-22:
+  - **Worker:** one, `aladdin-frontend-preview`, deployed on `bstalent9.workers.dev`.
+  - **R2 buckets:** `aladdin-r2-acceptance-20261011-private`, `aladdin-r2-acceptance-20261011-public` and `aladdin-production-db-backups`. All are WEUR, Standard class. Their CORS, lifecycle and public-access settings are not readable through the MCP tools.
+  - **Not present:** Hyperdrive, the media Worker, and a production media bucket.
+- DNS for `aladdindecore.com` is still on Vercel: 11 records, Zoho MX, SPF and DKIM, **no DMARC**, wildcard to Vercel. Export: [dns-records-aladdindecore-2026-10-22.md](dns-records-aladdindecore-2026-10-22.md).
+- New docs:
+  - [R2 audit and prepared rules](r2/README.md), not applied;
+  - [credentials checklist](cloudflare-credentials-checklist.md);
+  - [cutover plan](cloudflare-frontend-cutover-plan.md), now 15 stages.
+
+## Installer profile completion and release scope — 2026-10-24
+
+- **State.** Branch `integration/approved-features-20261019` = `9cc8eb87` + one local checkpoint commit (not pushed). Base `origin/main` `a9723a01`. The branch carries PRs #88, #89, #91, #92 and #94 plus the Cloudflare Workers commits up to `68110d26` (PR #97 has since moved to `548bfc98`). Configured upstream is PR #91's branch; do not push to it.
+- **Database.** New local-only migration `20261024090000_installer_profile_completion` (191 migration files on this branch against 165 on `main`). It reads `public.portfolio_projects`, which only exists via `20261021090009`, so it cannot be applied to a database without the earlier stack migrations. Hosted staging was last audited at 164 migrations (max `20261017134139`).
+- **Smallest viable release scope.** Not today's checkpoint alone, and not the whole integration branch. The installer feature imports code and tables from the stacked PRs #88, #89, #91, #92 and #94 (`secondary-phone`, `server/storage/*`, `lib/storage/browser-upload`, `server/cache/*`, `server/video/*`; migrations `secondary_phone_reservations`, `rc2_verified_media_storage`, `historical_media_purge`, `media_videos`). A simulated cherry-pick of `9cc8eb87` onto PR #94's tip has no conflicts and needs none of the 15 Cloudflare/hydration commits between them. So: merge #89 → #91 → #92 → #94 (with #88's content already merged into them), then the installer commit and the checkpoint. PRs #97 and #98 (Cloudflare Workers, FastAPI on Containers) are not required.
+- **Port hazards (checked 2026-10-24, nothing attempted).** `origin/main` is not an ancestor of PR #94's tip: `main` has three commits the stack lacks (PR #96: `772f1c6b`, `5e511736`, `a9723a01`). Merging the stack into `main` conflicts in four files (`admin/users/[id]/page.tsx`, `showroom-shell/settings/settings.tsx`, `server/queries/profile-identity.ts` — `main` signs avatars from the Supabase bucket, the stack uses `readableMediaUrl` — and `AGENT_WORK_LOG.md`). Migration `20261020090001_registration_data_sync` exists on both with different contents: `main`'s patches the pre-#88 text of the admin functions unconditionally, the integration copy (added by `9cc8eb87`) patches only where that text is still present. One of them must win, which edits a migration already merged on `main` (owner decision; hosted databases have not applied it). The checkpoint itself applies on the stack plus the installer commit with three trivial conflicts (both docs files and the ESLint ignore line).
+- **Flags to keep off:** `R2_STORAGE_ENABLED`, `R2_PRODUCTION_WRITES_APPROVED`, `MEDIA_EDGE_DELIVERY_ENABLED`, `VIDEO_ENABLED`, `REDIS_CACHE_ENABLED` (all default false).
+- **Verification baseline:** typecheck, lint, Vitest (4,297), pgTAP on a clean DB (6,284 tests, 140 files), migration policy and permission gate pass; Playwright installer completion spec passes on desktop and mobile. See [AGENT_WORK_LOG.md](AGENT_WORK_LOG.md).
+- **Local environment.** The dev server on :3210 is a long-lived `next dev` using about 6.7 GB; never run the Playwright suite against `frontend/.env.local`'s database (its global setup truncates sales tables and rewrites memberships in the container named by `E2E_DB_CONTAINER`, default `supabase_db_aladdin`).
+
+## Cloudflare Workers frontend (draft PR, ADR-0021) — 2026-10-20
+
+- Branch `claude/cloudflare-workers-2ibvgs` (stacked on the video branch): the frontend also builds for Cloudflare Workers with OpenNext (`pnpm cf:build`), runs in workerd locally, and CI builds both. **Nothing is deployed to Cloudflare**; Vercel still serves `aladdindecore.com` and FastAPI; DNS is still on Vercel nameservers.
+- Pending owner approval: workers.dev preview on the isolated acceptance project, Workers Paid ($5/month), DNS move, traffic switch ([cutover plan](cloudflare-frontend-cutover-plan.md)).
+
+## Redis, video and palette (draft PRs #92, video PR, #93) — 2026-10-19
+
+- **Stack:** #88 → #89 → #91 → #92 (Redis) → video branch `claude/video-r2-2ibvgs`. Palette #93 is independent, based on `main`. Nothing merged or deployed.
+- **New migration (local only):** `20261021090015_media_videos` (renamed from 20261019150000 so it sorts after the revocation migration 20261021090014; permission contract `supabase/permissions/20261021090015.json`).
+- **Flags (all off):** `REDIS_CACHE_ENABLED=false`, `VIDEO_ENABLED=false`, Worker `VIDEO_ROUTES="off"`; R2 and edge flags unchanged.
+- **Decisions:** [ADR-0019](../decisions/ADR-0019-redis-cache-and-rate-limits.md), [ADR-0020](../decisions/ADR-0020-video-r2-hls.md) — both Proposed. FastAPI next phase: [plan](../architecture/fastapi-next-phase.md), not started.
+- **Hosted dependencies pending approval:** managed Redis, transcode host, R2 CORS and lifecycle rules, Worker video routes, the migration.
+
+## Media/backend continuation (stacked on PR #89) — 2026-10-19
+
+- **Branch** `claude/media-backend-continuation-2ibvgs`, stacked on PR #89 (`claude/r2-rc2-integration-vdrldz`) with PR #88's latest commits merged in. Not merged anywhere; no hosted change.
+- **New migrations (local only):** `20261021090011_historical_media_purge`, `20261021090012_rls_platform_check_initplan`, `20261021090013_data_api_session_revocation` (177 migration files on this branch, counting #88 and #89). Staging (`kkpkgjrweysgvhvkhzun`) still has 164, max `20261017134139`; its `pgrst.db_pre_request` hook is active (`pgrst_hooks.pre_request`).
+- **Revocation and backend config (2026-10-19, same branch):** migration `20261021090014_storage_realtime_session_revocation` (178 files) adds restrictive session-live policies to `storage.objects`, `leads` and `follow_up_tasks`. The backend derives its environment from `VERCEL_ENV`: once this branch deploys, Production `/api/backend/health` answers **503 `misconfigured`** until `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set for the backend ([names](../guides/vercel-environment-variables.md)); the web app is unaffected.
+- **Flags unchanged:** `R2_STORAGE_ENABLED=false`, `R2_PRODUCTION_WRITES_APPROVED=false`, `MEDIA_EDGE_DELIVERY_ENABLED=false`.
+- **Infrastructure facts (audited 2026-10-19):** one Vercel project `aladdin-staging` (Hobby) serves `aladdindecore.com`; DNS on Vercel nameservers; functions ran in `iad1` (this branch sets `cdg1`). FastAPI live at `/api/backend/health` only, `APP_ENV` unset. Cloudflare account has R2 buckets (`aladdin-production-db-backups`, `aladdin-r2-acceptance-20261011-private/-public`), no Workers, no Hyperdrive. Supabase staging Storage: avatars 144 objects / 8.4 MB, portfolio 163 / 259.6 MB (to be purged), certificates 4 / 7.9 MB (kept).
+- Decision: [ADR-0018 Revision 2](../decisions/ADR-0018-r2-edge-media-delivery.md#revision-2--2026-10-19-full-media-architecture).
+
+## R2 media storage and edge delivery (PR #89) — 2026-10-18
+
+- **Branch and PR.** The R2 work is on draft **PR #89** (`claude/r2-rc2-integration-vdrldz`, head `26edd40`), which is open and **not merged**. It includes PR #88. The local snapshot branch `local/r2-rc2-snapshot` has the same head, 29 commits ahead of the local `origin/main` ref (`9d9a1b6`). On `main`, media is still served from Supabase Storage.
+- **Decision.** [ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md) is **Proposed** and needs owner approval. It refines [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md).
+- **Flags (code defaults).** `MEDIA_EDGE_DELIVERY_ENABLED=false`, so edge delivery is off and every image URL goes to the app proxy (`/api/media/<ns>`, `/p/media/<itemId>`). `R2_STORAGE_ENABLED=false` and `R2_PRODUCTION_WRITES_APPROVED=false`. `MEDIA_EDGE_PUBLIC_ENABLED` defaults to `true`; it only has an effect once edge delivery is on.
+- **In the code on PR #89:**
+  - the Worker `edge/media-worker/` (`/m` private with a ticket, `/c` conditional public);
+  - ticket issuance in `frontend/src/server/storage/edge-ticket.ts`;
+  - 320/768/1600 WebP variants and pre-upload resizing;
+  - the migration tooling `scripts/media-storage.mjs` and the usage report `scripts/usage-report.mjs`;
+  - local JWT verification for session reads ([auth-session-reads.md](../frontend/auth-session-reads.md));
+  - migrations `20261021090005`–`20261021090008` and `20261021090009_media_edge_authorization.sql`.
+  This is 173 migration files in total.
+- **Hosted steps: none done.** Each needs owner approval:
+  - the Worker login role `media_edge_worker` (member of `media_edge`);
+  - Hyperdrive with query caching disabled;
+  - the private R2 bucket and its `pending/` lifecycle rule;
+  - the Cloudflare zone and media hostname (decision D4);
+  - Workers Paid (D5);
+  - the `TICKET_KEYS` Worker secret;
+  - the Vercel env vars `MEDIA_EDGE_ORIGIN`, `MEDIA_EDGE_TICKET_KID`, `MEDIA_EDGE_TICKET_SECRET`, `MEDIA_EDGE_DELIVERY_ENABLED` and `R2_*`.
+  Steps: [`edge/media-worker/README.md`](../../edge/media-worker/README.md).
+- **Hosted database.** The media migrations have **not** run on any hosted project. Staging (`kkpkgjrweysgvhvkhzun`) had 164 migrations up to `20261017134139` when audited on 2026-10-18. PR #88, `20261021090003`–`20261021090004`, `20261021090005`–`20261021090008` and `20261021090009` are all pending there. No media has been copied to R2.
+- **Supabase egress.** About **0.29 GB is left of the 5 GB** Free quota this cycle (4.71 GB used, owner-reported 2026-10-18). The full bulk copy needs about 0.273 GB, so only an avatar and certificate rehearsal (about 16 MB) fits before the cycle resets or the plan is upgraded to Pro. Going over the quota returns HTTP 402 on every API call. Runbook: [media-monitoring.md](media-monitoring.md).
+- **Security item to check.** On the local stack, `PUBLIC` has `USAGE` on schema `net` and `EXECUTE` on some pg_net functions (`net.http_delete(...)`, `net.worker_restart()` and helpers), so `anon` can call them. The hosted projects have not been checked. Check them and revoke these grants from `PUBLIC` in a separate reviewed change, before the Worker login role is created.
+- **Validation.** Not re-run in the 2026-10-18 docs session. To check: `pnpm --filter @aladdin/media-worker test` and `typecheck` for the Worker. pgTAP `99_media_edge_authorization_test.sql` tests that the next request is denied after delete, unpublish, delisting, suspension, ban and sign-out.
+
+## Showroom V2 and Admin follow-ups (PR #88) — 2026-10-18
+
+- Same branch and PR as business verification below. Adds: Admin Users "User Type" column/filter (`admin_users_directory`, migration `20261021090003`); Admin Staff search/empty copy; Offers and My Offers re-enabled; unverified secondary phone reservations with password receipts and a Support cooldown override (`20261021090004`, `/admin/phone-cooldowns`, permission `phones.cooldown_override`, Super Admin only by default).
+- None of `20261021090001`, `20261021090002`, `20261021090003`, `20261021090004` is applied to any hosted project. Owner approval required.
+- R2 RC2 worktree (device, uncommitted) was snapshotted and merged onto main + this PR in a separate local branch (not pushed). R2 migrations renamed to `20261021090005`–`20261021090008` so they sort after main's newest; exact permission contracts added for every intervening migration.
+- Validation: real local Supabase stack (supabase/postgres 17): pgTAP 123 files / 5,447 checks pass, exact permission gate passes, concurrency scripts pass. Browser E2E not yet run.
+
+## Business verification (Verified badge) — 2026-10-17
+
+- Branch `claude/showroom-v2-admin-verification-vdrldz` (draft PR) from `main` @ `9d9a1b6`. Adds `/showroom/verification`, `/admin/business-verification` and `/admin/business-verification/[id]`, and the document stream `/business-verification/file/<org>/<file>`.
+- Migrations `20261021090001` and `20261021090002` are NOT applied to any hosted project. They must be applied in that order, after any migration already on the target, and only with the owner's approval. New private bucket `business-verification-documents`, new permission `verification.approve`.
+- `organizations.is_verified` still means "approved/active" for every gate; `organizations.business_verified_at` drives the Verified badge. No backfill: existing organizations show no badge until a business verification is approved (Decision B). `verification.approve` does not approve applications.
+- Validation: typecheck, lint, Vitest, build and pgTAP (local shim) passed; browser journeys not run here.
+## 2026-10-17 — Approved local RC2 R2 integration
+
+The owner authorized a dedicated integration branch based on exact RC2 main8bde19c4 and163 migrations. Original R2 worktree is preserved. Scope includes forward-only schema/permission reconciliation, actual-byte receipts, mixed providers and private application delivery for existing personal media plus RC2 product images and organization logos; preserve every current tenant/audience/org.manage/ordering rule. No hosted resource, cleanup, deployment, push or merge is authorized. Both R2 flagsfalse. Architecture: [ADR-0017](../decisions/ADR-0017-rc2-private-media-integration.md). Integration in progress; acceptance results must be recorded before completion.
+
 ## Terms of Service published — 2026-10-18
 
 - `/legal/terms` now publishes the real Terms of Service (EN/AR, public, contact `info@aladdindecore.com`), replacing the placeholder; the `LegalPending` component is removed. All three legal pages are live content. [Details](../frontend/legal-pages.md).

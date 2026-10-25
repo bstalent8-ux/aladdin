@@ -1,13 +1,13 @@
 "use server";
 
+import { authorizeMediaUpload, verifyPendingMedia, removeMedia } from "@/server/storage/media";
+import type { UploadGrant } from "@/lib/storage/provider-types";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { readPublicEnv } from "@/lib/env";
-import { craftsmanLoginAlias, isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
-import { isCanonicalPhoneTaken, rekeyLoginAlias } from "@/lib/supabase/admin-server";
-import { phoneAuthLimit } from "@/server/auth/phone-auth-limit";
+import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
+import { SECURITY_CODES, defaultSecurityDeps, performPhoneChange } from "@/server/auth/installer-security";
+import { resolveSecuritySession } from "@/server/auth/security-session";
+import { changeUsername, type UsernameResult } from "@/server/identity/username-change";
 
 /**
  * The identity fields every audience shares — display name, phone, avatar —
@@ -41,6 +41,17 @@ export async function setDisplayNameAction(
   }
   revalidateIdentity();
   return { ok: true };
+}
+
+/** The caller's own username, through `profile_set_username` (see `server/identity/username-change.ts`). Returns the stored value. */
+export type UsernameFieldState = { ok: boolean; code?: string; username?: string };
+
+export async function setUsernameAction(_prev: UsernameFieldState, fd: FormData): Promise<UsernameFieldState> {
+  const supabase = await getServerSupabase();
+  const result: UsernameResult = await changeUsername(supabase, fd.get("username"));
+  if (!result.ok) return { ok: false, code: result.code };
+  revalidateIdentity();
+  return { ok: true, username: result.username };
 }
 
 export async function setPhoneAction(
@@ -78,11 +89,12 @@ export async function setPhoneAction(
 }
 
 /**
- * Change the phone of a phone + password account. Here the phone is also the sign-in key (an internal login
- * alias derived from it), and the database refuses to move a profile phone away from its alias. So the change
- * is a re-key: prove the CURRENT password, check the new number is free, move the alias, then the profile
- * phone - and put the alias back if the profile write fails. The old number stops signing in, the new one
- * starts, and the profile (which Admin reads) carries the new number.
+ * Change the phone of a phone + password account. Here the phone is also the sign-in key (an internal login alias derived
+ * from it), so the change is the JOURNALED re-key in `@/server/auth/installer-security`: PR #88's current-password
+ * confirmation (one attempt budget per account) issues a receipt bound to the new number, the database moves the
+ * profile and journals the change in one transaction, the Auth Admin API moves the alias, and the database settles the
+ * outcome from the authoritative alias (restoring the old number if Auth never changed). The database guards on
+ * profiles and auth.users refuse any unjournaled alias or phone move, so there is no other path.
  */
 export async function changeLoginPhoneAction(
   _prev: IdentityFieldState,
@@ -90,72 +102,60 @@ export async function changeLoginPhoneAction(
 ): Promise<IdentityFieldState> {
   const countryIso2 = String(fd.get("countryIso2") ?? "").trim();
   const national = String(fd.get("national") ?? "").trim();
-  const e164 = String(fd.get("e164") ?? "").trim();
   const password = String(fd.get("currentPassword") ?? "");
-  if (!e164 || !countryIso2 || !national) return { ok: false, code: "profileIdentity.phone.error" };
+  if (!countryIso2 || !national) return { ok: false, code: "profileIdentity.phone.error" };
   if (!password) return { ok: false, code: "profileIdentity.phone.passwordRequired" };
 
-  const supabase = await getServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isCraftsmanLoginAlias(user.email)) return { ok: false, code: "profileIdentity.phone.error" };
-  const oldAlias = user.email!.trim().toLowerCase();
-
-  let newAlias: string;
   try {
-    newAlias = craftsmanLoginAlias(e164);
+    const supabase = await getServerSupabase();
+    const { actor, session } = await resolveSecuritySession(supabase);
+    if (!actor || !isCraftsmanLoginAlias(actor.loginEmail)) return { ok: false, code: "profileIdentity.phone.error" };
+    const result = await performPhoneChange(defaultSecurityDeps(supabase), actor, session, {
+      countryIso2,
+      national,
+      password,
+      requestId: fd.get("requestId") ?? undefined,
+    });
+    if (result.ok || result.code === SECURITY_CODES.phoneSame) {
+      revalidateIdentity();
+      return { ok: true };
+    }
+    return { ok: false, code: LOGIN_PHONE_CODES[result.code] ?? "profileIdentity.phone.error" };
   } catch {
+    console.error("phone re-key: aborted unexpectedly");
     return { ok: false, code: "profileIdentity.phone.error" };
   }
-  if (newAlias === oldAlias) return { ok: true };
-
-  // Password guesses are throttled exactly like a sign-in for this account.
-  const limited = await phoneAuthLimit("sign-in", oldAlias, await headers());
-  if (limited !== "allowed") return { ok: false, code: "profileIdentity.phone.rateLimited" };
-
-  // Proof of the current password through a stateless client: the caller's own session cookies are untouched.
-  const env = readPublicEnv();
-  const verifier = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const proof = await verifier.auth.signInWithPassword({ email: oldAlias, password });
-  if (proof.error) return { ok: false, code: "profileIdentity.phone.wrongPassword" };
-  await verifier.auth.signOut({ scope: "local" });
-
-  try {
-    if (await isCanonicalPhoneTaken(e164)) return { ok: false, code: "profileIdentity.phone.unavailable" };
-  } catch {
-    return { ok: false, code: "profileIdentity.phone.error" };
-  }
-
-  const moved = await rekeyLoginAlias(user.id, newAlias);
-  if (!moved.ok) {
-    return { ok: false, code: moved.reason === "exists" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error" };
-  }
-  const { error } = await supabase.rpc("profile_set_phone", { p_country_iso2: countryIso2, p_national: national, p_e164: e164 });
-  if (error) {
-    // The alias and the profile phone must agree; undo the alias move so the old number keeps working.
-    const restored = await rekeyLoginAlias(user.id, oldAlias);
-    if (!restored.ok) console.error("phone re-key: could not restore the previous login alias");
-    return { ok: false, code: error.code === "23505" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error" };
-  }
-  revalidateIdentity();
-  return { ok: true };
 }
 
+const LOGIN_PHONE_CODES: Record<string, string> = {
+  [SECURITY_CODES.wrongPassword]: "profileIdentity.phone.wrongPassword",
+  [SECURITY_CODES.passwordRequired]: "profileIdentity.phone.passwordRequired",
+  [SECURITY_CODES.locked]: "profileIdentity.phone.rateLimited",
+  [SECURITY_CODES.busy]: "profileIdentity.phone.rateLimited",
+  [SECURITY_CODES.phoneUnavailable]: "profileIdentity.phone.unavailable",
+  [SECURITY_CODES.phoneInProgress]: "profileIdentity.phone.inProgress",
+  [SECURITY_CODES.phoneNotConfirmed]: "profileIdentity.phone.inProgress",
+  [SECURITY_CODES.needsAttention]: "profileIdentity.phone.needsAttention",
+  [SECURITY_CODES.phoneFailed]: "profileIdentity.phone.error",
+  [SECURITY_CODES.phoneInvalid]: "profileIdentity.phone.error",
+};
+
 export type AvatarUploadTicket =
-  | { ok: true; key: string }
+  | { ok: true; key: string; grant: UploadGrant }
   | { ok: false; code: string };
 
 /** Step 1 — creates the pending metadata row and returns the server-generated key the client must upload to. */
-export async function requestAvatarUploadAction(contentType: string): Promise<AvatarUploadTicket> {
+export async function requestAvatarUploadAction(contentType: string, expectedBytes?: number): Promise<AvatarUploadTicket> {
+  if (expectedBytes !== undefined && (!Number.isSafeInteger(expectedBytes) || expectedBytes <= 0 || expectedBytes > 3 * 1024 * 1024)) {
+    return { ok: false, code: "profileIdentity.avatar.errorUpload" };
+  }
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("avatar_request_upload", { p_content_type: contentType });
   if (error || !data) {
     return { ok: false, code: "profileIdentity.avatar.errorUpload" };
   }
-  return { ok: true, key: data };
+  try { return { ok: true, key: data, grant: await authorizeMediaUpload(supabase, "avatar", data, expectedBytes) }; }
+  catch { return { ok: false, code: "profileIdentity.avatar.errorUpload" }; }
 }
 
 export type AvatarConfirmResult = { ok: true } | { ok: false; code: string };
@@ -168,6 +168,8 @@ export type AvatarConfirmResult = { ok: true } | { ok: false; code: string };
  */
 export async function confirmAvatarUploadAction(objectKey: string): Promise<AvatarConfirmResult> {
   const supabase = await getServerSupabase();
+  try { await verifyPendingMedia(supabase, "avatar", objectKey); }
+  catch { return { ok: false, code: "profileIdentity.avatar.errorUpload" }; }
   const { data: previousKey, error } = await supabase.rpc("avatar_confirm_upload", {
     p_object_key: objectKey,
   });
@@ -179,9 +181,61 @@ export async function confirmAvatarUploadAction(objectKey: string): Promise<Avat
     // Best-effort: the confirm already committed, so a cleanup failure here
     // never leaves the caller's own avatar unset — it only leaves one orphaned
     // object in a private bucket nobody but the owner could ever read anyway.
-    await supabase.storage.from("avatars").remove([previousKey]);
+    try { await removeMedia(supabase, "avatar", previousKey); } catch { /* Metadata already revoked access. */ }
   }
 
+  revalidateIdentity();
+  return { ok: true };
+}
+
+export async function deleteAvatarAction(): Promise<AvatarConfirmResult> {
+  const supabase = await getServerSupabase();
+  const { data: key, error } = await supabase.rpc("avatar_delete_current" as never);
+  if (error) return { ok: false, code: "profileIdentity.avatar.errorUpload" };
+  if (typeof key === "string") {
+    try { await removeMedia(supabase, "avatar", key); } catch { /* Retired metadata remains for retryable cleanup. */ }
+  }
+  revalidateIdentity();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Profile COVER image: the avatar pipeline (pending -> verified bytes -> ready -> previous deleted) with purpose cover.
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Step 1 - a pending cover row and the server-generated key the browser must upload to. */
+export async function requestCoverUploadAction(contentType: string, expectedBytes?: number): Promise<AvatarUploadTicket> {
+  if (expectedBytes !== undefined && (!Number.isSafeInteger(expectedBytes) || expectedBytes <= 0 || expectedBytes > 3 * 1024 * 1024)) {
+    return { ok: false, code: "profileIdentity.cover.errorUpload" };
+  }
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("cover_request_upload", { p_content_type: contentType });
+  if (error || !data) return { ok: false, code: "profileIdentity.cover.errorUpload" };
+  try { return { ok: true, key: data, grant: await authorizeMediaUpload(supabase, "avatar", data, expectedBytes) }; }
+  catch { return { ok: false, code: "profileIdentity.cover.errorUpload" }; }
+}
+
+/** Step 3 - verified bytes become the current cover; the previous cover object is removed best-effort. */
+export async function confirmCoverUploadAction(objectKey: string): Promise<AvatarConfirmResult> {
+  const supabase = await getServerSupabase();
+  try { await verifyPendingMedia(supabase, "avatar", objectKey); }
+  catch { return { ok: false, code: "profileIdentity.cover.errorUpload" }; }
+  const { data: previousKey, error } = await supabase.rpc("cover_confirm_upload", { p_object_key: objectKey });
+  if (error) return { ok: false, code: "profileIdentity.cover.errorUpload" };
+  if (previousKey) {
+    try { await removeMedia(supabase, "avatar", previousKey); } catch { /* Metadata already revoked access. */ }
+  }
+  revalidateIdentity();
+  return { ok: true };
+}
+
+export async function deleteCoverAction(): Promise<AvatarConfirmResult> {
+  const supabase = await getServerSupabase();
+  const { data: key, error } = await supabase.rpc("cover_delete_current");
+  if (error) return { ok: false, code: "profileIdentity.cover.errorUpload" };
+  if (typeof key === "string") {
+    try { await removeMedia(supabase, "avatar", key); } catch { /* Retired metadata remains for retryable cleanup. */ }
+  }
   revalidateIdentity();
   return { ok: true };
 }
