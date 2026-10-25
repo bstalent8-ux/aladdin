@@ -21,6 +21,10 @@ MANIFEST="f76c64c2d0f3d762937cf550e7bd71a45ef0f96c672f086ecd9875db1bcc6812"
 HERE="$(cd "$(dirname "$0")" && pwd)"; KIT="${KIT:-$HERE}"; [ -s "$KIT/security-tail.sql" ] || KIT="$HERE/../acceptance-rebuild"
 OUT="${HOME}/aladdin-production-rehearsal-$(date +%Y%m%d-%H%M%S)"
 sb() { pnpm exec supabase "$@"; }
+# Git Bash (MSYS) rewrites arguments that look like POSIX paths, which breaks container paths such as
+# /tmp/bk/roles.sql. dk() turns that off for docker; hp() hands docker host paths in Windows form.
+dk() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' docker "$@"; }
+hp() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
 rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
 PINS="gotrue-version storage-version postgres-version"
 for f in schema-fingerprint.sql security-tail.sql rowcounts.sql auth-storage-columns.sql local-noseed-fingerprint.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
@@ -55,6 +59,8 @@ q "$KIT/security-tail.sql" | rows 'x.s' > "$B/security-tail.out.sql"
 q "$KIT/schema-fingerprint.sql" | rows '`${x.k}|${x.h}|${x.len}`' > "$OUT/fingerprint-production.txt"
 q "$KIT/rowcounts.sql" | rows 'x.t' > "$OUT/rowcounts-production.txt"
 q "$KIT/auth-storage-columns.sql" | rows 'x.t' > "$OUT/columns-production.txt"
+echo "select coalesce(string_agg(format('%s=%s', parname, array_to_string(paracl, ',')), E'\\n' order by parname), '') as t from pg_parameter_acl;" > "$OUT/.p.sql"
+q "$OUT/.p.sql" | rows 'x.t' > "$OUT/parameter-acl-production.txt"
 mkdir -p "$OUT/versions-production"
 for v in $PINS; do [ -z "$VERSIONS" ] || [ ! -s "$VERSIONS/$v" ] || tr -d '\r\n' < "$VERSIONS/$v" > "$OUT/versions-production/$v"; done
 echo "select version from supabase_migrations.schema_migrations order by 1;" > "$OUT/.v.sql"
@@ -82,7 +88,7 @@ C="supabase_db_aladdin_prod_rehearsal"
 mkdir -p "$R/supabase/.temp"; cp "$OUT/versions-production/"* "$R/supabase/.temp/" 2>/dev/null || true
 [ -n "${REHEARSAL_KEEP:-}" ] || trap 'sb stop --workdir "$R" --no-backup >/dev/null 2>&1 || true' EXIT
 sb start --workdir "$R" -x edge-runtime,logflare,vector,studio,supavisor,imgproxy,realtime,mailpit,postgres-meta >/dev/null
-lq() { docker exec -i "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 < "$1"; }
+lq() { dk exec -i "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 < "$1"; }
 lq "$KIT/auth-storage-columns.sql" > "$OUT/columns-local.txt"
 
 # 3a. One complete Auth/Storage compatibility report before restoring anything: every table and column the
@@ -92,7 +98,7 @@ sed -n 's/^COPY \([^ ]*\) (\(.*\)) FROM stdin;\r\{0,1\}$/\1|\2/p' "$B/data.sql" 
 key() { grep -v '^marker ' "$1" | cut -d: -f1 | sort -u; }
 tbl() { key "$1" | cut -d. -f1-2 | sort -u; }
 {
-  echo "Local stack versions: $(docker inspect -f '{{.Config.Image}}' supabase_auth_aladdin_prod_rehearsal supabase_storage_aladdin_prod_rehearsal "$C" | tr '\n' ' ')"
+  echo "Local stack versions: $(dk inspect -f '{{.Config.Image}}' supabase_auth_aladdin_prod_rehearsal supabase_storage_aladdin_prod_rehearsal "$C" | tr '\n' ' ')"
   echo "Production versions (from supabase link): $(for v in $PINS; do printf '%s=%s ' "$v" "$(cat "$OUT/versions-production/$v" 2>/dev/null || echo unknown)"; done)"
   echo "Missing tables (in the backup or on Production, not local):"
   comm -23 <(sort -u <(tbl "$OUT/columns-production.txt") <(cut -d. -f1-2 "$OUT/copy-columns.txt" | sort -u)) <(tbl "$OUT/columns-local.txt") | sed 's/^/  /'
@@ -122,15 +128,25 @@ SQL
 # Only recreate tables the backup has, so the restored table list (and its row counts) stays Production's.
 ! grep -q '^COPY "\{0,1\}supabase_migrations"\{0,1\}\."\{0,1\}seed_files' "$B/data.sql" \
   || echo 'create table if not exists supabase_migrations.seed_files (path text primary key, hash text not null);' >> "$OUT/.migrations-schema.sql"
-docker cp "$B" "$C:/tmp/bk"; docker cp "$OUT/.migrations-schema.sql" "$C:/tmp/bk/.migrations-schema.sql"
-docker exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
-  -f /tmp/bk/roles.sql -f /tmp/bk/schema.sql -f /tmp/bk/.migrations-schema.sql -c 'SET session_replication_role = replica' \
+# Hosted-only parameter grants (e.g. GRANT SET ON PARAMETER "log_min_messages" TO "supabase_realtime_admin") need a
+# superuser locally, which `postgres` is not there. Split them into a derived copy in $OUT/restore (the backup
+# itself is never edited) and replay them as supabase_admin, so the restored grants still equal Production's.
+mkdir -p "$OUT/restore"
+grep -E '^(GRANT|REVOKE) .* ON PARAMETER ' "$B/roles.sql" > "$OUT/restore/roles-parameters.sql" || true
+grep -vE '^(GRANT|REVOKE) .* ON PARAMETER ' "$B/roles.sql" > "$OUT/restore/roles.sql"
+cp "$OUT/.migrations-schema.sql" "$OUT/restore/migrations-schema.sql"
+dk cp "$(hp "$B")" "$C:/tmp/bk"; dk cp "$(hp "$OUT/restore")" "$C:/tmp/rx"
+dk exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
+  -f /tmp/rx/roles.sql -f /tmp/bk/schema.sql -f /tmp/rx/migrations-schema.sql -c 'SET session_replication_role = replica' \
   -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' -f /tmp/bk/security-tail.out.sql >/dev/null
+dk exec "$C" psql -U supabase_admin -d postgres -q --single-transaction -v ON_ERROR_STOP=1 -f /tmp/rx/roles-parameters.sql >/dev/null
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-restored.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-restored.txt"
 RESTORE="exact"
 diff -q "$OUT/fingerprint-production.txt" "$OUT/fingerprint-restored.txt" >/dev/null || RESTORE="SCHEMA DIFFERS"
 diff -q "$OUT/rowcounts-production.txt" "$OUT/rowcounts-restored.txt" >/dev/null || RESTORE="$RESTORE; ROW COUNTS DIFFER"
+lq "$OUT/.p.sql" > "$OUT/parameter-acl-restored.txt"
+diff -q "$OUT/parameter-acl-production.txt" "$OUT/parameter-acl-restored.txt" >/dev/null || RESTORE="$RESTORE; PARAMETER GRANTS DIFFER"
 
 # 4. Apply exactly what `db push` would apply, the same way (one file at a time, recorded in history).
 cp supabase/migrations/*.sql "$R/supabase/migrations/"
@@ -145,7 +161,8 @@ SCHEMA=same
   echo "Production history: $(wc -l < "$OUT/history-production.txt") versions; pending: $(wc -l < "$OUT/pending.txt")"
   cat "$OUT/auth-storage-check.txt"
   echo "Auth/Storage schema versus Production: $AUTHSTORAGE"
-  echo "Restore of the backup: $RESTORE (public/app schema fingerprint and the row count of every restored table)"
+  echo "Restore of the backup: $RESTORE (public/app schema fingerprint, the row count of every restored table, parameter grants)"
+  echo "Parameter grants replayed as supabase_admin: $(grep -c . "$OUT/restore/roles-parameters.sql" || true)"
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
   then echo "Schema after the push equals the tested baseline."
