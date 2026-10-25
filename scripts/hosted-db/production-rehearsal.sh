@@ -217,12 +217,20 @@ cp "$OUT/.migrations-schema.sql" "$OUT/restore/migrations-schema.sql"
 { grep -o 'cli_login_[A-Za-z0-9_]*' "$B/security-tail.out.sql" || true; } | sort -u > "$OUT/restore/transient-roles.txt"
 sed 's/.*/create role "&" nologin;/' "$OUT/restore/transient-roles.txt" > "$OUT/restore/pre-tail.sql"
 sed 's/.*/drop role "&";/' "$OUT/restore/transient-roles.txt" > "$OUT/restore/post-tail.sql"
+# Roles the local image creates but Production lacks are absent from the tail's REVOKE lists, so their default
+# privileges would leak into every restored table. Strip them before the restore and once more after it.
+sed -n '/^revoke all on table .* from public, /{s/^.* from public, \(.*\);\r\{0,1\}$/\1/p;q;}' "$B/security-tail.out.sql" | tr -d ' "' > "$OUT/restore/production-roles.txt"
+[ -s "$OUT/restore/production-roles.txt" ] || { echo "cannot read Production's role list from security-tail.out.sql: stopping"; exit 1; }
+cp "$KIT/local-only-roles-cleanup.sql" "$OUT/restore/local-only-roles-cleanup.sql"
 dk cp "$(hp "$B")" "$C:/tmp/bk"; dk cp "$(hp "$OUT/restore")" "$C:/tmp/rx"
+cleanup_local_only() { dk exec "$C" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -v prod_roles="$(cat "$OUT/restore/production-roles.txt")" -f /tmp/rx/local-only-roles-cleanup.sql | grep '^local-only role' || true; }
+cleanup_local_only > "$OUT/local-only-roles.txt"
 dk exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
   -f /tmp/rx/roles.sql -f /tmp/bk/schema.sql -f /tmp/rx/migrations-schema.sql -c 'SET session_replication_role = replica' \
   -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' \
   -f /tmp/rx/pre-tail.sql -f /tmp/bk/security-tail.out.sql -f /tmp/rx/post-tail.sql >/dev/null
 dk exec "$C" psql -U supabase_admin -d postgres -q --single-transaction -v ON_ERROR_STOP=1 -f /tmp/rx/roles-parameters.sql >/dev/null
+cleanup_local_only >> "$OUT/local-only-roles.txt"
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-restored.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-restored.txt"
 RESTORE="exact"
@@ -230,6 +238,17 @@ diff -q "$OUT/fingerprint-production.txt" "$OUT/fingerprint-restored.txt" >/dev/
 diff -q "$OUT/rowcounts-production.txt" "$OUT/rowcounts-restored.txt" >/dev/null || RESTORE="$RESTORE; ROW COUNTS DIFFER"
 lq "$OUT/.p.sql" > "$OUT/parameter-acl-restored.txt"
 diff -q "$OUT/parameter-acl-production.txt" "$OUT/parameter-acl-restored.txt" >/dev/null || RESTORE="$RESTORE; PARAMETER GRANTS DIFFER"
+if [ "$RESTORE" != exact ]; then   # names and privileges only, no row data: what to compare when the ACLs differ
+  cat > "$OUT/restore/acl-detail.sql" <<'SQL'
+select format('default %s %s %s: %s', pg_get_userbyid(d.defaclrole), coalesce(n.nspname, '*'), d.defaclobjtype, d.defaclacl::text)
+from pg_default_acl d left join pg_namespace n on n.oid = d.defaclnamespace order by 1;
+select format('table grants to %s: %s objects', coalesce(r.rolname, 'PUBLIC'), count(distinct c.oid))
+from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a left join pg_roles r on r.oid = a.grantee
+where n.nspname in ('public','app') group by 1 order by 1;
+SQL
+  lq "$OUT/restore/acl-detail.sql" > "$OUT/acl-detail-restored.txt" || true
+  grep -c 'DEFAULT PRIVILEGES' "$B/schema.sql" > "$OUT/schema-default-privilege-statements.txt" || true
+fi
 
 # 4. Apply exactly what `db push` would apply, the same way (one file at a time, recorded in history).
 cp supabase/migrations/*.sql "$R/supabase/migrations/"
@@ -237,8 +256,9 @@ set +e; sb migration up --workdir "$R" --local > "$OUT/migration-up.log" 2>&1; U
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-after.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-after.txt"
 
-# 5. Report: counts and hashes only.
+# 5. Report: counts and hashes only. Errors inside the report must not cut it short.
 SCHEMA=same
+set +e
 {
   echo "Production rehearsal $(date -u +%FT%TZ), baseline $SHA"
   if [ -n "$RESUME" ]; then echo "Backup: reused from $RESUME (Production was not contacted by this run)"; else echo "Backup: taken by this run"; fi
@@ -249,6 +269,7 @@ SCHEMA=same
   echo "Auth/Storage schema versus Production: $AUTHSTORAGE"
   echo "Restore of the backup: $RESTORE (public/app schema fingerprint, the row count of every restored table, parameter grants)"
   echo "Parameter grants replayed as supabase_admin: $(grep -c . "$OUT/restore/roles-parameters.sql" || true)"
+  echo "Local-only roles stripped (present in the local image, not on Production):"; sed 's/^/  /' "$OUT/local-only-roles.txt"
   echo "CLI temporary login roles named in the security tail (local placeholder, dropped again): $(tr '\n' ' ' < "$OUT/restore/transient-roles.txt")"
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
@@ -262,6 +283,7 @@ SCHEMA=same
     && BACKUP=unchanged || BACKUP=CHANGED
   echo "Production backup files: $BACKUP since the checksum was taken (checked again after the rehearsal)"
 } > "$OUT/REPORT.txt"
+set -e
 cat "$OUT/REPORT.txt"
 echo "Share $OUT/REPORT.txt with Claude (it has no row data). Keep $B private; it holds Production data."
 if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || [ "$SCHEMA" != same ] || [ "$BACKUP" != unchanged ]; then
