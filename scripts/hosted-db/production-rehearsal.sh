@@ -3,10 +3,14 @@
 # throwaway local Supabase stack on THIS machine, applies the pending baseline migrations there, and
 # writes a report of counts and hashes only (no row data) that you can share.
 # Production is only read (pg_dump and SELECT); this script contains no push, reset or write to it.
+# The local stack runs the same Auth, Storage and Postgres versions as Production (read by `supabase link`),
+# and every Auth/Storage column in the backup is checked against it before anything is restored. The local
+# schema is never patched: any difference stops the rehearsal with one complete report.
 #
 # Run from a checkout of the aladdin repo. Needs git, pnpm, node, Docker running, `pnpm exec supabase login`.
 #   bash production-rehearsal.sh
 # Test mode (Claude, local only): REHEARSAL_SOURCE_DB_URL=postgresql://...@127.0.0.1:PORT/postgres
+#   REHEARSAL_VERSIONS_DIR=<dir with gotrue-version, storage-version, postgres-version> pins the stack like `link` does.
 set -euo pipefail
 export LC_ALL=C
 
@@ -18,11 +22,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"; KIT="${KIT:-$HERE}"; [ -s "$KIT/security-
 OUT="${HOME}/aladdin-production-rehearsal-$(date +%Y%m%d-%H%M%S)"
 sb() { pnpm exec supabase "$@"; }
 rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
-for f in schema-fingerprint.sql security-tail.sql rowcounts.sql local-noseed-fingerprint.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
+PINS="gotrue-version storage-version postgres-version"
+for f in schema-fingerprint.sql security-tail.sql rowcounts.sql auth-storage-columns.sql local-noseed-fingerprint.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
 
 if [ -n "${REHEARSAL_SOURCE_DB_URL:-}" ]; then
   case "$REHEARSAL_SOURCE_DB_URL" in *@127.0.0.1:*) ;; *) echo "test mode only accepts a local database"; exit 1;; esac
-  SRC=(--db-url "$REHEARSAL_SOURCE_DB_URL"); WT="$(pwd)"
+  SRC=(--db-url "$REHEARSAL_SOURCE_DB_URL"); WT="$(pwd)"; VERSIONS="${REHEARSAL_VERSIONS_DIR:-}"
 else
   git fetch -q origin "$BRANCH"
   WT="$(mktemp -d)/aladdin-rehearsal"; git -c core.autocrlf=false -c core.eol=lf worktree add -q --detach "$WT" "$SHA"; cd "$WT"
@@ -32,7 +37,8 @@ else
   export SUPABASE_DB_PASSWORD
   sb link --project-ref "$PROD" >/dev/null
   [ "$(cat supabase/.temp/project-ref)" = "$PROD" ] || { echo "not linked to Production: stopping"; exit 1; }
-  SRC=(--linked)
+  SRC=(--linked); VERSIONS="$WT/supabase/.temp"
+  for v in $PINS; do [ -s "$VERSIONS/$v" ] || { echo "supabase link did not report Production's $v: stopping"; exit 1; }; done
 fi
 [ "$(cd supabase/migrations && shasum -a 256 *.sql | tr -d '\r' | sed 's/ \*/  /' | shasum -a 256 | cut -d' ' -f1)" = "$MANIFEST" ] \
   || { echo "migration files differ from the tested baseline: stopping"; exit 1; }
@@ -48,10 +54,14 @@ q() { sb db query "${SRC[@]}" -f "$1" --output-format json 2>/dev/null; }
 q "$KIT/security-tail.sql" | rows 'x.s' > "$B/security-tail.out.sql"
 q "$KIT/schema-fingerprint.sql" | rows '`${x.k}|${x.h}|${x.len}`' > "$OUT/fingerprint-production.txt"
 q "$KIT/rowcounts.sql" | rows 'x.t' > "$OUT/rowcounts-production.txt"
+q "$KIT/auth-storage-columns.sql" | rows 'x.t' > "$OUT/columns-production.txt"
+mkdir -p "$OUT/versions-production"
+for v in $PINS; do [ -z "$VERSIONS" ] || [ ! -s "$VERSIONS/$v" ] || tr -d '\r\n' < "$VERSIONS/$v" > "$OUT/versions-production/$v"; done
 echo "select version from supabase_migrations.schema_migrations order by 1;" > "$OUT/.v.sql"
 q "$OUT/.v.sql" | rows 'x.version' > "$OUT/history-production.txt"
 for f in roles.sql schema.sql data.sql security-tail.out.sql; do [ -s "$B/$f" ] || { echo "backup $f is empty: stopping"; exit 1; }; done
-( cd "$B" && shasum -a 256 * > SHA256SUMS )
+( cd "$B" && shasum -a 256 * > SHA256SUMS ); cp "$B/SHA256SUMS" "$OUT/backup.SHA256SUMS"
+chmod -R a-w "$B"                                                   # the backup is never modified after this point
 [ -n "${REHEARSAL_SOURCE_DB_URL:-}" ] || rm -rf supabase/.temp      # unlink: nothing below can reach Production
 echo "Production backup: $B"
 
@@ -69,18 +79,53 @@ echo "Pending: $(wc -l < "$OUT/pending.txt") migrations. Only on Production: $(w
 R="$OUT/stack"; mkdir -p "$R/supabase/migrations"; cp -r supabase/templates "$R/supabase/"
 sed 's/project_id = "aladdin"/project_id = "aladdin_prod_rehearsal"/; s/543\([0-9][0-9]\)/644\1/g; s/^sql_paths = .*/sql_paths = []/' supabase/config.toml > "$R/supabase/config.toml"
 C="supabase_db_aladdin_prod_rehearsal"
+mkdir -p "$R/supabase/.temp"; cp "$OUT/versions-production/"* "$R/supabase/.temp/" 2>/dev/null || true
 [ -n "${REHEARSAL_KEEP:-}" ] || trap 'sb stop --workdir "$R" --no-backup >/dev/null 2>&1 || true' EXIT
 sb start --workdir "$R" -x edge-runtime,logflare,vector,studio,supavisor,imgproxy,realtime,mailpit,postgres-meta >/dev/null
-cat > "$B/.migrations-schema.sql" <<'SQL'
+lq() { docker exec -i "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 < "$1"; }
+lq "$KIT/auth-storage-columns.sql" > "$OUT/columns-local.txt"
+
+# 3a. One complete Auth/Storage compatibility report before restoring anything: every table and column the
+# backup's COPY statements load, and every Production column's type and nullability, must exist locally as is.
+sed -n 's/^COPY \([^ ]*\) (\(.*\)) FROM stdin;\r\{0,1\}$/\1|\2/p' "$B/data.sql" | tr -d '"' \
+  | awk -F'|' '$1 ~ /^(auth|storage)\./ { n=split($2,c,", "); for(i=1;i<=n;i++) print $1"."c[i] }' | sort -u > "$OUT/copy-columns.txt"
+key() { grep -v '^marker ' "$1" | cut -d: -f1 | sort -u; }
+tbl() { key "$1" | cut -d. -f1-2 | sort -u; }
+{
+  echo "Local stack versions: $(docker inspect -f '{{.Config.Image}}' supabase_auth_aladdin_prod_rehearsal supabase_storage_aladdin_prod_rehearsal "$C" | tr '\n' ' ')"
+  echo "Production versions (from supabase link): $(for v in $PINS; do printf '%s=%s ' "$v" "$(cat "$OUT/versions-production/$v" 2>/dev/null || echo unknown)"; done)"
+  echo "Missing tables (in the backup or on Production, not local):"
+  comm -23 <(sort -u <(tbl "$OUT/columns-production.txt") <(cut -d. -f1-2 "$OUT/copy-columns.txt" | sort -u)) <(tbl "$OUT/columns-local.txt") | sed 's/^/  /'
+  echo "Missing columns:"
+  comm -23 <(sort -u <(key "$OUT/columns-production.txt") "$OUT/copy-columns.txt") <(key "$OUT/columns-local.txt") \
+    | awk -F. 'NR==FNR {have[$0]=1; next} ($1"."$2) in have {print "  "$0}' <(tbl "$OUT/columns-local.txt") -
+  echo "Different type or nullability (Production -> local):"
+  join -t'|' <(grep -v '^marker ' "$OUT/columns-production.txt" | sed 's/:/|/' | sort -t'|' -k1,1) \
+             <(grep -v '^marker ' "$OUT/columns-local.txt" | sed 's/:/|/' | sort -t'|' -k1,1) | awk -F'|' '$2!=$3 {print "  "$1": "$2" -> "$3}'
+  echo "Columns only in the local stack (on tables Production has):"
+  comm -13 <(key "$OUT/columns-production.txt") <(key "$OUT/columns-local.txt") \
+    | awk -F. 'NR==FNR {have[$0]=1; next} ($1"."$2) in have {print "  "$0}' <(tbl "$OUT/columns-production.txt") -
+  echo "Service migration markers (Production / local):"
+  paste -d'|' <(grep '^marker ' "$OUT/columns-production.txt") <(grep '^marker ' "$OUT/columns-local.txt") | sed 's/^marker /  /; s/|marker [^:]*:/  \/  /'
+} > "$OUT/auth-storage-check.txt"
+if diff -q "$OUT/columns-production.txt" "$OUT/columns-local.txt" >/dev/null && [ -s "$OUT/copy-columns.txt" ] \
+   && [ -z "$(comm -23 "$OUT/copy-columns.txt" <(key "$OUT/columns-local.txt"))" ]; then AUTHSTORAGE=identical; else AUTHSTORAGE=DIFFERS; fi
+if [ "$AUTHSTORAGE" != identical ]; then
+  cp "$OUT/auth-storage-check.txt" "$OUT/REPORT.txt"; cat "$OUT/REPORT.txt"
+  echo "REHEARSAL FAILED before restoring: the local Auth/Storage schema is not identical to Production (details above). Production push is NO-GO."
+  exit 1
+fi
+cat > "$OUT/.migrations-schema.sql" <<'SQL'
 create schema if not exists supabase_migrations;
 create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
-create table if not exists supabase_migrations.seed_files (path text primary key, hash text not null);
 SQL
-docker cp "$B" "$C:/tmp/bk"
+# Only recreate tables the backup has, so the restored table list (and its row counts) stays Production's.
+! grep -q '^COPY "\{0,1\}supabase_migrations"\{0,1\}\."\{0,1\}seed_files' "$B/data.sql" \
+  || echo 'create table if not exists supabase_migrations.seed_files (path text primary key, hash text not null);' >> "$OUT/.migrations-schema.sql"
+docker cp "$B" "$C:/tmp/bk"; docker cp "$OUT/.migrations-schema.sql" "$C:/tmp/bk/.migrations-schema.sql"
 docker exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
   -f /tmp/bk/roles.sql -f /tmp/bk/schema.sql -f /tmp/bk/.migrations-schema.sql -c 'SET session_replication_role = replica' \
   -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' -f /tmp/bk/security-tail.out.sql >/dev/null
-lq() { docker exec -i "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 < "$1"; }
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-restored.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-restored.txt"
 RESTORE="exact"
@@ -98,7 +143,9 @@ SCHEMA=same
 {
   echo "Production rehearsal $(date -u +%FT%TZ), baseline $SHA"
   echo "Production history: $(wc -l < "$OUT/history-production.txt") versions; pending: $(wc -l < "$OUT/pending.txt")"
-  echo "Restore of the backup: $RESTORE"
+  cat "$OUT/auth-storage-check.txt"
+  echo "Auth/Storage schema versus Production: $AUTHSTORAGE"
+  echo "Restore of the backup: $RESTORE (public/app schema fingerprint and the row count of every restored table)"
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
   then echo "Schema after the push equals the tested baseline."
@@ -107,11 +154,13 @@ SCHEMA=same
   join -t'|' <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-restored.txt" | sort -t'|' -k1,1) <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-after.txt" | sort -t'|' -k1,1) \
     | awk -F'|' '$2!=$3 {print "  "$1": "$2" -> "$3}'
   echo "Tables that disappeared:"; comm -23 <(cut -d: -f1 "$OUT/rowcounts-restored.txt" | sort) <(cut -d: -f1 "$OUT/rowcounts-after.txt" | sort) | sed 's/^/  /'
+  ( cd "$B" && shasum -a 256 -c --quiet "$OUT/backup.SHA256SUMS" >/dev/null 2>&1 ) && BACKUP=unchanged || BACKUP=CHANGED
+  echo "Production backup files: $BACKUP since the checksum was taken"
 } > "$OUT/REPORT.txt"
 cat "$OUT/REPORT.txt"
 echo "Share $OUT/REPORT.txt with Claude (it has no row data). Keep $B private; it holds Production data."
-if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || [ "$SCHEMA" != same ]; then
-  echo "REHEARSAL FAILED: restore=$RESTORE, migration up exit=$UP, schema=$SCHEMA. Production push is NO-GO."
+if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || [ "$SCHEMA" != same ] || [ "$BACKUP" != unchanged ]; then
+  echo "REHEARSAL FAILED: restore=$RESTORE, migration up exit=$UP, schema=$SCHEMA, backup=$BACKUP. Production push is NO-GO."
   exit 1
 fi
-echo "Rehearsal passed: restore exact, migrations applied, schema equals the tested baseline."
+echo "Rehearsal passed: faithful restore (Auth/Storage identical to Production, every row count equal), migrations applied, schema equals the tested baseline."

@@ -1,3 +1,27 @@
+## 2026-10-25 — Production rehearsal: restore blocked by older local Auth/Storage, fixed by pinning hosted versions
+
+The owner's Windows run of `production-rehearsal.sh` failed during the restore, one Auth/Storage error at a time (first four missing Auth tables, then `auth.one_time_tokens.expires_at` with 61 rows). **Root cause:** `supabase start` used the CLI 2.110.0 default images (gotrue v2.193.0, storage-api v1.66.4, postgres 17.6.1.143). Production runs newer services: Auth has 82 migrations up to `20260831180000`, Storage has 74 migrations up to `revoke-grants-to-unused-operations`, and Postgres is 17.6.1.155. The script stopped the stack from inheriting the `link` version pins when it deleted `supabase/.temp` before starting it.
+
+Complete Production versus old-local diff (read-only Production column inventory):
+- **Missing tables:** `auth.mfa_recovery_code_sets`, `auth.mfa_recovery_codes`, `auth.scim_tokens`, `auth.scim_users`.
+- **Missing columns:** `auth.one_time_tokens.expires_at`; `storage.buckets.lifecycle_configuration`, `lifecycle_configuration_generation`, `versioning_status`; `storage.objects.archived_at`, `is_delete_marker`, `is_versioned`.
+- **No type or nullability differences.** The only local-only tables are `storage.iceberg_*`, which the dump already excludes.
+
+**Fix (no local schema patching):**
+- The script copies the `gotrue-version`, `storage-version` and `postgres-version` pins that `supabase link` writes into the throwaway stack before `supabase start`.
+- Before restoring anything, it compares every Auth/Storage column (type and nullability), every COPY column in the backup, and the Auth/Storage migration markers against the local stack. Any difference stops the run with one complete report.
+- The backup is made read-only after its checksum and re-verified at the end.
+- `seed_files` is created only if the backup has it.
+- "Rehearsal passed" now means a faithful restore. There is no compatibility mode.
+
+Matching images: gotrue v2.197.0 (Auth migrations end at `20260831180000`); storage-api v1.79.0 to v1.80.2 (Storage ends at `0073-revoke-grants-to-unused-operations`; v1.81.0+ adds `0074`).
+
+**Local evidence (test mode):**
+- Source: a pinned stack (gotrue v2.197.0, storage v1.80.2, pg 17.6.1.155) with Production's 165 migrations, 3 users, 9 one-time tokens (all with `expires_at`), sessions, refresh tokens and 3 storage objects.
+- **PASS:** Auth/Storage identical (markers 82/74 on both sides), restore exact with every row count equal, 26 applied, schema equals the baseline, backup unchanged.
+- **Negative run with the default images:** FAIL before restoring, listing exactly the 4 tables and 7 columns above. Its columns match the read-only Production inventory except the excluded iceberg tables.
+- Note: the pinned Postgres image refuses the CLI's local non-SSL connection unless the test URL carries `?sslmode=disable`. This affects test mode only.
+
 ## 2026-10-24 — Installer work and Next 16.4.3 rebuilt on the consolidated stack (replaces PR #102)
 
 Branch `claude/project-thread-724t0d` from PR #101 (`506ec9b`, = #97 + privilege fix). PR #102 (`chore/next-16`) was built on `integration/approved-features-20261019`, which forked from an old #97 point: it lacked 34 stack commits, used the retired 2026101x migration versions, edited the already-applied `20261020090001`, and numbered its Installer migrations `20261021090000..09`, colliding with the stack's `20261021090001..15` already on Acceptance. This branch: merges `main` (#96; same conflict resolutions as the integration branch), ports `9cc8eb8`, `5f18086`, `5dc6779` and `ec0b082`, renumbers the Installer migrations to `20261024090002..11`, drops the no-op #96/#88 reconcile migration and the edit to `20261020090001`, and carries the integration's permission contracts under the new versions. The Redis guard test now allows `REDIS_CACHE_ENABLED` only in the workers.dev preview (owner choice 2026-10-24).
