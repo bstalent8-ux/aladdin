@@ -7015,3 +7015,11 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Owner GO for Phase B (12:37Z). Owner ran it themselves: manifest `f76c64c2…`, `migration list` (165 + 26 local-only), dry run (exactly 26), `db push --linked` (all applied; a post-push CLI `failed to cache migrations catalog` timeout warning only), then `scripts/hosted-db/production-post-migration-check.sh` → PASS at 12:59:03Z (191 versions, latest `20261024090011`, 9 known CRLF-only function bodies).
 - Claude (read-only): advisors before/after saved under `/mnt/project-files/reports/phase-b/` — security 300→369, performance 191→221, nothing resolved, every new finding on an object created by the 26 migrations (6 anon security-definer findings are the intended public read RPCs). Supabase edge/auth logs: no 5xx; Postgres: no errors; Vercel runtime errors: none.
 - **Unfinished:** owner smoke test with a real account (sign in, dashboard, registration); Phase C (production config, retarget/merge #103 after turning off Vercel auto-assign) needs a separate GO. Not approved: main merge, deploys, DNS, cutover.
+
+### 2026-10-25 — Phase C: pre-merge review and merge of #103
+
+- Owner confirmed: Production smoke test PASS (sign in, dashboard, registration, sign out); Vercel *Auto-assign Custom Production Domains* OFF; `STAGING_PROMOTION_ENABLED=false` (so a push to `main` runs `deploy-staging.yml` plan-only).
+- Found: on 2026-10-20 `deploy-staging.yml` ran in DEPLOY mode for `a9723a0` (db push + `vercel promote`); its live check then confirmed auto-assign was already OFF.
+- Release content `ad2dabf` contains #88 #89 #91 #92 #94 #95 #97 #98 #101 and all of `main`; merge tree identical. #93 and #104 stay separate; branch `claude/project-thread-724t0d` is kept (base of #104).
+- CI, pgTAP and migration-policy green on `ad2dabf`. `auth-captcha-e2e`: 34 passed, 10 failed (never green; first run on #97's head failed 11). **Owner rule:** these failures block any new application-code Production promotion (Vercel or Cloudflare) until fixed or explicitly accepted. Review: `/mnt/project-files/reports/phase-c-pre-merge-review-2026-10-25.md`.
+- Owner GO (15:18Z) to merge #103 into `main` with a merge commit. This entry is the only change after `ad2dabf`; it re-runs the required pull-request checks.
