@@ -87,7 +87,8 @@ sed 's/project_id = "aladdin"/project_id = "aladdin_prod_rehearsal"/; s/543\([0-
 C="supabase_db_aladdin_prod_rehearsal"
 mkdir -p "$R/supabase/.temp"; cp "$OUT/versions-production/"* "$R/supabase/.temp/" 2>/dev/null || true
 [ -n "${REHEARSAL_KEEP:-}" ] || trap 'sb stop --workdir "$R" --no-backup >/dev/null 2>&1 || true' EXIT
-sb start --workdir "$R" -x edge-runtime,logflare,vector,studio,supavisor,imgproxy,realtime,mailpit,postgres-meta >/dev/null
+for p in 64421 64422 64424; do ! (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null || { echo "port $p is in use (another local stack?): stop it and retry"; exit 1; }; done
+sb start --workdir "$R" -x edge-runtime,logflare,vector,studio,supavisor,imgproxy,realtime,mailpit,postgres-meta > "$OUT/stack-start.log" 2>&1 || { tail -20 "$OUT/stack-start.log"; exit 1; }
 lq() { dk exec -i "$C" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 < "$1"; }
 lq "$KIT/auth-storage-columns.sql" > "$OUT/columns-local.txt"
 
