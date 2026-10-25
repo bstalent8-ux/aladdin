@@ -127,6 +127,14 @@ jobs:
             e2e/recovery-replay.spec.ts \
             --grep-invert "renders no Turnstile widget|Complete your profile — seeded account" \
             2>&1 | tee "$ARTIFACTS/playwright.log"
+      - name: Show what the page rendered for each failure
+        # First attempts only; the ARIA snapshot names the on-screen error the assertion missed.
+        if: failure()
+        working-directory: frontend
+        run: |
+          find test-results -path '*-chromium-desktop/error-context.md' | sort | while read -r f; do
+            echo "::group::$f"; head -c 8000 "$f"; echo; echo "::endgroup::"
+          done
       - name: Collect redacted stack log
         if: always()
         run: |
