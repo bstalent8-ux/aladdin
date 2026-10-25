@@ -250,6 +250,20 @@ lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-after.txt"
 lq "$KIT/schema-detail.sql" > "$OUT/detail-after.txt"
 
 # 5. Report: counts and hashes only. Errors inside the report must not cut it short.
+# A function body that differs from the baseline only by carriage returns (CRLF text pasted into Production before this
+# rehearsal) is the same function. Accept exactly that, and only for functions that already had the CRs right after the
+# restore (so they come from Production, not from the 26 migrations); every other difference still fails.
+diff <(sort "$KIT/local-noseed-detail.txt") <(sort "$OUT/detail-after.txt") | grep '^[<>]' > "$OUT/detail-diff.txt" || true
+awk -F'|' -v OFS='|' '
+  FILENAME == ARGV[1] { if ($1 == "function" && substr($3,6) != substr($4,9)) crlf[$2] = 1; next }
+  { side = substr($1,1,1); sub(/^[<>] /, "", $1); k = $1 "|" $2; rest = $0; seen[k] = 1
+    if ($1 == "function") { b = substr($3,6); lf = substr($4,9); $3 = ""; $4 = ""; norm = $0 } else { b = ""; lf = ""; norm = rest }
+    if (side == "<") { bl[k] = norm; bb[k] = b; blf[k] = lf } else { af[k] = norm; ab[k] = b; alf[k] = lf } }
+  END { bad = 0; for (k in seen) { split(k, f, "|")
+          if (f[1] == "function" && (k in bl) && (k in af) && bl[k] == af[k] && bb[k] == blf[k] && alf[k] == bb[k] && (f[2] in crlf)) print "crlf " f[2]
+          else { print "other " k; bad = 1 } }
+        exit bad }' "$OUT/detail-restored.txt" "$OUT/detail-diff.txt" | sort > "$OUT/detail-classified.txt" && ONLY_CRLF=1 || ONLY_CRLF=0
+OTHER_CATS="$(diff <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt" | sort) <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt" | sort) | grep '^>' | cut -d'|' -f1 | sed 's/^> //' | grep -vx functions || true)"
 SCHEMA=same
 set +e
 {
@@ -269,7 +283,16 @@ set +e
   then echo "Schema after the push equals the tested baseline."
   else SCHEMA=differs; echo "Schema after the push differs from the tested baseline in:"; diff <(sort "$KIT/local-noseed-fingerprint.txt") <(sort "$OUT/fingerprint-after.txt") | grep '^>' | cut -d'|' -f1
     echo "Objects behind it (< tested baseline, > after the push; names, hashes and privileges only):"
-    diff <(sort "$KIT/local-noseed-detail.txt") <(sort "$OUT/detail-after.txt") | grep '^[<>]' | head -80 | sed 's/^/  /'; fi
+    head -80 "$OUT/detail-diff.txt" | sed 's/^/  /'
+    if [ "$ONLY_CRLF" = 1 ] && [ -s "$OUT/detail-classified.txt" ] && [ -z "$OTHER_CATS" ]; then
+      SCHEMA="same apart from CRLF line endings"
+      echo "Every difference above is a function body that equals the baseline once carriage returns are removed, with the same"
+      echo "security definer, volatility, search_path and privileges, and each already had those CRs on Production before the push:"
+      sed 's/^crlf /  /' "$OUT/detail-classified.txt"
+    else
+      echo "Differences that are not CRLF-only:"; grep -v '^crlf ' "$OUT/detail-classified.txt" | sed 's/^other /  /'; [ -z "$OTHER_CATS" ] || echo "  categories: $OTHER_CATS"
+    fi
+  fi
   echo "Functions whose stored body contains carriage returns (CRLF text): restored $(awk -F'|' '$1=="function" && substr($3,6)!=substr($4,9)' "$OUT/detail-restored.txt" | wc -l | tr -d ' '), after the push $(awk -F'|' '$1=="function" && substr($3,6)!=substr($4,9)' "$OUT/detail-after.txt" | wc -l | tr -d ' ')"
   echo "Tables whose row count changed (table: before -> after):"
   join -t'|' <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-restored.txt" | sort -t'|' -k1,1) <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-after.txt" | sort -t'|' -k1,1) \
@@ -282,8 +305,8 @@ set +e
 set -e
 cat "$OUT/REPORT.txt"
 echo "Share $OUT/REPORT.txt with Claude (it has no row data). Keep $B private; it holds Production data."
-if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || [ "$SCHEMA" != same ] || [ "$BACKUP" != unchanged ]; then
+if [ "$RESTORE" != exact ] || [ "$UP" != 0 ] || { [ "$SCHEMA" != same ] && [ "$SCHEMA" != "same apart from CRLF line endings" ]; } || [ "$BACKUP" != unchanged ]; then
   echo "REHEARSAL FAILED: restore=$RESTORE, migration up exit=$UP, schema=$SCHEMA, backup=$BACKUP. Production push is NO-GO."
   exit 1
 fi
-echo "Rehearsal passed: faithful restore (Auth/Storage identical to Production, every row count equal), migrations applied, schema equals the tested baseline."
+echo "Rehearsal passed: faithful restore (Auth/Storage identical to Production, every row count equal), migrations applied, schema $( [ "$SCHEMA" = same ] && echo "equals the tested baseline" || echo "equals the tested baseline apart from CRLF line endings already in $(grep -c "^crlf " "$OUT/detail-classified.txt") Production function bodies (listed above)")."

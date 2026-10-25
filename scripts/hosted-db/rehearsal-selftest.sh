@@ -47,6 +47,8 @@ dk exec "$SRC" psql -U supabase_admin -d postgres -q -v ON_ERROR_STOP=1 -c 'GRAN
 # On Production this identity sequence has a NULL (owner-default) ACL, so it is absent from the security tail; the
 # restore must keep it NULL. Throwaway source stack only.
 dk exec "$SRC" psql -U supabase_admin -d postgres -q -v ON_ERROR_STOP=1 -c "update pg_class set relacl = null where oid = 'public.job_review_moderations_seq_seq'::regclass"
+# Nine Production function bodies carry CRLF line endings (SQL pasted from Windows); give one function the same trait.
+dk exec "$SRC" psql -U supabase_admin -d postgres -q -v ON_ERROR_STOP=1 -c "update pg_proc set prosrc = replace(prosrc, E'\\n', E'\\r\\n') where oid = 'app.can_participate(uuid)'::regprocedure"
 echo "Source ready: $(dk exec "$SRC" psql -U postgres -d postgres -At -c "select format('%s users, %s one-time tokens (%s with expires_at), %s storage objects', (select count(*) from auth.users), (select count(*) from auth.one_time_tokens), (select count(expires_at) from auth.one_time_tokens), (select count(*) from storage.objects))")"
 REHEARSAL_SOURCE_DB_URL="postgresql://postgres:postgres@127.0.0.1:${P}22/postgres?sslmode=disable" REHEARSAL_VERSIONS_DIR="$S/supabase/.temp" \
   bash "$HERE/production-rehearsal.sh"
