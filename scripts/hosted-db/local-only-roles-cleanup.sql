@@ -16,19 +16,33 @@ select format('local-only role %s: %s table/sequence, %s column, %s function, %s
      where n.nspname in ('public','app') and a.grantee = r.oid),
   (select count(*) from pg_default_acl d, aclexplode(d.defaclacl) a where a.grantee = r.oid))
 from _local_only l join pg_roles r on r.rolname = l.rolname order by 1;
+-- Revoke only the entries such a role actually holds, object by object: a blanket REVOKE ... ON ALL ... would turn
+-- every NULL (owner-default) ACL into an explicit one and make the restore differ from Production.
 do $$
-declare x record; d record; kind text;
+declare x record; o record;
 begin
-  for x in select rolname from _local_only loop
-    execute format('revoke all on all tables in schema public, app from %I', x.rolname);
-    execute format('revoke all on all sequences in schema public, app from %I', x.rolname);
-    execute format('revoke all on all functions in schema public, app from %I', x.rolname);
-    for d in select pg_get_userbyid(da.defaclrole) owner, n.nspname, da.defaclobjtype t
+  for x in select l.rolname, r.oid from _local_only l join pg_roles r on r.rolname = l.rolname loop
+    for o in select distinct format('%s %s', case when c.relkind = 'S' then 'sequence' else 'table' end, c.oid::regclass) q
+             from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a
+             where n.nspname in ('public','app') and a.grantee = x.oid loop
+      execute format('revoke all on %s from %I', o.q, x.rolname);
+    end loop;
+    for o in select distinct format('table %s', c.oid::regclass) q
+             from pg_attribute t join pg_class c on c.oid = t.attrelid join pg_namespace n on n.oid = c.relnamespace, aclexplode(t.attacl) a
+             where n.nspname in ('public','app') and a.grantee = x.oid loop
+      execute format('revoke all on %s from %I', o.q, x.rolname);
+    end loop;
+    for o in select distinct format('%s %s', case p.prokind when 'p' then 'procedure' else 'function' end, p.oid::regprocedure) q
+             from pg_proc p join pg_namespace n on n.oid = p.pronamespace, aclexplode(p.proacl) a
+             where n.nspname in ('public','app') and a.grantee = x.oid loop
+      execute format('revoke all on %s from %I', o.q, x.rolname);
+    end loop;
+    for o in select distinct pg_get_userbyid(da.defaclrole) owner, n.nspname, da.defaclobjtype t
              from pg_default_acl da left join pg_namespace n on n.oid = da.defaclnamespace, aclexplode(da.defaclacl) a
-             where a.grantee = (select oid from pg_roles where rolname = x.rolname) loop
-      kind := case d.t when 'r' then 'tables' when 'S' then 'sequences' when 'f' then 'functions' when 'T' then 'types' when 'n' then 'schemas' end;
-      execute format('alter default privileges for role %I %s revoke all on %s from %I', d.owner,
-        case when d.nspname is null then '' else format('in schema %I', d.nspname) end, kind, x.rolname);
+             where a.grantee = x.oid loop
+      execute format('alter default privileges for role %I %s revoke all on %s from %I', o.owner,
+        case when o.nspname is null then '' else format('in schema %I', o.nspname) end,
+        case o.t when 'r' then 'tables' when 'S' then 'sequences' when 'f' then 'functions' when 'T' then 'types' when 'n' then 'schemas' end, x.rolname);
     end loop;
   end loop;
 end $$;

@@ -1,3 +1,13 @@
+## 2026-10-25 (run 3 follow-up) — Rehearsal restore now reproduces Production's ACLs exactly
+
+- Owner's Windows run 3 (`--resume-backup`, commit `04234d9`) failed on ACLs only; backup checksums unchanged before and after. Root causes, each confirmed against Production's fingerprint hashes from that run:
+  - the local image starts with default privileges for `postgres` in `public` that give anon/authenticated/service_role UPDATE on new sequences; Production lacks them (default_acl 708 vs 643 chars). New `local-default-privileges-reset.sql` clears postgres's non-owner defaults in public/app inside the restore transaction, before `schema.sql`, so the dump's own ALTER DEFAULT PRIVILEGES define them;
+  - the same leftover gave `public.job_review_moderations_seq_seq` an explicit ACL, while on Production it is NULL (table_acl 12544 vs 12458); fixed by the same reset;
+  - the `04234d9` local-only-role cleanup used blanket `REVOKE ALL ON ALL ...`, which turned NULL ACLs into explicit ones; it now revokes only entries the role actually holds, object by object.
+- With both Production traits mirrored, the self-test source matches Production's default_acl (`c864e7c4…`/643) and table_acl (`f4f72287…`/12458) hashes exactly; self-test and `--resume-backup` on its backup both PASS.
+- Still open: after the push, `functions` differs from the 191 baseline with the same length (run 2 and run 3). The restore reproduces Production's functions exactly, and the local 165 replay hashes `13671b0c…` vs Production `72375f89…`, so Production carries a function body/flag drift that the 26 migrations do not replace. New `schema-detail.sql` + `local-noseed-detail.txt` (names, hashes, privileges only) make the report name the exact functions and flag CRLF bodies.
+- **Unfinished:** owner rerun on Windows; then decide how to treat the function drift before any Production push.
+
 ## 2026-10-25 (later) — Rehearsal: 6-column migration history, `--resume-backup`, fail-closed backup validation
 
 The owner's Windows run (`10223cc`) passed the Auth/Storage preflight but failed the restore: Production's `supabase_migrations.schema_migrations` has 6 columns (`version`, `statements`, `name`, `created_by`, `idempotency_key`, `rollback`), and the script created only 3. Fixes in `production-rehearsal.sh`:

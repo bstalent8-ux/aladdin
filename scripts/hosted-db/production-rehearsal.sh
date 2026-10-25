@@ -30,7 +30,8 @@ dk() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' docker "$@"; }
 hp() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
 rows() { node -e 'let b="";process.stdin.on("data",d=>b+=d).on("end",()=>{const j=JSON.parse(b),r=Array.isArray(j)?j:j.rows;if(!Array.isArray(r)){console.error("query failed: "+b.slice(0,400));process.exit(1)}process.stdout.write(r.map(x=>'"$1"').join("\n")+"\n")})'; }
 PINS="gotrue-version storage-version postgres-version"
-for f in schema-fingerprint.sql security-tail.sql rowcounts.sql auth-storage-columns.sql local-noseed-fingerprint.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
+for f in schema-fingerprint.sql schema-detail.sql security-tail.sql rowcounts.sql auth-storage-columns.sql local-only-roles-cleanup.sql \
+         local-default-privileges-reset.sql local-noseed-fingerprint.txt local-noseed-detail.txt; do [ -s "$KIT/$f" ] || { echo "missing $KIT/$f"; exit 1; }; done
 RESUME=""
 case "${1:-}" in
   --resume-backup) RESUME="${2:?usage: --resume-backup <earlier rehearsal folder, or its backup folder>}";;
@@ -221,12 +222,12 @@ sed 's/.*/drop role "&";/' "$OUT/restore/transient-roles.txt" > "$OUT/restore/po
 # privileges would leak into every restored table. Strip them before the restore and once more after it.
 sed -n '/^revoke all on table .* from public, /{s/^.* from public, \(.*\);\r\{0,1\}$/\1/p;q;}' "$B/security-tail.out.sql" | tr -d ' "' > "$OUT/restore/production-roles.txt"
 [ -s "$OUT/restore/production-roles.txt" ] || { echo "cannot read Production's role list from security-tail.out.sql: stopping"; exit 1; }
-cp "$KIT/local-only-roles-cleanup.sql" "$OUT/restore/local-only-roles-cleanup.sql"
+cp "$KIT/local-only-roles-cleanup.sql" "$KIT/local-default-privileges-reset.sql" "$OUT/restore/"
 dk cp "$(hp "$B")" "$C:/tmp/bk"; dk cp "$(hp "$OUT/restore")" "$C:/tmp/rx"
 cleanup_local_only() { dk exec "$C" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -v prod_roles="$(cat "$OUT/restore/production-roles.txt")" -f /tmp/rx/local-only-roles-cleanup.sql | grep '^local-only role' || true; }
 cleanup_local_only > "$OUT/local-only-roles.txt"
 dk exec -e PGOPTIONS='-c client_min_messages=warning' "$C" psql -U postgres -d postgres -q --single-transaction -v ON_ERROR_STOP=1 \
-  -f /tmp/rx/roles.sql -f /tmp/bk/schema.sql -f /tmp/rx/migrations-schema.sql -c 'SET session_replication_role = replica' \
+  -f /tmp/rx/roles.sql -f /tmp/rx/local-default-privileges-reset.sql -f /tmp/bk/schema.sql -f /tmp/rx/migrations-schema.sql -c 'SET session_replication_role = replica' \
   -f /tmp/bk/data.sql -c 'SET session_replication_role = origin' \
   -f /tmp/rx/pre-tail.sql -f /tmp/bk/security-tail.out.sql -f /tmp/rx/post-tail.sql >/dev/null
 dk exec "$C" psql -U supabase_admin -d postgres -q --single-transaction -v ON_ERROR_STOP=1 -f /tmp/rx/roles-parameters.sql >/dev/null
@@ -238,23 +239,15 @@ diff -q "$OUT/fingerprint-production.txt" "$OUT/fingerprint-restored.txt" >/dev/
 diff -q "$OUT/rowcounts-production.txt" "$OUT/rowcounts-restored.txt" >/dev/null || RESTORE="$RESTORE; ROW COUNTS DIFFER"
 lq "$OUT/.p.sql" > "$OUT/parameter-acl-restored.txt"
 diff -q "$OUT/parameter-acl-production.txt" "$OUT/parameter-acl-restored.txt" >/dev/null || RESTORE="$RESTORE; PARAMETER GRANTS DIFFER"
-if [ "$RESTORE" != exact ]; then   # names and privileges only, no row data: what to compare when the ACLs differ
-  cat > "$OUT/restore/acl-detail.sql" <<'SQL'
-select format('default %s %s %s: %s', pg_get_userbyid(d.defaclrole), coalesce(n.nspname, '*'), d.defaclobjtype, d.defaclacl::text)
-from pg_default_acl d left join pg_namespace n on n.oid = d.defaclnamespace order by 1;
-select format('table grants to %s: %s objects', coalesce(r.rolname, 'PUBLIC'), count(distinct c.oid))
-from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a left join pg_roles r on r.oid = a.grantee
-where n.nspname in ('public','app') group by 1 order by 1;
-SQL
-  lq "$OUT/restore/acl-detail.sql" > "$OUT/acl-detail-restored.txt" || true
-  grep -c 'DEFAULT PRIVILEGES' "$B/schema.sql" > "$OUT/schema-default-privilege-statements.txt" || true
-fi
+# Names, hashes and privileges only (no row data): which objects stand behind a fingerprint difference.
+lq "$KIT/schema-detail.sql" > "$OUT/detail-restored.txt"
 
 # 4. Apply exactly what `db push` would apply, the same way (one file at a time, recorded in history).
 cp supabase/migrations/*.sql "$R/supabase/migrations/"
 set +e; sb migration up --workdir "$R" --local > "$OUT/migration-up.log" 2>&1; UP=$?; set -e
 lq "$KIT/schema-fingerprint.sql" > "$OUT/fingerprint-after.txt"
 lq "$KIT/rowcounts.sql" > "$OUT/rowcounts-after.txt"
+lq "$KIT/schema-detail.sql" > "$OUT/detail-after.txt"
 
 # 5. Report: counts and hashes only. Errors inside the report must not cut it short.
 SCHEMA=same
@@ -274,7 +267,10 @@ set +e
   echo "migration up exit code: $UP (log: migration-up.log)"
   if diff -q <(grep -v '^seeded_rowcounts|' "$KIT/local-noseed-fingerprint.txt") <(grep -v '^seeded_rowcounts|' "$OUT/fingerprint-after.txt") >/dev/null
   then echo "Schema after the push equals the tested baseline."
-  else SCHEMA=differs; echo "Schema after the push differs from the tested baseline in:"; diff <(sort "$KIT/local-noseed-fingerprint.txt") <(sort "$OUT/fingerprint-after.txt") | grep '^>' | cut -d'|' -f1; fi
+  else SCHEMA=differs; echo "Schema after the push differs from the tested baseline in:"; diff <(sort "$KIT/local-noseed-fingerprint.txt") <(sort "$OUT/fingerprint-after.txt") | grep '^>' | cut -d'|' -f1
+    echo "Objects behind it (< tested baseline, > after the push; names, hashes and privileges only):"
+    diff <(sort "$KIT/local-noseed-detail.txt") <(sort "$OUT/detail-after.txt") | grep '^[<>]' | head -80 | sed 's/^/  /'; fi
+  echo "Functions whose stored body contains carriage returns (CRLF text): restored $(awk -F'|' '$1=="function" && substr($3,6)!=substr($4,9)' "$OUT/detail-restored.txt" | wc -l | tr -d ' '), after the push $(awk -F'|' '$1=="function" && substr($3,6)!=substr($4,9)' "$OUT/detail-after.txt" | wc -l | tr -d ' ')"
   echo "Tables whose row count changed (table: before -> after):"
   join -t'|' <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-restored.txt" | sort -t'|' -k1,1) <(sed 's/:\([0-9]*\)$/|\1/' "$OUT/rowcounts-after.txt" | sort -t'|' -k1,1) \
     | awk -F'|' '$2!=$3 {print "  "$1": "$2" -> "$3}'
