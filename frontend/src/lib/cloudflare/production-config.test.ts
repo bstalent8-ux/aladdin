@@ -30,13 +30,13 @@ describe("Cloudflare production config (committed Wrangler files)", () => {
   });
 
   it("binds the production backend, so /api/backend never answers 503", () => {
-    const services = frontendConfig().env.production.services as { binding: string; service: string }[];
+    const services = frontendConfig().env.production.services;
     expect(services).toContainEqual({ binding: "BACKEND", service: "aladdin-backend-production" });
   });
 
   it("refuses a frontend with no BACKEND binding", () => {
     const config = frontendConfig();
-    config.env.production.services = config.env.production.services.filter((s: { binding: string }) => s.binding !== "BACKEND");
+    config.env.production.services = config.env.production.services.filter((s) => s.binding !== "BACKEND");
     expect(checkFrontend(config)).toContain("frontend production: BACKEND must bind aladdin-backend-production");
   });
 

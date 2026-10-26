@@ -1,8 +1,17 @@
 // Types for check-cloudflare-production.mjs (imported by its tests).
+export type WranglerEnv = {
+  [key: string]: unknown;
+  name?: string;
+  workers_dev?: boolean;
+  services: { binding: string; service: string }[];
+  vars: Record<string, string>;
+};
+export type WranglerConfig = { [key: string]: unknown; env: Record<string, WranglerEnv> & { production: WranglerEnv } };
+
 export const LIVE_SUPABASE_URL: string;
 export const LIVE_HOSTNAMES: string[];
-export function parseJsonc(text: string): Record<string, any>;
-export function checkFrontend(config: Record<string, any>): string[];
-export function checkBackend(config: Record<string, any>): string[];
+export function parseJsonc(text: string): WranglerConfig;
+export function checkFrontend(config: WranglerConfig): string[];
+export function checkBackend(config: WranglerConfig): string[];
 export function jwtProjectRef(key: string): string | null;
 export function checkLiveValues(values: Record<string, string | undefined>): string[];
