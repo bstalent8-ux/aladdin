@@ -170,6 +170,7 @@ Verify the acceptance Supabase project as a faithful, isolated copy of the schem
 
 - **Entry:** stage 7 is done; the GitHub Environment `cloudflare-production` exists with required reviewers ([checklist §6](cloudflare-credentials-checklist.md#6-production-later-stages-7-8-and-11-each-needs-its-own-approval)).
 - **Work:**
+  - Run the manual `Cloudflare production` workflow: `stage=check`, then `stage=backend` (`aladdin-backend-production`), then `stage=frontend`. The frontend stage refuses to run until the backend Worker exists, because the frontend binds it as `BACKEND`.
   - Deploy `aladdin-frontend-production`, built with production `NEXT_PUBLIC_*` values, with all production secrets set. **No route or custom domain yet**, and `workers_dev: false`.
   - Deploy the production media Worker, also without a route.
   - Deploy the production FastAPI and transcode containers (containers thread).

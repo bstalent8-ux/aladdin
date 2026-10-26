@@ -1,0 +1,132 @@
+# Aladdin - Cloudflare PRODUCTION Workers (ADR-0021, ADR-0022), Phase D of the release plan.
+#
+# Manual only, from `main` only, one stage per run. Deploys the `production` environments with NO public
+# address: no route, no custom domain, no workers.dev. It never touches Vercel, DNS or aladdindecore.com.
+#
+#   stage = check     builds and bundles both Workers (dry run). Uploads nothing. The default.
+#   stage = backend   deploys `aladdin-backend-production` (FastAPI in a Container). Run first.
+#   stage = frontend  deploys `aladdin-frontend-production`. Refuses to run unless the backend Worker already
+#                     exists, because the frontend's BACKEND service binding points at it.
+#
+# SAFE BY DEFAULT: nothing is uploaded unless the GitHub Environment `cloudflare-production` has the variable
+# CLOUDFLARE_PRODUCTION_ENABLED set to exactly "true". Without it every stage builds and bundles only.
+# The environment must require the owner as reviewer and allow the `main` branch only.
+#
+# GitHub Environment `cloudflare-production`:
+#   secrets:   CLOUDFLARE_API_TOKEN   (this account only: Workers Scripts:Edit plus Containers:Edit; no zone scope)
+#   variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PRODUCTION_ENABLED,
+#              NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY  (the LIVE project kkpkgjrweysgvhvkhzun),
+#              NEXT_PUBLIC_TURNSTILE_SITE_KEY                          (the live `aladdin-production` widget)
+# There are NO defaults: an unset value fails the run. Acceptance values are refused by
+# frontend/scripts/check-cloudflare-production.mjs and by asking the live project to accept the anon key.
+#
+# Worker secrets: the backend's SUPABASE_URL and SUPABASE_ANON_KEY are the live project's public values and
+# are uploaded with the backend version. The frontend's SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY and
+# AUTH_PASSWORD_PREVIEW_GRANT_SECRET are set by the owner with `wrangler secret put <NAME> --env production`
+# (never in GitHub); `wrangler deploy` refuses the frontend until all three exist.
+#
+# Rollback: `wrangler rollback --env production` or `wrangler delete --env production` per Worker. No traffic
+# reaches either Worker until a hostname is attached in a later, separately approved step.
+
+name: Cloudflare production
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "check = build and bundle only; backend first, then frontend"
+        type: choice
+        options: [check, backend, frontend]
+        default: check
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    name: cloudflare-production (${{ inputs.stage }})
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: cloudflare-production
+    env:
+      STAGE: ${{ inputs.stage }}
+      NEXT_PUBLIC_APP_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      UPLOAD: ${{ vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true' && inputs.stage != 'check' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm (corepack, pinned to packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+      - name: Production config and live values only
+        run: |
+          node frontend/scripts/check-cloudflare-production.mjs --live-values
+          # The live project must accept the anon key (legacy JWT or sb_publishable_ alike).
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/settings")
+          [ "$status" = "200" ] || { echo "The live project does not accept NEXT_PUBLIC_SUPABASE_ANON_KEY (HTTP $status)"; exit 1; }
+          echo "Stage: $STAGE, upload: $UPLOAD" | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: pnpm install --frozen-lockfile
+
+      # Backend: FastAPI image + Worker, no public address.
+      - name: Backend tests
+        if: inputs.stage != 'frontend'
+        run: pnpm --dir edge/backend-worker test
+      - name: Backend bundle (dry run, builds the image)
+        if: inputs.stage != 'frontend'
+        working-directory: edge/backend-worker
+        run: pnpm exec wrangler deploy --env production --dry-run --outdir "$RUNNER_TEMP/backend"
+      - name: Deploy aladdin-backend-production
+        if: inputs.stage == 'backend' && env.UPLOAD == 'true'
+        working-directory: edge/backend-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          umask 077
+          # Public values of the live project; written to a private temp file, never echoed.
+          node -e 'process.stdout.write(JSON.stringify({ SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL, SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }))' > "$RUNNER_TEMP/secrets.json"
+          trap 'rm -f "$RUNNER_TEMP/secrets.json"' EXIT
+          pnpm exec wrangler deploy --env production --secrets-file "$RUNNER_TEMP/secrets.json"
+          pnpm exec wrangler secret list --env production --format json | jq -r '.[].name' | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Frontend: OpenNext build with the live public values, then the Worker, no public address.
+      - name: Backend Worker must exist before the frontend
+        if: inputs.stage == 'frontend' && env.UPLOAD == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/aladdin-backend-production/settings")
+          [ "$status" = "200" ] || { echo "aladdin-backend-production is not deployed (HTTP $status): run stage=backend first"; exit 1; }
+      - name: Build the frontend for Workers
+        if: inputs.stage != 'backend'
+        run: pnpm --filter frontend cf:build
+      - name: Frontend bundle (dry run)
+        if: inputs.stage != 'backend'
+        working-directory: frontend
+        run: pnpm exec wrangler deploy --env production --dry-run --outdir "$RUNNER_TEMP/frontend"
+      - name: Deploy aladdin-frontend-production
+        if: inputs.stage == 'frontend' && env.UPLOAD == 'true'
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        # Server code reads the public Supabase values at runtime too.
+        run: |
+          pnpm exec wrangler deploy --env production \
+            --var "NEXT_PUBLIC_SUPABASE_URL:$NEXT_PUBLIC_SUPABASE_URL" \
+            --var "NEXT_PUBLIC_SUPABASE_ANON_KEY:$NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          pnpm exec wrangler secret list --env production --format json | jq -r '.[].name' | sort | tee -a "$GITHUB_STEP_SUMMARY"

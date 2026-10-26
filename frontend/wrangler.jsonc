@@ -45,16 +45,31 @@
       }
     },
     // Production: deployed only after the owner approves the cutover. Routes
-    // (aladdindecore.com) are added at cutover, not before.
+    // (aladdindecore.com) are added at cutover, not before. Deployed by the manual
+    // `Cloudflare production` workflow, backend first: the BACKEND service must exist.
     "production": {
       "name": "aladdin-frontend-production",
       "workers_dev": false,
-      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "aladdin-frontend-production" }],
+      "services": [
+        { "binding": "WORKER_SELF_REFERENCE", "service": "aladdin-frontend-production" },
+        { "binding": "BACKEND", "service": "aladdin-backend-production" }
+      ],
       "images": { "binding": "IMAGES" },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
-        "NEXT_PUBLIC_APP_ENV": "production"
-      }
+        "NEXT_PUBLIC_APP_ENV": "production",
+        // Siteverify (phone sign-up) must report one of these, or the check fails closed.
+        // A test hostname is added here only while it is approved and attached.
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdindecore.com,www.aladdindecore.com",
+        // First cutover: media stays on Supabase Storage and Redis stays off. Each one
+        // is turned on later by its own approval.
+        "R2_STORAGE_ENABLED": "false",
+        "R2_PRODUCTION_WRITES_APPROVED": "false",
+        "REDIS_CACHE_ENABLED": "false"
+      },
+      // Checked by `wrangler deploy`: the deploy fails if one is not set. The owner
+      // sets them with `wrangler secret put <NAME> --env production` (never in this file).
+      "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY", "TURNSTILE_SECRET_KEY", "AUTH_PASSWORD_PREVIEW_GRANT_SECRET"] }
     }
   }
 }
