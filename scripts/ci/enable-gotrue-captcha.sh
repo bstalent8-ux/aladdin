@@ -5,7 +5,7 @@
 #
 # Accepts ONLY Cloudflare's public, documented Turnstile TEST secrets
 # (https://developers.cloudflare.com/turnstile/troubleshooting/testing/):
-#   1x0000000000000000000000000000000AA  always passes (accepts the dummy token XXXX.DUMMY.TOKEN.XXXX)
+#   1x0000000000000000000000000000000AA  always passes (any token, as observed in CI)
 #   2x0000000000000000000000000000000AA  always fails
 #   3x0000000000000000000000000000000AA  always answers "token already spent"
 # A real secret never belongs in a file; hosted projects are configured in the Supabase dashboard (ADR-0023).

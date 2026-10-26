@@ -18,7 +18,8 @@
 # [auth.captcha] with a Cloudflare TEST secret to this runner's checkout before the stack starts, so every sign up,
 # resend, password sign in, email code and recovery the browser suites make is verified by Supabase Auth itself. The
 # `gotrue-direct` steps and job call /auth/v1 directly with the public key only (no app) and prove that a missing,
-# made-up, rejected or already-spent token is refused there too.
+# rejected (2x: what a real secret answers for a made-up token) or already-spent (3x) token is refused there too. The
+# always-pass 1x secret accepts ANY token, so a made-up token is only proven refused through the 2x job.
 #
 # Not run here (known, non-CAPTCHA, tracked in the triage doc): the Sign In "renders no Turnstile widget" check
 # (owner decision pending) and the profile-completion "seeded account" block (Showroom RC2 product review).
@@ -143,7 +144,7 @@ jobs:
             e2e/recovery-replay.spec.ts \
             --grep-invert "renders no Turnstile widget|Complete your profile — seeded account" \
             2>&1 | tee "$ARTIFACTS/playwright.log"
-      - name: Direct Supabase Auth calls - missing or made-up tokens refused, genuine token accepted
+      - name: Direct Supabase Auth calls - missing token refused, accepted token gets through
         if: always()
         working-directory: frontend
         env:

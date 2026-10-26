@@ -30,7 +30,7 @@ The public (anon) key is public, so anyone can call `/auth/v1` directly. An app-
 
 ## What is proven, and what is not
 
-- **Proven in CI (direct `/auth/v1` calls with the public key, no app):** a missing token is refused on all five operations; a made-up token is refused; a token Cloudflare rejects (2x test secret) is refused; a token Cloudflare reports as already spent (3x test secret, the replay/expiry answer) is refused; a genuine test token gets past the check. Unit tests cover the app's Siteverify: one call per token, replay refused, expired/invalid/unavailable, hostname and action mismatch.
+- **Proven in CI (direct `/auth/v1` calls with the public key, no app):** a missing token is refused on all five operations; a token Cloudflare rejects (2x test secret, what a real secret answers for a made-up or invalid token) is refused; a token Cloudflare reports as already spent (3x test secret, the replay/expiry answer) is refused; a genuine test token gets past the check. Unit tests cover the app's Siteverify: one call per token, replay refused, expired/invalid/unavailable, hostname and action mismatch.
 - **Not proven:** a real replay against Cloudflare (test keys do not track single use; it can only be observed with real keys, for example on Acceptance after the hosted switch). Supabase Auth does **not** check a token's hostname or action; hostname protection on those calls relies on the Turnstile widget's hostname allowlist in Cloudflare. Supabase Auth CAPTCHA does not cover `verifyOtp`, token refresh, OAuth or the Admin API; those rely on rate limits and their own checks.
 - **Until the hosted switch is on, hosted projects still check presence only.** No document may describe hosted sign-in as CAPTCHA-verified before that.
 

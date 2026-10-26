@@ -38,7 +38,7 @@ The approved behaviour, per [ADR-0023](../decisions/ADR-0023-supabase-auth-verif
 
 ## Tests
 
-- `frontend/e2e-gotrue-captcha/direct-auth.spec.ts` (config `playwright.gotrue-captcha.config.ts`): for password sign in, sign up, email code, recovery and resend, called directly with the public key: no token → refused; made-up token → refused; genuine test token → accepted (1x secret); every token refused with the 2x secret (rejected) and the 3x secret (already spent: the replay/expiry answer).
+- `frontend/e2e-gotrue-captcha/direct-auth.spec.ts` (config `playwright.gotrue-captcha.config.ts`): for password sign in, sign up, email code, recovery and resend, called directly with the public key: no token → refused; a token Cloudflare accepts → gets past the check (1x secret, which accepts any token); every token refused with the 2x secret (rejected: what a real secret answers for a made-up or invalid token) and the 3x secret (already spent: the replay/expiry answer).
 - `frontend/src/server/auth/turnstile.test.ts`: Siteverify pass, missing, invalid, expired/replayed, hostname, action, test-key outside local, unavailable (non-2xx, timeout, network, malformed), exactly one call, replay refused.
 - `frontend/src/server/auth/installer-security.test.ts`: the password-change probe uses the database, never a password grant.
 - Browser suites in `auth-captcha-e2e.yml` (44 tests) with the real widget and Supabase Auth's check on.

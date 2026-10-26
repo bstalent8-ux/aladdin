@@ -6,9 +6,10 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
  * Every request here goes straight to the local stack's /auth/v1, with the anon key only - exactly what anyone holding
  * the public key can do. The stack runs with Supabase Auth's CAPTCHA protection ON (scripts/ci/enable-gotrue-captcha.sh)
  * and one of Cloudflare's public TEST secrets, named by E2E_GOTRUE_CAPTCHA:
- *   pass   1x secret: accepts only Cloudflare's dummy token. Proves a missing or made-up token is refused, and that a
- *          genuine (dummy) token gets past the check to normal processing.
- *   fail   2x secret: Cloudflare rejects every token. Proves a token Cloudflare rejects is refused.
+ *   pass   1x secret: Cloudflare accepts ANY token (observed in CI's preflight: a made-up token answers success:true).
+ *          Proves a missing token is refused and a token Cloudflare accepts gets past the check to normal processing.
+ *   fail   2x secret: Cloudflare rejects every token. Proves a token Cloudflare rejects - a made-up or invalid one,
+ *          as a real secret answers for it - is refused.
  *   spent  3x secret: Cloudflare answers "token already spent". Proves a replayed or expired token is refused - this is
  *          the closest a test key gets to a real replay; a real one is only observable with real keys.
  * Supabase Auth does not check the token's hostname or action; that is the Turnstile widget's hostname allowlist.
@@ -54,10 +55,6 @@ for (const op of OPERATIONS) {
     });
 
     if (MODE === "pass") {
-      test("is refused with a made-up token", async ({ request }) => {
-        expectCaptchaRefused(await call(request, op.path, op.body("forged"), "forged-token-not-from-cloudflare"));
-      });
-
       test("gets past the CAPTCHA check with a genuine token", async ({ request }) => {
         const result = await call(request, op.path, op.body("genuine"), DUMMY_TOKEN);
         expect(result.errorCode, JSON.stringify(result)).not.toBe("captcha_failed");
