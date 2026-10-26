@@ -20,7 +20,7 @@ How the Next.js frontend is built and run on Cloudflare Workers ([ADR-0021](../d
 |---|---|---|---|
 | (top level) | `aladdin-frontend` | `wrangler dev` only | local Supabase stack |
 | `preview` | `aladdin-frontend-preview` | `aladdin-frontend-preview.<account>.workers.dev` | **aladdin-r2-acceptance only** (`nxossqhdfltcqdwvbewi`), acceptance R2 buckets |
-| `production` | `aladdin-frontend-production` | none until cutover | live project, after owner approval only |
+| `production` | `aladdin-frontend-production` | none until cutover | live project, after owner approval only. Binds `BACKEND` → `aladdin-backend-production` (deploy the backend first). Deployed only by the manual `Cloudflare production` workflow (`.github/workflows/cloudflare-production.yml`), whose values are checked by `frontend/scripts/check-cloudflare-production.mjs`. |
 
 ## Variables and secrets per environment
 

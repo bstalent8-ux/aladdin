@@ -1,3 +1,13 @@
+## 2026-10-26 — Cloudflare Production config (Phase D, code only)
+
+- Owner GO (2026-10-26 09:52Z) limited to a draft PR from `main` `61c9fd3` fixing the Production config gaps of the 26 Oct runbook. No deploy, secret, DNS, zone or account change was made.
+- `frontend/wrangler.jsonc` `production`: `BACKEND` service binding to `aladdin-backend-production` (without it `/api/backend/*` answered 503, `backend-proxy.ts`); `TURNSTILE_ALLOWED_HOSTNAMES` = apex + `www`; `R2_STORAGE_ENABLED`, `R2_PRODUCTION_WRITES_APPROVED`, `REDIS_CACHE_ENABLED` = `"false"` explicitly (first cutover: Supabase Storage, no Redis); `secrets.required` = service-role key, Turnstile secret, grant secret.
+- New `frontend/scripts/check-cloudflare-production.mjs` (+ `production-config.test.ts`): checks both production Wrangler envs (no public address, binding, Turnstile pin, flags off, required secrets, no acceptance/preview reference) and, with `--live-values`, refuses any build value that is not the live project (`kkpkgjrweysgvhvkhzun`), a secret key or a Cloudflare test site key.
+- New `.github/workflows/cloudflare-production.yml`: `workflow_dispatch` on `main` only, environment `cloudflare-production`, stages `check` → `backend` → `frontend`; uploads only when `CLOUDFLARE_PRODUCTION_ENABLED == 'true'`; no defaults for any value; the frontend stage refuses to run until `aladdin-backend-production` exists; no routes.
+- Docs: RUNTIME_STATE, cloudflare-frontend guide, credentials checklist §6, cutover plan stage 8.
+- Validation: `tsc --noEmit` clean; eslint clean on the new files; new tests 10/10; `actionlint` (with shellcheck) clean. The Windows run of `redis-guards.test.ts` fails on path separators only (pre-existing, not touched); CI runs on Linux.
+- **Unfinished:** the workflow cannot run before merge (manual workflows run from the default branch), the GitHub environment does not exist yet, and every deploy stage needs its own owner GO.
+
 ## 2026-10-25 (run 3 follow-up) — Rehearsal restore now reproduces Production's ACLs exactly
 
 - Owner's Windows run 3 (`--resume-backup`, commit `04234d9`) failed on ACLs only; backup checksums unchanged before and after. Root causes, each confirmed against Production's fingerprint hashes from that run:

@@ -1,5 +1,10 @@
 # Runtime State
 
+## Cloudflare Production config (Phase D, draft PR) — 2026-10-26
+- `main` = `61c9fd3` (#105, #106 merged). Live site: Vercel, the `5720d0c` build (owner promotion, 08:34Z); Vercel auto-assign is off.
+- Branch `claude/cloudflare-production-config`: code and docs only. The frontend `production` env now binds `BACKEND` → `aladdin-backend-production`, pins `TURNSTILE_ALLOWED_HOSTNAMES` to `aladdindecore.com,www.aladdindecore.com`, sets R2/Redis to `"false"` explicitly and declares its three required secrets. New manual workflow `cloudflare-production.yml` (stages `check` / `backend` / `frontend`, `main` only, environment `cloudflare-production`, upload gated by `CLOUDFLARE_PRODUCTION_ENABLED`) and guard `frontend/scripts/check-cloudflare-production.mjs` (refuses acceptance values).
+- **Not done:** no production Worker exists, no secret set, no GitHub environment created, no DNS or zone change. Cloudflare has no zone for `aladdindecore.com`; DNS still on Vercel nameservers.
+
 ## Sign-in CAPTCHA verification (ADR-0023, draft follow-up to #105) — 2026-10-26
 - Code, tests and docs only, on `claude/auth-turnstile-verification` (stacked on #105). Nothing merged or deployed.
 - Hosted Supabase Auth CAPTCHA protection: **not changed by Claude**; state unverified. Until the owner enables it (after the code is live), hosted sign-in tokens are only checked for presence.
