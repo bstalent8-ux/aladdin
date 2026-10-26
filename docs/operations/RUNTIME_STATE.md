@@ -1,5 +1,10 @@
 # Runtime State
 
+## Sign-in CAPTCHA verification (ADR-0023, draft follow-up to #105) — 2026-10-26
+- Code, tests and docs only, on `claude/auth-turnstile-verification` (stacked on #105). Nothing merged or deployed.
+- Hosted Supabase Auth CAPTCHA protection: **not changed by Claude**; state unverified. Until the owner enables it (after the code is live), hosted sign-in tokens are only checked for presence.
+- Local `config.toml`: `[auth.captcha]` off by default; CI's Auth CAPTCHA E2E turns it on with test secrets.
+
 ## Rebuilt Installer + Next 16.4.3 branch — 2026-10-24
 
 - Branch `claude/project-thread-724t0d` = PR #101 + `main` (#96) + Installer work + Next 16.4.3; supersedes PR #102 (`chore/next-16`), which must not be merged or pushed to any database. 191 migrations; Installer migrations are `20261024090002..11`.
