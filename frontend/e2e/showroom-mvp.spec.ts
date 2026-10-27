@@ -150,9 +150,9 @@ test.describe("showroom workspace", () => {
       expect(text, `raw org_type on ${route}`).not.toMatch(/\b(showroom_dealer|design_office|contractor_company)\b/);
     }
     await page.goto("/b2b/suppliers");
-    const types = page.locator("main").getByRole("combobox", { name: "Type" });
+    const table = page.locator("main").getByRole("table");
     for (const label of ["Supplier", "Manufacturer", "Importer"]) {
-      await expect(types.locator("option", { hasText: label })).toHaveCount(1);
+      await expect(table.getByRole("cell", { name: label, exact: true }).first()).toBeVisible();
     }
   });
 

@@ -58,6 +58,9 @@ test.describe("orders & projects workspace", () => {
     }
     const projectsLink = page.getByRole("link", { name: /projects|المشاريع/i }).first();
     await expect(projectsLink).toBeVisible();
+    // On desktop the rail groups its links into sections; Projects sits in a section that starts collapsed.
+    const section = page.locator('div:has(> button[aria-expanded="false"]):has(a[href="/b2b/projects"])').last();
+    if (!isMobile() && (await section.count())) await section.locator('> button[aria-expanded="false"]').click();
     await projectsLink.click();
     await page.waitForURL(/\/b2b\/projects(\?|$)/, { waitUntil: "commit" });
     await expect(page.getByRole("heading", { name: /projects|المشاريع/i, level: 1 })).toBeVisible();

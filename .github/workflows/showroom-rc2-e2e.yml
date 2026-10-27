@@ -82,13 +82,18 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../.artifacts/showroom-rc2
-          pnpm exec playwright test --project=chromium-desktop --retries=0 --reporter=list \
+          # account-workspace-model revokes Karim's seeded membership, so it runs after every suite that signs him in.
+          status=0
+          pnpm exec playwright test --project=chromium-desktop --retries=0 --reporter=list --output=test-results/shared \
             e2e/showroom-mvp.spec.ts \
-            e2e/account-workspace-model.spec.ts \
             e2e/sales.spec.ts \
             e2e/orders-projects.spec.ts \
             e2e/profile-completion.spec.ts \
-            2>&1 | tee ../.artifacts/showroom-rc2/playwright.log
+            2>&1 | tee ../.artifacts/showroom-rc2/playwright.log || status=1
+          pnpm exec playwright test --project=chromium-desktop --retries=0 --reporter=list --output=test-results/workspace-model \
+            e2e/account-workspace-model.spec.ts \
+            2>&1 | tee -a ../.artifacts/showroom-rc2/playwright.log || status=1
+          exit $status
       - name: Print the error contexts (ARIA snapshot of each failure)
         if: failure()
         working-directory: frontend

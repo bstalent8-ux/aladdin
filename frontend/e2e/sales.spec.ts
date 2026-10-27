@@ -192,8 +192,12 @@ test.describe("manager — daily sales workflow", () => {
     await page.getByTestId(dir0 === "rtl" ? "locale-en" : "locale-ar").click();
     await expect(html).not.toHaveAttribute("dir", dir0 ?? "");
 
+    // The language change refreshes the server tree, which re-renders <html>; wait until the header speaks the new
+    // language so that refresh cannot overwrite the theme class the toggle sets.
+    const themeSwitch = page.getByTestId("theme-switch").filter({ visible: true }).first();
+    await expect(themeSwitch).toHaveAttribute("aria-label", dir0 === "rtl" ? /[a-z]/i : /[\u0600-\u06FF]/);
     const wasDark = (await html.getAttribute("class"))?.includes("dark") ?? false;
-    await page.getByTestId("theme-switch").filter({ visible: true }).first().click();
+    await themeSwitch.click();
     if (wasDark) await expect(html).not.toHaveClass(/dark/);
     else await expect(html).toHaveClass(/dark/);
   });
@@ -215,10 +219,12 @@ test.describe("manager — daily sales workflow", () => {
 test.describe("branch-limited salesperson — scope enforcement", () => {
   test("out-of-scope record is absent from the list and its direct URL is blocked", async ({ page, request }) => {
     desktopOnly();
-    // Karim also holds a personal persona, so with no saved work context he lands on his Personal home.
+    // Karim also holds a personal persona, so sign-in may land on either surface; the check below must run inside his
+    // business workspace, so /b2b/leads has to stay on /b2b/leads.
     await signIn(page, request, IDENTITIES.branchLimited, /\/(b2b|home)(\/|$)/);
 
     await page.goto("/b2b/leads");
+    await expect(page).toHaveURL(/\/b2b\/leads$/);
     await expect(page.getByRole("main").getByText(/Sheikh Zayed|شيخ زايد/i)).toHaveCount(0);
 
     // Locate a Sheikh Zayed lead via service-role (test harness only) and prove the
