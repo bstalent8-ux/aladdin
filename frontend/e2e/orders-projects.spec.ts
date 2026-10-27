@@ -51,7 +51,7 @@ test.describe("orders & projects workspace", () => {
     await page.goto("/b2b/orders");
     // On mobile the rail collapses to a four-item bottom bar plus a "More" sheet;
     // Projects lives in the Business section, so it is behind More there.
-    const ordersLink = page.getByRole("link", { name: /orders|طلبياتي/i }).first();
+    const ordersLink = page.getByRole("link", { name: /orders|الطلبيات|طلبياتي/i }).first();
     await expect(ordersLink).toBeVisible();
     if (isMobile()) {
       await page.getByRole("button", { name: /more|المزيد/i }).click();

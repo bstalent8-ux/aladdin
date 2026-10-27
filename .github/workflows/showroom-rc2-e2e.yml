@@ -17,7 +17,6 @@ on:
       - "frontend/e2e/sales.spec.ts"
       - "frontend/e2e/orders-projects.spec.ts"
       - "frontend/e2e/profile-completion.spec.ts"
-      - "frontend/e2e/_rc2-probe.spec.ts"
       - "frontend/src/app/business/new/**"
       - "frontend/src/features/showroom-shell/**"
       - ".github/workflows/showroom-rc2-e2e.yml"
@@ -84,7 +83,6 @@ jobs:
           set -o pipefail
           mkdir -p ../.artifacts/showroom-rc2
           pnpm exec playwright test --project=chromium-desktop --retries=0 --reporter=list \
-            e2e/_rc2-probe.spec.ts \
             e2e/showroom-mvp.spec.ts \
             e2e/account-workspace-model.spec.ts \
             e2e/sales.spec.ts \
