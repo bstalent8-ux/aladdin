@@ -153,8 +153,13 @@ test.describe("2 + 5 — an existing professional applies for a business", () =>
 
     // An Engineer first chooses how he operates; an organization is an application an Admin approves.
     await expect(page.getByRole("heading", { name: "How do you work?" })).toBeVisible();
-    await page.getByText("Engineering Office").first().click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
+    // A press that lands before hydration only focuses the option, so retry until the choice enables Continue.
+    const proceed = page.getByRole("button", { name: /^continue$/i });
+    await expect(async () => {
+      await page.getByText("Engineering Office").first().click();
+      await expect(proceed).toBeEnabled({ timeout: 1_000 });
+    }).toPass();
+    await proceed.click();
     await page.waitForURL(/model=organization/);
     await createBusiness(page, office, "Zayed HQ", { orgType: /^Engineer$/ });
 

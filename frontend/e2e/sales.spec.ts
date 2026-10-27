@@ -192,6 +192,11 @@ test.describe("manager — daily sales workflow", () => {
     await page.getByTestId("theme-switch").filter({ visible: true }).first().click();
     if (wasDark) await expect(html).not.toHaveClass(/dark/);
     else await expect(html).toHaveClass(/dark/);
+    // The class flips before the preference is saved; reload only once the cookie holds the new choice.
+    const want = wasDark ? "light" : "dark";
+    await expect
+      .poll(async () => (await page.context().cookies()).find((c) => c.name === "aladdin-theme")?.value)
+      .toBe(want);
     await page.reload();
     if (wasDark) await expect(html).not.toHaveClass(/dark/);
     else await expect(html).toHaveClass(/dark/);
