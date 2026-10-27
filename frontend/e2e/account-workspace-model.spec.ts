@@ -189,7 +189,8 @@ test.describe("4 — consumer and business creation", () => {
     await expect(page.getByText(/add business/i)).toHaveCount(0);
     await page.goto("/business/new");
     await expect(page).toHaveURL(/\/home$/);
-    await expect(page.getByRole("heading", { name: /welcome, omar zaki/i })).toBeVisible();
+    // profile-completion.spec renames this seeded consumer, so match the greeting rather than the name.
+    await expect(page.getByRole("heading", { level: 1, name: /^welcome,/i })).toBeVisible();
   });
 });
 

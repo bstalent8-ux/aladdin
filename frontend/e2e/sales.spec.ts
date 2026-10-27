@@ -186,20 +186,21 @@ test.describe("manager — daily sales workflow", () => {
   test("language switch flips <html dir>; theme switch flips the dark class", async ({ page }) => {
     desktopOnly();
     const html = page.locator("html");
+
+    // Theme first, on a settled page: the toggle flips the class at once and the choice survives a reload.
+    const wasDark = (await html.getAttribute("class"))?.includes("dark") ?? false;
+    await page.getByTestId("theme-switch").filter({ visible: true }).first().click();
+    if (wasDark) await expect(html).not.toHaveClass(/dark/);
+    else await expect(html).toHaveClass(/dark/);
+    await page.reload();
+    if (wasDark) await expect(html).not.toHaveClass(/dark/);
+    else await expect(html).toHaveClass(/dark/);
+
+    // The workspace header keeps language in the account menu (one place, same cookie).
     const dir0 = await html.getAttribute("dir");
-    // The workspace header keeps language in the account menu (one place, same cookie); theme stays in the header.
     await page.getByTestId("profile-menu-trigger").click();
     await page.getByTestId(dir0 === "rtl" ? "locale-en" : "locale-ar").click();
     await expect(html).not.toHaveAttribute("dir", dir0 ?? "");
-
-    // The language change refreshes the server tree, which re-renders <html>; wait until the header speaks the new
-    // language so that refresh cannot overwrite the theme class the toggle sets.
-    const themeSwitch = page.getByTestId("theme-switch").filter({ visible: true }).first();
-    await expect(themeSwitch).toHaveAttribute("aria-label", dir0 === "rtl" ? /[a-z]/i : /[\u0600-\u06FF]/);
-    const wasDark = (await html.getAttribute("class"))?.includes("dark") ?? false;
-    await themeSwitch.click();
-    if (wasDark) await expect(html).not.toHaveClass(/dark/);
-    else await expect(html).toHaveClass(/dark/);
   });
 
   test("mobile bottom navigation reaches the sections", async ({ page }) => {
