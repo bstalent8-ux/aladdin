@@ -17,6 +17,8 @@ on:
       - "frontend/e2e/sales.spec.ts"
       - "frontend/e2e/orders-projects.spec.ts"
       - "frontend/e2e/profile-completion.spec.ts"
+      - "frontend/e2e/_rc2-probe.spec.ts"
+      - "frontend/src/app/business/new/**"
       - "frontend/src/features/showroom-shell/**"
       - ".github/workflows/showroom-rc2-e2e.yml"
 
@@ -82,12 +84,20 @@ jobs:
           set -o pipefail
           mkdir -p ../.artifacts/showroom-rc2
           pnpm exec playwright test --project=chromium-desktop --retries=0 --reporter=list \
+            e2e/_rc2-probe.spec.ts \
             e2e/showroom-mvp.spec.ts \
             e2e/account-workspace-model.spec.ts \
             e2e/sales.spec.ts \
             e2e/orders-projects.spec.ts \
             e2e/profile-completion.spec.ts \
             2>&1 | tee ../.artifacts/showroom-rc2/playwright.log
+      - name: Print the error contexts (ARIA snapshot of each failure)
+        if: failure()
+        working-directory: frontend
+        run: |
+          find test-results -name error-context.md 2>/dev/null | sort | while read -r f; do
+            echo "::group::$f"; head -c 12000 "$f"; echo; echo "::endgroup::"
+          done
       - name: Keep the text log and error contexts (no traces or videos)
         if: always()
         uses: actions/upload-artifact@v4
