@@ -47,15 +47,12 @@ select is(
   (select count(*)::int from app.current_branch_ids('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') as b),
   0, 'current_branch_ids is unchanged: sales.manage alone assigns no branch');
 
--- E. Read-only: the manager still cannot edit or create a branch.
-update public.branches set name = 'renamed by a sales manager'
-  where id = 'c2222222-cccc-4ccc-8ccc-cccccccccccc';
-reset role;
-select is((select name from public.branches where id = 'c2222222-cccc-4ccc-8ccc-cccccccccccc'),
-  'Sheikh Zayed Branch', 'the Sales Manager''s update touches no branch');
-
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated"}';
+-- E. Read-only: authenticated holds only SELECT on branches (writes go through
+-- SECURITY DEFINER RPCs), so the manager can neither edit nor create a branch.
+select throws_ok(
+  $$ update public.branches set name = 'renamed by a sales manager'
+     where id = 'c2222222-cccc-4ccc-8ccc-cccccccccccc' $$,
+  '42501', null, 'the Sales Manager cannot edit a branch');
 select throws_ok(
   $$ insert into public.branches (organization_id, name, is_active)
      values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Manager branch', true) $$,
