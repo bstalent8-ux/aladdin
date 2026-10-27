@@ -77,6 +77,9 @@ async function openHealthy(page: Page, path: string, who: string): Promise<strin
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response, `${who}: no response for ${path}`).not.toBeNull();
   expect(response?.status() ?? 0, `${who}: ${path} answered HTTP ${response?.status()}`).toBeLessThan(400);
+  // Some routes finish with a client-side redirect (/b2b -> /showroom/home). Let it land before reading the page, or the
+  // next goto on this page is aborted mid-redirect (net::ERR_ABORTED). Realtime websockets do not hold networkidle.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   const finalPath = new URL(page.url()).pathname;
   expect(finalPath, `${who}: ${path} sent the account to ${finalPath} (signed out?)`).not.toMatch(/\/sign-in(\/|$)/);
   await expect(page.locator("main").first(), `${who}: no authenticated shell on ${path}`).toBeVisible();
@@ -150,14 +153,15 @@ for (const persona of PERSONAS) {
     });
 
     test("workspace and Sales screens render", async () => {
-      const page = await context.newPage();
-      try {
-        for (const path of ["/b2b", "/b2b/leads", "/b2b/customers", "/showroom/home"]) {
+      // A fresh page per route, so one route's client-side redirect can never interrupt the next navigation.
+      for (const path of ["/b2b", "/b2b/leads", "/b2b/customers", "/showroom/home"]) {
+        const page = await context.newPage();
+        try {
           const finalPath = await openHealthy(page, path, persona.who);
           note("route", `${persona.who}: ${path} -> ${finalPath}`);
+        } finally {
+          await page.close();
         }
-      } finally {
-        await page.close();
       }
     });
 
