@@ -19,7 +19,8 @@
 
   "env": {
     // Isolated acceptance preview on workers.dev: aladdin-r2-acceptance Supabase
-    // project and the acceptance R2 buckets only. No custom domain.
+    // project and the acceptance R2 buckets only. Team custom domain
+    // preview.aladdindecore.com (attached in the dashboard, owner 2026-10-27).
     "preview": {
       "name": "aladdin-frontend-preview",
       "workers_dev": true,
@@ -41,7 +42,7 @@
         "R2_PRODUCTION_WRITES_APPROVED": "false",
         "R2_PRIVATE_BUCKET": "aladdin-r2-acceptance-20261011-private",
         // Siteverify must report this hostname, or the CAPTCHA check fails closed.
-        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev"
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev,preview.aladdindecore.com"
       }
     },
     // Production: deployed only after the owner approves the cutover. Routes
