@@ -1,3 +1,16 @@
+## 2026-10-26 — Owner Sales delegation capabilities (Stage 6 finding, Option A)
+
+- Finding (Stage 6 Step 2, Acceptance): a showroom owner created by `app.organization_create_owned` holds `org.manage` and the pilot `sales.opportunity.*` keys but not `sales.read/write/assign/manage`, so `membership_set_capabilities` (no-escalation) refuses the Sales Rep and Sales Manager presets (`frontend/src/lib/org/roles.ts`).
+- Owner decision 2026-10-26: permanent product fix, no one-off DB grant.
+- Migration `20261026090001_owner_sales_delegation_capabilities.sql`:
+  - helpers `app.owner_sales_delegation_capabilities()` and `app.owner_sales_delegation_org_types()` (showroom_dealer, supplier, manufacturer, importer; design_office and contractor_company excluded while their accounts are Coming Soon);
+  - both live overloads of `app.organization_create_owned` re-created from `pg_get_functiondef` plus one block;
+  - DB-owner-only, insert-only, audited `app.owner_sales_delegation_backfill()`, run once with a post-condition.
+- Unchanged: `membership_set_capabilities`, `app.membership_grant_sales`, `app.can_manage_sales`, RLS, branch access, the Consumer Coming Soon rule.
+- Tests: new `114_owner_sales_delegation_test.sql` (34). `22_business_onboarding_test.sql` owner key count 27 → 31 (intended).
+- Validation (isolated local stack `aladdin_stage6`, fresh `db reset`): pgTAP 142 files / 6324 tests PASS; migration policy PASS; migration script tests 29/29; frontend `src/lib/org`, `src/lib/nav`, `src/server/actions`, `src/server/queries` 1104 pass.
+- **Unfinished:** not applied to Acceptance or Production; the rollout needs the owner's approval.
+
 ## 2026-10-26 — Cloudflare Production config (Phase D, code only)
 
 - Owner GO (2026-10-26 09:52Z) limited to a draft PR from `main` `61c9fd3` fixing the Production config gaps of the 26 Oct runbook. No deploy, secret, DNS, zone or account change was made.

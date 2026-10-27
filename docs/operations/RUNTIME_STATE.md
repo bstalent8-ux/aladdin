@@ -1,5 +1,9 @@
 # Runtime State
 
+## Owner Sales delegation fix (draft, not applied anywhere hosted) — 2026-10-26
+- Migration `20261026090001_owner_sales_delegation_capabilities.sql` (branch `claude/owner-sales-delegation`): owners of showroom_dealer / supplier / manufacturer / importer organizations also receive `sales.read`, `sales.write`, `sales.assign`, `sales.manage`, so the Sales Rep / Sales Manager presets can be delegated through the unchanged `membership_set_capabilities`. Includes the DB-owner-only, audited, idempotent `app.owner_sales_delegation_backfill()`.
+- Not applied to Acceptance or Production. Acceptance scope (read-only, 2026-10-26): 1 eligible owner without the keys. Production scope not inspected.
+
 ## Cloudflare Production config (Phase D, draft PR) — 2026-10-26
 - `main` = `61c9fd3` (#105, #106 merged). Live site: Vercel, the `5720d0c` build (owner promotion, 08:34Z); Vercel auto-assign is off.
 - Branch `claude/cloudflare-production-config`: code and docs only. The frontend `production` env now binds `BACKEND` → `aladdin-backend-production`, pins `TURNSTILE_ALLOWED_HOSTNAMES` to `aladdindecore.com,www.aladdindecore.com`, sets R2/Redis to `"false"` explicitly and declares its three required secrets. New manual workflow `cloudflare-production.yml` (stages `check` / `backend` / `frontend`, `main` only, environment `cloudflare-production`, upload gated by `CLOUDFLARE_PRODUCTION_ENABLED`) and guard `frontend/scripts/check-cloudflare-production.mjs` (refuses acceptance values).
