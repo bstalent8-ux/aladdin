@@ -7091,4 +7091,14 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Resend: domain `aladdindecore.com` verified (DKIM, SPF, MX). Worker secret `RESEND_API_KEY` plus `EMAIL_FROM` and `APP_PUBLIC_ORIGIN` on both Workers (also in `wrangler.jsonc`). A test email was delivered, and the installer contact-email verification flow worked on aladdindecore.com. Dashboard variable edits only upload a version: they go live after **Promote version**.
 - `next.aladdindecore.com` removed (Worker domain, Turnstile, Supabase redirect, repo). Cloudflare DMARC Management enabled (`p=none`).
 - Supabase Auth CAPTCHA protection (Turnstile) turned ON by the owner on Acceptance and Production. Checked: a token-less or fake-token password grant answers `captcha_failed` on both; the owner's browser smoke test (email sign-in, installer sign-in, forgot password) passed. Rollback: switch it off in the dashboard.
-- **Unfinished:** `backend/app/config.py` still accepts `VERCEL_ENV`; historical docs still mention Vercel; DMARC can tighten after a few weeks of clean reports.
+- Follow-up (same day, PR #113): `backend/app/config.py` no longer reads `VERCEL_ENV`; comments, env examples, current guides and the privacy policy (Cloudflare + Resend named) updated; historical records keep their Vercel mentions.
+- **Unfinished:** DMARC can tighten after a few weeks of clean reports.
+
+### 2026-10-28 — Landing page 2026 and one sign-in design (branch `feat/landing-2026`, from `main` 586389e)
+
+- Context: PR #99 (public Marketplace) was closed after conflicts and dropped. The owner restarted from `main` and asked to bring back **only** the landing page work from that branch, with every Marketplace link showing "coming soon".
+- Landing: 2026 logo; four-colour palette scoped to the landing (`styles/brand-2026.module.css`, `tokens.css` untouched, so #93 stays the separate site-wide palette change); header account-type menu → `/auth/sign-up?type=<key>`; Marketplace navbar link; home Marketplace section on sample data (labelled preview); `/marketplace` is a coming-soon page. Not ported: cart, Marketplace pages, DB, favicon, `/sign-in` showroom route.
+- Sign-in / sign-up: the showroom page composition became `features/entry-auth/auth-stage`, now used by the `/auth` layout, the showroom pages and the installer pages. `?type=` only pre-selects an open account type (shown as the badge); the server action still validates it. `CraftsmanAuthShell` is no longer mounted.
+- `next` redirect check: every entry page and server action passes `next` through `sanitizeNext` (internal allowlisted paths only, no `//host`), so `?next=%2Fb2b` cannot redirect off-site.
+- Release order (owner rule): acceptance Supabase + Cloudflare preview first; Production only after verification and an explicit owner GO.
+- **Unfinished:** preview/acceptance check of this branch; decide whether to close #93; installer pages lost their worksite imagery (owner may want a per-type photo).
