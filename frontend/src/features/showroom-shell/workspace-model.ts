@@ -1,4 +1,4 @@
-import type { WorkspaceEntry } from "@/lib/workspace/model";
+import { personalEntry, type WorkspaceEntry } from "@/lib/workspace/model";
 
 // Display labels only. Engineer businesses retain the canonical organization code.
 export const SHOWROOM_BUSINESS_LABELS = {
@@ -14,4 +14,8 @@ export function isShowroomBusinessType(value: string | null): value is ShowroomB
 }
 export function eligibleWorkspaces(entries: readonly WorkspaceEntry[]) {
   return entries.filter((entry): entry is Extract<WorkspaceEntry, { kind: "business" }> => entry.kind === "business" && isShowroomBusinessType(entry.orgType));
+}
+// The Personal context only when my_workspaces() emitted one, i.e. a personal persona was claimed. A business-only identity has none.
+export function personalWorkspace(entries: readonly WorkspaceEntry[]) {
+  return personalEntry([...entries]);
 }

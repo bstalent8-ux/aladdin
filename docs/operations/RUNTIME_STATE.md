@@ -1,5 +1,11 @@
 # Runtime State
 
+## Live site on Cloudflare Workers — 2026-10-27
+- `aladdindecore.com`, `www` and `next` are served by Worker `aladdin-frontend-production` (Custom Domains, attached by the owner 17:23–17:40Z). It binds `aladdin-backend-production` and uses the live Supabase project `kkpkgjrweysgvhvkhzun` (193 migrations). R2 and Redis are off in production.
+- DNS: Cloudflare zone `c90ddcdec7bacd2485e1e5bcbac8afce` (nameservers johnathan/mona.ns.cloudflare.com, registrar GoDaddy). Zoho MX/SPF/DKIM unchanged; wildcard `*` still CNAME to Vercel, DNS only. No DMARC.
+- Vercel project `aladdin-staging` is untouched and is the rollback: detach the two Custom Domains, re-add `@ CNAME cc39f6c51d632b81.vercel-dns-017.com` (DNS only); `www` then falls back to the wildcard.
+- Preview Worker `aladdin-frontend-preview` (Acceptance) is behind Cloudflare Access for the team.
+
 ## Owner Sales delegation fix (draft, not applied anywhere hosted) — 2026-10-26
 - Migration `20261026090001_owner_sales_delegation_capabilities.sql` (branch `claude/owner-sales-delegation`): owners of showroom_dealer / supplier / manufacturer / importer organizations also receive `sales.read`, `sales.write`, `sales.assign`, `sales.manage`, so the Sales Rep / Sales Manager presets can be delegated through the unchanged `membership_set_capabilities`. Includes the DB-owner-only, audited, idempotent `app.owner_sales_delegation_backfill()`.
 - Not applied to Acceptance or Production. Acceptance scope (read-only, 2026-10-26): 1 eligible owner without the keys. Production scope not inspected.

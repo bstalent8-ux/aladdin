@@ -450,7 +450,7 @@ test.describe("Complete your profile — seeded account", () => {
     else await expect(page.getByTestId("complete-profile-card")).toHaveCount(0);
   });
 
-  test("a phone already held by another account gets the neutral message (business identity card on /b2b/settings)", async ({ browser, request }) => {
+  test("a phone already held by another account gets the neutral message (identity card in the Showroom's Personal account settings)", async ({ browser, request }) => {
     const national = uniqueEgMobile();
     const a = await browser.newContext();
     await setLocale(a, "en");
@@ -467,7 +467,8 @@ test.describe("Complete your profile — seeded account", () => {
     await setLocale(b, "en");
     const pageB = await b.newPage();
     await signIn(pageB, request, IDENTITIES.showroom);
-    await pageB.goto("/b2b/settings");
+    // RC2: the Showroom's settings are sectioned; the personal identity card is under "Personal account".
+    await pageB.goto("/showroom/settings?section=account");
     await expect(pageB.getByTestId("identity-card")).toBeVisible();
     await chooseEgypt(pageB);
     await pageB.locator("#phone-national").fill(national);
@@ -480,7 +481,8 @@ test.describe("Complete your profile — seeded account", () => {
   test("a showroom owner edits its organization subtypes, Mawan included", async ({ page, request, context }) => {
     await setLocale(context, "en");
     await signIn(page, request, IDENTITIES.showroom);
-    await page.goto("/b2b/settings");
+    // RC2: organization activities are their own Settings section, offered to managers only.
+    await page.goto("/showroom/settings?section=activities");
     const selector = page.getByTestId("activity-selector");
     await expect(selector).toBeVisible();
     for (const label of ["Decor showroom", "Paint showroom", "Decor & paint showroom", "Building & finishing supplies retailer"]) {

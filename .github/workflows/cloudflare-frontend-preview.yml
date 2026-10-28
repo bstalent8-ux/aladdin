@@ -9,6 +9,8 @@
 #
 # GitHub Environment `cloudflare-preview` (restrict it to the branches you allow):
 #   secrets:   CLOUDFLARE_API_TOKEN   (Workers Scripts:Edit on this account only; see docs/guides/cloudflare-frontend.md)
+#              CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET (optional: a Cloudflare Access service token, needed once
+#              the preview Worker is behind Access, so the smoke check is let through by a Service Auth policy)
 #   variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PREVIEW_ENABLED,
 #              NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (the ISOLATED acceptance project only),
 #              NEXT_PUBLIC_TURNSTILE_SITE_KEY (optional)
@@ -91,13 +93,21 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           url=$(cat "$RUNNER_TEMP/preview-url")
+          # Behind Cloudflare Access, every request carries the service token; without it
+          # Access answers with a 302 to its login page and the check fails.
+          access=()
+          if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
+            access=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+          fi
           if [ -z "$url" ]; then echo "The deploy printed no workers.dev URL"; exit 1; fi
           echo "Preview: $url" | tee -a "$GITHUB_STEP_SUMMARY"
           # A new workers.dev name can take a minute or two to resolve.
           for attempt in $(seq 1 18); do
-            health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url/api/health" || true)
+            health=$(curl -s -o /dev/null -w '%{http_code}' "${access[@]}" --max-time 20 "$url/api/health" || true)
             [ "$health" = "200" ] && break
             sleep 10
           done
@@ -109,7 +119,7 @@ jobs:
           sleep 10
           server_errors=0
           for path in /api/health / /auth/sign-in /legal/terms /showroom; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url$path" || true)
+            code=$(curl -s -o /dev/null -w '%{http_code}' "${access[@]}" --max-time 30 "$url$path" || true)
             echo "$path -> $code" | tee -a "$GITHUB_STEP_SUMMARY"
             case "$code" in 5*|000) server_errors=$((server_errors + 1)) ;; esac
           done
@@ -142,7 +152,7 @@ jobs:
               done
             done
             curl -sS --max-time 20 https://www.cloudflare.com/cdn-cgi/trace | grep -E "^(colo|loc|tls|http)=" || true
-            curl -sS -o /dev/null --max-time 20 "$url/api/health" || true
+            curl -sS -o /dev/null "${access[@]}" --max-time 20 "$url/api/health" || true
             exit 1
           fi
           if [ "$server_errors" -gt 0 ]; then
