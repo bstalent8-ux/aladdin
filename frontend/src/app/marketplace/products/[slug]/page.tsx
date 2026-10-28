@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { LiveProduct } from "@/features/marketplace/live/live-product";
 import { MarketplaceShell } from "@/features/marketplace/marketplace-shell";
-import { readPublicEnv } from "@/lib/env";
+import { isMarketplacePreviewEnabled } from "@/lib/env";
 import { LOCALE_COOKIE, directionFor, resolveLocale } from "@/lib/i18n/config";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { loadPublicProduct } from "@/server/queries/marketplace-public";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 /** Live product page. A draft, unpublished, archived or suspended-seller product is a plain 404. */
 export default async function MarketplaceProductPage({ params }: { params: Promise<{ slug: string }> }) {
   // Closed Marketplace: every deep link lands on the "coming soon" page.
-  if (readPublicEnv().NEXT_PUBLIC_MARKETPLACE_PREVIEW !== "true") redirect("/marketplace");
+  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
   const { slug } = await params;
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) notFound();
   const product = await loadPublicProduct(slug);

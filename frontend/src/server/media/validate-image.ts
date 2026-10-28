@@ -79,7 +79,8 @@ export async function validateImageBytes(input: ArrayBuffer | Uint8Array): Promi
   if (byteSize > MAX_BYTES) return { valid: false, reason: "file_too_large", byteSize, sha256 };
   try {
     await verifyMediaBytes(bytes, MIME[format], MAX_BYTES);
-  } catch {
+  } catch (error) {
+    console.warn(JSON.stringify({ event: "marketplace.image_decode_failed", format, reason: error instanceof Error ? error.message : "unknown" }));
     return { valid: false, reason: "decode_failed", byteSize, sha256 };
   }
   const size = dimensions(bytes, format);

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { LiveCatalog, type CatalogParams } from "@/features/marketplace/live/live-catalog";
 import { MarketplaceShell } from "@/features/marketplace/marketplace-shell";
 import { MarketplaceComingSoonPage } from "@/features/landing-marketplace/marketplace-coming-soon-page";
-import { readPublicEnv } from "@/lib/env";
+import { isMarketplacePreviewEnabled } from "@/lib/env";
 import { LOCALE_COOKIE, directionFor, resolveLocale } from "@/lib/i18n/config";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { PUBLIC_SORTS, loadPublicCatalogPage, loadPublicFacets, type PublicSort } from "@/server/queries/marketplace-public";
@@ -43,7 +43,7 @@ function attrs(sp: Record<string, string | undefined>): Record<string, string[]>
  * reads nothing, so Production exposes no catalog until the flag is set on purpose.
  */
 export default async function MarketplacePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  if (readPublicEnv().NEXT_PUBLIC_MARKETPLACE_PREVIEW !== "true") return <MarketplaceComingSoonPage />;
+  if (!isMarketplacePreviewEnabled()) return MarketplaceComingSoonPage();
   const sp = await searchParams;
   const params: CatalogParams = {
     category: KEY.test(sp.category ?? "") ? sp.category! : "",
