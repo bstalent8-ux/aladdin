@@ -46,7 +46,7 @@ export function LandingMarketplaceProductCard({ product }: { product: LandingPro
   return (
     <article className={styles.card} data-product-type={product.type} data-offer={live ? offer?.kind : undefined}>
       <div className={styles.media}>
-        <Image src={product.image} alt="" fill unoptimized
+        <Image src={product.image} alt="" fill
           sizes="(max-width: 767px) 46vw, (max-width: 1023px) 30vw, 18vw" className={styles.image} />
         {flashLive ? (
           <div className={styles.flashStack}>

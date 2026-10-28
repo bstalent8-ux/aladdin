@@ -137,7 +137,7 @@ export const landingMarketplaceContent = {
 } satisfies Record<"ar" | "en", Copy>;
 
 /** Real product photography supplied for the preview (`public/preview/landing/marketplace`). */
-const img = (type: MarketplaceTypeKey, n: 1 | 2) => `/preview/landing/marketplace/${type}-${n}.png`;
+const img = (type: MarketplaceTypeKey, n: 1 | 2) => `/preview/landing/marketplace/${type}-${n}.webp`;
 
 /**
  * Every entry has its own photograph — a product without an image is never

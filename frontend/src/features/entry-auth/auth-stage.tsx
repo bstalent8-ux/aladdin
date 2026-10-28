@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./auth-stage.module.css";
@@ -8,6 +8,16 @@ import styles from "./auth-stage.module.css";
  * email + password, recovery): photo beside a cream sheet, `.installer-surface`
  * palette. `toolbar` (language / theme switchers) sits at the top of the sheet.
  */
+// Art direction: a wide crop on phones, the tall one beside the sheet on larger screens.
+// Both go through the image optimizer (a plain <source srcSet> would ship the original).
+const { props: { srcSet: mobilePhoto } } = getImageProps({
+  alt: "", src: "/assets/showroom-auth/showroom-interior-mobile-2026.webp", width: 1651, height: 953, sizes: "100vw",
+});
+const { props: desktopPhoto } = getImageProps({
+  alt: "", src: "/assets/showroom-auth/showroom-interior-2026.webp", width: 1254, height: 1254, sizes: "62vw",
+  loading: "eager", fetchPriority: "high",
+});
+
 export function AuthStage({
   dir = "rtl",
   lang = "ar",
@@ -31,8 +41,9 @@ export function AuthStage({
       </section>
       <div className={styles.photo} aria-hidden="true">
         <picture>
-          <source media="(max-width: 767px)" srcSet="/assets/showroom-auth/showroom-interior-mobile-2026.png" />
-          <Image src="/assets/showroom-auth/showroom-interior-2026.png" alt="" fill loading="eager" fetchPriority="high" sizes="62vw" />
+          <source media="(max-width: 767px)" srcSet={mobilePhoto} sizes="100vw" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- props come from getImageProps */}
+          <img {...desktopPhoto} alt="" />
         </picture>
       </div>
     </main>
@@ -58,7 +69,7 @@ export function AuthStageHeader({
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <Image src="/assets/showroom-auth/aladdin-logo-2026.png" alt={appName} width={1536} height={1024} priority className={styles.logo} />
+        <Image src="/assets/showroom-auth/aladdin-logo-2026.png" alt={appName} width={1536} height={1024} sizes="180px" priority className={styles.logo} />
       </div>
       {badge ? <p className={styles.badge}>{badge}</p> : null}
       <h1 id={id}>{title}</h1>

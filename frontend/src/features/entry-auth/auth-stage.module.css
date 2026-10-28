@@ -4,7 +4,7 @@
    `.installer-surface` theme; controls remain the canonical controls. */
 .stage { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(420px, 1fr); min-height: 100dvh; direction: ltr; background: var(--canvas); color: var(--fg); --fg-secondary: color-mix(in srgb, var(--deep-navy) 75%, var(--soft-cream)); --fg-muted: var(--fg-secondary); }
 .photo { position: relative; grid-column: 1; grid-row: 1; min-height: 100dvh; }
-.photo img { object-fit: cover; object-position: center; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .sheet { z-index: 1; position: relative; isolation: isolate; grid-column: 2; grid-row: 1; display: flex; flex-direction: column; overflow: hidden; @apply p-xl; background: var(--canvas); }
 .sheet::before, .sheet::after { content: ""; position: absolute; z-index: -1; width: 100%; aspect-ratio: 1; border-radius: 50%; background: color-mix(in srgb, var(--warm-sand) 18%, transparent); pointer-events: none; }
 .sheet::before { inset-block-start: -35%; inset-inline-start: -50%; }
