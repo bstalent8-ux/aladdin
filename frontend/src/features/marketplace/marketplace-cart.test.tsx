@@ -15,6 +15,7 @@ const wrap = (node: ReactNode, locale: "ar" | "en" = "en") => (
 
 let api: ReturnType<typeof useMarketplaceCart>;
 function Probe() {
+  // eslint-disable-next-line react-hooks/globals -- test probe captures the hook API for assertions
   api = useMarketplaceCart();
   return null;
 }

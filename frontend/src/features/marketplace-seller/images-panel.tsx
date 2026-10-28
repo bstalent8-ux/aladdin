@@ -179,7 +179,7 @@ export function ImagesPanel({
                   <img src={img.url} alt="" className="h-full w-full object-cover" />
                 ) : null}
                 {img.isPrimary ? (
-                  <span className="absolute start-1 top-1 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent ring-1 ring-accent-edge">
+                  <span className="absolute start-1 top-1 rounded-pill bg-accent-solid px-2 py-0.5 text-label text-on-accent ring-1 ring-accent-solid">
                     {t("marketplaceSeller.image.primary")}
                   </span>
                 ) : null}

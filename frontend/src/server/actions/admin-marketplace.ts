@@ -62,7 +62,7 @@ async function validateOne(supabase: Awaited<ReturnType<typeof getServerSupabase
   if (!row) return { id: imageId, valid: false, code: "image_not_found" };
   const { data: blob, error } = await supabase.storage.from(row.storage_bucket || MARKETPLACE_IMAGE_BUCKET).download(row.object_key);
   if (error || !blob) return { id: imageId, valid: false, code: "download_failed" };
-  const v = await validateImageBytes(Buffer.from(await blob.arrayBuffer()));
+  const v = await validateImageBytes(await blob.arrayBuffer());
   const { error: recErr } = await supabase.rpc("admin_marketplace_media_record_validation", {
     p_image_id: imageId,
     p_valid: v.valid,
