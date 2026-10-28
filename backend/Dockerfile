@@ -2,10 +2,9 @@
 #
 # Two hosts build this image:
 #   - Cloudflare Containers (ADR-0022): `edge/backend-worker` builds and deploys
-#     it behind the `aladdin-backend` Worker. This is the migration target.
+#     it behind the `aladdin-backend` Worker. This is the production host.
 #   - Any other container host (the managed-container fallback in ADR-0022).
-# Vercel still runs the same app as the `backend` Vercel Service (root
-# vercel.json, ADR-0009) until the cutover; it does not use this file.
+# Vercel, which ran the app as a Vercel Service, is retired (ADR-0024).
 #
 # Multi-stage: build deps with uv, run as a non-root user.
 

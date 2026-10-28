@@ -1,6 +1,6 @@
 # ADR-0009 — Vercel Services for Both the Web App and the FastAPI Service
 
-**Status:** Accepted · 2026-08-16 · **Supersedes [ADR-0004](ADR-0004-deployment-platforms.md)** (hosting targets for `frontend/` and `backend/` only)
+**Status:** Superseded by [ADR-0024](ADR-0024-vercel-retired.md) (Vercel retired, 2026-10-28) · Accepted 2026-08-16 · **Supersedes [ADR-0004](ADR-0004-deployment-platforms.md)** (hosting targets for `frontend/` and `backend/` only)
 
 ## Purpose
 

@@ -2,6 +2,8 @@
 
 **Status:** Living document · 2026-08-16 (rev. 2 — Vercel Services) · First cloud STAGING deployment · Scope: **Staging only**
 
+> **2026-10-28: historical.** Vercel is retired ([ADR-0024](../decisions/ADR-0024-vercel-retired.md)) and `deploy-staging.yml` was removed. The preview environment is now the Cloudflare preview Workers on the Acceptance project.
+
 ## Purpose
 
 Take the current `main` branch from "runs locally" to "running in cloud STAGING" with the smallest correct set of services, and state exactly which steps a machine can do and which the repository owner must do by hand in a browser.

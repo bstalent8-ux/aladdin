@@ -16,8 +16,8 @@ from app.config import get_settings
 
 # Public path prefix this service is addressed by.
 #
-# The service is deployed as the `backend` Vercel Service (root vercel.json,
-# ADR-0009), where `/api/backend(/.*)?` is rewritten to it. Vercel Services
+# The service runs on Cloudflare Containers (ADR-0022), reached through the
+# frontend Worker's `BACKEND` binding for `/api/backend(/.*)?`. The Worker
 # forwards the ORIGINAL request path — it does not strip the matched prefix —
 # so the app genuinely receives `/api/backend/health` and its routes must be
 # declared that way. (`root_path` is deliberately NOT used: that is for proxies

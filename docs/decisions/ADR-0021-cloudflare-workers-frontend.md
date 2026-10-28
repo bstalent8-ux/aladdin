@@ -1,6 +1,6 @@
 # ADR-0021 — Next.js frontend on Cloudflare Workers (OpenNext), Vercel kept as rollback
 
-**Status:** Proposed · 2026-10-20 · owner decision to migrate the frontend host ("migrate Aladdin's entire Next.js frontend hosting from Vercel to Cloudflare Workers, while keeping the existing Supabase, R2, Redis and FastAPI architecture"). **Needs owner approval** for every hosted step: the workers.dev preview, Workers Paid, the DNS move and the traffic switch ([cutover plan](../operations/cloudflare-frontend-cutover-plan.md)).
+**Status:** Accepted; live since 2026-10-27, Vercel retired by [ADR-0024](ADR-0024-vercel-retired.md) · Proposed 2026-10-20 · owner decision to migrate the frontend host ("migrate Aladdin's entire Next.js frontend hosting from Vercel to Cloudflare Workers, while keeping the existing Supabase, R2, Redis and FastAPI architecture"). **Needs owner approval** for every hosted step: the workers.dev preview, Workers Paid, the DNS move and the traffic switch ([cutover plan](../operations/cloudflare-frontend-cutover-plan.md)).
 
 **Refines:** [ADR-0009](ADR-0009-vercel-services-deployment.md) (Vercel Services hosts both services). After cutover the **frontend** runs on Workers; **FastAPI stays on Vercel** as a separate service until its own migration is decided. [ADR-0001](ADR-0001-approved-architecture.md) is unchanged: still Next.js App Router built by `next build`, not Vite.
 
