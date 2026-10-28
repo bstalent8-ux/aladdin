@@ -36,7 +36,7 @@ Runtime, on the Worker. Plain values go in `wrangler.jsonc` `vars` or `wrangler 
 | `TURNSTILE_SECRET_KEY` | **secret** | Add the workers.dev hostname to the Turnstile widget and to `TURNSTILE_ALLOWED_HOSTNAMES` (var) for the preview. |
 | `BACKEND` | service binding | The `aladdin-backend[-env]` Worker (FastAPI in a Cloudflare Container, [ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md)). Wins over `BACKEND_ORIGIN` when bound. Not bound until the backend preview is approved and deployed. |
 | `BACKEND_ORIGIN` | var | FastAPI origin for `/api/backend/*`, e.g. the Vercel deployment's own URL. `https` only. Used when `BACKEND` is not bound; unset (and unbound) answers 503 on `/api/backend`. |
-| `R2_*`, `MEDIA_EDGE_*`, `VIDEO_ENABLED` | var / **secret** for keys | Same names and approvals as on Vercel ([vercel-environment-variables.md](vercel-environment-variables.md)). Preview: acceptance buckets only. |
+| `R2_*`, `MEDIA_EDGE_*`, `VIDEO_ENABLED` | var / **secret** for keys | Same names and approvals as the retired Vercel setup ([ADR-0018](../decisions/ADR-0018-r2-edge-media-delivery.md)). Preview: acceptance buckets only. |
 | `REDIS_CACHE_ENABLED`, `REDIS_REST_URL`, `REDIS_KEY_ENV` | var | Workers use Upstash's HTTPS interface; a TCP `REDIS_URL` is refused on Workers ([upstash-setup.md](upstash-setup.md)). |
 | `REDIS_REST_TOKEN` | **secret** | Full (not read-only) token of the existing database. |
 

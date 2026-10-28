@@ -1,7 +1,7 @@
 /**
  * `/api/backend/*` on the Cloudflare-hosted frontend (ADR-0021).
  *
- * On Vercel, `vercel.json` rewrites `/api/backend(/.*)?` to the FastAPI service
+ * On Vercel (retired, ADR-0024), `vercel.json` rewrote `/api/backend(/.*)?` to the FastAPI service
  * inside the same deployment. On Workers the Worker forwards the request to
  * FastAPI unchanged, through one of two transports:
  *   - the `BACKEND` service binding to the `aladdin-backend` Worker, which runs

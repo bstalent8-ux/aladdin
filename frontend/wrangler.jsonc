@@ -41,7 +41,11 @@
         "R2_PRODUCTION_WRITES_APPROVED": "false",
         "R2_PRIVATE_BUCKET": "aladdin-r2-acceptance-20261011-private",
         // Siteverify must report this hostname, or the CAPTCHA check fails closed.
-        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev"
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev",
+        // Contact-email links point back at the preview, never at production.
+        // RESEND_API_KEY is a Worker secret.
+        "EMAIL_FROM": "Aladdin <no-reply@aladdindecore.com>",
+        "APP_PUBLIC_ORIGIN": "https://aladdin-frontend-preview.bstalent9.workers.dev"
       }
     },
     // Production: deployed only after the owner approves the cutover. Routes
@@ -60,8 +64,12 @@
         "NEXT_PUBLIC_APP_ENV": "production",
         // Siteverify (phone sign-up) must report one of these, or the check fails closed.
         // A test hostname is added here only while it is approved and attached
-        // (next.aladdindecore.com: approved by the owner 2026-10-27, stage 11).
-        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdindecore.com,www.aladdindecore.com,next.aladdindecore.com",
+        // (next.aladdindecore.com was, for stage 11; removed 2026-10-28 after the cutover).
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdindecore.com,www.aladdindecore.com",
+        // Contact-email verification links go out through Resend from the verified
+        // aladdindecore.com domain. RESEND_API_KEY is a Worker secret.
+        "EMAIL_FROM": "Aladdin <no-reply@aladdindecore.com>",
+        "APP_PUBLIC_ORIGIN": "https://aladdindecore.com",
         // First cutover: media stays on Supabase Storage and Redis stays off. Each one
         // is turned on later by its own approval.
         "R2_STORAGE_ENABLED": "false",

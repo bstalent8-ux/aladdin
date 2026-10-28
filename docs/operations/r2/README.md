@@ -44,7 +44,7 @@ A CORS rule probably already exists on the private acceptance bucket. `frontend/
 | File | Bucket | What it does |
 |---|---|---|
 | [`cors-acceptance-private.json`](cors-acceptance-private.json) | `aladdin-r2-acceptance-20261011-private` | Lets the preview Worker origin and the local live-test origin `PUT` to presigned URLs. |
-| [`cors-production-private.json`](cors-production-private.json) | `aladdin-media-private` (production, later) | The same rule for `aladdindecore.com`, `www`, and the stage-11 test hostname `next.aladdindecore.com`. Remove `next` after stage 12. |
+| [`cors-production-private.json`](cors-production-private.json) | `aladdin-media-private` (production, later) | The same rule for `aladdindecore.com` and `www`. The stage-11 test hostname `next.aladdindecore.com` was removed on 2026-10-28. |
 | [`lifecycle-private.json`](lifecycle-private.json) | both private buckets | Deletes `pending/` objects after 2 days (ADR-0018). Aborts incomplete multipart uploads after 7 days (ADR-0020). |
 | [`lifecycle-public.json`](lifecycle-public.json) | `aladdin-r2-acceptance-20261011-public` | Keeps only the 7-day multipart abort. |
 

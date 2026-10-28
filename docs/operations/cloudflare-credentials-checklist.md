@@ -167,5 +167,5 @@ Does not exist yet. Template: `edge/media-worker/wrangler.toml`; steps: `edge/me
 ## Related
 
 - [Cloudflare frontend guide](../guides/cloudflare-frontend.md): variables per environment.
-- [Vercel environment variables](../guides/vercel-environment-variables.md): the rollback host's names.
+- `Vercel environment variables` (removed; see [ADR-0024](../decisions/ADR-0024-vercel-retired.md)): the rollback host's names.
 - [R2 audit](r2/README.md), [DNS export](dns-records-aladdindecore-2026-10-22.md), [cutover plan](cloudflare-frontend-cutover-plan.md).

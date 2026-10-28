@@ -75,7 +75,8 @@ The five files above are **persistent project memory and part of the core archit
 - [`decisions/ADR-0006-repository-governance.md`](decisions/ADR-0006-repository-governance.md)
 - [`decisions/ADR-0007-identity-and-tenancy-model.md`](decisions/ADR-0007-identity-and-tenancy-model.md)
 - [`decisions/ADR-0008-b2b-sales-domain-model.md`](decisions/ADR-0008-b2b-sales-domain-model.md)
-- [`decisions/ADR-0009-vercel-services-deployment.md`](decisions/ADR-0009-vercel-services-deployment.md) — Vercel Services for the web app **and** FastAPI
+- [`decisions/ADR-0009-vercel-services-deployment.md`](decisions/ADR-0009-vercel-services-deployment.md) — Vercel Services for the web app **and** FastAPI (superseded by ADR-0024)
+- [`decisions/ADR-0024-vercel-retired.md`](decisions/ADR-0024-vercel-retired.md) — Vercel retired; Cloudflare Workers and Containers host both services
 - [`decisions/DECISION_LOG.md`](decisions/DECISION_LOG.md) — **one-screen index of all ADRs**
 - [`decisions/agent-instruction-migration.md`](decisions/agent-instruction-migration.md) — source→destination map
 
@@ -116,7 +117,6 @@ The five files above are **persistent project memory and part of the core archit
 
 - [`guides/frontend-setup.md`](guides/frontend-setup.md)
 - [`guides/backend-setup.md`](guides/backend-setup.md)
-- [`guides/vercel-environment-variables.md`](guides/vercel-environment-variables.md) — Vercel variable names for Preview and Production
 - [`guides/supabase-setup.md`](guides/supabase-setup.md)
 - [`guides/upstash-setup.md`](guides/upstash-setup.md)
 

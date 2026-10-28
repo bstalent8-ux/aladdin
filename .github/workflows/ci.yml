@@ -159,7 +159,7 @@ jobs:
 
   # Pull requests only. A review aid for `supabase/migrations`: see scripts/migration-policy.mjs and the
   # expand/contract rules in docs/operations/staging-deployment-runbook.md. It also runs the unit tests of the
-  # migration-history guard and the Vercel deployment selector that the staging deploy workflow depends on.
+  # migration-history guard and the other repository scripts.
   migration-policy:
     name: migration-policy
     if: github.event_name == 'pull_request'
@@ -179,7 +179,7 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install --frozen-lockfile
-      - name: Unit tests (migration-history guard, migration policy, deployment selector, media storage)
+      - name: Unit tests (migration-history guard, migration policy, media storage)
         run: node --test scripts/*.test.mjs
       - name: Review the migrations changed by this PR
         run: |

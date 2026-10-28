@@ -23,7 +23,7 @@ def test_health_ok_on_public_prefixed_route() -> None:
 
 
 def test_public_prefix_is_the_expected_contract() -> None:
-    # The deployed contract is /api/backend/<route>; the rewrite in vercel.json
+    # The deployed contract is /api/backend/<route>; the frontend Worker's proxy
     # forwards the original path, so this literal must not drift.
     assert API_PREFIX == "/api/backend"
 

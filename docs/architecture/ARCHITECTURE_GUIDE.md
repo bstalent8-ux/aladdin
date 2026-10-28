@@ -12,7 +12,7 @@ The owner authorized a dedicated integration branch based on exact RC2 main8bde1
 | **Status** | Living document (canonical project memory) |
 | **Version** | Living (canonical) · rev 2026-08-16 |
 | **Owner** | Architecture |
-| **Last updated** | 2026-08-16 (deployment targets reconciled to [ADR-0009](../decisions/ADR-0009-vercel-services-deployment.md)) |
+| **Last updated** | 2026-10-28 (Vercel retired; hosting is Cloudflare, [ADR-0024](../decisions/ADR-0024-vercel-retired.md)) |
 | **Scope** | The **currently active** architecture of Aladdin — what is decided and in effect right now. |
 | **Authority** | Authoritative for the current architecture state. It **does not replace ADRs**: [ADRs](../decisions/) explain *why* a decision was made and are append-only; this guide explains *what is active now* and is updated continuously. On conflict, the newest **Accepted** ADR wins and this guide must be reconciled to it. |
 | **Update triggers** | Any change to module boundaries, data ownership, the multi-tenancy/identity/authorization model, migration ownership, the data-access approach, deployment targets, or the non-goals list. Every such change also updates an ADR, `RUNTIME_STATE.md`, and `AGENT_WORK_LOG.md`. |
@@ -152,12 +152,12 @@ Current decision (ADR-0005, refining ADR-0002 for the Private Pilot MVP):
 - **Fail fast** on missing required config; **no silent defaults for secrets**. Each service ships a `.env.example`. Real `.env` files are never committed. Detail: [`../security/secrets-and-environments.md`](../security/secrets-and-environments.md).
 
 ## Deployment Targets
-- **Vercel Services** — **both** the Next.js web app (`services.frontend`) and the FastAPI service (`services.backend`, Python runtime), declared in the repository-root `vercel.json` and shipped as **one deployment unit**: one preview URL per PR covering both, one rollback restoring both. Path rewrites put FastAPI same-origin at **`/api/backend`**, so there is no absolute backend URL to configure per environment. This does not relax the boundary — FastAPI is called from the **server side** of the web app, never the browser.
-- **Worker host — undecided.** `backend/app/workers/` is interface-only; a new ADR picks between Vercel Cron/Queues and a container host when the first worker is implemented. `backend/Dockerfile` is retained as the portability exit path.
+- **Cloudflare Workers + Containers** (since 2026-10-27; Vercel retired by [ADR-0024](../decisions/ADR-0024-vercel-retired.md)) — the Next.js web app runs on the Worker `aladdin-frontend-production` (OpenNext, [ADR-0021](../decisions/ADR-0021-cloudflare-workers-frontend.md)); FastAPI runs on Cloudflare Containers behind `aladdin-backend-production` ([ADR-0022](../decisions/ADR-0022-fastapi-cloudflare-containers.md)), reached through the `BACKEND` service binding and same-origin at **`/api/backend`**. This does not relax the boundary — FastAPI is called from the **server side** of the web app, never the browser.
+- **Worker host — undecided.** `backend/app/workers/` is interface-only; a new ADR picks the host (a Cloudflare Container is the natural candidate) when the first worker is implemented. `backend/Dockerfile` is retained as the portability exit path.
 - **Supabase** — Postgres/Auth/Storage/Realtime/Queues.
 - **OpenAI** — LLM/embeddings. **Azure Document Intelligence** — OCR candidate. **Sentry** — error tracking.
 
-Staging precedes Production; migrations are backward-compatible. Detail: [ADR-0009](../decisions/ADR-0009-vercel-services-deployment.md) (supersedes [ADR-0004](../decisions/ADR-0004-deployment-platforms.md) on hosting) · [`../operations/deployment-overview.md`](../operations/deployment-overview.md).
+Staging precedes Production; migrations are backward-compatible. Detail: [ADR-0024](../decisions/ADR-0024-vercel-retired.md) (supersedes [ADR-0009](../decisions/ADR-0009-vercel-services-deployment.md)) · [`../operations/deployment-overview.md`](../operations/deployment-overview.md).
 
 ## Observability
 Structured logging (`structlog` in FastAPI), Sentry for errors across web + service, and health endpoints (`/api/health` web, `/health` FastAPI). Detail: [`../operations/monitoring-and-observability.md`](../operations/monitoring-and-observability.md).
