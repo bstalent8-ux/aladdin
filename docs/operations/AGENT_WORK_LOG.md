@@ -7084,3 +7084,11 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Stage 12 on owner GO (17:40Z): Custom Domains `aladdindecore.com` and `www` on `aladdin-frontend-production`; the apex CNAME to `cc39f6c51d632b81.vercel-dns-017.com` was deleted to allow it. Owner reports no errors after ~35 min. Routes are not listed in `wrangler.jsonc` (the deploy token has no zone permission; wrangler leaves dashboard domains alone).
 - Team preview: `aladdin-frontend-preview.bstalent9.workers.dev` behind Cloudflare Access (All traffic; policies `Aladdin team` Allow by email, `GitHub preview smoke` Service Auth). The preview smoke check sends `CF_ACCESS_CLIENT_ID/SECRET` (environment `cloudflare-preview`).
 - **Unfinished / owner steps:** add the One-time PIN login method so teammates without a Cloudflare account can sign in; monitor (stage 13, proposed 7 days) before any Vercel change; the stage 12 rollback (detach domains, re-add the apex CNAME DNS only) stays ready; DMARC record is a separate later task; merge PR #110.
+
+## 2026-10-28 — Vercel retired, Resend live, hosted CAPTCHA on
+
+- Owner chose to retire Vercel at once (ADR-0024). #110 and #111 merged; the owner deleted the Vercel project, uninstalled its GitHub app and removed its DNS rows. Rollback is a Cloudflare Worker version rollback only.
+- Resend: domain `aladdindecore.com` verified (DKIM, SPF, MX). Worker secret `RESEND_API_KEY` plus `EMAIL_FROM` and `APP_PUBLIC_ORIGIN` on both Workers (also in `wrangler.jsonc`). A test email was delivered, and the installer contact-email verification flow worked on aladdindecore.com. Dashboard variable edits only upload a version: they go live after **Promote version**.
+- `next.aladdindecore.com` removed (Worker domain, Turnstile, Supabase redirect, repo). Cloudflare DMARC Management enabled (`p=none`).
+- Supabase Auth CAPTCHA protection (Turnstile) turned ON by the owner on Acceptance and Production. Checked: a token-less or fake-token password grant answers `captcha_failed` on both; the owner's browser smoke test (email sign-in, installer sign-in, forgot password) passed. Rollback: switch it off in the dashboard.
+- **Unfinished:** `backend/app/config.py` still accepts `VERCEL_ENV`; historical docs still mention Vercel; DMARC can tighten after a few weeks of clean reports.

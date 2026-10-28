@@ -17,7 +17,7 @@
 
 ## Sign-in CAPTCHA verification (ADR-0023, draft follow-up to #105) — 2026-10-26
 - Code, tests and docs only, on `claude/auth-turnstile-verification` (stacked on #105). Nothing merged or deployed.
-- Hosted Supabase Auth CAPTCHA protection: **not changed by Claude**; state unverified. Until the owner enables it (after the code is live), hosted sign-in tokens are only checked for presence.
+- Hosted Supabase Auth CAPTCHA protection: **ON for Acceptance and Production since 2026-10-28** (owner). Token-less and fake-token password grants answer `captcha_failed`; the owner's browser smoke test passed.
 - Local `config.toml`: `[auth.captcha]` off by default; CI's Auth CAPTCHA E2E turns it on with test secrets.
 
 ## Rebuilt Installer + Next 16.4.3 branch — 2026-10-24
