@@ -41,7 +41,11 @@
         "R2_PRODUCTION_WRITES_APPROVED": "false",
         "R2_PRIVATE_BUCKET": "aladdin-r2-acceptance-20261011-private",
         // Siteverify must report this hostname, or the CAPTCHA check fails closed.
-        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev"
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdin-frontend-preview.bstalent9.workers.dev",
+        // Contact-email links point back at the preview, never at production.
+        // RESEND_API_KEY is a Worker secret.
+        "EMAIL_FROM": "Aladdin <no-reply@aladdindecore.com>",
+        "APP_PUBLIC_ORIGIN": "https://aladdin-frontend-preview.bstalent9.workers.dev"
       }
     },
     // Production: deployed only after the owner approves the cutover. Routes
