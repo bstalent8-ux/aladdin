@@ -5,8 +5,7 @@
       "allowed": {
         "origins": [
           "https://aladdindecore.com",
-          "https://www.aladdindecore.com",
-          "https://next.aladdindecore.com"
+          "https://www.aladdindecore.com"
         ],
         "methods": ["PUT"],
         "headers": ["content-type", "content-length"]

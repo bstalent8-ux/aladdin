@@ -64,8 +64,8 @@
         "NEXT_PUBLIC_APP_ENV": "production",
         // Siteverify (phone sign-up) must report one of these, or the check fails closed.
         // A test hostname is added here only while it is approved and attached
-        // (next.aladdindecore.com: approved by the owner 2026-10-27, stage 11).
-        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdindecore.com,www.aladdindecore.com,next.aladdindecore.com",
+        // (next.aladdindecore.com was, for stage 11; removed 2026-10-28 after the cutover).
+        "TURNSTILE_ALLOWED_HOSTNAMES": "aladdindecore.com,www.aladdindecore.com",
         // Contact-email verification links go out through Resend from the verified
         // aladdindecore.com domain. RESEND_API_KEY is a Worker secret.
         "EMAIL_FROM": "Aladdin <no-reply@aladdindecore.com>",
