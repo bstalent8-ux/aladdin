@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * The approved composition is `LandingMotion` > `LandingHero` + `LandingEcosystem`
  * (header, hero, process, roles, videos, brands, stories, final call to action and
  * footer all live inside those). It is deliberately NOT chosen by environment: a
- * Vercel Preview, Production, staging and a plain branch deployment must all serve
+ * preview, Production, staging and a plain branch deployment must all serve
  * the same page. `NEXT_PUBLIC_APP_ENV` used to select between this and the older
  * `landing-v2` stack, which let the old page come back on any deployment that did
  * not set it to "staging"; that split is gone. The `landing-v2` components stay in

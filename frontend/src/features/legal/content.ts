@@ -5,7 +5,7 @@ import type { Locale } from "@/lib/i18n/locales";
  * (docs/frontend/legal-pages.md). Every statement here describes what the
  * product actually does today — the data the registration, profile, business,
  * catalogue, jobs, chat and sign-in flows store, the providers that process it
- * (Supabase, Vercel, Cloudflare Turnstile, Google, Meta), the cookies the app
+ * (Supabase, Cloudflare, Resend, Google, Meta), the cookies the app
  * sets, and the request-based deletion process. Change the copy when the
  * behaviour changes, and bump that document's date in LEGAL_UPDATED_AT.
  */
@@ -90,8 +90,8 @@ const privacyEn: LegalDocument = {
         p("Only with the service providers that run Aladdin for us, under their data-processing terms, and only for the purposes above:"),
         list(
           "Supabase — database, authentication, file storage and email codes. Our database is hosted in the European Union (Paris region).",
-          "Vercel — hosting and delivery of the website and application.",
-          "Cloudflare (Turnstile) — bot protection on sign-up and code requests.",
+          "Cloudflare — hosting and delivery of the website and application, and bot protection (Turnstile) on sign-up, sign-in and code requests.",
+          "Resend — sending account emails, such as the link that confirms a contact email you add.",
           "Google and Meta (Facebook) — only if you choose to sign in with them.",
         ),
         p("Other Aladdin users see the information you choose to publish or send to them. We may also disclose data when required by law or to protect the rights and safety of our users."),
@@ -228,8 +228,8 @@ const privacyAr: LegalDocument = {
         p("فقط مع مزوّدي الخدمات الذين يشغّلون علاء الدين لصالحنا، وفق شروط معالجة البيانات الخاصة بهم، وللأغراض المذكورة أعلاه فقط:"),
         list(
           "Supabase — قاعدة البيانات وخدمة الدخول وتخزين الملفات ورموز البريد. قاعدة بياناتنا مستضافة في الاتحاد الأوروبي (منطقة باريس).",
-          "Vercel — استضافة الموقع والتطبيق وتوصيلهما.",
-          "Cloudflare (Turnstile) — الحماية من البرامج الآلية عند التسجيل وطلب الرموز.",
+          "Cloudflare — استضافة الموقع والتطبيق وتوصيلهما، والحماية من البرامج الآلية (Turnstile) عند التسجيل والدخول وطلب الرموز.",
+          "Resend — إرسال رسائل البريد الخاصة بالحساب، مثل رابط تأكيد بريد التواصل الذي تضيفه.",
           "Google وMeta (Facebook) — فقط إذا اخترت الدخول من خلالهما.",
         ),
         p("يرى مستخدمو علاء الدين الآخرون المعلومات التي تختار نشرها أو إرسالها إليهم. وقد نفصح عن البيانات إذا تطلّب القانون ذلك أو لحماية حقوق مستخدمينا وسلامتهم."),
@@ -722,7 +722,7 @@ export type LegalDocumentKey = keyof typeof DOCUMENTS;
 /** When each document last changed (ISO date). */
 export const LEGAL_UPDATED_AT: Record<LegalDocumentKey, string> = {
   terms: "2026-10-18",
-  privacy: "2026-10-17",
+  privacy: "2026-10-28",
   dataDeletion: "2026-10-17",
 };
 

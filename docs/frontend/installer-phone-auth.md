@@ -192,7 +192,7 @@ rate limits are reported separately. A non-`access_ready` account resumes `/onbo
   target project (the flow uses `profile_set_username`, `profile_set_phone`,
   `access_ready`, and the declared-persona assignment). Check the hosted state first.
 - `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`
-  set in the Vercel environment. Without the Turnstile secret sign-up fails closed.
+  set on the Cloudflare Worker. Without the Turnstile secret sign-up fails closed.
 - Hosted Auth minimum password length should be ≥ 10 to match the app policy.
 
 ## Local verification

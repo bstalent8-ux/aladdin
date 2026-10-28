@@ -145,7 +145,7 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Vercel Services cannot host Edge Function output, and this middleware has no
+// The plain `next build` (CI, local) runs this middleware on Node, and it has no
 // need for the Edge runtime: it verifies a JWT with WebCrypto, makes at most a
 // token refresh / admin getUser() / status RPC round trip to Supabase, and
 // reads/writes cookies — all of which the Node runtime supports.

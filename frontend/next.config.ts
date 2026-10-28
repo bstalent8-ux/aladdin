@@ -4,7 +4,7 @@ import { SECURITY_HEADERS } from "./src/lib/security/response-headers";
 
 // Set by open-next.config.ts `buildCommand` for the Cloudflare Workers build only.
 // That build swaps the image engine (sharp cannot load in workerd) so the Worker
-// bundle never contains sharp; Vercel and `next build` keep the Node module.
+// bundle never contains sharp; the plain `next build` keeps the Node module.
 const WORKERS_BUILD = process.env.ALADDIN_BUILD_TARGET === "workers";
 const IMAGE_RUNTIME = /[\\/]server[\\/]storage[\\/]image-processing[\\/]runtime\.ts$/;
 
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  // Baseline security headers on every response, on Vercel and on Workers (security audit 2026-10-22).
+  // Baseline security headers on every response (security audit 2026-10-22).
   async headers() {
     return [{ source: "/:path*", headers: [...SECURITY_HEADERS] }];
   },

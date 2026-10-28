@@ -1,6 +1,6 @@
 {
   // Cloudflare Workers host for the Next.js frontend (ADR-0021). Built with
-  // `pnpm cf:build` (OpenNext); Vercel stays the live host until cutover.
+  // `pnpm cf:build` (OpenNext). The live host since the 2026-10-27 cutover.
   // Secrets are never written here: set them with `wrangler secret put` per
   // environment (see docs/guides/cloudflare-frontend.md).
   "$schema": "node_modules/wrangler/config-schema.json",
