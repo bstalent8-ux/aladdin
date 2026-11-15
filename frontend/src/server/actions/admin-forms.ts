@@ -164,6 +164,7 @@ export async function approveVerificationAction(
 
   const target = await loadDecisionTarget(supabase, id);
   if (!target) return { ok: false, code: "admin.review.error.state" };
+  const resumed = target.status === "approved";
   const isProfessional = target.verificationType === "professional";
   // Opt-in: only an explicitly ticked box lists, and only a professional upgrade can be listed.
   const grantListing = isProfessional && str(fd, "grantListing") === "on";
@@ -188,7 +189,9 @@ export async function approveVerificationAction(
   revalidatePath("/admin/verifications");
   revalidatePath("/admin/organizations");
   revalidatePath("/admin/users");
-  return { ok: true, code: "admin.review.approved" };
+  // A request that was ALREADY approved when this action read it is a completion (recovery or repeated click): the owner was
+  // informed by the first approval, so the toast must not claim a fresh notification.
+  return { ok: true, code: resumed ? "admin.review.approvalCompleted" : "admin.review.approved" };
 }
 
 export async function rejectVerificationAction(

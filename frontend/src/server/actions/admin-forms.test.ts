@@ -250,13 +250,36 @@ describe("one-click decisions on an account with NO request", () => {
       lookup({ data: { id: ID }, error: null });
       maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null });
       const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
-      expect(res).toEqual({ ok: true, code: "admin.review.approved" });
+      expect(res).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
       expect(calls()).toEqual(["review_approve", "apply_account_upgrade"]);
       expect(rpc).toHaveBeenCalledWith("review_approve", { p_verification_id: ID, p_grant_public_listing: false });
       expect(rpc).toHaveBeenCalledWith("apply_account_upgrade", { p_verification_id: ID });
       expect(query.is).toHaveBeenCalledWith("applied_at", null);
       expect(query.eq).toHaveBeenCalledWith("status", "approved");
       expect(query.eq).toHaveBeenCalledWith("user_id", SUBJECT);
+    });
+
+    it("answers a completed recovery with its OWN success code; a first approval keeps the normal one", async () => {
+      // Recovery by exact id (the button posts the id): the request is already approved when read.
+      target("approved");
+      expect(await approveVerificationAction(initial, form({ id: ID }))).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
+      // Recovery found by subject lookup.
+      lookup({ data: { id: ID }, error: null });
+      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
+      expect(await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }))).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
+      // A first approval of a submitted / under-review request is unchanged.
+      for (const status of ["submitted", "under_review"]) {
+        target(status);
+        expect(await approveVerificationAction(initial, form({ id: ID }))).toEqual({ ok: true, code: "admin.review.approved" });
+      }
+    });
+
+    it("a failed completion returns the error, never a success code", async () => {
+      target("approved");
+      rpc.mockImplementation(async (fn: string) => (fn === "apply_account_upgrade" ? { data: null, error: { message: "boom" } } : { data: null, error: null }));
+      const res = await approveVerificationAction(initial, form({ id: ID }));
+      expect(res.ok).toBe(false);
+      expect(res.code).not.toBe("admin.review.approvalCompleted");
     });
 
     it("works the same for an organization", async () => {

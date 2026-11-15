@@ -1025,6 +1025,7 @@ export const en = {
       reasonPlaceholder: "Reason (optional) shared with the account owner",
       started: "Review started.",
       approved: "Approved. The account owner has been informed.",
+      approvalCompleted: "Approval completed successfully.",
       rejected: "Rejected. The account owner has been notified.",
       listPublicly: "Also list this profile publicly",
       listPubliclyHint: "Lists the profile and its public portfolio in the public directory. Leave unticked to verify the account without publishing it; it can be hidden again later.",
