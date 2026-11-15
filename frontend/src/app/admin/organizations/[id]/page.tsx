@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { loadOrganizationDetail, loadOrganizationRegistration } from "@/server/queries/admin-directory";
+import { loadOrganizationDetail, loadOrganizationRegistration, loadUnappliedApproval } from "@/server/queries/admin-directory";
 import { describeLocation } from "@/lib/location/describe-location";
 import { previewSubjectAudit } from "@/server/queries/admin-preview";
 import { localizedName } from "@/features/admin-preview/directory-mappers";
@@ -16,7 +16,7 @@ import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/pr
 import { TabLinks } from "@/components/ui/stat-tiles";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
 import { VerificationHistory } from "@/features/admin/verification-history";
-import { findUnappliedOrganizationApproval, isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { RowActionsMenu, type RowAction } from "@/features/admin-preview/row-actions-menu";
 import { ButtonLink } from "@/components/ui/controls";
 import { requireAdminRoute } from "@/server/authorization/admin";
@@ -82,8 +82,8 @@ export default async function PreviewOrgDetailPage({
 
   const canAudit = can(access, "audit.read");
   // The newest open organization-approval request (business verification has its own queue and permission).
-  const unappliedApproval = org.verifications.some((v) => isOpenVerificationStatus(v.status) && v.verificationType === "organization") ? null : findUnappliedOrganizationApproval(org);
   const openRequest = org.verifications.find((v) => isOpenVerificationStatus(v.status) && v.verificationType === "organization");
+  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, "organization", org.id);
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;

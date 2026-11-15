@@ -203,3 +203,31 @@ export async function loadPendingOrganizationVerifications(
   }
   return out;
 }
+
+/**
+ * RECOVERY lookup: the newest request of this subject that is APPROVED but whose apply step never completed
+ * (`applied_at` is null). The detail RPCs do not expose applied_at, and an account type / verified flag is not a reliable
+ * proxy (a registrant may already carry the declared type), so the page reads the request itself. RLS scopes the read to
+ * reviewers. A failed read returns null: the page then simply offers no recovery button, and the server action
+ * independently fails closed.
+ */
+export async function loadUnappliedApproval(
+  supabase: Client,
+  subjectType: "user" | "organization",
+  subjectId: string,
+): Promise<PendingUserVerification | null> {
+  if (!UUID.test(subjectId)) return null;
+  const { data, error } = await supabase
+    .from("verifications")
+    .select("id, status, verification_type")
+    .eq("subject_type", subjectType)
+    .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
+    .eq("status", "approved")
+    .is("applied_at", null)
+    .neq("verification_type", "business")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { id: data.id, status: data.status, verificationType: data.verification_type };
+}

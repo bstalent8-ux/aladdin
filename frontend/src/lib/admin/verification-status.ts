@@ -39,29 +39,3 @@ export function canStartVerification(u: {
 export function isProfileIncomplete(u: { verificationState: string; completion: number }): boolean {
   return u.verificationState === "verified" && u.completion < 100;
 }
-
-/**
- * An approval whose APPLY step has not completed: the request is APPROVED but the subject has not taken its effect. The
- * detail read does not expose applied_at, so this is the observable equivalent: a professional request approved while the
- * account still lacks the requested account type, or an organization request approved while the organization is not yet
- * verified. Returns that exact request, so the Admin can resume it with its id (approve and apply are idempotent);
- * never a new one.
- */
-type ReqView = { id: string; status: string; verificationType: string; requestedAccountType: string | null };
-
-export function findUnappliedProfessionalApproval(user: { accountType: string | null; verifications: ReqView[] }): ReqView | null {
-  return (
-    user.verifications.find(
-      (v) => v.status === "approved" && v.verificationType === "professional" && v.requestedAccountType !== null && v.requestedAccountType !== user.accountType,
-    ) ?? null
-  );
-}
-
-export function findUnappliedOrganizationApproval(org: { isVerified: boolean; status: string; verifications: ReqView[] }): ReqView | null {
-  // Applying the approval activates and verifies the organization, so an unapplied one is still draft / pending.
-  return org.isVerified || (org.status !== "pending_verification" && org.status !== "draft") ? null : (org.verifications.find((v) => v.status === "approved" && v.verificationType === "organization") ?? null);
-}
-
-export function hasUnappliedProfessionalApproval(user: { accountType: string | null; verifications: ReqView[] }): boolean {
-  return findUnappliedProfessionalApproval(user) !== null;
-}

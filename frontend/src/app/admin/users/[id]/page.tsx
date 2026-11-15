@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/server/auth/session";
-import { loadUserDetail } from "@/server/queries/admin-directory";
+import { loadUnappliedApproval, loadUserDetail } from "@/server/queries/admin-directory";
 import { previewUserPointsLedger, previewSubjectAudit } from "@/server/queries/admin-preview";
 import { localizedName } from "@/features/admin-preview/directory-mappers";
 import { can } from "@/lib/permissions/admin";
@@ -17,7 +17,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
 import { VerificationHistory } from "@/features/admin/verification-history";
-import { canStartVerification, findUnappliedProfessionalApproval, isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { canStartVerification, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
 import { SuspensionAction, SuspensionBanner } from "@/features/admin-ops/suspension";
@@ -90,7 +90,7 @@ export default async function PreviewUserDetailPage({
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
   // An approval recorded but never applied (any account status): offer ONLY "Complete approval" for that exact request.
-  const unappliedApproval = openRequest ? null : findUnappliedProfessionalApproval(user);
+  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, "user", user.id);
   const canPoints = can(access, "points.read");
   const canAudit = can(access, "audit.read");
   const typeLabels = m.accountType as Record<string, string>;

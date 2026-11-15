@@ -25,7 +25,11 @@ const administrator = acc(80, ALL.filter((p) => p !== "roles.manage"));
 const superAdmin = acc(100, ALL);
 
 vi.mock("@/server/authorization/admin", () => ({ requireAdminRoute: (...a: unknown[]) => requireAdminRoute(...a) }));
-vi.mock("@/server/queries/admin-directory", () => ({ loadUserDetail: (...a: unknown[]) => loadUserDetail(...a) }));
+const loadUnappliedApproval = vi.fn(async (..._a: unknown[]): Promise<{ id: string; status: string; verificationType: string } | null> => null);
+vi.mock("@/server/queries/admin-directory", () => ({
+  loadUserDetail: (...a: unknown[]) => loadUserDetail(...a),
+  loadUnappliedApproval: (...a: unknown[]) => loadUnappliedApproval(...a),
+}));
 vi.mock("@/server/actions/admin-forms", () => ({ approveVerificationAction: vi.fn(), rejectVerificationAction: vi.fn(), adminInitiateVerificationAction: vi.fn() }));
 vi.mock("@/server/queries/admin-rbac", () => ({ loadStaffRanks: (...a: unknown[]) => loadStaffRanks(...a) }));
 vi.mock("@/server/queries/admin-preview", () => ({
@@ -95,6 +99,8 @@ beforeEach(() => {
   requireAdminRoute.mockReset();
   requireAdminRoute.mockResolvedValue(administrator);
   loadUserDetail.mockReset();
+  loadUnappliedApproval.mockReset();
+  loadUnappliedApproval.mockResolvedValue(null);
   loadStaffRanks.mockReset();
   loadStaffRanks.mockResolvedValue(new Map([[SUPER_ID, 100], [CALLER_ID, 80]]));
 });
@@ -175,18 +181,30 @@ describe("User Details - real Verify / Reject", () => {
   const resume = () => screen.queryAllByRole("button", { name: /complete approval/i });
   const reject = () => screen.queryAllByRole("button", { name: /^reject$/i });
 
+  const unapplied = { id: "99999999-9999-4999-8999-999999999997", status: "approved", verificationType: "professional" };
+
   it.each(["pending_verification", "active"])("RECOVERY (%s account): an approved-but-unapplied request offers only Complete approval", async (status) => {
-    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: status as AdminUserDetail["status"], accountType: null, verificationState: "verified", verifications: [open("approved")] }) });
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: status as AdminUserDetail["status"], accountType: "installer_technician", verificationState: "verified", verifications: [open("approved")] }) });
+    loadUnappliedApproval.mockResolvedValueOnce(unapplied);
     await renderPage(ORDINARY_ID);
+    expect(loadUnappliedApproval).toHaveBeenCalledWith(expect.anything(), "user", ORDINARY_ID);
     expect(resume()).toHaveLength(1);
     expect(reject()).toHaveLength(0);
     expect(approve().filter((b) => /^approve$/i.test(b.textContent?.trim() ?? ""))).toHaveLength(0);
     expect(screen.queryByRole("button", { name: /start verification/i })).toBeNull();
   });
 
+  it("no recovery button when the approval was applied (the lookup finds nothing) or the lookup failed", async () => {
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "active", accountType: "installer_technician", verifications: [open("approved")] }) });
+    loadUnappliedApproval.mockResolvedValueOnce(null);
+    await renderPage(ORDINARY_ID);
+    expect(resume()).toHaveLength(0);
+  });
+
   it("RECOVERY is hidden without users.verify", async () => {
     requireAdminRoute.mockResolvedValue(acc(50, ["users.read"]));
     loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "active", accountType: null, verifications: [open("approved")] }) });
+    loadUnappliedApproval.mockResolvedValueOnce(unapplied);
     await renderPage(ORDINARY_ID);
     expect(resume()).toHaveLength(0);
   });
@@ -194,6 +212,7 @@ describe("User Details - real Verify / Reject", () => {
   it("an open request wins over recovery (normal Approve / Reject)", async () => {
     loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", accountType: null, verifications: [open("submitted"), open("approved", "professional", "99999999-9999-4999-8999-999999999998")] }) });
     await renderPage(ORDINARY_ID);
+    expect(loadUnappliedApproval).not.toHaveBeenCalled();
     expect(resume()).toHaveLength(0);
     expect(reject()).toHaveLength(1);
   });
