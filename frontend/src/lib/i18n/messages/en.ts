@@ -2493,10 +2493,12 @@ export const en = {
       rejected: {
         title: "Business verification was declined",
         body: "Your business verification was not approved. Open Business verification for the reason.",
+        bodyReason: "Your business verification was not approved. Reason: {reason}",
       },
       infoRequested: {
         title: "More information needed",
         body: "The review team needs more information before your business can be verified.",
+        bodyReason: "The review team needs more information before your business can be verified: {reason}",
       },
     },
     verification: {

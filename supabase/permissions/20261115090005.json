@@ -1,6 +1,6 @@
 {
  "version": "20261115090005",
- "source": "Exact function permission contract after 20261115090005_review_approve_notifies_account_owner.sql: re-creates public.review_approve with an unchanged signature, owner and grants; no function is added or removed, so the set equals 20261115090004 (757 functions).",
+ "source": "Exact function permission contract after 20261115090005_review_approve_notifies_account_owner.sql: re-creates public.review_approve, app.bv_decide and public.business_verification_request_info with unchanged signatures, owners and grants; no function is added or removed, so the set equals 20261115090004 (757 functions).",
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.media_storage_resolve(text,text,text)",
