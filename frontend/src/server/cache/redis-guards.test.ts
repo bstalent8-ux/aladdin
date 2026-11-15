@@ -64,25 +64,25 @@ describe("Redis use stays inside ADR-0019", () => {
 });
 
 describe("Redis is on only where it was accepted", () => {
-  it("ships disabled in .env.example and is enabled only for the preview and production Workers", () => {
+  it("ships disabled in .env.example and is enabled only for the production Worker", () => {
     expect(readFileSync(join(FRONTEND, ".env.example"), "utf8")).toMatch(/^REDIS_CACHE_ENABLED=false$/m);
     const wrangler = readFileSync(join(FRONTEND, "wrangler.jsonc"), "utf8");
-    // The owner accepted Redis for the acceptance preview (2026-10-24, cf-preview key prefix) and for production
-    // (2026-11-15, key prefix `production`). Any other block (a new environment) keeps it off until its own approval.
+    // Redis ran on the acceptance preview from 2026-10-24; on 2026-11-15 the owner moved it to production only
+    // (key prefix `production`) so production gets the whole Free quota. Any other block keeps it off until its own approval.
     const preview = wrangler.indexOf('"preview": {');
     const production = wrangler.indexOf('"production": {');
     expect(preview).toBeGreaterThan(-1);
     expect(production).toBeGreaterThan(preview);
     const enabled = [...wrangler.matchAll(/"REDIS_CACHE_ENABLED"\s*:\s*"true"/g)].map((m) => m.index ?? 0);
-    expect(enabled.length).toBe(2);
-    expect(enabled.every((at) => at > preview)).toBe(true);
+    expect(enabled.length).toBe(1);
+    expect(enabled[0]).toBeGreaterThan(production);
+    expect(wrangler.slice(preview, production)).toMatch(/"REDIS_CACHE_ENABLED"\s*:\s*"false"/);
   });
 
-  it("gives preview and production different key prefixes, so they share one database without sharing entries", () => {
+  it("keeps the production key prefix and has no Redis address on the preview", () => {
     const wrangler = readFileSync(join(FRONTEND, "wrangler.jsonc"), "utf8");
     const production = wrangler.indexOf('"production": {');
-    const keys = (text: string) => [...text.matchAll(/"REDIS_KEY_ENV"\s*:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]);
-    expect(keys(wrangler.slice(0, production))).toEqual(["cf-preview"]);
-    expect(keys(wrangler.slice(production))).toEqual(["production"]);
+    expect(wrangler.slice(0, production)).not.toMatch(/REDIS_REST_URL|REDIS_KEY_ENV/);
+    expect(wrangler.slice(production)).toMatch(/"REDIS_KEY_ENV"\s*:\s*"production"/);
   });
 });

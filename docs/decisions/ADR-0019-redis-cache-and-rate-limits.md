@@ -172,3 +172,7 @@ The existing implementation was checked against the brief. Status: **Met** means
 - **Rollback:** set `REDIS_CACHE_ENABLED` to `false` (and promote the version). Reads go back to Postgres, rate limits count in memory.
 - **Activation order:** set the secret first (`wrangler secret put REDIS_REST_TOKEN --env production`, the normal read-write token), then deploy. The code runs without Redis when it is unreachable, so a wrong token degrades to the old behaviour, not to an outage.
 
+## Revision 2026-11-15 (b) - Redis off on the preview
+
+**Owner decision (2026-11-15):** the preview Worker no longer uses Redis (`REDIS_CACHE_ENABLED=false`, its REST URL and `cf-preview` prefix removed from `wrangler.jsonc`), so Production gets the whole Free quota of 500,000 commands a month. The preview falls back to Postgres reads and in-memory rate limits, which is the documented fallback. The "Shared quota" point of the revision above no longer applies; the production-only prefix and guards stay.
+

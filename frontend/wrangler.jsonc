@@ -34,9 +34,8 @@
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "NEXT_PUBLIC_APP_ENV": "staging",
-        "REDIS_CACHE_ENABLED": "true",
-        "REDIS_REST_URL": "https://alert-bedbug-148148.upstash.io",
-        "REDIS_KEY_ENV": "cf-preview",
+        // Redis is OFF on the preview (owner decision 2026-11-15): the whole Free command quota goes to production.
+        "REDIS_CACHE_ENABLED": "false",
         // R2 (stage 2): the acceptance private bucket only. R2_ACCOUNT_ID comes from the
         // deploy workflow; the bucket-scoped keys and SUPABASE_SERVICE_ROLE_KEY are Worker secrets.
         "R2_STORAGE_ENABLED": "true",
