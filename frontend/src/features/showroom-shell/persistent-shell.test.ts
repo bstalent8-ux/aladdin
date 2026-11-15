@@ -37,7 +37,7 @@ describe("Showroom navigation shares one persistent layout", () => {
   it("no Showroom sign-in/up page lives inside the workspace shell: they were retired (ADR-0025) and no longer redirect either", () => {
     const outside = readdirSync(join(APP, "showroom"));
     expect(outside).not.toContain("home");
-    // The public entry pages are gone as route segments and as redirects: the old URLs answer 404.
+    // The public entry pages are gone as route segments and as redirects: the old URLs are no pages (a logged-out visitor on /showroom/* is sent to /auth/sign-in by the guard).
     const config = readFileSync(join(APP, "..", "..", "next.config.ts"), "utf8");
     expect(config).not.toContain('source: "/showroom/sign-in"');
     expect(config).not.toContain('source: "/showroom/sign-up"');
