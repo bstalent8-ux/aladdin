@@ -96,7 +96,7 @@ describe("Cloudflare production config (committed Wrangler files)", () => {
   it("runs Redis in production only with the REST URL, the production key prefix and a required token secret", () => {
     const on = frontendConfig();
     expect(on.env.production.vars.REDIS_CACHE_ENABLED).toBe("true");
-    expect(on.env.production.secrets.required).toContain("REDIS_REST_TOKEN");
+    expect((on.env.production.secrets as { required: string[] }).required).toContain("REDIS_REST_TOKEN");
     expect(checkFrontend(on)).toEqual([]);
 
     const wrongPrefix = frontendConfig();
@@ -108,7 +108,8 @@ describe("Cloudflare production config (committed Wrangler files)", () => {
     expect(checkFrontend(noUrl).some((p) => p.includes("REDIS_REST_URL"))).toBe(true);
 
     const noToken = frontendConfig();
-    noToken.env.production.secrets.required = noToken.env.production.secrets.required.filter((n: string) => n !== "REDIS_REST_TOKEN");
+    const secrets = noToken.env.production.secrets as { required: string[] };
+    secrets.required = secrets.required.filter((n) => n !== "REDIS_REST_TOKEN");
     expect(checkFrontend(noToken).some((p) => p.includes("REDIS_REST_TOKEN"))).toBe(true);
 
     const unset = frontendConfig();
