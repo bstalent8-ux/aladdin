@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 05 — bulk import foundation
--- (20261112100005_marketplace_bulk_import_foundation.sql).
+-- (20261116100005_marketplace_bulk_import_foundation.sql).
 --
 --   A. SHAPE        — RLS, no client writes, worker functions service-only, FKs.
 --   B. JOBS         — ownership, idempotent creation, seller gate, cross-tenant create.

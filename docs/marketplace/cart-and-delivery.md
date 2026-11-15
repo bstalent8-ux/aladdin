@@ -21,7 +21,7 @@ Let a buyer collect real, published Marketplace products in a cart, see what del
 
 ## What was built
 
-**Database** — `supabase/migrations/20261112100012_marketplace_delivery_and_cart.sql`
+**Database** — `supabase/migrations/20261116100012_marketplace_delivery_and_cart.sql`
 
 - `public.marketplace_delivery_rates (seller_organization_id, governorate_key, area_key null = governorate default, fee_egp null | 0…100000)`; unique per `(showroom, governorate, area)`; RLS on, member + staff `SELECT` only, **no client write grant**. Keys are validated against `app.place_governorates` / `app.place_cities` (the same catalogue as the rest of the platform).
 - `marketplace_seller_delivery_get(org)` → `{rates, pickup_available}` (reader; a rate's `fee_egp` is null until priced), `marketplace_seller_delivery_areas_save(org, places)` (WHERE: replaces the set of places, atomic; a place that stays keeps its price, a new one starts unpriced, one left out is removed), `marketplace_seller_delivery_prices_save(org, prices)` (WHAT: sets prices only for places already covered, null clears one, unlisted places keep theirs, atomic; a place that is not covered is refused `mp:delivery_area_unknown`), `marketplace_seller_pickup_set(org, enabled)` — all writers; refusals `mp:delivery_invalid | _too_many | _fee_invalid:<row> | _location_invalid:<place> | _duplicate:<place> | _area_unknown:<place>`. Authenticated only, `SECURITY DEFINER`, empty `search_path`, same standing checks as every seller write (member with catalogue authority, enabled seller).

@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 09 — catalog launch
--- (20261112100009_marketplace_catalog_launch.sql).
+-- (20261116100009_marketplace_catalog_launch.sql).
 --
 --   A. SHAPE         grants: admin RPCs authenticated, public page anon, image ref service-only.
 --   B. SELLERS       admin overview needs a seller permission; counts are per organization.

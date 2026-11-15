@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 01 — product taxonomy + dynamic attribute definitions
--- (20261112100001_marketplace_taxonomy_and_attributes.sql).
+-- (20261116100001_marketplace_taxonomy_and_attributes.sql).
 --
 -- What must stay true, and the failure each section exists to prevent:
 --   A. SHAPE        — the five tables exist, RLS is ON, keys are unique and shaped.

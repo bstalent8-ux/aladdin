@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 03 — inventory
--- (20261112100003_marketplace_inventory.sql).
+-- (20261116100003_marketplace_inventory.sql).
 --
 -- Sections, and the failure each one exists to prevent:
 --   A. SHAPE        — three tables, RLS on, SELECT-only grants, nothing for anon,

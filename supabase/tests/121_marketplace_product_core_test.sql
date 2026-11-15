@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 02 — product core
--- (20261112100002_marketplace_product_core.sql).
+-- (20261116100002_marketplace_product_core.sql).
 --
 -- Sections, and the failure each one exists to prevent:
 --   A. SHAPE        — five tables, RLS on, SELECT-only grants, nothing for anon.

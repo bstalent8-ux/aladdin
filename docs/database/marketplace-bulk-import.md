@@ -1,6 +1,6 @@
 # Marketplace bulk import — database foundation (Migration 05)
 
-**Status:** database foundation implemented and tested locally (`supabase/migrations/20261112100005_marketplace_bulk_import_foundation.sql`, tests `124_marketplace_bulk_import_test.sql`). **No file parser, worker or upload exists yet.** Nothing here can publish a product.
+**Status:** database foundation implemented and tested locally (`supabase/migrations/20261116100005_marketplace_bulk_import_foundation.sql`, tests `124_marketplace_bulk_import_test.sql`). **No file parser, worker or upload exists yet.** Nothing here can publish a product.
 
 ## What it is
 

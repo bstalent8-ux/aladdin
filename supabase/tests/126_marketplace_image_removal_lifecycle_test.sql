@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace image removal lifecycle on the central media system
--- (20261112100007_marketplace_image_removal_lifecycle.sql + 20261112100013_marketplace_media.sql).
+-- (20261116100007_marketplace_image_removal_lifecycle.sql + 20261116100013_marketplace_media.sql).
 --
 --   A. SHAPE        — image RPCs definer / empty search_path / authenticated-only; no storage bucket or policy.
 --   B. PHASE 1      — mark for removal: row kept, hidden everywhere, primary promoted, idempotent.

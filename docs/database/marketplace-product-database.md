@@ -11,11 +11,11 @@ The database foundation of the public, direct-price **B2C Marketplace** (ADR-002
 
 | # | Migration | Domain | State |
 |---|---|---|---|
-| 01 | `20261112100001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
-| 02 | `20261112100002_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
-| 03 | `20261112100003_marketplace_inventory.sql` | Inventory | applied + tested locally (isolated Supabase) |
-| 04 | `20261112100004_marketplace_seller_enablement_and_catalog.sql` | Seller enablement · Publication · Safe public catalog | applied + tested locally (isolated Supabase) |
-| 05 | `20261112100005_marketplace_bulk_import_foundation.sql` | Bulk import foundation (jobs, staging rows/assets, findings, trusted worker functions) | applied + tested locally (isolated Supabase) |
+| 01 | `20261116100001_marketplace_taxonomy_and_attributes.sql` | Taxonomy + dynamic attribute definitions | applied + tested locally (isolated Supabase) |
+| 02 | `20261116100002_marketplace_product_core.sql` | Products & sellers · Attribute values · Images | applied + tested locally (isolated Supabase) |
+| 03 | `20261116100003_marketplace_inventory.sql` | Inventory | applied + tested locally (isolated Supabase) |
+| 04 | `20261116100004_marketplace_seller_enablement_and_catalog.sql` | Seller enablement · Publication · Safe public catalog | applied + tested locally (isolated Supabase) |
+| 05 | `20261116100005_marketplace_bulk_import_foundation.sql` | Bulk import foundation (jobs, staging rows/assets, findings, trusted worker functions) | applied + tested locally (isolated Supabase) |
 
 Product types are **rows, not an enum**. Adding paints, doors, flooring, curtains or posters is an `INSERT` plus field mappings — no structural change.
 
@@ -121,7 +121,7 @@ Full design, idempotency model, image matching and worker contract: [`marketplac
 
 > **Image storage superseded by Migration 13:** there is no `marketplace-product-images` bucket and no storage policy any more; photos live in the central media system (R2). The image RPCs below keep their names and grants.
 
-`20261112100006_marketplace_seller_product_writes.sql`. The write layer the seller UI uses — no client gains a table write grant.
+`20261116100006_marketplace_seller_product_writes.sql`. The write layer the seller UI uses — no client gains a table write grant.
 
 | RPC (authenticated) | Purpose |
 |---|---|
@@ -137,7 +137,7 @@ Every write re-checks: authenticated caller, active member with `catalog.write` 
 
 > **Storage steps superseded by Migration 13:** phase 2 is now `removeMedia` (R2 original + variants, records `cleaned_at`) and phase 3 checks that receipt instead of `storage.objects`. The two-phase design below still holds.
 
-`20261112100007_marketplace_image_removal_lifecycle.sql`. Fixes a defect found by the Migration 06 audit: `marketplace_seller_image_remove` deleted the image row at once, but Supabase Storage reads an object *as the caller* before deleting it, and that read (`marketplace_images_select_member`) needs the very row that had just been deleted — so the bytes were refused and stayed in the private bucket forever (and the app ignored the failure).
+`20261116100007_marketplace_image_removal_lifecycle.sql`. Fixes a defect found by the Migration 06 audit: `marketplace_seller_image_remove` deleted the image row at once, but Supabase Storage reads an object *as the caller* before deleting it, and that read (`marketplace_images_select_member`) needs the very row that had just been deleted — so the bytes were refused and stayed in the private bucket forever (and the app ignored the failure).
 
 **Two-phase removal; the authorising row outlives the bytes.**
 
@@ -171,7 +171,7 @@ A row-less object is **not** deletable by any seller (the select policy needs a 
 Tests: `126_marketplace_image_removal_lifecycle_test.sql` (73), `marketplace_image_removal_api_test.mjs` (59, real Storage HTTP; asserts the object is gone from the API, `storage.objects` **and** a service-role GET), `image-removal.test.ts`, `image-signature.test.ts`; `47_` now names two `storage.objects` readers (confirm: bytes exist; finalize: bytes gone).
 ## Migration 08 — product-type expansion (fifteen approved types)
 
-`20261112100008_marketplace_product_types_expansion.sql`. Migration 01 seeded six types; the approved catalogue is fifteen. This migration adds the other nine **as data only** (categories, types, field definitions, options, type → field mappings) — no table, column, constraint, policy, grant, function or trigger changes, so Migration 01's security model (public read of ACTIVE rows, no client write grant) applies unchanged. The seller form, readiness blockers and import read a type's fields from these rows, so no code change is needed.
+`20261116100008_marketplace_product_types_expansion.sql`. Migration 01 seeded six types; the approved catalogue is fifteen. This migration adds the other nine **as data only** (categories, types, field definitions, options, type → field mappings) — no table, column, constraint, policy, grant, function or trigger changes, so Migration 01's security model (public read of ACTIVE rows, no client write grant) applies unchanged. The seller form, readiness blockers and import read a type's fields from these rows, so no code change is needed.
 
 | Category | Types (Arabic · key) |
 |---|---|
@@ -188,7 +188,7 @@ Each new type has a required product-level field, a required variant-level field
 The Arabic name for skirting is stored as **وزرة** (the standard word; the brief wrote "وزر") — a one-row `update` away if the platform prefers otherwise. Tests: `127_marketplace_product_type_expansion_test.sql` (38: catalogue, schema sanity, unchanged security, and a complete draft saved through the seller RPC for every new type); `90_` counts updated (7 categories, 15 types, 24 colours).
 ## Migration 13 — product photos on the central media system (R2)
 
-`20261112100013_marketplace_media.sql`. Owner decision (2026-11-01): no application file bytes in Supabase Storage. Marketplace photos join the central media system the same way `20261107090005` brought purchase-request photos and verification documents in: a new namespace `marketplace`, and each central function (`media_metadata`, `media_storage_resolve`, `organization_media_resolve`, `media_storage_reserve`, `media_storage_attest`, `media_storage_key_for`, `media_cleanup_candidates`, `media_cleanup_retire`, `media_edge_authorize`) is re-created from its current definition with one added branch — no signature, owner, search_path or grant change, and the other namespaces behave exactly as before.
+`20261116100013_marketplace_media.sql`. Owner decision (2026-11-01): no application file bytes in Supabase Storage. Marketplace photos join the central media system the same way `20261107090005` brought purchase-request photos and verification documents in: a new namespace `marketplace`, and each central function (`media_metadata`, `media_storage_resolve`, `organization_media_resolve`, `media_storage_reserve`, `media_storage_attest`, `media_storage_key_for`, `media_cleanup_candidates`, `media_cleanup_retire`, `media_edge_authorize`) is re-created from its current definition with one added branch — no signature, owner, search_path or grant change, and the other namespaces behave exactly as before.
 
 | Step | Path |
 |---|---|

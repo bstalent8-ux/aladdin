@@ -1,6 +1,6 @@
 {
- "version": "20261112100007",
- "source": "Exact function permission contract after 20261112100007_marketplace_image_removal_lifecycle.sql (Marketplace, ADR-0028; generated from the local stack with scripts/function-permissions.sql).",
+ "version": "20261116100006",
+ "source": "Exact function permission contract after 20261116100006_marketplace_seller_product_writes.sql (Marketplace, ADR-0028; generated from the local stack with scripts/function-permissions.sql).",
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.marketplace_public_catalog(text,text,integer,integer)",
@@ -21270,43 +21270,6 @@
     "supabase_auth_admin": false,
     "supabase_storage_admin": false
    },
-   "signature": "public.marketplace_seller_image_remove_finalize(uuid)",
-   "schemaUsage": {
-    "anon": true,
-    "service_role": true,
-    "authenticated": true,
-    "authenticator": true,
-    "dashboard_user": true,
-    "supabase_auth_admin": true,
-    "supabase_storage_admin": true
-   }
-  },
-  {
-   "kind": "f",
-   "owner": "postgres",
-   "config": [
-    "search_path=\"\""
-   ],
-   "grants": [
-    {
-     "role": "authenticated",
-     "grantable": false
-    },
-    {
-     "role": "postgres",
-     "grantable": false
-    }
-   ],
-   "definer": true,
-   "effective": {
-    "anon": false,
-    "service_role": false,
-    "authenticated": true,
-    "authenticator": false,
-    "dashboard_user": false,
-    "supabase_auth_admin": false,
-    "supabase_storage_admin": false
-   },
    "signature": "public.marketplace_seller_image_remove(uuid)",
    "schemaUsage": {
     "anon": true,
@@ -21345,43 +21308,6 @@
     "supabase_storage_admin": false
    },
    "signature": "public.marketplace_seller_image_request_upload(uuid,text,uuid)",
-   "schemaUsage": {
-    "anon": true,
-    "service_role": true,
-    "authenticated": true,
-    "authenticator": true,
-    "dashboard_user": true,
-    "supabase_auth_admin": true,
-    "supabase_storage_admin": true
-   }
-  },
-  {
-   "kind": "f",
-   "owner": "postgres",
-   "config": [
-    "search_path=\"\""
-   ],
-   "grants": [
-    {
-     "role": "authenticated",
-     "grantable": false
-    },
-    {
-     "role": "postgres",
-     "grantable": false
-    }
-   ],
-   "definer": true,
-   "effective": {
-    "anon": false,
-    "service_role": false,
-    "authenticated": true,
-    "authenticator": false,
-    "dashboard_user": false,
-    "supabase_auth_admin": false,
-    "supabase_storage_admin": false
-   },
-   "signature": "public.marketplace_seller_images_pending_removal(uuid)",
    "schemaUsage": {
     "anon": true,
     "service_role": true,

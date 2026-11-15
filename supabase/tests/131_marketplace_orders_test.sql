@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 14 — checkout, orders and showroom payment methods
--- (20261112100014_marketplace_orders.sql).
+-- (20261116100014_marketplace_orders.sql).
 --
 --   A. SHAPE       RPC-only tables, authenticated-only RPCs, append-only timeline.
 --   B. SETTINGS    only an org.manage member saves payment methods; InstaPay needs address, name, deposit.

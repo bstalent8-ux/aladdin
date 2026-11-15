@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 04 — seller enablement, publication, safe public catalog
--- (20261112100004_marketplace_seller_enablement_and_catalog.sql).
+-- (20261116100004_marketplace_seller_enablement_and_catalog.sql).
 --
 -- Sections, and the failure each one exists to prevent:
 --   A. SHAPE         — RLS on, no client writes, anon holds nothing on tables, only the

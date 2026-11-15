@@ -1,7 +1,7 @@
 # Marketplace checkout, orders and showroom payment methods
 
 Status: built 2026-11-14 on `feat/marketplace` (PR 190), local stack verified. Migration
-`20261112100014_marketplace_orders.sql`, pgTAP `131_marketplace_orders_test.sql`.
+`20261116100014_marketplace_orders.sql`, pgTAP `131_marketplace_orders_test.sql`.
 
 ## What the owner decided
 

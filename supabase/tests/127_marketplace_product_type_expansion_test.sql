@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 08 — product-type expansion
--- (20261112100008_marketplace_product_types_expansion.sql).
+-- (20261116100008_marketplace_product_types_expansion.sql).
 --
 --   A. CATALOGUE    — the fifteen approved types, bilingual, in the approved order, under the
 --                     right categories; the nine new ones are complete and well-formed.

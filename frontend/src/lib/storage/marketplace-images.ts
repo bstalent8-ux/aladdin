@@ -1,7 +1,7 @@
 /**
  * The Marketplace product-image contract (ADR-0028), following `product-images.ts`: a fast,
  * honest answer before anything uploads. It is NOT the authority — the `marketplace` media
- * namespace (20261112100013_marketplace_media.sql) and its receipt/resolver functions decide.
+ * namespace (20261116100013_marketplace_media.sql) and its receipt/resolver functions decide.
  * Photos are R2-only: there is no Supabase Storage bucket; `MARKETPLACE_IMAGE_BUCKET` is the
  * logical namespace name the image rows record.
  *

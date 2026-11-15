@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 06 — trusted seller product writes
--- (20261112100006_marketplace_seller_product_writes.sql).
+-- (20261116100006_marketplace_seller_product_writes.sql).
 --
 --   A. SHAPE        — definer functions, authenticated-only EXECUTE, no storage bucket, no grants.
 --   B. CREATE       — an approved seller saves a draft with variants and dynamic attributes.

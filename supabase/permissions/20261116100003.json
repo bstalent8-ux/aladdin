@@ -1,6 +1,6 @@
 {
- "version": "20261112100003",
- "source": "Exact function permission contract after 20261112100003_marketplace_inventory.sql (Marketplace, ADR-0028; generated from the local stack with scripts/function-permissions.sql).",
+ "version": "20261116100003",
+ "source": "Exact function permission contract after 20261116100003_marketplace_inventory.sql (Marketplace, ADR-0028; generated from the local stack with scripts/function-permissions.sql).",
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.media_storage_resolve(text,text,text)",

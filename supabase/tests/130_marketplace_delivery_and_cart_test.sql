@@ -1,5 +1,5 @@
 -- pgTAP: Marketplace Migration 12 — delivery prices by area + the public cart read
--- (20261112100012_marketplace_delivery_and_cart.sql).
+-- (20261116100012_marketplace_delivery_and_cart.sql).
 --
 --   A. SHAPE     — table RLS / no client write grant; the three functions' privileges.
 --   B. SAVE      — a showroom chooses WHERE it delivers (areas) and WHAT it charges there (prices): validation, atomicity.
