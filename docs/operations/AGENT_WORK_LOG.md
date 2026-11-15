@@ -7595,6 +7595,13 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Responsive tiers: desktop tree >= 701px (tablet rules at <= 1100 and <= 960: burger nav, hero grid, 2-column roles, 3-up carousel, scrolling chips), mobile tree <= 700px (2-column services/why and stacked experience card at <= 480, 2.3-card carousel). Checked 320-2560px, no horizontal overflow.
 - Landing root sets `lang="ar" dir="rtl"` itself. No migration, secret, R2 or deployment change.
 
+## 2026-11-15 - Redis enabled for Production in config (agent)
+
+- Owner approved Redis for Production, sharing the preview's Upstash database (decision recorded in ADR-0019, Revision 2026-11-15). Done in config only: production vars `REDIS_CACHE_ENABLED=true`, `REDIS_REST_URL`, `REDIS_KEY_ENV=production`; `REDIS_REST_TOKEN` added to `secrets.required`. The production guard script and its tests changed from "Redis must stay off" to "Redis on needs the REST URL, the `production` prefix and the secret"; `redis-guards.test.ts` now expects exactly the preview and production blocks to be on, with different key prefixes.
+- Not done (needs the owner): set the Worker secret `REDIS_REST_TOKEN` for `--env production` (I have no Upstash or Worker-secret access), then deploy and promote. Verify with `/api/health` (`cache: ok`).
+- Related: the landing counts cache (memory, data-centre cache, Redis, database) is a separate PR; the code works with Redis off.
+
+
 ## 2026-11-15 - Legacy URLs and retired entry redirects removed (agent)
 
 - Cause investigated: some visitors saw `ERR_QUIC_PROTOCOL_ERROR` or slow loads. Cloudflare, DNS, certificates and GitHub were healthy; Worker errors 0. Measured on the production Worker (Observability, 6 h): `GET /` used more than 300 ms CPU in 42% of 283 requests and over 1 s wall time in 19%; the three landing-stats count queries themselves run in 0.2-3.8 ms (tables are tiny), so they are not the slow part. A fresh isolate still queries Supabase for them, which a shared cache (Redis, ADR-0019) would avoid; that change is on branch `fix/landing-stats-shared-cache-20261115`, not merged, and Redis stays off in Production.

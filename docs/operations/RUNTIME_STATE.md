@@ -1,3 +1,10 @@
+## Redis moved from preview to production only (draft PR, not deployed) - 2026-11-15
+- Owner decision: preview `REDIS_CACHE_ENABLED=false`; only production uses Redis (whole 500,000 commands a month). The live preview keeps its current Redis settings until a version with this config is deployed. Preview acceptance runs then exercise the in-memory / Postgres fallback, not Redis.
+
+## Redis enabled for Production (draft PR, not deployed) - 2026-11-15
+- Owner-approved. `frontend/wrangler.jsonc` production: `REDIS_CACHE_ENABLED=true`, `REDIS_REST_URL=https://alert-bedbug-148148.upstash.io` (the preview's database), `REDIS_KEY_ENV=production`; `REDIS_REST_TOKEN` joins `secrets.required`. The Production Worker does NOT have the secret yet: a deploy is refused until the owner runs `wrangler secret put REDIS_REST_TOKEN --env production` (normal read-write token).
+- Live Production is unchanged until a version with this config is deployed and promoted. Budget: the 500,000 commands a month are shared with the preview. Rollback: `REDIS_CACHE_ENABLED=false`.
+
 ## Legacy URLs blocked at Cloudflare; retired entry redirects removed (draft PR) - 2026-11-15
 - Production Cloudflare zone `aladdindecore.com` has 1 custom WAF rule, "Block legacy website paths" (Block, active, first): the old site's `/b2b_web_site/`, `/b2c/accounts/`, `/uploads/albums_images/`, `/b2b/api/uptime-home`, and the retired `/installer/`, `/temporary/craftsman/`, `/showroom/sign-*` URLs answer 403 at the edge. Bot Fight Mode is off. Undo: delete or disable the rule.
 - Branch `chore/remove-retired-entry-redirects-20261115` removes the six redirects for the retired entry pages from `next.config.ts` (they 404 once deployed). Not merged, not deployed; Acceptance and Production still redirect until then.
