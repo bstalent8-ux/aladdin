@@ -17,7 +17,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
 import { VerificationHistory } from "@/features/admin/verification-history";
-import { canStartVerification, hasUnappliedProfessionalApproval, isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { canStartVerification, findUnappliedProfessionalApproval, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
 import { SuspensionAction, SuspensionBanner } from "@/features/admin-ops/suspension";
@@ -89,6 +89,8 @@ export default async function PreviewUserDetailPage({
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
+  // An approval recorded but never applied (any account status): offer ONLY "Complete approval" for that exact request.
+  const unappliedApproval = openRequest ? null : findUnappliedProfessionalApproval(user);
   const canPoints = can(access, "points.read");
   const canAudit = can(access, "audit.read");
   const typeLabels = m.accountType as Record<string, string>;
@@ -179,8 +181,14 @@ export default async function PreviewUserDetailPage({
               {platform.viewOnPlatform}
             </span>
           )}
-          {can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification || canStartVerification(user)) ? (
-            <UserVerificationControls subjectId={user.id} pending={pendingVerification} canInitiate={canStartVerification(user) || hasUnappliedProfessionalApproval(user)} />
+          {can(access, "users.verify") && unappliedApproval ? (
+            <UserVerificationControls
+              subjectId={user.id}
+              pending={{ id: unappliedApproval.id, status: unappliedApproval.status, verificationType: unappliedApproval.verificationType }}
+              recovery
+            />
+          ) : can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification || canStartVerification(user)) ? (
+            <UserVerificationControls subjectId={user.id} pending={pendingVerification} canInitiate={canStartVerification(user)} />
           ) : null}
           {canSuspend && user.status !== "deactivated" ? (
             <SuspensionAction m={m} subjectType="user" subjectId={user.id} suspended={user.status === "suspended"} />

@@ -172,11 +172,30 @@ describe("User Details - real Verify / Reject", () => {
     expect(approve()[0]!.getAttribute("aria-disabled")).toBe("true");
   });
 
-  it("offers Approve again when a request was approved but its apply step never completed (recovery resumes the same request)", async () => {
-    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", accountType: null, verifications: [open("approved")] }) });
+  const resume = () => screen.queryAllByRole("button", { name: /complete approval/i });
+  const reject = () => screen.queryAllByRole("button", { name: /^reject$/i });
+
+  it.each(["pending_verification", "active"])("RECOVERY (%s account): an approved-but-unapplied request offers only Complete approval", async (status) => {
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: status as AdminUserDetail["status"], accountType: null, verificationState: "verified", verifications: [open("approved")] }) });
     await renderPage(ORDINARY_ID);
-    expect(approve()).toHaveLength(1);
-    expect(approve()[0]!.getAttribute("aria-disabled")).toBeNull();
+    expect(resume()).toHaveLength(1);
+    expect(reject()).toHaveLength(0);
+    expect(approve().filter((b) => /^approve$/i.test(b.textContent?.trim() ?? ""))).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /start verification/i })).toBeNull();
+  });
+
+  it("RECOVERY is hidden without users.verify", async () => {
+    requireAdminRoute.mockResolvedValue(acc(50, ["users.read"]));
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "active", accountType: null, verifications: [open("approved")] }) });
+    await renderPage(ORDINARY_ID);
+    expect(resume()).toHaveLength(0);
+  });
+
+  it("an open request wins over recovery (normal Approve / Reject)", async () => {
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", accountType: null, verifications: [open("submitted"), open("approved", "professional", "99999999-9999-4999-8999-999999999998")] }) });
+    await renderPage(ORDINARY_ID);
+    expect(resume()).toHaveLength(0);
+    expect(reject()).toHaveLength(1);
   });
 
   it("ignores business verification (its own queue) and decided requests", async () => {

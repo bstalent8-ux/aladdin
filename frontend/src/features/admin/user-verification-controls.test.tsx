@@ -63,4 +63,18 @@ describe("UserVerificationControls", () => {
     expect(screen.queryByRole("button", { name: "Start verification" })).toBeNull();
     expect(screen.getAllByRole("button", { name: /Approve/ })[0]?.getAttribute("aria-disabled")).toBe("true");
   });
+  it("RECOVERY offers ONLY \"Complete approval\" for the exact approved request: no Reject, no Start, no listing choice", () => {
+    render(
+      <I18nProvider locale="en" dir="ltr">
+        <UserVerificationControls subjectId="u1" pending={{ id: "99999999-9999-4999-8999-999999999999", status: "approved", verificationType: "professional" }} recovery />
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Reject" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start verification/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Complete approval" }));
+    expect((document.querySelector('input[name="id"]') as HTMLInputElement).value).toBe("99999999-9999-4999-8999-999999999999");
+    expect(document.querySelector('input[name="subjectType"]')).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
 });

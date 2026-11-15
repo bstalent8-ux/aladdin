@@ -42,6 +42,7 @@ beforeEach(() => {
   rpc.mockReset();
   rpc.mockResolvedValue({ data: null, error: null });
   maybeSingle.mockReset();
+  maybeSingle.mockResolvedValue({ data: null, error: null }); // default: no approved-unapplied request, no target
   query.is.mockClear();
   query.eq.mockClear();
   revalidatePath.mockClear();
@@ -242,33 +243,66 @@ describe("one-click decisions on an account with NO request", () => {
     expect(rpc).toHaveBeenCalledWith("admin_initiate_verification", { p_subject_type: "user", p_subject_id: SUBJECT });
   });
 
-  it("RECOVERY: an approved-but-unapplied request is resumed (no new request is filed) and apply runs once more", async () => {
-    maybeSingle
-      .mockResolvedValueOnce({ data: { id: ID }, error: null }) // the approved, un-applied request of this account
-      .mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null }); // loadDecisionTarget
-    const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
-    expect(res).toEqual({ ok: true, code: "admin.review.approved" });
-    expect(calls()).toEqual(["review_approve", "apply_account_upgrade"]); // never admin_initiate_verification, never review_start
-    expect(query.is).toHaveBeenCalledWith("applied_at", null);
-    expect(query.eq).toHaveBeenCalledWith("status", "approved");
-  });
+  describe("RECOVERY: an approved request whose apply step never completed", () => {
+    const lookup = (value: unknown) => maybeSingle.mockResolvedValueOnce(value);
 
-  it("RECOVERY applies to an organization the same way (no duplicate request, audit or notification)", async () => {
-    maybeSingle
-      .mockResolvedValueOnce({ data: { id: ID }, error: null })
-      .mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
-    const res = await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }));
-    expect(res.ok).toBe(true);
-    expect(calls()).toEqual(["review_approve", "apply_organization_verification"]);
-    expect(query.eq).toHaveBeenCalledWith("organization_id", SUBJECT);
-  });
+    it("Approve resumes the EXACT approved request: no new request, no start, approve then apply", async () => {
+      lookup({ data: { id: ID }, error: null });
+      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null });
+      const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+      expect(res).toEqual({ ok: true, code: "admin.review.approved" });
+      expect(calls()).toEqual(["review_approve", "apply_account_upgrade"]);
+      expect(rpc).toHaveBeenCalledWith("review_approve", { p_verification_id: ID, p_grant_public_listing: false });
+      expect(rpc).toHaveBeenCalledWith("apply_account_upgrade", { p_verification_id: ID });
+      expect(query.is).toHaveBeenCalledWith("applied_at", null);
+      expect(query.eq).toHaveBeenCalledWith("status", "approved");
+      expect(query.eq).toHaveBeenCalledWith("user_id", SUBJECT);
+    });
 
-  it("Reject never takes the recovery path", async () => {
-    filed();
-    target("submitted");
-    await rejectVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
-    expect(query.is).not.toHaveBeenCalled();
-    expect(calls()[0]).toBe("admin_initiate_verification");
+    it("works the same for an organization", async () => {
+      lookup({ data: { id: ID }, error: null });
+      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
+      const res = await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }));
+      expect(res.ok).toBe(true);
+      expect(calls()).toEqual(["review_approve", "apply_organization_verification"]);
+      expect(query.eq).toHaveBeenCalledWith("organization_id", SUBJECT);
+    });
+
+    it("an unauthorized reviewer is refused by review_approve BEFORE apply runs (no duplicate side effects)", async () => {
+      lookup({ data: { id: ID }, error: null });
+      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null });
+      rpc.mockImplementation(async (fn: string) => (fn === "review_approve" ? { data: null, error: { message: "only the assigned reviewer may confirm approval" } } : { data: null, error: null }));
+      const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+      expect(res).toEqual({ ok: false, code: "admin.review.error.otherReviewer" });
+      expect(calls()).toEqual(["review_approve"]);
+    });
+
+    it("an authorized reviewer's repeated resume is a no-op for approve and apply", async () => {
+      for (let i = 0; i < 2; i += 1) {
+        lookup({ data: { id: ID }, error: null });
+        maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null });
+        expect((await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).ok).toBe(true);
+      }
+      expect(calls().filter((c) => c === "admin_initiate_verification" || c === "review_start")).toEqual([]);
+    });
+
+    it("FAILS CLOSED when the lookup errors: nothing is filed, started, approved or applied", async () => {
+      lookup({ data: null, error: { message: "boom" } });
+      expect(await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).toEqual({ ok: false, code: "states.genericRetry" });
+      lookup({ data: null, error: { message: "boom" } });
+      expect(await rejectVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }))).toEqual({ ok: false, code: "states.genericRetry" });
+      lookup({ data: null, error: { message: "boom" } });
+      expect((await adminInitiateVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).ok).toBe(false);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("Reject and Start are refused while an approved-unapplied request exists (recovery offers Approve only)", async () => {
+      lookup({ data: { id: ID }, error: null });
+      expect(await rejectVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT, reason: "x" }))).toEqual({ ok: false, code: "admin.review.error.state" });
+      lookup({ data: { id: ID }, error: null });
+      expect(await adminInitiateVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }))).toEqual({ ok: false, code: "admin.review.error.state" });
+      expect(rpc).not.toHaveBeenCalled();
+    });
   });
 
   it("Reject files the request and rejects it with NO reason", async () => {

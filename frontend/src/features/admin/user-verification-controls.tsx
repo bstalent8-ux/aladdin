@@ -29,6 +29,7 @@ export function UserVerificationControls({
   compact = false,
   subjectType = "user",
   canInitiate = false,
+  recovery = false,
 }: {
   /** The user or organization the request belongs to; only used to keep element ids unique. */
   subjectId: string;
@@ -38,12 +39,36 @@ export function UserVerificationControls({
   subjectType?: "user" | "organization";
   /** The caller may start a verification for this subject (the database re-checks authority and eligibility). */
   canInitiate?: boolean;
+  /**
+   * RECOVERY: the request is already APPROVED but its apply step never completed. Only "Complete approval" is offered
+   * (it resumes this exact request with its id); never Reject and never a new verification.
+   */
+  recovery?: boolean;
 }) {
   const { t } = useI18n();
   // Public listing is the reviewer's explicit choice (ADR-0007 D14), only meaningful for a professional upgrade.
   // Ticked by default = the Verifications queue's behaviour; the dialog says what it does and nothing is hidden.
   const [listPublicly, setListPublicly] = useState(false);
-  const offersListing = pending ? pending.verificationType === "professional" : subjectType === "user";
+  const offersListing = recovery ? false : pending ? pending.verificationType === "professional" : subjectType === "user";
+
+  if (recovery && pending) {
+    return (
+      <ConfirmDialog
+        trigger={t("admin.review.resume")}
+        triggerVariant="accent"
+        triggerIcon={compact ? <CheckIcon size={16} /> : undefined}
+        triggerIconOnly={compact}
+        triggerTone="success"
+        title={t("admin.review.resumeTitle")}
+        body={t("admin.review.resumeBody")}
+        confirmLabel={t("admin.review.resume")}
+        confirmVariant="accent"
+        formAction={approveVerificationAction}
+      >
+        <input type="hidden" name="id" value={pending.id} />
+      </ConfirmDialog>
+    );
+  }
 
   if (!pending && !canInitiate) {
     const cls = compact

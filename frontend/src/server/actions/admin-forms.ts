@@ -63,10 +63,32 @@ async function loadDecisionTarget(
  * then decided through the unchanged review_start / review_approve / review_reject steps. An open request is reused,
  * never duplicated. When the form carries a request id it is used as is.
  */
+type ApprovedUnapplied = { found: true; id: string } | { found: false } | { error: true };
+
+/**
+ * The newest request of this subject that is APPROVED but whose apply step never completed. A read error is reported as
+ * an error, never as "none": the callers FAIL CLOSED on it (a lookup failure must never lead to a new request).
+ */
+async function findApprovedUnapplied(supabase: Supa, subjectType: "user" | "organization", subjectId: string): Promise<ApprovedUnapplied> {
+  const res = await supabase
+    .from("verifications")
+    .select("id")
+    .eq("subject_type", subjectType)
+    .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
+    .eq("status", "approved")
+    .is("applied_at", null)
+    .neq("verification_type", "business")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!res || res.error) return { error: true };
+  return res.data?.id ? { found: true, id: res.data.id } : { found: false };
+}
+
 async function resolveVerificationId(
   supabase: Supa,
   fd: FormData,
-  opts: { recoverApproved?: boolean } = {},
+  mode: "approve" | "reject",
 ): Promise<{ id: string } | { code: string }> {
   const id = str(fd, "id");
   if (id) return { id };
@@ -75,23 +97,13 @@ async function resolveVerificationId(
   if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
     return { code: "states.genericRetry" };
   }
-  // RECOVERY (Approve only): a previous Approve may have recorded the decision and then failed before the apply step.
-  // That request is APPROVED but not applied, so it is no longer "open" and filing a new one would duplicate the request,
-  // the audit trail and the owner's notification. Resume the same request instead; approve + apply are idempotent.
-  if (opts.recoverApproved) {
-    const found = await supabase
-      .from("verifications")
-      .select("id")
-      .eq("subject_type", subjectType)
-      .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
-      .eq("status", "approved")
-      .is("applied_at", null)
-      .neq("verification_type", "business")
-      .order("submitted_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (found?.data?.id) return { id: found.data.id };
-  }
+  // RECOVERY: a previous Approve may have recorded the decision and then failed before the apply step. That request is
+  // APPROVED but not applied, so it is no longer "open" and filing a new one would duplicate the request, the audit trail
+  // and the owner's notification. Approve resumes the SAME request (approve and apply are idempotent); Reject is refused
+  // (the recovery offers Approve only). If the lookup itself fails the action stops: it never falls back to a new request.
+  const unapplied = await findApprovedUnapplied(supabase, subjectType, subjectId);
+  if ("error" in unapplied) return { code: "states.genericRetry" };
+  if (unapplied.found) return mode === "approve" ? { id: unapplied.id } : { code: "admin.review.error.state" };
   const { data, error } = await supabase.rpc("admin_initiate_verification", { p_subject_type: subjectType, p_subject_id: subjectId });
   if (error) return { code: mapReviewError(error.message) };
   const state = (data as { state?: unknown; verification_id?: unknown } | null);
@@ -146,7 +158,7 @@ export async function approveVerificationAction(
   fd: FormData,
 ): Promise<ReviewFormState> {
   const supabase = await getServerSupabase();
-  const resolved = await resolveVerificationId(supabase, fd, { recoverApproved: true });
+  const resolved = await resolveVerificationId(supabase, fd, "approve");
   if (!("id" in resolved)) return { ok: false, code: resolved.code };
   const id = resolved.id;
 
@@ -187,7 +199,7 @@ export async function rejectVerificationAction(
   const reason = str(fd, "reason") ?? "";
   if (reason.length > 2000) return { ok: false, code: "admin.review.error.reasonTooLong" };
   const supabase = await getServerSupabase();
-  const resolved = await resolveVerificationId(supabase, fd);
+  const resolved = await resolveVerificationId(supabase, fd, "reject");
   if (!("id" in resolved)) return { ok: false, code: resolved.code };
   const id = resolved.id;
 
@@ -222,6 +234,10 @@ export async function adminInitiateVerificationAction(_p: ReviewFormState, fd: F
   if (reason.length > 500) return { ok: false, code: "admin.review.error.reasonTooLong" };
 
   const supabase = await getServerSupabase();
+  // Never file a NEW request over an approved-but-unapplied one (the Admin resumes it with Approve instead).
+  const unapplied = await findApprovedUnapplied(supabase, subjectType, subjectId);
+  if ("error" in unapplied) return { ok: false, code: "states.genericRetry" };
+  if (unapplied.found) return { ok: false, code: "admin.review.error.state" };
   const { data, error } = await supabase.rpc("admin_initiate_verification", {
     p_subject_type: subjectType,
     p_subject_id: subjectId,
