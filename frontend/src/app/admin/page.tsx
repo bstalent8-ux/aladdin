@@ -59,8 +59,9 @@ export default async function AdminPreviewDashboardPage() {
 
   const totalUsers = Object.values(s.usersByStatus).reduce((a, b) => a + b, 0);
   // Verified = an approved verification, Pending = the review queue (never the raw users.status, which is the account lifecycle).
-  const verifiedUsers = tabs.ok ? tabs.data.counts.verified : 0;
-  const pendingUsers = tabs.ok ? tabs.data.counts.pending : (s.usersByStatus.pending_verification ?? 0);
+  // When the directory read fails the cards show a dash, never a misleading zero or a different (status-based) number.
+  const verifiedUsers: number | string = tabs.ok ? tabs.data.counts.verified : "—";
+  const pendingUsers: number | string = tabs.ok ? tabs.data.counts.pending : "—";
   const suspendedUsers = s.usersByStatus.suspended ?? 0;
   const pendingOrgs = s.orgsByStatus.pending_verification ?? 0;
   const suspendedOrgs = s.orgsByStatus.suspended ?? 0;

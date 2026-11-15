@@ -1302,7 +1302,7 @@ export const ar: Messages = {
         cards: {
           totalUsers: "إجمالي المستخدمين",
           newRegistrations: "تسجيلات هذا الأسبوع",
-          pendingVerification: "بانتظار التوثيق",
+          pendingVerification: "حسابات قيد الانتظار",
           verifiedApproved: "موثّق",
           rejected: "مرفوض",
           suspendedUsers: "مستخدمون موقوفون",
@@ -1387,7 +1387,7 @@ export const ar: Messages = {
         warnings: {
           title: "يحتاج انتباه",
           duplicates: "{count} حسابًا يُحتمل تكرارها",
-          verificationReview: "{count} مستخدمًا بحاجة لمراجعة التوثيق",
+          verificationReview: "{count} حسابًا قيد الانتظار (طلبات توثيق مفتوحة أو تسجيل غير مكتمل)",
           incompleteProfiles: "{count} ملفًا أساسيًا غير مكتمل",
         },
         statusTabs: {

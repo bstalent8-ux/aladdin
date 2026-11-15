@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(80);
+select plan(83);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -241,6 +241,10 @@ select is(app.admin_user_status_tab('active', null), null, 'tab: an active accou
 select is(app.admin_user_status_tab('active', 'submitted'), 'pending', 'tab: an active account with an open request is Pending');
 select is(app.admin_user_status_tab('active', 'approved'), 'verified', 'tab: an active account with an approved verification is Verified');
 select is(app.admin_user_status_tab('deactivated', null), null, 'tab: a deactivated account is under All only');
+-- the active, never-verified Admin account (a1) stays reachable: in All and under the Unverified filter, not in the Verified tab
+select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000a1"}]'::jsonb)::text, 'true', 'directory: an active unverified account is listed under All');
+select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_verification => 'unverified', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000a1"}]'::jsonb)::text, 'true', 'directory: and under the Unverified filter');
+select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'verified', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000a1"}]'::jsonb)::text, 'false', 'directory: but not in the Verified tab');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'verified', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'true', 'directory: the Admin-approved account is in the Verified tab');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'pending', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'false', 'directory: and no longer in the Pending tab');
 select is((select status::text from public.users where id = '13600000-0000-4000-8000-0000000000b2'), 'pending_verification', 'the approval did NOT activate the account (users.status is untouched)');

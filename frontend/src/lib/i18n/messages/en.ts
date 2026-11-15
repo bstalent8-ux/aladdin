@@ -1337,7 +1337,7 @@ export const en = {
         cards: {
           totalUsers: "Total users",
           newRegistrations: "New this week",
-          pendingVerification: "Pending verification",
+          pendingVerification: "Pending accounts",
           verifiedApproved: "Verified",
           rejected: "Rejected",
           suspendedUsers: "Suspended users",
@@ -1422,7 +1422,7 @@ export const en = {
         warnings: {
           title: "Needs attention",
           duplicates: "{count} accounts with a possible duplicate",
-          verificationReview: "{count} users needing verification review",
+          verificationReview: "{count} pending accounts (open verification requests or onboarding not finished)",
           incompleteProfiles: "{count} incomplete critical profiles",
         },
         statusTabs: {
