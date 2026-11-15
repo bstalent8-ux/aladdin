@@ -1041,6 +1041,7 @@ export const en = {
         state: "This request can't move from its current state.",
         reasonRequired: "A reason is required to reject.",
         incompleteProfile: "This showroom's business details are incomplete. The owner must add the phone, activity and address before it can be approved.",
+        incompleteCraftsmanProfile: "This craftsman's profile is no longer 100% complete. They must finish it before the request can be approved.",
       },
     },
     audit: {

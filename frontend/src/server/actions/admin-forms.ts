@@ -25,6 +25,8 @@ function mapReviewError(message: string | undefined): string {
   if (m.includes("another reviewer") || m.includes("assigned reviewer")) return "admin.review.error.otherReviewer";
   // The database refuses to approve a showroom whose business profile is incomplete (phone, activity, address).
   if (m.includes("complete showroom business information")) return "admin.review.error.incompleteProfile";
+  // A Craftsman request cannot be approved while the applicant's profile is below 100% (database guard).
+  if (m.includes("complete the craftsman profile")) return "admin.review.error.incompleteCraftsmanProfile";
   if (m.includes("invalid transition")) return "admin.review.error.state";
   if (m.includes("reason")) return "admin.review.error.reasonRequired";
   return "states.genericRetry";
