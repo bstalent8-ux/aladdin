@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
   // The query string is carried over by Next.js as-is; the destination pages
   // validate anything they read from it (e.g. `next` via sanitizeNext).
   // The retired phone entry pages (`/installer/*`, `/showroom/sign-in|sign-up`, `/temporary/craftsman/*`,
-  // ADR-0025) have no redirect any more. `/installer/*` and `/temporary/*` answer 404; `/showroom/sign-in|sign-up` match the dynamic `/showroom/[page]` route, whose guard sends a logged-out visitor to /auth/sign-in.
+  // ADR-0025) have no redirect any more. all of them answer 404 (the two /showroom ones through route handlers, so the dynamic /showroom/[page] guard never sees them).
   async redirects() {
     return [
       // Showroom V2 was reviewed under /preview/showroom-suite-v2; it now lives at /showroom (links stay valid).

@@ -46,7 +46,7 @@ test.describe("one-field sign in and mobile-number sign up", () => {
     );
   });
 
-  test("the retired phone pages are gone (404; the Showroom guard may send a logged-out visitor to sign-in)", async ({ request }) => {
+  test("the retired phone pages are gone (404 for everyone, no redirect)", async ({ request }) => {
     for (const path of [
       "/installer/sign-in",
       "/installer/sign-up",
@@ -56,14 +56,7 @@ test.describe("one-field sign in and mobile-number sign up", () => {
       "/temporary/craftsman/sign-up",
     ]) {
       const res = await request.get(path, { maxRedirects: 0 });
-      if (path.startsWith("/showroom/")) {
-        // Not a page, but under the dynamic /showroom/[page] route: its layout guard redirects a logged-out visitor to sign-in.
-        if (res.status() === 404) continue;
-        expect([307, 308], path).toContain(res.status());
-        expect(res.headers().location ?? "", path).toMatch(/^(https?:\/\/[^/]+)?\/auth\/sign-in/);
-      } else {
-        expect(res.status(), path).toBe(404);
-      }
+      expect(res.status(), path).toBe(404);
     }
   });
 
