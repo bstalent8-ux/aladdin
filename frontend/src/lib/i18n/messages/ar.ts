@@ -841,7 +841,6 @@ export const ar: Messages = {
     },
     status: {
       pending_verification: "بانتظار التحقق",
-      verified: "موثّق",
       active: "نشط",
       suspended: "موقوف",
       deactivated: "معطّل",

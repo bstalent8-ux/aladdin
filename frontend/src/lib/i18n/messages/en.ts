@@ -876,7 +876,6 @@ export const en = {
     },
     status: {
       pending_verification: "Pending verification",
-      verified: "Verified",
       active: "Active",
       suspended: "Suspended",
       deactivated: "Deactivated",

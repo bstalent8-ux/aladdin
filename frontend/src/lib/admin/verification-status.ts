@@ -39,12 +39,3 @@ export function canStartVerification(u: {
 export function isProfileIncomplete(u: { verificationState: string; completion: number }): boolean {
   return u.verificationState === "verified" && u.completion < 100;
 }
-
-/**
- * The status shown for an account in the Admin UI. An ordinary account stays `pending_verification` after an Admin
- * approves it (approval never activates it), so an APPROVED account would otherwise read "Pending verification" next
- * to Verification "Verified". Display only: users.status is untouched and no authorization depends on this.
- */
-export function displayUserStatus(u: { status: string; verificationState: string }): string {
-  return u.status === "pending_verification" && u.verificationState === "verified" ? "verified" : u.status;
-}
