@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 /** Live product page. A draft, unpublished, archived or suspended-seller product is a plain 404. */
 export default async function MarketplaceProductPage({ params }: { params: Promise<{ slug: string }> }) {
   // Closed Marketplace: every deep link lands on the "coming soon" page.
-  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
+  if (!isMarketplacePreviewEnabled()) redirect("/market");
   const { slug } = await params;
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) notFound();
   const product = await loadPublicProduct(slug);

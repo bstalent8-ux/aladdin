@@ -44,11 +44,11 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
   return (
     <div className={styles.detail}>
       <nav className={styles.crumbs} aria-label={t.back}>
-        <Link href="/marketplace">{t.back}</Link>
+        <Link href="/market">{t.back}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/marketplace?category=${product.category_key}`}>{categoryName}</Link>
+        <Link href={`/market?category=${product.category_key}`}>{categoryName}</Link>
         <span aria-hidden="true">/</span>
-        <Link href={`/marketplace?category=${product.category_key}&type=${product.product_type_key}`}>{typeName}</Link>
+        <Link href={`/market?category=${product.category_key}&type=${product.product_type_key}`}>{typeName}</Link>
       </nav>
 
       <div className={styles.detailGrid}>
@@ -140,7 +140,7 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
               {added === "cart_full" ? <p className={styles.sku} role="status">{c.cartFull}</p> : null}
               {added === "added" && cart.has(product.slug, variant.sku) ? (
                 <p className={styles.sku} role="status">
-                  {c.addedToCart} · <Link href="/marketplace/cart">{c.viewCart}</Link>
+                  {c.addedToCart} · <Link href="/market/cart">{c.viewCart}</Link>
                 </p>
               ) : null}
               <p className={styles.notice}>{t.honestNote}</p>

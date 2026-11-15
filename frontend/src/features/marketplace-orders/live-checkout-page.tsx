@@ -125,9 +125,9 @@ export function LiveCheckoutPage({
       <ol className={styles.crumbs}>
         <li><Link href="/">{c.home}</Link></li>
         <li aria-hidden="true">{chevron}</li>
-        <li><Link href="/marketplace">{c.marketplace}</Link></li>
+        <li><Link href="/market">{c.marketplace}</Link></li>
         <li aria-hidden="true">{chevron}</li>
-        <li><Link href="/marketplace/cart">{c.cart}</Link></li>
+        <li><Link href="/market/cart">{c.cart}</Link></li>
         <li aria-hidden="true">{chevron}</li>
         <li aria-current="page">{c.checkoutTitle}</li>
       </ol>
@@ -145,11 +145,11 @@ export function LiveCheckoutPage({
           <ul className="flex flex-col gap-2">
             {placed.orders.map((o) => (
               <li key={o.id}>
-                <Link href={`/marketplace/orders/${o.id}`} className={styles.primary}>{c.viewOrder(o.order_number)}</Link>
+                <Link href={`/market/orders/${o.id}`} className={styles.primary}>{c.viewOrder(o.order_number)}</Link>
               </li>
             ))}
           </ul>
-          <Link href="/marketplace/orders" className={styles.secondary}>{c.myOrders}</Link>
+          <Link href="/market/orders" className={styles.secondary}>{c.myOrders}</Link>
         </section>
       </div>
     );
@@ -170,7 +170,7 @@ export function LiveCheckoutPage({
       {empty ? (
         <section className={styles.empty}>
           <p>{c.emptyCart}</p>
-          <Link href="/marketplace" className={styles.primary}>{c.continueShopping}</Link>
+          <Link href="/market" className={styles.primary}>{c.continueShopping}</Link>
         </section>
       ) : !cart.ready || (status !== "failed" && !quote) ? (
         <p className={styles.hint} role="status">{c.loading}</p>
@@ -320,7 +320,7 @@ export function LiveCheckoutPage({
                   {problems.map((p) => <li key={p}>{p}</li>)}
                 </ul>
               ) : null}
-              <Link href="/marketplace/cart" className={styles.secondary}>{c.backToCart}</Link>
+              <Link href="/market/cart" className={styles.secondary}>{c.backToCart}</Link>
             </div>
           </aside>
         </div>

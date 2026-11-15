@@ -3,6 +3,8 @@
  * the server loaders and the client storefront. No runtime dependencies.
  */
 
+import type { MarketplaceImageMap } from "@/lib/storage/marketplace-images";
+
 export type PublicCard = {
   slug: string;
   name_ar: string;
@@ -128,4 +130,8 @@ export type CartSeller = {
   payment_methods?: CartPaymentMethods;
 };
 
-export type CartQuote = { lines: CartQuoteLine[]; sellers: CartSeller[] };
+/**
+ * `images`: public URLs of the lines' photos, resolved on the server with the quote (one lookup for the whole
+ * cart) so the browser loads each straight from the media Worker instead of asking the app route per image.
+ */
+export type CartQuote = { lines: CartQuoteLine[]; sellers: CartSeller[]; images?: MarketplaceImageMap };

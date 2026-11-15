@@ -19,8 +19,8 @@ export const metadata: Metadata = { title: "My orders | Aladdin Marketplace", ro
 
 /** The signed-in buyer's Marketplace orders, newest first. */
 export default async function MarketplaceOrdersRoute() {
-  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
-  await requireUser("/marketplace/orders");
+  if (!isMarketplacePreviewEnabled()) redirect("/market");
+  await requireUser("/market/orders");
   const supabase = await getServerSupabase();
   const { data } = await supabase.rpc("marketplace_buyer_orders", { p_limit: 100, p_offset: 0 });
   const items = ((data as { items?: OrderSummary[] } | null)?.items ?? []) as OrderSummary[];
@@ -42,7 +42,7 @@ export default async function MarketplaceOrdersRoute() {
           {items.length === 0 ? (
             <section className={styles.empty}>
               <p>{c.ordersEmpty}</p>
-              <Link href="/marketplace" className={styles.primary}>{c.continueShopping}</Link>
+              <Link href="/market" className={styles.primary}>{c.continueShopping}</Link>
             </section>
           ) : (
             <section className={styles.card}>
@@ -50,7 +50,7 @@ export default async function MarketplaceOrdersRoute() {
                 {items.map((o) => (
                   <li key={o.id}>
                     <span>
-                      <Link href={`/marketplace/orders/${o.id}`}><bdi dir="ltr">{o.order_number}</bdi></Link>
+                      <Link href={`/market/orders/${o.id}`}><bdi dir="ltr">{o.order_number}</bdi></Link>
                       {" · "}{o.seller_name}{" · "}{c.pieces(o.item_count)}{" · "}{date(o.created_at)}
                       <br />
                       <small className={styles.muted}>{c.status[o.status]} · {c.paymentStatus[o.payment_status]}</small>

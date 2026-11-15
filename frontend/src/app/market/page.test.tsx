@@ -8,7 +8,7 @@ vi.mock("@/server/queries/marketplace-public", () => ({ PUBLIC_SORTS: ["newest"]
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn() }));
 vi.mock("@/server/media/marketplace-public-images", () => ({ marketplacePublicImageUrls: vi.fn() }));
 
-describe("/marketplace: coming soon while the release flag is closed", () => {
+describe("/market: coming soon while the release flag is closed", () => {
   it("shows the coming-soon message with the landing header and a way back home", async () => {
     const { container } = render(await MarketplacePage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("السوق قريبًا");

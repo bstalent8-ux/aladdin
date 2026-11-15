@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
  * Public URLs for shop images by image id, the way public portfolio media is served: the media
  * Worker (Mode C) with the recorded sizes while public edge delivery is on — the database
  * (`public_media_edge_sources` -> `media_edge_public`) names only images it may show right now —
- * and `/marketplace/media/<id>` otherwise. One RPC per 100 images.
+ * and `/market/media/<id>` otherwise. One RPC per 100 images.
  */
 export async function marketplacePublicImageUrls(client: SupabaseClient, imageIds: readonly (string | null | undefined)[]): Promise<MarketplaceImageMap> {
   const ids = [...new Set(imageIds.filter((id): id is string => typeof id === "string" && UUID.test(id)))];

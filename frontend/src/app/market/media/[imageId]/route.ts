@@ -6,7 +6,7 @@ import { marketplacePublicImageUrls } from "@/server/media/marketplace-public-im
 export const dynamic = "force-dynamic";
 
 /**
- * `/marketplace/media/<imageId>` — the only browser-facing contract for public
+ * `/market/media/<imageId>` — the only browser-facing contract for public
  * Marketplace product images (same byte-proxy shape as `/p/media/<itemId>`).
  *
  * Every request re-runs the full publication test in the database
@@ -64,6 +64,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ imag
     headers: {
       "content-type": image.mimeType,
       ...NO_STORE,
+      // Same hardening as every other media proxy (server/storage/delivery.ts): never a document, never cached by the CDN.
+      "cdn-cache-control": "no-store",
+      "content-security-policy": "sandbox",
       "x-content-type-options": "nosniff",
       "content-disposition": "inline",
       "referrer-policy": "no-referrer",

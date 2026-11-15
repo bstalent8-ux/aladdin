@@ -29,7 +29,7 @@ export const publicEnvSchema = z.object({
   // Cloudflare's published always-pass TEST site key.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().trim().min(1).optional(),
   // Release gate for the public Marketplace (ADR-0028). OPTIONAL and OFF by default:
-  // only the exact value "true" opens /marketplace and the seller pages' public side;
+  // only the exact value "true" opens /market and the seller pages' public side;
   // anything else shows the "coming soon" page, so Production stays closed until it
   // is set deliberately. A UI gate, not a security boundary — the database decides.
   NEXT_PUBLIC_MARKETPLACE_PREVIEW: z.enum(["true", "false"]).optional(),

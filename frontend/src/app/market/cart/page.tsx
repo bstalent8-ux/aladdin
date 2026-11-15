@@ -26,7 +26,7 @@ export const metadata: Metadata = {
  */
 export default async function MarketplaceCartRoute() {
   // Closed Marketplace: every deep link lands on the "coming soon" page.
-  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
+  if (!isMarketplacePreviewEnabled()) redirect("/market");
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   // a few newest published products for the "you may also like" shelf (already-in-cart ones are hidden client-side)

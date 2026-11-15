@@ -30,7 +30,7 @@ export default async function MarketplaceCheckoutRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
+  if (!isMarketplacePreviewEnabled()) redirect("/market");
   const store = await cookies();
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const c = buyerCopy[locale];
@@ -39,7 +39,7 @@ export default async function MarketplaceCheckoutRoute({
   const one = (v: string | string[] | undefined) => (typeof v === "string" && KEY.test(v) ? v : "");
   const gov = one(q.gov);
   const area = gov ? one(q.area) : "";
-  const next = encodeURIComponent("/marketplace/checkout");
+  const next = encodeURIComponent("/market/checkout");
 
   return (
     <I18nProvider locale={locale} dir={directionFor(locale)}>
@@ -60,7 +60,7 @@ export default async function MarketplaceCheckoutRoute({
               <p>{c.signInText}</p>
               <Link href={`/auth/sign-in?next=${next}`} className={styles.primary}>{c.signIn}</Link>
               <Link href={`/auth/sign-up?next=${next}`} className={styles.secondary}>{c.signUp}</Link>
-              <Link href="/marketplace/cart" className={styles.secondary}>{c.backToCart}</Link>
+              <Link href="/market/cart" className={styles.secondary}>{c.backToCart}</Link>
             </section>
           </div>
         )}

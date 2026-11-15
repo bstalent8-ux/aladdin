@@ -351,7 +351,7 @@ export default async function MarketplaceProductsPage({
                             </Link>
                             {published ? (
                               <Link
-                                href={`/marketplace/products/${p.slug}`}
+                                href={`/market/products/${p.slug}`}
                                 aria-label={t.action.preview}
                                 title={t.action.preview}
                                 className="grid h-9 w-9 place-items-center rounded-sm border text-fg-secondary transition-colors hover:bg-surface-2 hover:text-fg"

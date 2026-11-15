@@ -79,9 +79,9 @@ export function BuyerOrderView({ initial }: { initial: OrderDocument }) {
     <div className={styles.page}>
       <nav aria-label={c.myOrders}>
         <ol className={styles.crumbs}>
-          <li><Link href="/marketplace">{c.marketplace}</Link></li>
+          <li><Link href="/market">{c.marketplace}</Link></li>
           <li aria-hidden="true">{chevron}</li>
-          <li><Link href="/marketplace/orders">{c.myOrders}</Link></li>
+          <li><Link href="/market/orders">{c.myOrders}</Link></li>
           <li aria-hidden="true">{chevron}</li>
           <li aria-current="page"><bdi dir="ltr">{order.order_number}</bdi></li>
         </ol>
@@ -195,7 +195,7 @@ export function BuyerOrderView({ initial }: { initial: OrderDocument }) {
                 <button type="button" className={styles.secondary} onClick={() => setCancelOpen(true)}>{c.cancel}</button>
               )
             ) : null}
-            <Link href="/marketplace/orders" className={styles.secondary}>{c.myOrders}</Link>
+            <Link href="/market/orders" className={styles.secondary}>{c.myOrders}</Link>
           </div>
         </aside>
       </div>

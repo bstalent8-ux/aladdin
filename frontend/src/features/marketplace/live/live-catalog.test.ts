@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/marketplace" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/market" }));
 import { catalogHref, type CatalogParams } from "./live-catalog";
 
 const base: CatalogParams = { category: "", type: "", q: "", sort: "newest", page: 1, priceMin: null, priceMax: null, inStock: false, attrs: {} };
 
 describe("catalogHref", () => {
   it("is the bare route with no filters", () => {
-    expect(catalogHref(base)).toBe("/marketplace");
+    expect(catalogHref(base)).toBe("/market");
   });
 
   it("serialises every filter and drops empty attribute lists", () => {
@@ -35,7 +35,7 @@ describe("catalogHref", () => {
   });
 
   it("any filter change goes back to page 1, an explicit page is kept", () => {
-    expect(catalogHref({ ...base, page: 4 }, { inStock: true })).toBe("/marketplace?stock=1");
-    expect(catalogHref({ ...base, page: 4 }, { page: 5 })).toBe("/marketplace?page=5");
+    expect(catalogHref({ ...base, page: 4 }, { inStock: true })).toBe("/market?stock=1");
+    expect(catalogHref({ ...base, page: 4 }, { page: 5 })).toBe("/market?page=5");
   });
 });

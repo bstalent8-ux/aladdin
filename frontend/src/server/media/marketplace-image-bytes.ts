@@ -32,7 +32,7 @@ export type PublicMarketplaceImage = { bytes: ArrayBuffer; mimeType: string; sha
  * answer for all refusals). `marketplace_public_image_ref` is granted to service_role ONLY and
  * returns a reference only while EVERY publication condition holds (media flag on, image verified
  * + byte-validated, product published, seller enabled, type/category active, variant active). The
- * bytes are read from R2 and proxied by `/marketplace/media/[imageId]`; the browser never sees a
+ * bytes are read from R2 and proxied by `/market/media/[imageId]`; the browser never sees a
  * key or a signed URL.
  */
 export async function loadPublicMarketplaceImage(imageId: string): Promise<PublicMarketplaceImage | null> {

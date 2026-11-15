@@ -5,7 +5,7 @@ import { landingMessages } from "@/features/landing-preview/landing-messages";
 import { MarketplaceComingSoon } from "./marketplace-coming-soon";
 
 /**
- * What `/marketplace` serves while the release flag is closed (every environment
+ * What `/market` serves while the release flag is closed (every environment
  * without NEXT_PUBLIC_MARKETPLACE_PREVIEW="true", Production included): the
  * landing header and footer around a "coming soon" note. Reads no catalog data.
  */

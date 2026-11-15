@@ -114,6 +114,6 @@ export async function setMediaReadyAction(ready: boolean, reason: string): Promi
   const { data, error } = await supabase.rpc("admin_marketplace_set_media_verification_ready", { p_ready: ready, p_reason: reason.trim() });
   if (error) return { ok: false, code: parseSellerError(error.message).code };
   revalidatePath(MEDIA);
-  revalidatePath("/marketplace");
+  revalidatePath("/market");
   return { ok: true, ready: Boolean(data) };
 }

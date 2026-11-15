@@ -31,20 +31,20 @@ function Suggestion({ card, locale }: { card: PublicCard; locale: Locale }) {
   const price = card.from_price_egp;
   return (
     <article className={styles.sugg}>
-      <Link href={`/marketplace/products/${card.slug}`} className={styles.suggMedia} aria-label={name}>
+      <Link href={`/market/products/${card.slug}`} className={styles.suggMedia} aria-label={name}>
         {card.image_id ? (
           // eslint-disable-next-line @next/next/no-img-element -- no-store media proxy
           <img src={imageSrc(card.image_id, "card")} alt="" loading="lazy" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : null}
       </Link>
       <div className={styles.suggBody}>
-        <h3><Link href={`/marketplace/products/${card.slug}`}>{name}</Link></h3>
+        <h3><Link href={`/market/products/${card.slug}`}>{name}</Link></h3>
         <p className={styles.suggSeller}>{card.seller_name}<StorefrontIcon size={14} aria-hidden="true" /></p>
         <div className={styles.suggFoot}>
           <span className={styles.suggPrice}>
             <strong>{price === null ? "—" : fmtEgp(Number(price), locale)}</strong>
           </span>
-          <Link href={`/marketplace/products/${card.slug}`} className={styles.suggCart} aria-label={`${t.viewProduct}: ${name}`}>
+          <Link href={`/market/products/${card.slug}`} className={styles.suggCart} aria-label={`${t.viewProduct}: ${name}`}>
             {locale === "ar" ? <ChevronLeftIcon size={16} aria-hidden="true" /> : <ChevronRightIcon size={16} aria-hidden="true" />}
           </Link>
         </div>
@@ -67,7 +67,7 @@ function Shelf({ id, title, cards, locale, dir }: { id: string; title: string; c
       <div className={styles.alsoHead}>
         <h2 id={id} data-plain>{title}</h2>
         <div className={styles.alsoTools}>
-          <Link href="/marketplace">{t.viewAll}</Link>
+          <Link href="/market">{t.viewAll}</Link>
           <button type="button" aria-label={t.prev} onClick={() => scrollTrack(dir === "rtl" ? "right" : "left")}><ChevronLeftIcon size={18} aria-hidden="true" /></button>
           <button type="button" aria-label={t.next} onClick={() => scrollTrack(dir === "rtl" ? "left" : "right")}><ChevronRightIcon size={18} aria-hidden="true" /></button>
         </div>
@@ -79,16 +79,17 @@ function Shelf({ id, title, cards, locale, dir }: { id: string; title: string; c
   );
 }
 
-function LineRow({ line, locale, onQty, onRemove }: {
+function LineRow({ line, locale, images, onQty, onRemove }: {
   line: PricedLine;
   locale: Locale;
+  images: CartQuote["images"];
   onQty: (qty: number) => void;
   onRemove: () => void;
 }) {
   const t = cartCopy[locale];
   const l = liveCartCopy[locale];
   const name = locale === "ar" ? line.name_ar || line.name_en : line.name_en || line.name_ar;
-  const href = `/marketplace/products/${line.slug}`;
+  const href = `/market/products/${line.slug}`;
   const max = Math.max(1, line.available);
   return (
     <li className={`${styles.line} ${line.outOfStock ? styles.lineOff : ""}`}>
@@ -96,7 +97,7 @@ function LineRow({ line, locale, onQty, onRemove }: {
         <Link href={href} className={styles.thumb} aria-label={name}>
           {line.image_id ? (
             // eslint-disable-next-line @next/next/no-img-element -- no-store media proxy
-            <img src={marketplaceImageSrc(undefined, line.image_id, "thumb")} alt="" loading="lazy" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={marketplaceImageSrc(images, line.image_id, "thumb")} alt="" loading="lazy" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : null}
         </Link>
         <div className={styles.info}>
@@ -213,7 +214,7 @@ export function LiveCartPage({ suggestions }: { suggestions: PublicCard[] }) {
   const pricesUnknown = method === "delivery" && totals?.deliveryEgp === null;
   // Checkout opens once every showroom can serve the chosen way of receiving and something is in stock.
   const canCheckout = Boolean(totals && totals.state === "ok" && totals.lines.some((x) => !x.outOfStock));
-  const checkoutHref = `/marketplace/checkout?${new URLSearchParams({ method, ...(gov ? { gov } : {}), ...(area ? { area } : {}) }).toString()}`;
+  const checkoutHref = `/market/checkout?${new URLSearchParams({ method, ...(gov ? { gov } : {}), ...(area ? { area } : {}) }).toString()}`;
 
   return (
     <div className={styles.page}>
@@ -221,7 +222,7 @@ export function LiveCartPage({ suggestions }: { suggestions: PublicCard[] }) {
         <ol className={styles.crumbs}>
           <li><Link href="/">{locale === "ar" ? "الرئيسية" : "Home"}</Link></li>
           <li aria-hidden="true">{chevron}</li>
-          <li><Link href="/marketplace">{liveCopy[locale].back}</Link></li>
+          <li><Link href="/market">{liveCopy[locale].back}</Link></li>
           <li aria-hidden="true">{chevron}</li>
           <li aria-current="page">{t.breadcrumbCart}</li>
         </ol>
@@ -240,7 +241,7 @@ export function LiveCartPage({ suggestions }: { suggestions: PublicCard[] }) {
           <section className={styles.empty}>
             <h2 data-plain>{t.emptyTitle}</h2>
             <p>{t.emptyText}</p>
-            <Link href="/marketplace" className={styles.primary}>{t.continueShopping}</Link>
+            <Link href="/market" className={styles.primary}>{t.continueShopping}</Link>
           </section>
           <Shelf id="cart-also-title" title={t.alsoLike} cards={cards} locale={locale} dir={dir} />
         </>
@@ -265,6 +266,7 @@ export function LiveCartPage({ suggestions }: { suggestions: PublicCard[] }) {
                     key={`${line.slug}\u0000${line.sku}`}
                     line={line}
                     locale={locale}
+                    images={quote?.images}
                     onQty={(qty) => setQty(line.slug, line.sku, qty)}
                     onRemove={() => remove(line.slug, line.sku)}
                   />
@@ -397,7 +399,7 @@ export function LiveCartPage({ suggestions }: { suggestions: PublicCard[] }) {
                 </button>
               )}
               <p className={styles.hint}>{l.checkoutNote}</p>
-              <Link href="/marketplace" className={styles.secondary}>
+              <Link href="/market" className={styles.secondary}>
                 {dir === "rtl" ? <ChevronRightIcon size={18} aria-hidden="true" /> : <ChevronLeftIcon size={18} aria-hidden="true" />}
                 {t.continueShopping}
               </Link>

@@ -28,7 +28,7 @@ const fail = (error: { message?: string } | null): SellerActionError => parseSel
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const SELLER_ORDERS = "/showroom/marketplace/orders";
-const BUYER_ORDERS = "/marketplace/orders";
+const BUYER_ORDERS = "/market/orders";
 
 // ---------------------------------------------------------------------------
 // Checkout

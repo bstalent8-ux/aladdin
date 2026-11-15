@@ -1,6 +1,7 @@
 "use server";
 
 import { getServerSupabase } from "@/lib/supabase/server";
+import { marketplacePublicImageUrls } from "@/server/media/marketplace-public-images";
 import { CART_MAX_LINES, type CartQuote, type CartRef } from "@/features/marketplace/live/public-contract";
 
 /**
@@ -36,5 +37,12 @@ export async function quoteMarketplaceCartAction(
     p_area: place,
   });
   if (error || !data) return null;
-  return data as unknown as CartQuote;
+  const quote = data as unknown as CartQuote;
+  // One lookup for every photo in the cart (empty while public edge delivery is off), so the browser
+  // loads each straight from the media Worker instead of asking the app route once per image.
+  const images = await marketplacePublicImageUrls(
+    supabase,
+    quote.lines.map((line) => (line.status === "ok" ? line.image_id : null)),
+  ).catch(() => undefined);
+  return images ? { ...quote, images } : quote;
 }

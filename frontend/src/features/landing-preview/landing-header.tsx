@@ -34,7 +34,7 @@ const content = {
 } as const;
 
 /**
- * `anchorBase` lets other pages (e.g. the /marketplace coming-soon page) reuse the
+ * `anchorBase` lets other pages (e.g. the /market coming-soon page) reuse the
  * same navigation: the in-page anchors become `/#section` links back to the home page.
  */
 export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0, active = "home" }: { anchorBase?: string; showCart?: boolean; cartCount?: number; active?: "home" | "marketplace" } = {}) {
@@ -56,7 +56,7 @@ export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0
   }, [count, liveCart.ready]);
   // The Marketplace link opens the coming-soon page until the Marketplace ships; absolute paths are never prefixed.
   const links: [string, string][] = t.links.map(([label, href]) => [label, href]);
-  links.splice(1, 0, [t.marketplace, "/marketplace"]);
+  links.splice(1, 0, [t.marketplace, "/market"]);
   const [open, setOpen] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
   const signup = useRef<HTMLDivElement>(null);
@@ -88,7 +88,7 @@ export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0
       </Button>
       <nav id="preview-navigation" className={styles.navigation} data-open={open} dir={dir} aria-label={t.navigation}>
         {links.map(([label, href]) => {
-          const isActive = href === "/marketplace" ? active === "marketplace" : active === "home" && href === "#landing-top";
+          const isActive = href === "/market" ? active === "marketplace" : active === "home" && href === "#landing-top";
           return <a key={href} href={href.startsWith("/") ? href : `${anchorBase}${href}`} className={isActive ? styles.home : undefined} aria-current={isActive ? "page" : undefined} onClick={() => setOpen(false)}>{label}</a>;
         })}
         <details ref={faq} className={styles.faq}>
@@ -102,7 +102,7 @@ export function LandingHeader({ anchorBase = "", showCart = false, cartCount = 0
       <div className={styles.actions}>
         {/* Shown while the Marketplace is open (release flag on): on its pages and on the home page. */}
         {showCart ? (
-          <a className={`${styles.cart} ${bump ? styles.cartBump : ""}`} href="/marketplace/cart" aria-label={count > 0 ? `${t.cart} (${count})` : t.cart}>
+          <a className={`${styles.cart} ${bump ? styles.cartBump : ""}`} href="/market/cart" aria-label={count > 0 ? `${t.cart} (${count})` : t.cart}>
             <ShoppingBagIcon size={20} aria-hidden="true" />
             {count > 0 ? <span className={styles.cartBadge} aria-hidden="true">{count > 99 ? "99+" : count}</span> : null}
           </a>

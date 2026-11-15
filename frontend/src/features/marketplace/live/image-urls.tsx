@@ -5,7 +5,7 @@ import { marketplaceImageSrc, type MarketplaceImageMap } from "@/lib/storage/mar
 
 /**
  * Public shop image URLs resolved on the server (`marketplacePublicImageUrls`): the media Worker
- * with its recorded sizes while public edge delivery is on, otherwise `/marketplace/media/<id>`.
+ * with its recorded sizes while public edge delivery is on, otherwise `/market/media/<id>`.
  * An image not in the map (e.g. a cart line read in the browser) falls back to the route, which
  * hands over to the Worker itself.
  */

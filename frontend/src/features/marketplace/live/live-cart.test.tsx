@@ -81,7 +81,7 @@ describe("live cart page", () => {
     render(wrap(<LiveCartPage suggestions={suggestions} />));
     expect(await screen.findByText("Your cart is empty")).toBeInTheDocument();
     expect(quoteAction).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("link", { name: "Continue shopping" })[0]).toHaveAttribute("href", "/marketplace");
+    expect(screen.getAllByRole("link", { name: "Continue shopping" })[0]).toHaveAttribute("href", "/market");
   });
 
   it("prices products and delivery by area from the database quote, with no tax line", async () => {
@@ -158,7 +158,7 @@ describe("live cart page", () => {
     expect(screen.getByRole("button", { name: /Place order/ })).toBeDisabled();
     choose("mp-gov", "cairo");
     const link = await screen.findByRole("link", { name: /Place order/ });
-    expect(link.getAttribute("href")).toBe("/marketplace/checkout?method=delivery&gov=cairo");
+    expect(link.getAttribute("href")).toBe("/market/checkout?method=delivery&gov=cairo");
   });
 
   it("says so, and offers a retry, when prices cannot be loaded", async () => {

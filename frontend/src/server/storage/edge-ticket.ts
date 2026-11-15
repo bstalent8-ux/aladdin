@@ -126,7 +126,7 @@ function recordedVariants(value: unknown): MediaVariant[] {
 export function publicMediaUrl(namespace: "portfolio" | "avatar" | "marketplace", id: string, onEdge: boolean, variant: EdgeVariant = "original"): string | null {
   const config = onEdge ? edgeConfig() : null;
   if (config?.publicEnabled) return `${config.origin}/c/${namespace}/${id}/${variant}`;
-  return namespace === "portfolio" ? `/p/media/${id}` : namespace === "marketplace" ? `/marketplace/media/${id}` : null;
+  return namespace === "portfolio" ? `/p/media/${id}` : namespace === "marketplace" ? `/market/media/${id}` : null;
 }
 
 /**

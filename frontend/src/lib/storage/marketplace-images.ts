@@ -42,5 +42,5 @@ export type MarketplaceImageMap = Readonly<Record<string, MarketplaceImageUrls>>
 /** The best URL for `size`: that size when recorded, else the original; the app route when the map has no entry. */
 export function marketplaceImageSrc(map: MarketplaceImageMap | undefined, imageId: string, size: "thumb" | "card" | "full"): string {
   const urls = map?.[imageId];
-  return urls ? urls[size] ?? urls.src : `/marketplace/media/${imageId}?v=${size}`;
+  return urls ? urls[size] ?? urls.src : `/market/media/${imageId}?v=${size}`;
 }

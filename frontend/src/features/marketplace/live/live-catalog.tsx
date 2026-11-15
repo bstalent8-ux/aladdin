@@ -42,7 +42,7 @@ export function catalogHref(p: CatalogParams, patch: Partial<CatalogParams> = {}
   for (const [k, v] of Object.entries(n.attrs)) if (v.length) sp.set(`f.${k}`, v.join(","));
   if (n.page > 1) sp.set("page", String(n.page));
   const s = sp.toString();
-  return s ? `/marketplace?${s}` : "/marketplace";
+  return s ? `/market?${s}` : "/market";
 }
 
 const name = (o: { name_ar: string; name_en: string }, locale: Locale) => (locale === "ar" ? o.name_ar : o.name_en) || o.name_ar || o.name_en;
@@ -65,7 +65,7 @@ function Card({ item, locale }: { item: PublicCard; locale: Locale }) {
   const imageSrc = useMarketplaceImageSrc();
   return (
     <article className={styles.card} data-product-type={item.product_type_key}>
-      <Link href={`/marketplace/products/${item.slug}`} className={styles.cardMedia} aria-label={title}>
+      <Link href={`/market/products/${item.slug}`} className={styles.cardMedia} aria-label={title}>
         {item.image_id ? (
           // eslint-disable-next-line @next/next/no-img-element -- media Worker / no-store proxy; next/image would re-cache it
           <img src={imageSrc(item.image_id, "card")} alt="" loading="lazy" className={styles.cardImage} style={{ width: "100%", height: "100%" }} />
@@ -75,7 +75,7 @@ function Card({ item, locale }: { item: PublicCard; locale: Locale }) {
       </Link>
       <div className={styles.cardBody}>
         <h3 className={styles.cardTitle}>
-          <Link href={`/marketplace/products/${item.slug}`}>{title}</Link>
+          <Link href={`/market/products/${item.slug}`}>{title}</Link>
         </h3>
         <p className={styles.cardMeta}>
           {name({ name_ar: item.product_type_name_ar, name_en: item.product_type_name_en }, locale)}

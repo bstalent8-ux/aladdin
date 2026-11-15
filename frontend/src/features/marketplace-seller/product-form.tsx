@@ -513,7 +513,7 @@ export function ProductForm({
         </div>
         <div className="flex flex-wrap items-center gap-sm">
           {product && product.status === "published" ? (
-            <ButtonLink href={`/marketplace/products/${product.slug}`} variant="ghost">
+            <ButtonLink href={`/market/products/${product.slug}`} variant="ghost">
               {t("marketplaceSeller.form.preview")}
             </ButtonLink>
           ) : (

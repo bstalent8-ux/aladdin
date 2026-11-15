@@ -18,7 +18,7 @@ export function LandingLiveProductCard({ item }: { item: PublicCard }) {
   const t = liveCopy[locale];
   const imageSrc = useMarketplaceImageSrc();
   const title = locale === "ar" ? item.name_ar || item.name_en : item.name_en || item.name_ar;
-  const href = `/marketplace/products/${item.slug}`;
+  const href = `/market/products/${item.slug}`;
   return (
     <article className={styles.card} data-product-type={item.product_type_key}>
       <Link href={href} className={styles.media} aria-label={title}>

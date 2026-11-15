@@ -17,10 +17,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** One of the buyer's own Marketplace orders (the RPC answers not_found for anyone else's). */
 export default async function MarketplaceOrderRoute({ params }: { params: Promise<{ orderId: string }> }) {
-  if (!isMarketplacePreviewEnabled()) redirect("/marketplace");
+  if (!isMarketplacePreviewEnabled()) redirect("/market");
   const { orderId } = await params;
   if (!UUID.test(orderId)) notFound();
-  await requireUser(`/marketplace/orders/${orderId}`);
+  await requireUser(`/market/orders/${orderId}`);
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("marketplace_buyer_order_get", { p_order_id: orderId });
   if (error || !data) notFound();

@@ -46,7 +46,7 @@ export function CartAddButton({
   }
   if (!sku) {
     return (
-      <Link href={`/marketplace/products/${slug}`} className={className}>
+      <Link href={`/market/products/${slug}`} className={className}>
         <ShoppingBagIcon size={18} aria-hidden="true" />
         {c.chooseOptions}
       </Link>

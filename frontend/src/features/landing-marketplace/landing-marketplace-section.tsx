@@ -24,7 +24,7 @@ const DEMO_FLASH_MS = ((12 * 60 + 45) * 60 + 30) * 1000;
  *
  * Source of truth is `previewProducts` (clearly labelled sample data). It does
  * has no cart and does not talk to payments or inventory; "Add to cart" and the
- * CTA both open /marketplace, which says the Marketplace is coming soon.
+ * CTA both open /market, which says the Marketplace is coming soon.
  */
 export function LandingMarketplaceSection({ live }: { live?: PublicCard[] } = {}) {
   const { locale, dir } = useI18n();
@@ -90,7 +90,7 @@ export function LandingMarketplaceSection({ live }: { live?: PublicCard[] } = {}
       </>)}
 
       <div className={styles.moreWrap}>
-        <Link href="/marketplace" className={styles.more}>
+        <Link href="/market" className={styles.more}>
           <span>{t.moreProducts}</span>
           <span className={styles.moreIcon} aria-hidden="true"><ArrowIcon /></span>
         </Link>
