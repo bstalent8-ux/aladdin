@@ -7,7 +7,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Input, LabeledField, Textarea } from "@/components/ui/controls";
 import { menuItemClass } from "@/components/ui/menu";
 import {
-  BookmarkIcon,
   BuildingIcon,
   CalendarIcon,
   CheckIcon,
@@ -84,6 +83,8 @@ export type InstallerProfileData = {
   completion: { percent: number; missing: readonly string[] };
   /** `/p/<profile id>` once the profile is public, else null. */
   publicProfileHref: string | null;
+  /** The caller's own professional verification (filed automatically at 100%), or null when none exists yet. */
+  verification?: { status: string; reason: string | null } | null;
 };
 
 type FormState = {
@@ -126,6 +127,27 @@ const SAVE_ERROR: Record<Exclude<InstallerProfileResult, { ok: true }>["code"], 
   areas: { ar: "تعذر حفظ نطاق العمل.", en: "The work coverage could not be saved." },
 };
 
+/** What the Save confirmation says; the database's decision on the verification request decides the second sentence. */
+const SAVED_MESSAGE: Record<string, { ar: string; en: string }> = {
+  none: { ar: "تم حفظ ملفك.", en: "Your changes were saved." },
+  incomplete: { ar: "تم حفظ ملفك.", en: "Your changes were saved." },
+  approved: { ar: "تم حفظ ملفك.", en: "Your changes were saved." },
+  rejected: { ar: "تم حفظ ملفك.", en: "Your changes were saved." },
+  submitted: { ar: "تم حفظ ملفك واكتمل بنسبة 100٪. أُرسل طلب التوثيق للمراجعة.", en: "Your changes were saved and your profile is 100% complete. Your verification request was sent for review." },
+  resubmitted: { ar: "تم حفظ ملفك وأُعيد إرسال طلب التوثيق للمراجعة.", en: "Your changes were saved and your verification request was sent for review again." },
+  already_open: { ar: "تم حفظ ملفك. طلب التوثيق قيد المراجعة.", en: "Your changes were saved. Your verification request is already under review." },
+};
+
+/** The applicant's own verification state, in plain words. The reason (shared with the applicant) is shown as written. */
+const VERIFICATION_STATUS: Record<string, { ar: string; en: string }> = {
+  draft: { ar: "طلب التوثيق قيد الإعداد.", en: "Your verification request is being prepared." },
+  submitted: { ar: "طلب التوثيق بانتظار المراجعة.", en: "Verification pending: waiting for review." },
+  under_review: { ar: "طلب التوثيق قيد المراجعة.", en: "Verification under review." },
+  needs_more_info: { ar: "نحتاج معلومات إضافية. حدّث ملفك واحفظه ليُعاد إرسال الطلب.", en: "More information is needed. Update your profile and save to send it again." },
+  approved: { ar: "تم توثيق حسابك.", en: "Your professional account is verified." },
+  rejected: { ar: "لم يتم قبول طلب التوثيق.", en: "Your verification request was not approved." },
+};
+
 /**
  * `/home/profile` for an Installer: the approved "Complete your profile" page (`/preview/installer-account`) on real
  * data. The hero edits the real cover and photo; the four numbered sections are the design's own controls, filled
@@ -137,7 +159,7 @@ export function InstallerProfilePage({ data }: { data: InstallerProfileData }) {
   const ar = locale === "ar";
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initialState(data));
-  const [saving, setSaving] = useState<"draft" | "continue" | null>(null);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const set: SetField = (key, value) =>
     setForm((f) => ({ ...f, [key]: typeof value === "function" ? (value as (v: FormState[typeof key]) => FormState[typeof key])(f[key]) : value }));
@@ -152,8 +174,8 @@ export function InstallerProfilePage({ data }: { data: InstallerProfileData }) {
     ...(missing.has("location") ? [] : ["coverage"]),
   ]);
 
-  async function save(kind: "draft" | "continue") {
-    setSaving(kind);
+  async function save() {
+    setSaving(true);
     setMessage(null);
     const result = await saveInstallerProfileAction({
       displayName: form.name,
@@ -166,16 +188,14 @@ export function InstallerProfilePage({ data }: { data: InstallerProfileData }) {
       availability: form.availability ? AVAILABILITY_VALUE[form.availability] : null,
       otherGovernorates: form.otherAreas ? form.areas : [],
     }).catch(() => ({ ok: false as const, code: "profile" as const }));
-    setSaving(null);
+    setSaving(false);
     if (!result.ok) {
       setMessage({ ok: false, text: pick(locale, SAVE_ERROR[result.code]) });
       return;
     }
-    if (kind === "continue") router.push("/home");
-    else {
-      setMessage({ ok: true, text: ar ? "تم حفظ ملفك." : "Your profile was saved." });
-      router.refresh();
-    }
+    // Stay on /home/profile: the saved data, the completion ring and the verification status come back from the server.
+    setMessage({ ok: true, text: pick(locale, SAVED_MESSAGE[result.verification ?? "none"] ?? SAVED_MESSAGE.none!) });
+    router.refresh();
   }
 
   return (
@@ -191,11 +211,19 @@ export function InstallerProfilePage({ data }: { data: InstallerProfileData }) {
       <div className="grid min-w-0 gap-md desktop:grid-cols-5">
         <aside className="order-1 flex min-w-0 flex-col gap-md desktop:order-2">
           <ProfileProgress locale={locale} percent={percent} completedStepIds={completedStepIds} name={form.name || data.displayName} avatarUrl={data.avatarUrl} />
+          {data.verification && VERIFICATION_STATUS[data.verification.status] ? (
+            <div role="status" data-testid="verification-status" data-status={data.verification.status} className="rounded-md border border-strong bg-surface p-md text-label text-fg shadow-card">
+              <p className="font-medium">{pick(locale, VERIFICATION_STATUS[data.verification.status] ?? { ar: "", en: "" })}</p>
+              {data.verification.reason && (data.verification.status === "rejected" || data.verification.status === "needs_more_info") ? (
+                <p className="mt-1 text-fg-secondary">{data.verification.reason}</p>
+              ) : null}
+            </div>
+          ) : null}
           <PremiumProfileCard locale={locale} />
           <QuickTipsCard locale={locale} />
         </aside>
 
-        <form className="order-2 min-w-0 space-y-md desktop:order-1 desktop:col-span-4" onSubmit={(e) => { e.preventDefault(); void save("continue"); }}>
+        <form className="order-2 min-w-0 space-y-md desktop:order-1 desktop:col-span-4" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <BasicInformationSection locale={locale} form={form} set={set} />
           <AvailabilitySection locale={locale} value={form.availability} onChange={(v) => set("availability", v)} />
           <ProfileSection id="portfolio" step={3} title={ar ? "سابقة الأعمال" : "Work history"} description={ar ? "أضف مشاريعك السابقة ليتمكن العملاء من التعرّف على خبرتك وأعمالك." : "Add past projects so clients can understand your experience."}>
@@ -205,8 +233,7 @@ export function InstallerProfilePage({ data }: { data: InstallerProfileData }) {
           <div className="flex flex-col gap-sm rounded-md border border-strong bg-surface p-md shadow-card">
             {message ? <p role={message.ok ? "status" : "alert"} className={cn("text-label", message.ok ? "text-success" : "text-danger")} data-testid="profile-save-message">{message.text}</p> : null}
             <div className="flex flex-col-reverse gap-sm tablet:flex-row tablet:justify-end">
-              <Button type="button" variant="outline" className="min-w-44 gap-sm" disabled={saving !== null} onClick={() => void save("draft")} data-testid="profile-save-draft"><BookmarkIcon size={18} />{saving === "draft" ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ كمسودة" : "Save as draft")}</Button>
-              <Button type="submit" className="min-w-44 gap-sm" disabled={saving !== null} data-testid="profile-save">{saving === "continue" ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ ومتابعة" : "Save and continue")}<CheckIcon size={18} /></Button>
+              <Button type="submit" className="min-w-44 gap-sm" disabled={saving} data-testid="profile-save">{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "حفظ التغييرات" : "Save changes")}<CheckIcon size={18} /></Button>
             </div>
           </div>
         </form>

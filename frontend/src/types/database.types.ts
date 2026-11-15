@@ -8469,6 +8469,7 @@ export type Database = {
         Args: { p_content_type: string }
         Returns: string
       }
+      craftsman_profile_verification_submit: { Args: never; Returns: Json }
       craftsman_contact: {
         Args: { p_profile_id: string; p_viewer_org_id: string }
         Returns: {
