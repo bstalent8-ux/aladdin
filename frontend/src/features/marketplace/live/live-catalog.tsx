@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Select } from "@/components/ui/controls";
 import { FilterIcon, GridIcon, ListIcon, PackageIcon } from "@/components/ui/icons";
 import type { Facets, PublicCard, PublicPage, PublicSort } from "./public-contract";
@@ -119,11 +119,15 @@ export function LiveCatalog({ locale, dir, params, page, facets }: { locale: Loc
   const [q, setQ] = useState(params.q);
   const [pmin, setPmin] = useState(params.priceMin?.toString() ?? "");
   const [pmax, setPmax] = useState(params.priceMax?.toString() ?? "");
-  useEffect(() => setQ(params.q), [params.q]);
-  useEffect(() => {
+  // The URL stays the source of truth: when back/forward or a chip changes it, the typed boxes follow.
+  // Adjusting state during render (React's documented pattern) avoids the extra render an effect would cause.
+  const [synced, setSynced] = useState({ q: params.q, min: params.priceMin, max: params.priceMax });
+  if (synced.q !== params.q || synced.min !== params.priceMin || synced.max !== params.priceMax) {
+    setSynced({ q: params.q, min: params.priceMin, max: params.priceMax });
+    setQ(params.q);
     setPmin(params.priceMin?.toString() ?? "");
     setPmax(params.priceMax?.toString() ?? "");
-  }, [params.priceMin, params.priceMax]);
+  }
 
   const go = (patch: Partial<CatalogParams>) => router.push(catalogHref(params, patch), { scroll: false });
   const total = page ? Number(page.total) : 0;
