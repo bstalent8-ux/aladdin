@@ -55,20 +55,40 @@ function getAdminClient(timeoutMs?: number): SupabaseClient<Database> {
   });
 }
 
+/** A person counts as "registered" once the account exists and is usable or waiting for its first sign-in (not suspended, not deactivated). */
+const REGISTERED_STATUSES = ["pending_verification", "active"] as const;
+/** Staff lists are a handful of people; a long one means the query below is the wrong tool, so the pills hide instead of guessing. */
+const MAX_STAFF_IDS = 200;
+
 /**
- * The Landing page's public platform counts (users, businesses, published products). Service-role, read-only, `head`
- * count queries on three tables, called only by `features/landing-brand/landing-brand-stats.ts`. It returns bare
- * integers — no rows, no identifiers. Use it for nothing else.
+ * The Landing page's public platform counts (registered people, businesses, published products). Service-role, read-only,
+ * `head` count queries, called only by `features/landing-brand/landing-brand-stats.ts`. It returns bare integers — no rows
+ * of people, no identifiers (the staff list below never leaves this function). Use it for nothing else.
+ *
+ * "Users" = every account that is registered (pending its first sign-in or active) minus platform staff (a platform role
+ * grant or an active admin role assignment). It is NOT `status = 'active'`, which only means "finished onboarding".
  */
 export async function countLandingPublicStats(): Promise<{ users: number; organizations: number; products: number }> {
   const db = getAdminClient(5_000);
-  const [users, organizations, products] = await Promise.all([
-    db.from("users").select("id", { count: "exact", head: true }).eq("status", "active"),
+  const [registered, grants, assignments, organizations, products] = await Promise.all([
+    db.from("users").select("id", { count: "exact", head: true }).in("status", [...REGISTERED_STATUSES]),
+    db.from("platform_role_grants").select("user_id"),
+    db.from("admin_role_assignments").select("user_id").eq("is_active", true),
     db.from("organizations").select("id", { count: "exact", head: true }).eq("status", "active").is("deleted_at", null),
     db.from("products").select("id", { count: "exact", head: true }).eq("status", "published").is("deleted_at", null),
   ]);
-  for (const r of [users, organizations, products]) if (r.error || r.count === null) throw new Error("landing stats unavailable");
-  return { users: users.count ?? 0, organizations: organizations.count ?? 0, products: products.count ?? 0 };
+  for (const r of [registered, grants, assignments, organizations, products]) if (r.error) throw new Error("landing stats unavailable");
+  if (registered.count === null || organizations.count === null || products.count === null) throw new Error("landing stats unavailable");
+
+  const staffIds = [...new Set([...(grants.data ?? []), ...(assignments.data ?? [])].map((row) => row.user_id))];
+  if (staffIds.length > MAX_STAFF_IDS) throw new Error("landing stats unavailable");
+  let staff = 0;
+  if (staffIds.length > 0) {
+    const counted = await db.from("users").select("id", { count: "exact", head: true }).in("id", staffIds).in("status", [...REGISTERED_STATUSES]);
+    if (counted.error || counted.count === null) throw new Error("landing stats unavailable");
+    staff = counted.count;
+  }
+  return { users: Math.max(0, registered.count - staff), organizations: organizations.count, products: products.count };
 }
 
 /** How long one Auth Admin API call of an installer security change may take before its outcome is treated as unknown. */
