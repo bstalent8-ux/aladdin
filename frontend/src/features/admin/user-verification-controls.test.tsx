@@ -34,22 +34,20 @@ describe("UserVerificationControls", () => {
     expect(screen.queryByRole("checkbox")).toBeNull();
   });
 
-  it("requires a reason to reject", () => {
+  it("makes the rejection reason optional", () => {
     show("professional");
     fireEvent.click(screen.getByRole("button", { name: "Reject" }));
-    expect((document.querySelector('textarea[name="reason"]') as HTMLTextAreaElement).required).toBe(true);
+    expect((document.querySelector('textarea[name="reason"]') as HTMLTextAreaElement).required).toBe(false);
   });
 
-  it("offers Start verification, with a required reason and the subject in hidden fields, when no request exists and the caller may initiate", () => {
+  it("offers Start verification, without any reason field and the subject in hidden fields, when no request exists and the caller may initiate", () => {
     render(
       <I18nProvider locale="en" dir="ltr">
         <UserVerificationControls subjectId="11111111-1111-4111-8111-111111111111" pending={null} subjectType="organization" canInitiate />
       </I18nProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Start verification" }));
-    const reason = document.querySelector('textarea[name="reason"]') as HTMLTextAreaElement;
-    expect(reason.required).toBe(true);
-    expect(reason.minLength).toBe(5);
+    expect(document.querySelector('textarea[name="reason"]')).toBeNull();
     expect((document.querySelector('input[name="subjectType"]') as HTMLInputElement).value).toBe("organization");
     expect((document.querySelector('input[name="subjectId"]') as HTMLInputElement).value).toBe("11111111-1111-4111-8111-111111111111");
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();

@@ -1,15 +1,18 @@
--- pgTAP: admin-initiated verification (20261115090002_admin_initiated_verification.sql).
+-- pgTAP: admin-initiated verification (20261115090002_admin_initiated_verification.sql), FINAL owner policy.
 --
---   A. authority and validation: anonymous / Support refused; Moderator (users.verify) may start a USER verification;
---      a reason of 5..500 characters is required; not for yourself, an inactive or non-professional account;
---   B. effects: ONE ordinary 'submitted' row, marked initiated_by_admin; the reason is in the audit log only (never on
---      the row the applicant can read); repeat calls never duplicate;
+--   A. authority and validation: anonymous / Support refused; Moderator (users.verify) may start a USER verification; NO reason
+--      is required (an optional note is capped at 500 characters); not for yourself, an inactive or non-professional account;
+--   B. effects: ONE ordinary 'submitted' row, marked initiated_by_admin; an optional note is in the audit log only (never on
+--      the row the applicant can read); repeat calls never duplicate; the audit row names the acting Admin and the target;
 --   C. the decision is the UNCHANGED workflow: review_start -> review_approve -> apply, or review_reject; an approved
---      account cannot be initiated again, a rejected one can;
+--      account cannot be initiated again, a rejected one can; a rejection reason is OPTIONAL: given, it is stored, audited and
+--      carried in the owner's notification; omitted, the rejection succeeds with a generic notification; approvals and
+--      rejections are audited with actor and target;
 --   D. Admin approval has NO completion requirement: legacy, profile-completion and admin-initiated Craftsman requests
---      are all approvable below 100%;
+--      are all approvable, including at 0%;
 --   E. organizations need the Administrator tier and an active owner; not for an organization that is not awaiting
---      approval; the showroom completeness guard still blocks approval;
+--      approval; an INCOMPLETE showroom can be approved and activated (the approved-verification requirement stays);
+--   H. decision history (reviewer, decision time, admin-initiated) in the account details;
 --   F. grants;
 --   G. the derived "attention" view of Admin Users: a VERIFIED account below 100% appears (right after an Admin approves
 --      it, and after completion drops), carries its percentage, keeps its Verified state and status, is never revoked, and
@@ -18,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(47);
+select plan(60);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -99,9 +102,7 @@ create temp table t_o4 on commit drop as select id from public.organizations whe
 select is(pg_temp.q(null, $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:42501', 'an unauthenticated caller is refused');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a3', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:42501', 'Support (no users.verify) is refused');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000b3', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:42501', 'an ordinary user is refused');
-select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', null)$$), 'ERR:22023', 'a reason is required (null)');
-select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', '   no  ')$$), 'ERR:22023', 'a reason is required (too short)');
-select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', repeat('x', 501))$$), 'ERR:22023', 'a reason is required (too long)');
+select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', repeat('x', 501))$$), 'ERR:22023', 'an optional note longer than 500 characters is refused');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('team', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:22023', 'only user or organization subjects');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b5', 'owner could not submit')$$), 'ERR:22023', 'a non-professional account cannot be verified');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b4', 'owner could not submit')$$), 'ERR:22023', 'an inactive account cannot be verified');
@@ -113,7 +114,7 @@ select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_initi
 select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$)::jsonb ->> 'state'), 'initiated', 'a Moderator (users.verify) initiates a user verification');
 select is((select status::text || ':' || requested_account_type::text || ':' || (reviewer_id is null)::text || ':' || (metadata ->> 'initiated_by_admin') from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'),
   'submitted:engineer:true:true', 'ONE ordinary submitted row for the persona, marked admin-initiated, nobody assigned');
-select is((select count(*)::int from public.audit_log where action = 'verification.admin_initiated' and actor_user_id = '13600000-0000-4000-8000-0000000000a2' and metadata ->> 'reason' = 'owner could not submit'), 1, 'one audit row with the actor and the reason');
+select is((select count(*)::int from public.audit_log where action = 'verification.admin_initiated' and actor_user_id = '13600000-0000-4000-8000-0000000000a2' and metadata ->> 'reason' = 'owner could not submit' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b2' and created_at is not null), 1, 'one audit row with the acting Admin, the target account, the optional note and a timestamp');
 select is((select count(*)::int from (select jsonb_object_keys(metadata) k from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2') x where k <> 'initiated_by_admin'), 0, 'the row carries no reason or initiator for the applicant to read');
 select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$)::jsonb ->> 'state'), 'already_open', 'a repeat call finds the open request');
 select is((select count(*)::int from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2') || ':' || (select count(*)::int from public.audit_log where action = 'verification.admin_initiated' and subject_id = (select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2')), '1:1', 'no duplicate request and no second audit row');
@@ -125,13 +126,24 @@ select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_star
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_approve((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'), false)$$), '', 'review_approve decides it');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.apply_account_upgrade((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'))$$), '', 'the unchanged apply step runs');
 select is((select status::text || ':' || (applied_at is not null)::text from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'), 'approved:true', 'approved and applied');
+select is((select count(*)::int from public.audit_log where action = 'verification.approved' and actor_user_id = '13600000-0000-4000-8000-0000000000a1' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b2' and metadata ->> 'admin_initiated' = 'true'), 1, 'the approval is audited with the acting Admin, the target account and the admin-initiated mark');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:22023', 'an already verified account cannot be initiated again');
 
 -- reject path: e2 is initiated, started and rejected with a reason; a new initiation is then allowed
-select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b3', 'owner could not submit')$$)::jsonb ->> 'state'), 'initiated', 'e2 initiated');
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b3')$$)::jsonb ->> 'state'), 'initiated', 'e2 initiated with NO reason and NO note');
+select is((select (metadata ? 'reason')::text || ':' || (metadata ->> 'subject_user_id') from public.audit_log where action = 'verification.admin_initiated' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b3'), 'false:13600000-0000-4000-8000-0000000000b3', 'a no-reason initiation is still audited with its target and no reason key');
 select pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_start((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3'))$$);
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_reject((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3'), 'documents unclear')$$), '', 'reject with a reason');
+select is((select reason from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3' and status = 'rejected'), 'documents unclear', 'the reason is stored on the request (the owner sees it)');
+select is((select body_key || '|' || (params ->> 'reason') from public.notifications where recipient_user_id = '13600000-0000-4000-8000-0000000000b3' and event_type = 'verification.rejected' and params ? 'reason'), 'notifications.verification.userRejected.bodyReason|documents unclear', 'the owner is notified WITH the reason');
+select is((select count(*)::int from public.audit_log where action = 'verification.rejected' and actor_user_id = '13600000-0000-4000-8000-0000000000a1' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b3' and metadata ->> 'reason' = 'documents unclear'), 1, 'the rejection is audited with the acting Admin, the target and the reason');
 select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b3', 'try again after rejection')$$)::jsonb ->> 'state'), 'initiated', 'after a rejection a new request can be initiated');
+-- a rejection WITHOUT a reason succeeds and sends the generic notification
+select pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_start((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3' and status = 'submitted'))$$);
+select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_reject((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3' and status = 'under_review'), null)$$), '', 'a rejection with NO reason succeeds');
+select is((select count(*)::int from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b3' and status = 'rejected' and reason is null), 1, 'and stores no reason');
+select is((select count(*)::int from public.notifications where recipient_user_id = '13600000-0000-4000-8000-0000000000b3' and event_type = 'verification.rejected' and body_key = 'notifications.verification.userRejected.body' and params = '{}'::jsonb), 1, 'the owner gets the generic notification without a reason');
+select is((select count(*)::int from public.audit_log where action = 'verification.rejected' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b3' and not (metadata ? 'reason')), 1, 'the no-reason rejection is audited too, without a reason key');
 
 -- ===========================================================================
 -- D. Craftsman guard grandfathering (all three craftsmen have INCOMPLETE profiles)
@@ -139,9 +151,10 @@ select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_init
 insert into public.verifications (subject_type, user_id, verification_type, requested_account_type, status, submitted_at, metadata) values
   ('user', '13600000-0000-4000-8000-0000000000b6', 'professional', 'installer_technician', 'submitted', now(), '{}'::jsonb),
   ('user', '13600000-0000-4000-8000-0000000000b7', 'professional', 'installer_technician', 'submitted', now(), '{"source":"profile_completion"}'::jsonb);
-select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b8', 'owner could not submit')$$)::jsonb ->> 'state'), 'initiated', 'c4 (incomplete craftsman) initiated by an admin');
+select is((app.profile_completion('13600000-0000-4000-8000-0000000000b8') ->> 'percent')::int, 0, 'c4 is a craftsman profile at 0%');
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b8')$$)::jsonb ->> 'state'), 'initiated', 'c4 (0% craftsman) initiated by an admin without a request or reason');
 select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13600000-0000-4000-8000-0000000000b6' $$, 'a legacy (unmarked) craftsman request is approvable below 100%');
-select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13600000-0000-4000-8000-0000000000b8' $$, 'an admin-initiated craftsman request is approvable below 100%');
+select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13600000-0000-4000-8000-0000000000b8' $$, 'an admin-initiated craftsman request is approvable at 0%');
 select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13600000-0000-4000-8000-0000000000b7' $$, 'a profile-completion request is approvable below 100% too');
 
 -- ===========================================================================
@@ -158,7 +171,18 @@ select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.admi
 -- the showroom completeness guard still applies to an admin-initiated approval
 select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.admin_initiate_verification('organization', %L::uuid, 'owner could not submit')$$, (select o2 from t_org)))::jsonb ->> 'state'), 'initiated', 'an incomplete showroom can be initiated');
 select pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.review_start((select id from public.verifications where organization_id = %L::uuid))$$, (select o2 from t_org)));
-select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.review_approve((select id from public.verifications where organization_id = %L::uuid), false)$$, (select o2 from t_org))), 'ERR:22023', 'but approving it is still refused until the showroom business information is complete');
+select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.review_approve((select id from public.verifications where organization_id = %L::uuid), false)$$, (select o2 from t_org))), '', 'and an Admin may approve it: showroom business-completeness no longer restricts approval');
+select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.apply_organization_verification((select id from public.verifications where organization_id = %L::uuid))$$, (select o2 from t_org))), '', 'the unchanged apply step activates it');
+select is((select status::text || ':' || is_verified::text from public.organizations where id = (select o2 from t_org)), 'active:true', 'the incomplete showroom is active and verified (the approved-verification requirement was met)');
+select is((select count(*)::int from public.audit_log where action = 'verification.approved' and actor_user_id = '13600000-0000-4000-8000-0000000000a1' and metadata ->> 'subject_organization_id' = (select o2::text from t_org) and organization_id = (select o2 from t_org)), 1, 'the organization approval is audited with the acting Admin and the target organization');
+
+-- ===========================================================================
+-- H. decision history in the account details (authorized Admin)
+-- ===========================================================================
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 ->> 'reviewer_id') || ':' || ((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 ->> 'initiated_by_admin')) || ':' || ((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 ->> 'decided_at') is not null)::text,
+  '13600000-0000-4000-8000-0000000000a1:true:true', 'the user details show who decided, when, and that an Admin started it');
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.admin_organization_detail(%L::uuid)$$, (select o2 from t_org)))::jsonb -> 'verifications' -> 0 ->> 'initiated_by_admin') || ':' || (pg_temp.q('13600000-0000-4000-8000-0000000000a1', format($$public.admin_organization_detail(%L::uuid)$$, (select o2 from t_org)))::jsonb -> 'verifications' -> 0 ->> 'reviewer_id'),
+  'true:13600000-0000-4000-8000-0000000000a1', 'the organization details show the same decision history');
 
 -- ===========================================================================
 -- G. derived "Needs attention" view

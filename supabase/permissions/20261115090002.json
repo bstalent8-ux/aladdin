@@ -1,6 +1,6 @@
 {
  "version": "20261115090002",
- "source": "Exact function permission contract after 20261115090002_admin_initiated_verification.sql: ADDS public.admin_initiate_verification(text,uuid,text) (authenticated only; SECURITY DEFINER, search_path empty); REMOVES app.craftsman_review_guard() (the Craftsman completion approval guard of 20261115090001 is dropped by this corrective migration); re-creates public.admin_users_directory with an unchanged signature, owner, search_path and grants (derived 'attention' filter); so 758 functions.",
+ "source": "Exact function permission contract after 20261115090002_admin_initiated_verification.sql: ADDS public.admin_initiate_verification(text,uuid,text) (authenticated only; SECURITY DEFINER, search_path empty); REMOVES app.craftsman_review_guard() and app.showroom_review_guard() (the Craftsman completion and showroom completeness approval guards are dropped by this corrective migration); re-creates public.admin_users_directory with an unchanged signature, owner, search_path and grants (derived 'attention' filter); so 757 functions.",
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.media_storage_resolve(text,text,text)",
@@ -11330,39 +11330,6 @@
     "supabase_storage_admin": false
    },
    "signature": "app.showroom_quotation_guard()",
-   "schemaUsage": {
-    "anon": true,
-    "service_role": false,
-    "authenticated": true,
-    "authenticator": false,
-    "dashboard_user": false,
-    "supabase_auth_admin": false,
-    "supabase_storage_admin": false
-   }
-  },
-  {
-   "kind": "f",
-   "owner": "postgres",
-   "config": [
-    "search_path=\"\""
-   ],
-   "grants": [
-    {
-     "role": "postgres",
-     "grantable": false
-    }
-   ],
-   "definer": true,
-   "effective": {
-    "anon": false,
-    "service_role": false,
-    "authenticated": false,
-    "authenticator": false,
-    "dashboard_user": false,
-    "supabase_auth_admin": false,
-    "supabase_storage_admin": false
-   },
-   "signature": "app.showroom_review_guard()",
    "schemaUsage": {
     "anon": true,
     "service_role": false,

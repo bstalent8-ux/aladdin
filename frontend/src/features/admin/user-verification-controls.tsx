@@ -17,7 +17,7 @@ import type { PendingUserVerification } from "@/server/queries/admin-directory";
  *
  * `ConfirmDialog` supplies the states: the confirm button shows a pending label and cannot be double-clicked,
  * an error stays in the dialog as an alert (a rejection keeps its typed reason), and success shows a toast,
- * refreshes the server data and closes. A reason is required to reject, in the form and again in the action.
+ * refreshes the server data and closes. The rejection reason is optional (shown to the account owner when given).
  *
  * With no open request the controls stay visible but disabled, with the reason as their tooltip — the account
  * is not "verifiable" by an admin until the person has submitted something to review. (Phone / WhatsApp OTP
@@ -46,9 +46,8 @@ export function UserVerificationControls({
   const offersListing = pending?.verificationType === "professional";
 
   if (!pending && canInitiate) {
-    // No request was submitted: an authorized Admin may START one (reason required, kept in the audit log). It is an
+    // No request was submitted: an authorized Admin may START one (no reason needed; the audit log records who started it). It is an
     // ordinary request: Approve / Reject appear once it exists and decide it through the unchanged review steps.
-    const reasonId = `verification-start-reason-${subjectId}`;
     return (
       <ConfirmDialog
         trigger={t("admin.review.startVerification")}
@@ -64,9 +63,6 @@ export function UserVerificationControls({
       >
         <input type="hidden" name="subjectType" value={subjectType} />
         <input type="hidden" name="subjectId" value={subjectId} />
-        <LabeledField label={t("admin.review.startReasonLabel")} htmlFor={reasonId}>
-          <Textarea id={reasonId} name="reason" rows={3} minLength={5} maxLength={500} required />
-        </LabeledField>
       </ConfirmDialog>
     );
   }
@@ -127,7 +123,7 @@ export function UserVerificationControls({
       >
         {hidden}
         <LabeledField label={t("admin.review.reasonPlaceholder")} htmlFor={reasonId}>
-          <Textarea id={reasonId} name="reason" rows={3} maxLength={500} required />
+          <Textarea id={reasonId} name="reason" rows={3} maxLength={2000} />
         </LabeledField>
       </ConfirmDialog>
     </>

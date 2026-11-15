@@ -178,8 +178,8 @@ describe("approveVerificationAction", () => {
   describe("adminInitiateVerificationAction", () => {
     const base = { subjectType: "user", subjectId: ID, reason: "owner could not submit" };
 
-    it("validates the shape BEFORE any database call (subject type, id, reason length)", async () => {
-      for (const bad of [{ subjectType: "team" }, { subjectId: "not-a-uuid" }, { reason: "no" }, { reason: "x".repeat(501) }, { reason: "" }]) {
+    it("validates the shape BEFORE any database call (subject type, id, optional note length)", async () => {
+      for (const bad of [{ subjectType: "team" }, { subjectId: "not-a-uuid" }, { reason: "x".repeat(501) }]) {
         const res = await adminInitiateVerificationAction(initial, form({ ...base, ...bad }));
         expect(res.ok).toBe(false);
       }
@@ -223,11 +223,23 @@ describe("approveVerificationAction", () => {
 });
 
 describe("rejectVerificationAction", () => {
-  it.each(["", "   "])("requires a reason (%j) before any database call", async (reason) => {
+  it.each(["", "   "])("rejects with NO reason (%j): the reason is optional", async (reason) => {
+    target("under_review");
     const res = await rejectVerificationAction(initial, form({ id: ID, reason }));
-    expect(res).toEqual({ ok: false, code: "admin.review.error.reasonRequired" });
-    expect(from).not.toHaveBeenCalled();
+    expect(res).toEqual({ ok: true, code: "admin.review.rejected" });
+    expect(rpc).toHaveBeenLastCalledWith("review_reject", { p_verification_id: ID, p_reason: "" });
+  });
+
+  it("refuses an over-long reason before any database call", async () => {
+    const res = await rejectVerificationAction(initial, form({ id: ID, reason: "x".repeat(2001) }));
+    expect(res).toEqual({ ok: false, code: "admin.review.error.reasonTooLong" });
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("starts a verification with no note at all", async () => {
+    rpc.mockResolvedValueOnce({ data: { state: "initiated", verification_id: "v1" }, error: null });
+    const res = await adminInitiateVerificationAction(initial, form({ subjectType: "user", subjectId: ID }));
+    expect(res).toEqual({ ok: true, code: "admin.review.initiated" });
   });
 
   it("claims a submitted request, then rejects with the trimmed reason", async () => {

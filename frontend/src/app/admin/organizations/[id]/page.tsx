@@ -296,6 +296,9 @@ export default async function PreviewOrgDetailPage({
                     </p>
                     <p className="text-label text-fg-muted">
                       {formatAdminDate(v.submittedAt, locale)}
+                      {v.initiatedByAdmin ? ` · ${m.admin.review.startedByAdmin}` : ""}
+                      {v.reviewerName ? ` · ${m.admin.review.reviewedBy}: ${v.reviewerName}` : ""}
+                      {v.decidedAt ? ` · ${formatAdminDate(v.decidedAt, locale)}` : ""}
                       {v.reason ? ` · ${v.reason}` : ""}
                     </p>
                   </div>

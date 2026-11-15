@@ -151,6 +151,10 @@ export type AdminVerification = {
   reason: string | null;
   submittedAt: string;
   decidedAt: string | null;
+  /** The reviewing Admin (decision history); null while nobody has claimed the request. */
+  reviewerName: string | null;
+  /** The request was started by an Admin rather than submitted by the account owner. */
+  initiatedByAdmin: boolean;
 };
 
 function mapVerification(raw: unknown): AdminVerification | null {
@@ -166,6 +170,8 @@ function mapVerification(raw: unknown): AdminVerification | null {
     reason: str(o.reason),
     submittedAt,
     decidedAt: str(o.decided_at),
+    reviewerName: str(o.reviewer_name),
+    initiatedByAdmin: o.initiated_by_admin === true,
   };
 }
 

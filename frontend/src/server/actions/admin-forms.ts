@@ -30,6 +30,7 @@ function mapReviewError(message: string | undefined): string {
       || m.includes("no active owner") || m.includes("subject not found") || m.includes("own account") || m.includes("own organization"))
     return "admin.review.error.notEligible";
   if (m.includes("invalid transition")) return "admin.review.error.state";
+  if (m.includes("at most 2000") || m.includes("at most 500")) return "admin.review.error.reasonTooLong";
   if (m.includes("reason")) return "admin.review.error.reasonRequired";
   return "states.genericRetry";
 }
@@ -139,9 +140,10 @@ export async function rejectVerificationAction(
   fd: FormData,
 ): Promise<ReviewFormState> {
   const id = str(fd, "id");
-  const reason = str(fd, "reason");
+  // The reason is OPTIONAL: when given it is shown to the account owner and sent in their notification.
+  const reason = str(fd, "reason") ?? "";
   if (!id) return { ok: false, code: "states.genericRetry" };
-  if (!reason) return { ok: false, code: "admin.review.error.reasonRequired" };
+  if (reason.length > 2000) return { ok: false, code: "admin.review.error.reasonTooLong" };
   const supabase = await getServerSupabase();
 
   const target = await loadDecisionTarget(supabase, id);
@@ -168,17 +170,17 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function adminInitiateVerificationAction(_p: ReviewFormState, fd: FormData): Promise<ReviewFormState> {
   const subjectType = str(fd, "subjectType");
   const subjectId = str(fd, "subjectId");
-  const reason = str(fd, "reason");
+  const reason = str(fd, "reason") ?? ""; // optional note for the audit row
   if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
     return { ok: false, code: "states.genericRetry" };
   }
-  if (!reason || reason.length < 5 || reason.length > 500) return { ok: false, code: "admin.review.error.reasonRequired" };
+  if (reason.length > 500) return { ok: false, code: "admin.review.error.reasonTooLong" };
 
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("admin_initiate_verification", {
     p_subject_type: subjectType,
     p_subject_id: subjectId,
-    p_reason: reason,
+    p_reason: reason || undefined,
   });
   if (error) return { ok: false, code: mapReviewError(error.message) };
   const state = (data as { state?: unknown } | null)?.state;

@@ -152,6 +152,8 @@ describe("User Details - real Verify / Reject", () => {
     reason: null,
     submittedAt: "2026-10-30T10:00:00Z",
     decidedAt: null,
+    reviewerName: null,
+    initiatedByAdmin: false,
   });
   const approve = () => screen.queryAllByRole("button", { name: /approve/i });
 
