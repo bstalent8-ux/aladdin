@@ -5,6 +5,10 @@
 - Owner-approved. `frontend/wrangler.jsonc` production: `REDIS_CACHE_ENABLED=true`, `REDIS_REST_URL=https://alert-bedbug-148148.upstash.io` (the preview's database), `REDIS_KEY_ENV=production`; `REDIS_REST_TOKEN` joins `secrets.required`. The Production Worker does NOT have the secret yet: a deploy is refused until the owner runs `wrangler secret put REDIS_REST_TOKEN --env production` (normal read-write token).
 - Live Production is unchanged until a version with this config is deployed and promoted. Budget: the 500,000 commands a month are shared with the preview. Rollback: `REDIS_CACHE_ENABLED=false`.
 
+## Legacy URLs blocked at Cloudflare; retired entry redirects removed (draft PR) - 2026-11-15
+- Production Cloudflare zone `aladdindecore.com` has 1 custom WAF rule, "Block legacy website paths" (Block, active, first): the old site's `/b2b_web_site/`, `/b2c/accounts/`, `/uploads/albums_images/`, `/b2b/api/uptime-home`, and the retired `/installer/`, `/temporary/craftsman/`, `/showroom/sign-*` URLs answer 403 at the edge. Bot Fight Mode is off. Undo: delete or disable the rule.
+- Branch `chore/remove-retired-entry-redirects-20261115` removes the six redirects for the retired entry pages from `next.config.ts` (they 404 once deployed). Not merged, not deployed; Acceptance and Production still redirect until then.
+
 ## Account identity Phase 1 planning (draft PR-0, docs only) - 2026-11-10
 -## Account identity Phase 1 Acceptance preflight (v1.5) - 2026-11-11
 - Live (read-only, 10:14Z): Acceptance `nxossqhdfltcqdwvbewi` 207 applied, latest `20261107090006`, no gaps; Production the same list. Pending on Acceptance vs `main` `2aa365a5`: only `20261110090001` (media ids-only keys). M1 `20261110090002` is on #171 only. This supersedes the 203 / `20261107090002` numbers in the 2026-11-08 section below.
