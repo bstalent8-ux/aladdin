@@ -166,10 +166,17 @@ describe("User Details - real Verify / Reject", () => {
     expect(screen.getAllByRole("button", { name: /^reject$/i })).toHaveLength(1);
   });
 
-  it("shows them disabled, with the reason, for a pending account that has no open request", async () => {
-    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", verifications: [open("approved")] }) });
+  it("shows them disabled, with the reason, for a pending account that has no open request (approval already applied)", async () => {
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", accountType: "installer_technician", verifications: [open("approved")] }) });
     await renderPage(ORDINARY_ID);
     expect(approve()[0]!.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("offers Approve again when a request was approved but its apply step never completed (recovery resumes the same request)", async () => {
+    loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: "pending_verification", accountType: null, verifications: [open("approved")] }) });
+    await renderPage(ORDINARY_ID);
+    expect(approve()).toHaveLength(1);
+    expect(approve()[0]!.getAttribute("aria-disabled")).toBeNull();
   });
 
   it("ignores business verification (its own queue) and decided requests", async () => {

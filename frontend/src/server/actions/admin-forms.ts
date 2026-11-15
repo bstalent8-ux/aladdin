@@ -63,13 +63,34 @@ async function loadDecisionTarget(
  * then decided through the unchanged review_start / review_approve / review_reject steps. An open request is reused,
  * never duplicated. When the form carries a request id it is used as is.
  */
-async function resolveVerificationId(supabase: Supa, fd: FormData): Promise<{ id: string } | { code: string }> {
+async function resolveVerificationId(
+  supabase: Supa,
+  fd: FormData,
+  opts: { recoverApproved?: boolean } = {},
+): Promise<{ id: string } | { code: string }> {
   const id = str(fd, "id");
   if (id) return { id };
   const subjectType = str(fd, "subjectType");
   const subjectId = str(fd, "subjectId");
   if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
     return { code: "states.genericRetry" };
+  }
+  // RECOVERY (Approve only): a previous Approve may have recorded the decision and then failed before the apply step.
+  // That request is APPROVED but not applied, so it is no longer "open" and filing a new one would duplicate the request,
+  // the audit trail and the owner's notification. Resume the same request instead; approve + apply are idempotent.
+  if (opts.recoverApproved) {
+    const found = await supabase
+      .from("verifications")
+      .select("id")
+      .eq("subject_type", subjectType)
+      .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
+      .eq("status", "approved")
+      .is("applied_at", null)
+      .neq("verification_type", "business")
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (found?.data?.id) return { id: found.data.id };
   }
   const { data, error } = await supabase.rpc("admin_initiate_verification", { p_subject_type: subjectType, p_subject_id: subjectId });
   if (error) return { code: mapReviewError(error.message) };
@@ -125,7 +146,7 @@ export async function approveVerificationAction(
   fd: FormData,
 ): Promise<ReviewFormState> {
   const supabase = await getServerSupabase();
-  const resolved = await resolveVerificationId(supabase, fd);
+  const resolved = await resolveVerificationId(supabase, fd, { recoverApproved: true });
   if (!("id" in resolved)) return { ok: false, code: resolved.code };
   const id = resolved.id;
 

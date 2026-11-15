@@ -39,3 +39,16 @@ export function canStartVerification(u: {
 export function isProfileIncomplete(u: { verificationState: string; completion: number }): boolean {
   return u.verificationState === "verified" && u.completion < 100;
 }
+
+/**
+ * A professional approval whose APPLY step has not completed: the request is approved but the account still has not
+ * taken the requested account type. The detail read does not expose applied_at, so this is the observable equivalent.
+ * Admin Approve is then offered again (it resumes the same request: approve and apply are idempotent), never a new one.
+ */
+export function hasUnappliedProfessionalApproval(
+  user: { accountType: string | null; verifications: { status: string; verificationType: string; requestedAccountType: string | null }[] },
+): boolean {
+  return user.verifications.some(
+    (v) => v.status === "approved" && v.verificationType === "professional" && v.requestedAccountType !== null && v.requestedAccountType !== user.accountType,
+  );
+}

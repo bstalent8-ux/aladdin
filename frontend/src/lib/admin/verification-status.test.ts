@@ -11,3 +11,17 @@ describe("canStartVerification for active accounts", () => {
     expect(canStartVerification({ accountType: "engineer", status: "suspended", verificationState: "unverified" })).toBe(false);
   });
 });
+
+import { hasUnappliedProfessionalApproval } from "./verification-status";
+
+describe("hasUnappliedProfessionalApproval", () => {
+  const v = (status: string, requestedAccountType: string | null) => ({ status, verificationType: "professional", requestedAccountType });
+  it("is true when the request is approved but the account has not taken the requested type (apply did not complete)", () => {
+    expect(hasUnappliedProfessionalApproval({ accountType: null, verifications: [v("approved", "installer_technician")] })).toBe(true);
+  });
+  it("is false once applied, for open or rejected requests, and without a requested type", () => {
+    expect(hasUnappliedProfessionalApproval({ accountType: "installer_technician", verifications: [v("approved", "installer_technician")] })).toBe(false);
+    expect(hasUnappliedProfessionalApproval({ accountType: null, verifications: [v("submitted", "installer_technician"), v("rejected", "installer_technician")] })).toBe(false);
+    expect(hasUnappliedProfessionalApproval({ accountType: null, verifications: [v("approved", null)] })).toBe(false);
+  });
+});

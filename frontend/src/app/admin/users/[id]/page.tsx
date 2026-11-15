@@ -17,7 +17,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
 import { VerificationHistory } from "@/features/admin/verification-history";
-import { canStartVerification, isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { canStartVerification, hasUnappliedProfessionalApproval, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
 import { SuspensionAction, SuspensionBanner } from "@/features/admin-ops/suspension";
@@ -180,7 +180,7 @@ export default async function PreviewUserDetailPage({
             </span>
           )}
           {can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification || canStartVerification(user)) ? (
-            <UserVerificationControls subjectId={user.id} pending={pendingVerification} canInitiate={canStartVerification(user)} />
+            <UserVerificationControls subjectId={user.id} pending={pendingVerification} canInitiate={canStartVerification(user) || hasUnappliedProfessionalApproval(user)} />
           ) : null}
           {canSuspend && user.status !== "deactivated" ? (
             <SuspensionAction m={m} subjectType="user" subjectId={user.id} suspended={user.status === "suspended"} />

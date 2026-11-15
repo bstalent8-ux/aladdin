@@ -12,10 +12,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 const rpc = vi.fn();
 const maybeSingle = vi.fn();
-const query = { select: vi.fn(), eq: vi.fn(), neq: vi.fn(), maybeSingle };
+const query = { select: vi.fn(), eq: vi.fn(), neq: vi.fn(), is: vi.fn(), order: vi.fn(), limit: vi.fn(), maybeSingle };
 query.select.mockReturnValue(query);
 query.eq.mockReturnValue(query);
 query.neq.mockReturnValue(query);
+query.is.mockReturnValue(query);
+query.order.mockReturnValue(query);
+query.limit.mockReturnValue(query);
 const from = vi.fn(() => query);
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath }));
@@ -39,6 +42,8 @@ beforeEach(() => {
   rpc.mockReset();
   rpc.mockResolvedValue({ data: null, error: null });
   maybeSingle.mockReset();
+  query.is.mockClear();
+  query.eq.mockClear();
   revalidatePath.mockClear();
   from.mockClear();
 });
@@ -235,6 +240,35 @@ describe("one-click decisions on an account with NO request", () => {
     expect(res).toEqual({ ok: true, code: "admin.review.approved" });
     expect(calls()).toEqual(["admin_initiate_verification", "review_start", "review_approve", "apply_account_upgrade"]);
     expect(rpc).toHaveBeenCalledWith("admin_initiate_verification", { p_subject_type: "user", p_subject_id: SUBJECT });
+  });
+
+  it("RECOVERY: an approved-but-unapplied request is resumed (no new request is filed) and apply runs once more", async () => {
+    maybeSingle
+      .mockResolvedValueOnce({ data: { id: ID }, error: null }) // the approved, un-applied request of this account
+      .mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null }); // loadDecisionTarget
+    const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+    expect(res).toEqual({ ok: true, code: "admin.review.approved" });
+    expect(calls()).toEqual(["review_approve", "apply_account_upgrade"]); // never admin_initiate_verification, never review_start
+    expect(query.is).toHaveBeenCalledWith("applied_at", null);
+    expect(query.eq).toHaveBeenCalledWith("status", "approved");
+  });
+
+  it("RECOVERY applies to an organization the same way (no duplicate request, audit or notification)", async () => {
+    maybeSingle
+      .mockResolvedValueOnce({ data: { id: ID }, error: null })
+      .mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
+    const res = await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }));
+    expect(res.ok).toBe(true);
+    expect(calls()).toEqual(["review_approve", "apply_organization_verification"]);
+    expect(query.eq).toHaveBeenCalledWith("organization_id", SUBJECT);
+  });
+
+  it("Reject never takes the recovery path", async () => {
+    filed();
+    target("submitted");
+    await rejectVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+    expect(query.is).not.toHaveBeenCalled();
+    expect(calls()[0]).toBe("admin_initiate_verification");
   });
 
   it("Reject files the request and rejects it with NO reason", async () => {
