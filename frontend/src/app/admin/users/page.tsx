@@ -16,7 +16,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { RowActionsMenu, type RowAction } from "@/features/admin-preview/row-actions-menu";
 import { RowIconLink, RowIconDisabled } from "@/features/admin-preview/row-icon-button";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
-import { canStartVerification, isProfileIncomplete } from "@/lib/admin/verification-status";
+import { canStartVerification, displayUserStatus, isProfileIncomplete } from "@/lib/admin/verification-status";
 import { can } from "@/lib/permissions/admin";
 import { AutoFilters, SortableHeader } from "@/features/admin-preview/auto-filters";
 import { TablePagination } from "@/features/admin-preview/table-pagination";
@@ -207,7 +207,7 @@ export default async function PreviewUsersPage({
       header: cols.status,
       minWidth: "7.5rem",
       nowrap: true,
-      cell: (u) => <StatusBadge status={u.status} label={statusLabels[u.status] ?? u.status} />,
+      cell: (u) => <StatusBadge status={displayUserStatus(u)} label={statusLabels[displayUserStatus(u)] ?? u.status} />,
     },
     {
       key: "lastActive",

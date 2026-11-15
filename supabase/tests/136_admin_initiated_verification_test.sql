@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(65);
+select plan(74);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -225,6 +225,17 @@ select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user
 select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'actor_name'), (select display_name from public.profiles where user_id = (pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'actor_id')::uuid), 'history: names the acting Admin');
 select ok((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'at') is not null, 'history: carries the timestamp');
 select ok(exists (select 1 from jsonb_array_elements(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events') e where e ->> 'action' = 'verification.approved' and e ->> 'actor_name' is not null and e ->> 'actor_id' is not null), 'history: the approval names the deciding Admin');
+
+-- status tab: an approved verification lists the account under Verified (never activating it); the other rules are unchanged
+select is(app.admin_user_status_tab('pending_verification', 'approved'), 'verified', 'tab: an approved verification is listed under Verified');
+select is(app.admin_user_status_tab('pending_verification', 'submitted'), 'pending', 'tab: an open request stays Pending');
+select is(app.admin_user_status_tab('pending_verification', null), 'pending', 'tab: no request stays Pending');
+select is(app.admin_user_status_tab('pending_verification', 'rejected'), 'rejected', 'tab: a rejection is still Rejected');
+select is(app.admin_user_status_tab('suspended', 'approved'), 'suspended', 'tab: Suspended always wins');
+select is(app.admin_user_status_tab('active', null), 'verified', 'tab: an active account is Verified (unchanged)');
+select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'verified', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'true', 'directory: the Admin-approved account is in the Verified tab');
+select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'pending', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'false', 'directory: and no longer in the Pending tab');
+select is((select status::text from public.users where id = '13600000-0000-4000-8000-0000000000b2'), 'pending_verification', 'the approval did NOT activate the account (users.status is untouched)');
 
 -- ===========================================================================
 -- F. grants

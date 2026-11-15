@@ -17,7 +17,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
 import { VerificationHistory } from "@/features/admin/verification-history";
-import { canStartVerification, isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { canStartVerification, displayUserStatus, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
 import { SuspensionAction, SuspensionBanner } from "@/features/admin-ops/suspension";
@@ -153,7 +153,7 @@ export default async function PreviewUserDetailPage({
         <div className="flex flex-wrap items-center gap-md">
           <AdminHeader locale={locale} title={name} subtitle={user.headline ?? undefined} />
           <div className="flex items-center gap-2">
-            <StatusBadge status={user.status} label={statusLabels[user.status] ?? user.status} />
+            <StatusBadge status={displayUserStatus(user)} label={statusLabels[displayUserStatus(user)] ?? user.status} />
             {user.isVerified ? <Badge tone="success">{m.admin.users.verified}</Badge> : null}
           </div>
         </div>
@@ -220,7 +220,7 @@ export default async function PreviewUserDetailPage({
                   ? (typeLabels[user.accountType ?? user.registeredAccount!] ?? user.accountType ?? user.registeredAccount)
                   : m.admin.users.businessOnly}
               </Field>
-              <Field label={m.admin.users.status}>{statusLabels[user.status] ?? user.status}</Field>
+              <Field label={m.admin.users.status}>{statusLabels[displayUserStatus(user)] ?? user.status}</Field>
               <Field label={m.admin.users.joined}>{formatAdminDate(user.createdAt, locale)}</Field>
               <Field label={d.lastSignIn}>{user.lastSignInAt ? formatDateTime(user.lastSignInAt, locale) : d.neverSignedIn}</Field>
               <Field label={ov.organizationsSummary}>{formatNumber(user.memberships.length, locale)}</Field>
