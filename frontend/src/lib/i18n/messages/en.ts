@@ -2509,6 +2509,11 @@ export const en = {
         body: "Your verification request was not approved.",
         bodyReason: "Your verification request was not approved. Reason: {reason}",
       },
+      userApproved: {
+        title: "Your account is verified",
+        body: "Your account verification was approved.",
+        bodyListed: "Your account verification was approved and your profile is listed publicly.",
+      },
       userRejected: {
         title: "Verification was declined",
         body: "Your account verification was not approved.",

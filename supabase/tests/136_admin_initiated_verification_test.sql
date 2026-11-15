@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(74);
+select plan(77);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -126,6 +126,11 @@ select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_star
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_approve((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'), false)$$), '', 'review_approve decides it');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.apply_account_upgrade((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'))$$), '', 'the unchanged apply step runs');
 select is((select status::text || ':' || (applied_at is not null)::text from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'), 'approved:true', 'approved and applied');
+-- approval notification: the account owner is told once, with the existing centralized writer and i18n keys; retries add none
+select is((select count(*)::int from public.notifications where recipient_user_id = '13600000-0000-4000-8000-0000000000b2' and event_type = 'verification.approved' and body_key = 'notifications.verification.userApproved.body' and title_key = 'notifications.verification.userApproved.title' and deep_link = '/home/profile'), 1, 'the account owner is notified of the approval');
+select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.review_approve((select id from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b2'), false)$$), '', 'a retry of the approval by the same Admin succeeds idempotently');
+select is((select count(*)::int from public.notifications where recipient_user_id = '13600000-0000-4000-8000-0000000000b2' and event_type = 'verification.approved'), 1, 'and sends no second notification');
+
 select is((select count(*)::int from public.audit_log where action = 'verification.approved' and actor_user_id = '13600000-0000-4000-8000-0000000000a1' and metadata ->> 'subject_user_id' = '13600000-0000-4000-8000-0000000000b2' and metadata ->> 'admin_initiated' = 'true'), 1, 'the approval is audited with the acting Admin, the target account and the admin-initiated mark');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a2', $$public.admin_initiate_verification('user', '13600000-0000-4000-8000-0000000000b2', 'owner could not submit')$$), 'ERR:22023', 'an already verified account cannot be initiated again');
 
