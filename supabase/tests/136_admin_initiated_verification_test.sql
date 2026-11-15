@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(77);
+select plan(80);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -237,7 +237,10 @@ select is(app.admin_user_status_tab('pending_verification', 'submitted'), 'pendi
 select is(app.admin_user_status_tab('pending_verification', null), 'pending', 'tab: no request stays Pending');
 select is(app.admin_user_status_tab('pending_verification', 'rejected'), 'rejected', 'tab: a rejection is still Rejected');
 select is(app.admin_user_status_tab('suspended', 'approved'), 'suspended', 'tab: Suspended always wins');
-select is(app.admin_user_status_tab('active', null), 'verified', 'tab: an active account is Verified (unchanged)');
+select is(app.admin_user_status_tab('active', null), null, 'tab: an active account that never asked for verification is NOT Verified (All only)');
+select is(app.admin_user_status_tab('active', 'submitted'), 'pending', 'tab: an active account with an open request is Pending');
+select is(app.admin_user_status_tab('active', 'approved'), 'verified', 'tab: an active account with an approved verification is Verified');
+select is(app.admin_user_status_tab('deactivated', null), null, 'tab: a deactivated account is under All only');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'verified', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'true', 'directory: the Admin-approved account is in the Verified tab');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'pending', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2"}]'::jsonb)::text, 'false', 'directory: and no longer in the Pending tab');
 select is((select status::text from public.users where id = '13600000-0000-4000-8000-0000000000b2'), 'pending_verification', 'the approval did NOT activate the account (users.status is untouched)');

@@ -154,7 +154,7 @@ export default async function PreviewUserDetailPage({
           <AdminHeader locale={locale} title={name} subtitle={user.headline ?? undefined} />
           <div className="flex items-center gap-2">
             <StatusBadge status={user.status} label={statusLabels[user.status] ?? user.status} />
-            {user.isVerified ? <Badge tone="success">{m.admin.users.verified}</Badge> : null}
+            {user.verificationState === "verified" ? <Badge tone="success">{m.admin.users.verified}</Badge> : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-sm">

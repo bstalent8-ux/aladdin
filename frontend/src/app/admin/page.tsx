@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { adminSummary } from "@/server/queries/admin";
+import { loadUsersDirectory } from "@/server/queries/admin-directory";
 import { previewDashboardExtras } from "@/server/queries/admin-preview";
 import { createTranslator, getMessages } from "@/lib/i18n/translate";
 import { formatCount } from "@/lib/ui/format";
@@ -49,11 +50,17 @@ export default async function AdminPreviewDashboardPage() {
   const locale = resolveLocale(store.get(LOCALE_COOKIE)?.value);
   const m = getMessages(locale);
   const t = createTranslator(locale);
-  const [s, extras] = await Promise.all([adminSummary(supabase), previewDashboardExtras(supabase)]);
+  const [s, extras, tabs] = await Promise.all([
+    adminSummary(supabase),
+    previewDashboardExtras(supabase),
+    // The same tab counts the Users directory shows, so each card equals the list it links to.
+    loadUsersDirectory(supabase, { search: null, status: null, accountType: null, verification: null, governorate: null, page: 1, pageSize: 10, sort: "registered:desc" }),
+  ]);
 
   const totalUsers = Object.values(s.usersByStatus).reduce((a, b) => a + b, 0);
-  const verifiedUsers = s.usersByStatus.active ?? 0;
-  const pendingUsers = s.usersByStatus.pending_verification ?? 0;
+  // Verified = an approved verification, Pending = the review queue (never the raw users.status, which is the account lifecycle).
+  const verifiedUsers = tabs.ok ? tabs.data.counts.verified : 0;
+  const pendingUsers = tabs.ok ? tabs.data.counts.pending : (s.usersByStatus.pending_verification ?? 0);
   const suspendedUsers = s.usersByStatus.suspended ?? 0;
   const pendingOrgs = s.orgsByStatus.pending_verification ?? 0;
   const suspendedOrgs = s.orgsByStatus.suspended ?? 0;
