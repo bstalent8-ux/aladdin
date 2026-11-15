@@ -17,8 +17,9 @@ const ALLOWED_CALLERS: Record<string, string> = {
   "server/cache/rate-limit.ts": "per-user rate-limit counters",
   "server/video/uploads.ts": "video job ids pushed to the transcode wake-up list",
   "app/api/health/route.ts": "PING only",
+  "features/landing-brand/landing-brand-stats.server.ts": "the landing page's three platform counts (global, identical for everyone; a cache layer, the database stays the source)",
 };
-const ALLOWED_NAMESPACES = ["health", "jobs", "ref", "rl"];
+const ALLOWED_NAMESPACES = ["health", "jobs", "landing", "ref", "rl"];
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -56,6 +57,7 @@ describe("Redis use stays inside ADR-0019", () => {
     const writes = files.flatMap((file) =>
       [...file.text.matchAll(/redis\.(setEx|lPush|eval)\(/g)].map((match) => `${file.path}:${match[1] ?? ""}`));
     expect(writes.sort()).toEqual([
+      "features/landing-brand/landing-brand-stats.server.ts:setEx",
       "server/cache/rate-limit.ts:eval",
       "server/cache/reference.ts:setEx",
       "server/video/uploads.ts:lPush",
