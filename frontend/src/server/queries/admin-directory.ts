@@ -175,3 +175,31 @@ export async function loadPendingUserVerifications(
   }
   return out;
 }
+
+/**
+ * The open organization-approval request of each given organization — ONE bounded read for a directory page.
+ * Business verification (its own queue and permission) is excluded, mirroring the user loader.
+ */
+export async function loadPendingOrganizationVerifications(
+  supabase: Client,
+  organizationIds: readonly string[],
+): Promise<Map<string, PendingUserVerification>> {
+  const out = new Map<string, PendingUserVerification>();
+  if (organizationIds.length === 0) return out;
+  const { data, error } = await supabase
+    .from("verifications")
+    .select("id, organization_id, status, verification_type, submitted_at")
+    .eq("subject_type", "organization")
+    .eq("verification_type", "organization")
+    .in("organization_id", [...organizationIds])
+    .in("status", [...OPEN_VERIFICATION_STATUSES])
+    .order("submitted_at", { ascending: false });
+  if (error) {
+    console.error("[admin-directory] pending organization verifications failed", error);
+    return out;
+  }
+  for (const v of data ?? []) {
+    if (v.organization_id && !out.has(v.organization_id)) out.set(v.organization_id, { id: v.id, status: v.status, verificationType: v.verification_type });
+  }
+  return out;
+}

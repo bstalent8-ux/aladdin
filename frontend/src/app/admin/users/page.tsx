@@ -277,7 +277,7 @@ export default async function PreviewUsersPage({
             )}
             <RowIconLink href={`/admin/users/${u.id}`} label={platform.manage} Icon={SettingsIcon} />
             {canVerify && (u.status === "pending_verification" || pendingByUser.has(u.id)) ? (
-              <UserVerificationControls userId={u.id} pending={pendingByUser.get(u.id) ?? null} compact />
+              <UserVerificationControls subjectId={u.id} pending={pendingByUser.get(u.id) ?? null} compact />
             ) : null}
             {canSuspendUser(access, caller?.id ?? "", { userId: u.id, staffRank: staffRankOf(staffRanks, u.id) }) ? (
               <SuspensionAction m={m} subjectType="user" subjectId={u.id} suspended={u.status === "suspended"} compact />

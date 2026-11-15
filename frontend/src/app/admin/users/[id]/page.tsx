@@ -45,8 +45,8 @@ export const dynamic = "force-dynamic";
  *   Activity — the Entity Timeline (human-readable history, not raw Audit).
  *   Follow-up · Admin Notes · Report — live records, each gated by its own
  *     read / write permission (follow_ups.*, notes.*, cases.*).
- *   Verify / Reject in the header stay Preview here; decisions are made in
- *     Verifications.
+ *   Verify / Reject in the header are real (`UserVerificationControls`, the same actions as the
+ *     Verifications queue).
  *
  * Opening this page never widens access: the nested panels check their own
  * permission server-side AND in the database.
@@ -179,7 +179,7 @@ export default async function PreviewUserDetailPage({
             </span>
           )}
           {can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification) ? (
-            <UserVerificationControls userId={user.id} pending={pendingVerification} />
+            <UserVerificationControls subjectId={user.id} pending={pendingVerification} />
           ) : null}
           {canSuspend && user.status !== "deactivated" ? (
             <SuspensionAction m={m} subjectType="user" subjectId={user.id} suspended={user.status === "suspended"} />

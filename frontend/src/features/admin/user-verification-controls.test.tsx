@@ -12,7 +12,7 @@ const pending = (verificationType: string) => ({ id: "99999999-9999-4999-8999-99
 const show = (verificationType: string) =>
   render(
     <I18nProvider locale="en" dir="ltr">
-      <UserVerificationControls userId="u1" pending={pending(verificationType)} />
+      <UserVerificationControls subjectId="u1" pending={pending(verificationType)} />
     </I18nProvider>,
   );
 afterEach(cleanup);

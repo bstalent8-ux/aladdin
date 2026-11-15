@@ -9,7 +9,7 @@ import { approveVerificationAction, rejectVerificationAction } from "@/server/ac
 import type { PendingUserVerification } from "@/server/queries/admin-directory";
 
 /**
- * Approve / Reject for ONE user's open verification request, on the Users directory row (`compact` icon
+ * Approve / Reject for ONE user's or organization's open verification request, on the Users directory row (`compact` icon
  * buttons) and on the user page (labelled buttons). It is a thin shell over the SAME server actions the
  * Verifications queue uses (`approveVerificationAction` / `rejectVerificationAction`): they re-read the request
  * from the database, auto-claim the review, call the `review_*` RPCs (permission, no-self-review, sticky
@@ -24,11 +24,12 @@ import type { PendingUserVerification } from "@/server/queries/admin-directory";
  * verification is a different mechanism and is never touched here.)
  */
 export function UserVerificationControls({
-  userId,
+  subjectId,
   pending,
   compact = false,
 }: {
-  userId: string;
+  /** The user or organization the request belongs to; only used to keep element ids unique. */
+  subjectId: string;
   pending: PendingUserVerification | null;
   compact?: boolean;
 }) {
@@ -54,7 +55,7 @@ export function UserVerificationControls({
   }
 
   const hidden = <input type="hidden" name="id" value={pending.id} />;
-  const reasonId = `verification-reason-${userId}`;
+  const reasonId = `verification-reason-${subjectId}`;
 
   return (
     <>
@@ -73,7 +74,7 @@ export function UserVerificationControls({
         {hidden}
         {offersListing ? (
           <>
-            <Checkbox id={`list-publicly-${userId}`} name="grantListing" checked={listPublicly} onChange={setListPublicly}>
+            <Checkbox id={`list-publicly-${subjectId}`} name="grantListing" checked={listPublicly} onChange={setListPublicly}>
               {t("admin.review.listPublicly")}
             </Checkbox>
             <p className="text-label text-fg-muted">{t("admin.review.listPubliclyHint")}</p>
