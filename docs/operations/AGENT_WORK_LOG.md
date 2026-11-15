@@ -7594,3 +7594,10 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Owner restricted the landing to exactly four colours: `#071A2D` navy, `#D8C7A6` sand, `#B96F52` terracotta, `#F2E9D8` cream. Registered as the `brandLanding` scope (design system 1.2.0): `design/tokens/colors.json`, `DESIGN.md` frontmatter + metadata, `design/CHANGELOG.md`, `frontend/src/styles/tokens.css` (`--landing-*`), Tailwind `brand.landing-*`. `landing-brand.module.css` now derives every other tone as a `color-mix()`/alpha of those four; white, black, the red heart and the extra navy/terracotta hexes are gone. Small accent text uses `terra-text` (5.9:1 on cream) because terracotta alone is 3.2:1.
 - Responsive tiers: desktop tree >= 701px (tablet rules at <= 1100 and <= 960: burger nav, hero grid, 2-column roles, 3-up carousel, scrolling chips), mobile tree <= 700px (2-column services/why and stacked experience card at <= 480, 2.3-card carousel). Checked 320-2560px, no horizontal overflow.
 - Landing root sets `lang="ar" dir="rtl"` itself. No migration, secret, R2 or deployment change.
+
+## 2026-11-15 - Redis enabled for Production in config (agent)
+
+- Owner approved Redis for Production, sharing the preview's Upstash database (decision recorded in ADR-0019, Revision 2026-11-15). Done in config only: production vars `REDIS_CACHE_ENABLED=true`, `REDIS_REST_URL`, `REDIS_KEY_ENV=production`; `REDIS_REST_TOKEN` added to `secrets.required`. The production guard script and its tests changed from "Redis must stay off" to "Redis on needs the REST URL, the `production` prefix and the secret"; `redis-guards.test.ts` now expects exactly the preview and production blocks to be on, with different key prefixes.
+- Not done (needs the owner): set the Worker secret `REDIS_REST_TOKEN` for `--env production` (I have no Upstash or Worker-secret access), then deploy and promote. Verify with `/api/health` (`cache: ok`).
+- Related: the landing counts cache (memory, data-centre cache, Redis, database) is a separate PR; the code works with Redis off.
+

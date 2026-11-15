@@ -63,17 +63,26 @@ describe("Redis use stays inside ADR-0019", () => {
   });
 });
 
-describe("Redis stays off until accepted", () => {
-  it("ships disabled in .env.example and outside the workers.dev preview", () => {
+describe("Redis is on only where it was accepted", () => {
+  it("ships disabled in .env.example and is enabled only for the preview and production Workers", () => {
     expect(readFileSync(join(FRONTEND, ".env.example"), "utf8")).toMatch(/^REDIS_CACHE_ENABLED=false$/m);
     const wrangler = readFileSync(join(FRONTEND, "wrangler.jsonc"), "utf8");
-    // The owner accepted Redis for the acceptance preview only (2026-10-24, cf-preview key prefix).
-    // Every other environment, production included, keeps it off.
-    const enabled = [...wrangler.matchAll(/"REDIS_CACHE_ENABLED"\s*:\s*"true"/g)].map((m) => m.index ?? 0);
+    // The owner accepted Redis for the acceptance preview (2026-10-24, cf-preview key prefix) and for production
+    // (2026-11-15, key prefix `production`). Any other block (a new environment) keeps it off until its own approval.
     const preview = wrangler.indexOf('"preview": {');
     const production = wrangler.indexOf('"production": {');
     expect(preview).toBeGreaterThan(-1);
     expect(production).toBeGreaterThan(preview);
-    expect(enabled.every((at) => at > preview && at < production)).toBe(true);
+    const enabled = [...wrangler.matchAll(/"REDIS_CACHE_ENABLED"\s*:\s*"true"/g)].map((m) => m.index ?? 0);
+    expect(enabled.length).toBe(2);
+    expect(enabled.every((at) => at > preview)).toBe(true);
+  });
+
+  it("gives preview and production different key prefixes, so they share one database without sharing entries", () => {
+    const wrangler = readFileSync(join(FRONTEND, "wrangler.jsonc"), "utf8");
+    const production = wrangler.indexOf('"production": {');
+    const keys = (text: string) => [...text.matchAll(/"REDIS_KEY_ENV"\s*:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]);
+    expect(keys(wrangler.slice(0, production))).toEqual(["cf-preview"]);
+    expect(keys(wrangler.slice(production))).toEqual(["production"]);
   });
 });
