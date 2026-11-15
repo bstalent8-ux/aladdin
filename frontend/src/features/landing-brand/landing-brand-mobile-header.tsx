@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { brandContent } from "./landing-brand-content";
 
@@ -17,8 +18,7 @@ export function LandingBrandMobileHeader() {
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--lb-cream)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none" }}><path d={open ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"}></path></svg>
         </button>
         <a href="#top" style={{ display: "flex", alignItems: "center", gap: "10px", color: "inherit", textDecoration: "none" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size logo mark */}
-          <img src="/landing-brand/mark-cream.png" alt="" style={{ height: "44px", width: "auto", flex: "none", display: "block" }} />
+          <Image src="/landing-brand/mark-cream.png" width={340} height={525} sizes="34px" priority alt="" style={{ height: "44px", width: "auto", flex: "none", display: "block" }} />
           <span style={{ fontWeight: 800, fontSize: "24px", color: "var(--lb-cream)" }}>علاء الدين</span>
         </a>
       </header>
