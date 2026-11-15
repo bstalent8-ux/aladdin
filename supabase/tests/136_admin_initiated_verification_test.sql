@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(64);
+select plan(65);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -211,7 +211,8 @@ select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_use
 delete from public.portfolio_projects where owner_user_id = '13600000-0000-4000-8000-0000000000b9';
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b9","verification_state":"verified","completion":88}]'::jsonb)::text, 'true', 'once completion drops it appears, still Verified, with its actual percentage');
 select is((select status::text from public.verifications where user_id = '13600000-0000-4000-8000-0000000000b9'), 'approved', 'verification is NEVER revoked when completion drops');
-select ok(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb -> 'counts' ->> 'attention')::int) >= 1, 'the attention count includes it');
+select ok(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb ->> 'total')::int) >= 1, 'the attention view total includes it');
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_page_size => 50)$$)::jsonb -> 'counts') ? 'attention', false, 'the always-on counts no longer evaluate the attention flag (performance)');
 -- an Admin-approved profile below 100 is covered by the same derived rule (e1 was approved by an Admin while incomplete)
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b2","verification_state":"verified"}]'::jsonb)::text, 'true', 'a profile an Admin approved below 100% is flagged too');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b3"}]'::jsonb)::text, 'false', 'an unverified (rejected) incomplete account is not in the view');

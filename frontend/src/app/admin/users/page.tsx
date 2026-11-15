@@ -369,7 +369,8 @@ export default async function PreviewUsersPage({
           { value: "verified", label: t.statusTabs.verified, count: counts.verified },
           { value: "suspended", label: t.statusTabs.suspended, count: counts.suspended },
           { value: "rejected", label: t.statusTabs.rejected, count: counts.rejected },
-          { value: "attention", label: t.statusTabs.attention, count: counts.attention },
+          // The count is derived per verified account, so the database only evaluates it when this view is open.
+          { value: "attention", label: t.statusTabs.attention, count: params.status === "attention" ? total : undefined },
         ]}
       />
 

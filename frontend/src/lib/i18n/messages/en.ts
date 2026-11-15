@@ -1024,8 +1024,8 @@ export const en = {
       confirmReject: "Confirm rejection",
       reasonPlaceholder: "Reason (optional) shared with the account owner",
       started: "Review started.",
-      approved: "Approved. The applicant will see the result.",
-      rejected: "Rejected. The applicant will see the reason.",
+      approved: "Approved. The account owner has been informed.",
+      rejected: "Rejected. The account owner has been notified.",
       listPublicly: "Also list this profile publicly",
       listPubliclyHint: "Lists the profile and its public portfolio in the public directory. Leave unticked to verify the account without publishing it; it can be hidden again later.",
       noPending: "No pending verification request for this account.",
@@ -1164,7 +1164,7 @@ export const en = {
       liveBannerTitle: "Live — changes here are real",
       liveBannerBody: "This area is connected to Admin Core: every change is saved immediately, enforced on the server and recorded in the audit log. Other Preview areas are unchanged.",
       liveReadBannerTitle: "Live — changes here are saved",
-      liveReadBannerBody: "Rows, details and history are read live. Suspend and restore, notes, follow-ups, internal cases and duplicate links are saved immediately, checked on the server and recorded in the audit log. Approve and Reject on an account with a pending verification request are real decisions, made through the same review process as Verifications and recorded in the audit log.",
+      liveReadBannerBody: "Rows, details and history are read live. Suspend and restore, notes, follow-ups, internal cases and duplicate links are saved immediately, checked on the server and recorded in the audit log. Approve and Reject are real decisions, made through the same review process as Verifications (the request is filed automatically when the account has none) and recorded in the audit log.",
       ops: {
         error: {
           lastSuperAdmin: "This is the last active Super Admin — the account cannot be suspended.",

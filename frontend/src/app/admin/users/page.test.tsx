@@ -273,10 +273,10 @@ describe("Users directory page - real Verify / Reject", () => {
     expect(new Set(warnings.map((w) => w.textContent)).size).toBe(1);
   });
 
-  it("has a Needs attention tab with the database's count, and forwards the derived status filter", async () => {
+  it("has a Needs attention tab (count shown only when it is open) and forwards the derived status filter", async () => {
     loadUsersDirectory.mockResolvedValue({
       ok: true,
-      data: { rows: [], total: 0, page: 1, pageSize: 10, counts: { all: 9, pending: 0, verified: 5, suspended: 0, rejected: 0, attention: 3 } },
+      data: { rows: [], total: 0, page: 1, pageSize: 10, counts: { all: 9, pending: 0, verified: 5, suspended: 0, rejected: 0, attention: 0 } },
     });
     await renderPage({ status: "attention" });
     expect(loadUsersDirectory.mock.calls[0]?.[1]).toMatchObject({ status: "attention" });
