@@ -26,7 +26,7 @@ Never use real customer requests on Production. On Acceptance use the seeded acc
 | 1 | Applicant 1-3 | Submit a professional upgrade request | Request shows "pending" for the applicant |
 | 2 | Admin A | Open Admin > Users (and Verifications) | The three real pending requests are listed; no preview-only badge |
 | 3 | Anonymous / applicant | Open the Admin URL / call review RPC | Redirect or 403; applicant sees only their own request |
-| 4 | Support/Moderator | Open the user page | Verify/Reject controls are absent or refused (no `users.verify`) |
+| 4 | Moderator (holds `users.verify`) / Support (does not) | Open the user page | Moderator sees live Verify/Reject (centralized `users.verify`); a role without `users.verify` sees no controls and the RPC refuses |
 | 5 | Admin A | Approve applicant 1 (public listing OFF) | Status approved, account type changes, profile NOT listed |
 | 6 | Admin A | Double-click Approve | One success; no second audit row; no error toast loop |
 | 7 | Admin B | Approve or Reject applicant 1 afterwards | Refused ("only the assigned reviewer"); nothing changes |
@@ -69,3 +69,23 @@ reject rows carry the reason; no email, phone or document path in `metadata`; au
 The migration only redefines functions (`create or replace`) and adds one internal helper. To roll back, re-apply the
 previous definitions of `apply_account_upgrade`, `apply_organization_verification` and `review_approve` (default
 `p_grant_public_listing` true) from migrations before 20261114090001. No data is changed by the migration.
+
+## Acceptance UI results (2026-11-15, preview version 9ce3d4a9, commit 8dd4a379, Acceptance project only)
+
+Isolated data: two `TEST-192` showroom organizations (owners: existing Acceptance accounts `+t1`, `+t2`), created through
+`app.organization_create_owned` / `organization_application_submit`, then completed with `organization_contact_set`,
+`organization_activities_set` and a branch address. Real requests were not touched.
+
+| Check | Surface | Result |
+|---|---|---|
+| Approve, public listing off | Organization page header | PASS: org `active`, verification `approved` + applied, `grants_public_listing=false`; one each of `verification.review_started`, `verification.approved`, `organization.verified`; one owner notification with empty params |
+| Approve blocked by incomplete showroom data | Organization page header | Refused by the database ("complete showroom business information before approval"), nothing approved. The UI shows only the generic "Something interrupted the request", not the cause (UX gap) |
+| Reject with empty reason | Organizations list row | PASS: blocked in the form, database unchanged |
+| Reject with reason + double-click confirm | Organizations list row | PASS: one `review_started` and one `verification.rejected` (reason recorded), org unchanged, one owner notification with empty params |
+| Approve controls on an approved org | Organizations list / page | Controls no longer drawn |
+
+Not covered in the browser (recorded gaps):
+
+- Multi-session UI: Administrator B refused as non-assigned reviewer (step 7), Administrator/Moderator permission matrix (step 4),
+  and the concurrent approve/reject race (step 11). Covered by the rolled-back SQL tests (`128`, `132`) only.
+- Professional account (user) approval/rejection in the UI: needs throwaway applicants signed in by the owner.
