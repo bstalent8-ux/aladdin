@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox, LabeledField, Textarea } from "@/components/ui/controls";
-import { CheckIcon, XIcon } from "@/components/ui/icons";
-import { approveVerificationAction, rejectVerificationAction } from "@/server/actions/admin-forms";
+import { CheckIcon, PlusIcon, XIcon } from "@/components/ui/icons";
+import { adminInitiateVerificationAction, approveVerificationAction, rejectVerificationAction } from "@/server/actions/admin-forms";
 import type { PendingUserVerification } from "@/server/queries/admin-directory";
 
 /**
@@ -27,17 +27,49 @@ export function UserVerificationControls({
   subjectId,
   pending,
   compact = false,
+  subjectType = "user",
+  canInitiate = false,
 }: {
   /** The user or organization the request belongs to; only used to keep element ids unique. */
   subjectId: string;
   pending: PendingUserVerification | null;
   compact?: boolean;
+  /** Which kind of subject `subjectId` is (only used when an Admin starts a verification). */
+  subjectType?: "user" | "organization";
+  /** The caller may start a verification for this subject (the database re-checks authority and eligibility). */
+  canInitiate?: boolean;
 }) {
   const { t } = useI18n();
   // Public listing is the reviewer's explicit choice (ADR-0007 D14), only meaningful for a professional upgrade.
   // Ticked by default = the Verifications queue's behaviour; the dialog says what it does and nothing is hidden.
   const [listPublicly, setListPublicly] = useState(false);
   const offersListing = pending?.verificationType === "professional";
+
+  if (!pending && canInitiate) {
+    // No request was submitted: an authorized Admin may START one (reason required, kept in the audit log). It is an
+    // ordinary request: Approve / Reject appear once it exists and decide it through the unchanged review steps.
+    const reasonId = `verification-start-reason-${subjectId}`;
+    return (
+      <ConfirmDialog
+        trigger={t("admin.review.startVerification")}
+        triggerVariant="accent"
+        triggerIcon={compact ? <PlusIcon size={16} /> : undefined}
+        triggerIconOnly={compact}
+        triggerTone="success"
+        title={t("admin.review.startTitle")}
+        body={t("admin.review.startBody")}
+        confirmLabel={t("admin.review.startVerification")}
+        confirmVariant="accent"
+        formAction={adminInitiateVerificationAction}
+      >
+        <input type="hidden" name="subjectType" value={subjectType} />
+        <input type="hidden" name="subjectId" value={subjectId} />
+        <LabeledField label={t("admin.review.startReasonLabel")} htmlFor={reasonId}>
+          <Textarea id={reasonId} name="reason" rows={3} minLength={5} maxLength={500} required />
+        </LabeledField>
+      </ConfirmDialog>
+    );
+  }
 
   if (!pending) {
     const cls = compact

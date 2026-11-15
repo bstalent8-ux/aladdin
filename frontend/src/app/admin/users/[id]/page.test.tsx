@@ -26,7 +26,7 @@ const superAdmin = acc(100, ALL);
 
 vi.mock("@/server/authorization/admin", () => ({ requireAdminRoute: (...a: unknown[]) => requireAdminRoute(...a) }));
 vi.mock("@/server/queries/admin-directory", () => ({ loadUserDetail: (...a: unknown[]) => loadUserDetail(...a) }));
-vi.mock("@/server/actions/admin-forms", () => ({ approveVerificationAction: vi.fn(), rejectVerificationAction: vi.fn() }));
+vi.mock("@/server/actions/admin-forms", () => ({ approveVerificationAction: vi.fn(), rejectVerificationAction: vi.fn(), adminInitiateVerificationAction: vi.fn() }));
 vi.mock("@/server/queries/admin-rbac", () => ({ loadStaffRanks: (...a: unknown[]) => loadStaffRanks(...a) }));
 vi.mock("@/server/queries/admin-preview", () => ({
   previewUserPointsLedger: vi.fn(async () => null),

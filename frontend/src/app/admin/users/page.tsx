@@ -16,6 +16,7 @@ import { TabLinks } from "@/components/ui/stat-tiles";
 import { RowActionsMenu, type RowAction } from "@/features/admin-preview/row-actions-menu";
 import { RowIconLink, RowIconDisabled } from "@/features/admin-preview/row-icon-button";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
+import { canStartVerification, isProfileIncomplete } from "@/lib/admin/verification-status";
 import { can } from "@/lib/permissions/admin";
 import { AutoFilters, SortableHeader } from "@/features/admin-preview/auto-filters";
 import { TablePagination } from "@/features/admin-preview/table-pagination";
@@ -112,8 +113,8 @@ export default async function PreviewUsersPage({
         return (
           <span className="flex min-w-0 items-center gap-1.5">
             <RecordCell wrap title={name} href={`/admin/users/${u.id}`} avatar={<Monogram name={name} size={28} />} />
-            {u.flags.length > 0 ? (
-              <span title={u.flags.map((f) => flagLabels[f]).join(", ")} aria-hidden="true" className="shrink-0 text-warning">
+            {u.flags.length > 0 || isProfileIncomplete(u) ? (
+              <span title={[...u.flags.map((f) => flagLabels[f]), ...(isProfileIncomplete(u) ? [`${flagLabels.profile_incomplete} (${u.completion}%)`] : [])].join(", ")} aria-hidden="true" className="shrink-0 text-warning">
                 ●
               </span>
             ) : null}
@@ -240,8 +241,9 @@ export default async function PreviewUsersPage({
       header: cols.flags,
       minWidth: "10rem",
       secondary: true,
-      cell: (u) =>
-        u.flags.length === 0 ? (
+      cell: (u) => {
+        const incomplete = isProfileIncomplete(u);
+        return u.flags.length === 0 && !incomplete ? (
           <span className="text-fg-muted">—</span>
         ) : (
           <span className="flex flex-wrap gap-1">
@@ -250,8 +252,16 @@ export default async function PreviewUsersPage({
                 {flagLabels[f]}
               </Badge>
             ))}
+            {incomplete ? (
+              <Badge tone="warning">
+                <span data-testid="profile-incomplete-warning">
+                  {flagLabels.profile_incomplete} ({u.completion}%)
+                </span>
+              </Badge>
+            ) : null}
           </span>
-        ),
+        );
+      },
     },
     {
       key: "actions",
@@ -276,8 +286,8 @@ export default async function PreviewUsersPage({
               <RowIconDisabled label={platform.viewOnPlatform} reason={platform.notListed} Icon={EyeIcon} />
             )}
             <RowIconLink href={`/admin/users/${u.id}`} label={platform.manage} Icon={SettingsIcon} />
-            {canVerify && (u.status === "pending_verification" || pendingByUser.has(u.id)) ? (
-              <UserVerificationControls subjectId={u.id} pending={pendingByUser.get(u.id) ?? null} compact />
+            {canVerify && (u.status === "pending_verification" || pendingByUser.has(u.id) || canStartVerification(u)) ? (
+              <UserVerificationControls subjectId={u.id} pending={pendingByUser.get(u.id) ?? null} compact canInitiate={canStartVerification(u)} />
             ) : null}
             {canSuspendUser(access, caller?.id ?? "", { userId: u.id, staffRank: staffRankOf(staffRanks, u.id) }) ? (
               <SuspensionAction m={m} subjectType="user" subjectId={u.id} suspended={u.status === "suspended"} compact />
@@ -359,6 +369,7 @@ export default async function PreviewUsersPage({
           { value: "verified", label: t.statusTabs.verified, count: counts.verified },
           { value: "suspended", label: t.statusTabs.suspended, count: counts.suspended },
           { value: "rejected", label: t.statusTabs.rejected, count: counts.rejected },
+          { value: "attention", label: t.statusTabs.attention, count: counts.attention },
         ]}
       />
 

@@ -25,8 +25,10 @@ function mapReviewError(message: string | undefined): string {
   if (m.includes("another reviewer") || m.includes("assigned reviewer")) return "admin.review.error.otherReviewer";
   // The database refuses to approve a showroom whose business profile is incomplete (phone, activity, address).
   if (m.includes("complete showroom business information")) return "admin.review.error.incompleteProfile";
-  // A Craftsman request cannot be approved while the applicant's profile is below 100% (database guard).
-  if (m.includes("complete the craftsman profile")) return "admin.review.error.incompleteCraftsmanProfile";
+  if (m.includes("already holds an approved")) return "admin.review.error.alreadyVerified";
+  if (m.includes("professional account can be verified") || m.includes("not active") || m.includes("not awaiting approval")
+      || m.includes("no active owner") || m.includes("subject not found") || m.includes("own account") || m.includes("own organization"))
+    return "admin.review.error.notEligible";
   if (m.includes("invalid transition")) return "admin.review.error.state";
   if (m.includes("reason")) return "admin.review.error.reasonRequired";
   return "states.genericRetry";
@@ -153,4 +155,37 @@ export async function rejectVerificationAction(
   revalidatePath("/admin/verifications");
   revalidatePath("/admin/users");
   return { ok: true, code: "admin.review.rejected" };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * An authorized Admin starts a verification when the owner has not submitted one. The database function does ALL the
+ * checking (permission, tier, eligibility, duplicates) and records the audit row with the reason; this only validates
+ * the shape and maps the outcome to a translation KEY. It decides nothing: the request then goes through the same
+ * review_start / review_approve / review_reject steps as any other.
+ */
+export async function adminInitiateVerificationAction(_p: ReviewFormState, fd: FormData): Promise<ReviewFormState> {
+  const subjectType = str(fd, "subjectType");
+  const subjectId = str(fd, "subjectId");
+  const reason = str(fd, "reason");
+  if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
+    return { ok: false, code: "states.genericRetry" };
+  }
+  if (!reason || reason.length < 5 || reason.length > 500) return { ok: false, code: "admin.review.error.reasonRequired" };
+
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.rpc("admin_initiate_verification", {
+    p_subject_type: subjectType,
+    p_subject_id: subjectId,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, code: mapReviewError(error.message) };
+  const state = (data as { state?: unknown } | null)?.state;
+  if (state !== "initiated" && state !== "already_open") return { ok: false, code: "states.genericRetry" };
+
+  revalidatePath("/admin/verifications");
+  revalidatePath("/admin/organizations");
+  revalidatePath("/admin/users");
+  return { ok: true, code: state === "initiated" ? "admin.review.initiated" : "admin.review.alreadyOpen" };
 }

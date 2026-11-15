@@ -21,7 +21,8 @@ const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn(async () => ({ rpc, from })) }));
 
-const { approveVerificationAction, rejectVerificationAction, startReviewAction } = await import("./admin-forms");
+const { adminInitiateVerificationAction,
+  approveVerificationAction, rejectVerificationAction, startReviewAction } = await import("./admin-forms");
 
 const ID = "70000001-0000-4000-8000-000000000001";
 const initial = { ok: false };
@@ -174,12 +175,44 @@ describe("approveVerificationAction", () => {
     expect(calls()).toEqual(["review_start", "review_approve"]);
   });
 
-  it("explains an incomplete craftsman profile at approval and never applies", async () => {
-    target("submitted");
-    rpc.mockResolvedValueOnce({ data: null, error: null }); // review_start
-    rpc.mockResolvedValueOnce({ data: null, error: { message: "complete the craftsman profile before approval" } }); // review_approve
-    expect(await approveVerificationAction(initial, form({ id: ID }))).toEqual({ ok: false, code: "admin.review.error.incompleteCraftsmanProfile" });
-    expect(calls()).toEqual(["review_start", "review_approve"]);
+  describe("adminInitiateVerificationAction", () => {
+    const base = { subjectType: "user", subjectId: ID, reason: "owner could not submit" };
+
+    it("validates the shape BEFORE any database call (subject type, id, reason length)", async () => {
+      for (const bad of [{ subjectType: "team" }, { subjectId: "not-a-uuid" }, { reason: "no" }, { reason: "x".repeat(501) }, { reason: "" }]) {
+        const res = await adminInitiateVerificationAction(initial, form({ ...base, ...bad }));
+        expect(res.ok).toBe(false);
+      }
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("forwards the subject and reason to the database function and refreshes the lists", async () => {
+      rpc.mockResolvedValueOnce({ data: { state: "initiated", verification_id: "v1" }, error: null });
+      expect(await adminInitiateVerificationAction(initial, form(base))).toEqual({ ok: true, code: "admin.review.initiated" });
+      expect(rpc).toHaveBeenCalledWith("admin_initiate_verification", { p_subject_type: "user", p_subject_id: ID, p_reason: "owner could not submit" });
+      expect(revalidatePath).toHaveBeenCalledWith("/admin/users");
+    });
+
+    it("reports an already open request as a success that points to Approve / Reject", async () => {
+      rpc.mockResolvedValueOnce({ data: { state: "already_open", verification_id: "v1" }, error: null });
+      expect(await adminInitiateVerificationAction(initial, form(base))).toEqual({ ok: true, code: "admin.review.alreadyOpen" });
+    });
+
+    it.each([
+      ["platform reviewer authority required", "admin.review.error.notAuthorized"],
+      ["this account already holds an approved professional verification", "admin.review.error.alreadyVerified"],
+      ["only a professional account can be verified", "admin.review.error.notEligible"],
+      ["the organization has no active owner", "admin.review.error.notEligible"],
+      ["a reviewer may not initiate verification for their own account", "admin.review.error.notEligible"],
+    ])("maps the database refusal %j to a key", async (message, key) => {
+      rpc.mockResolvedValueOnce({ data: null, error: { message } });
+      expect(await adminInitiateVerificationAction(initial, form(base))).toEqual({ ok: false, code: key });
+    });
+
+    it("never reports success for an unexpected answer", async () => {
+      rpc.mockResolvedValueOnce({ data: { state: "weird" }, error: null });
+      expect((await adminInitiateVerificationAction(initial, form(base))).ok).toBe(false);
+    });
   });
 
   it("refuses a missing id before touching the database", async () => {

@@ -140,7 +140,7 @@ export function mapDirectoryUser(raw: unknown): AdminDirectoryUser | null {
 }
 
 export function mapUsersPage(raw: unknown): DirectoryPage<AdminDirectoryUser, UserStatusTab> | null {
-  return mapPage(raw, mapDirectoryUser, ["pending", "verified", "suspended", "rejected"] as const);
+  return mapPage(raw, mapDirectoryUser, ["pending", "verified", "suspended", "rejected", "attention"] as const);
 }
 
 export type AdminVerification = {

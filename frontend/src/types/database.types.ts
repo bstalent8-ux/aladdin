@@ -8469,6 +8469,10 @@ export type Database = {
         Args: { p_content_type: string }
         Returns: string
       }
+      admin_initiate_verification: {
+        Args: { p_subject_type: string; p_subject_id: string; p_reason: string }
+        Returns: Json
+      }
       craftsman_profile_verification_submit: { Args: { p_after_rejection?: boolean }; Returns: Json }
       craftsman_contact: {
         Args: { p_profile_id: string; p_viewer_org_id: string }

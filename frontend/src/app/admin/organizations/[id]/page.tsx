@@ -116,7 +116,7 @@ export default async function PreviewOrgDetailPage({
         <div className="flex flex-wrap gap-sm">
           {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
           {can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
-            <UserVerificationControls subjectId={org.id} pending={pendingVerification} />
+            <UserVerificationControls subjectId={org.id} pending={pendingVerification} subjectType="organization" canInitiate />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
             <SuspensionAction m={m} subjectType="organization" subjectId={org.id} suspended={org.status === "suspended"} />

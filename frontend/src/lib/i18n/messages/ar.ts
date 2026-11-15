@@ -994,6 +994,12 @@ export const ar: Messages = {
       listPublicly: "نشر هذا الملف الشخصي في الدليل العام أيضاً",
       listPubliclyHint: "يظهر الملف الشخصي ومعرض أعماله العام في الدليل العام. اتركه دون تحديد لتوثيق الحساب دون نشره، ويمكن إخفاؤه لاحقاً.",
       noPending: "لا يوجد طلب توثيق معلّق لهذا الحساب.",
+      startVerification: "بدء التوثيق",
+      startTitle: "بدء توثيق لهذا الحساب؟",
+      startBody: "لم يقدّم المالك طلبًا. سيُنشأ طلب عادي يمكنك بعد ذلك قبوله أو رفضه. يُحفظ سببك في سجل المراجعة.",
+      startReasonLabel: "سبب بدء هذا التوثيق",
+      initiated: "تم بدء التوثيق. يمكنك الآن قبوله أو رفضه.",
+      alreadyOpen: "يوجد طلب توثيق بالفعل. يمكنك قبوله أو رفضه.",
       approveTitle: "الموافقة على هذا الحساب؟",
       approveBody: "سيصل إشعار لصاحب الطلب ويتم ترقية الحساب. يتبع هذا نفس مسار المراجعة في قائمة التوثيق.",
       rejectTitle: "رفض طلب التوثيق؟",
@@ -1006,7 +1012,8 @@ export const ar: Messages = {
         state: "لا يمكن نقل هذا الطلب من حالته الحالية.",
         reasonRequired: "السبب مطلوب للرفض.",
         incompleteProfile: "بيانات هذا المعرض غير مكتملة. يجب على المالك إضافة الهاتف والنشاط والعنوان قبل الموافقة.",
-        incompleteCraftsmanProfile: "ملف هذا الحرفي لم يعد مكتملاً بنسبة 100٪. يجب أن يكمله قبل الموافقة على الطلب.",
+        notEligible: "هذا الحساب أو المؤسسة غير مؤهل للتوثيق حاليًا.",
+        alreadyVerified: "هذا الحساب موثّق بالفعل.",
       },
     },
     audit: {
@@ -1365,6 +1372,7 @@ export const ar: Messages = {
           incomplete_critical_profile: "ملف غير مكتمل",
           verification_issue: "مشكلة توثيق",
           missing_required_information: "بيانات ناقصة",
+          profile_incomplete: "الملف غير مكتمل",
         },
         warnings: {
           title: "يحتاج انتباه",
@@ -1378,6 +1386,7 @@ export const ar: Messages = {
           verified: "موثّق",
           suspended: "موقوف",
           rejected: "مرفوض",
+          attention: "تحتاج انتباه",
         },
         rowActions: {
           view: "عرض",

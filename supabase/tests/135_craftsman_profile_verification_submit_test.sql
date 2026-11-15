@@ -155,13 +155,11 @@ delete from public.portfolio_projects where owner_user_id = '13500000-0000-4000-
 select is((pg_temp.q('13500000-0000-4000-8000-0000000000c1', 'public.craftsman_profile_verification_submit()')::jsonb ->> 'state'), 'incomplete', 'removing the portfolio drops the profile below 100 again');
 
 -- ---------------------------------------------------------------------------
--- F2. approval rechecks eligibility (c1 now has an open request and an INCOMPLETE profile)
+-- F2. Admin approval has NO completion requirement (c1 has an open request and an INCOMPLETE profile)
 -- ---------------------------------------------------------------------------
-select throws_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13500000-0000-4000-8000-0000000000c1' $$,
-  '22023', 'complete the craftsman profile before approval', 'a request cannot be approved while the profile is incomplete');
-insert into public.portfolio_projects (owner_user_id, title) values ('13500000-0000-4000-8000-0000000000c1', 'CV project again');
 select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13500000-0000-4000-8000-0000000000c1' $$,
-  'once the profile is 100% complete again, approval proceeds');
+  'an Admin may approve while the profile is below 100%');
+select is((select status::text from public.verifications where user_id = '13500000-0000-4000-8000-0000000000c1'), 'approved', 'and it is approved');
 
 -- ---------------------------------------------------------------------------
 -- G. grants

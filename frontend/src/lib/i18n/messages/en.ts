@@ -1029,6 +1029,12 @@ export const en = {
       listPublicly: "Also list this profile publicly",
       listPubliclyHint: "Lists the profile and its public portfolio in the public directory. Leave unticked to verify the account without publishing it; it can be hidden again later.",
       noPending: "No pending verification request for this account.",
+      startVerification: "Start verification",
+      startTitle: "Start a verification for this account?",
+      startBody: "No request was submitted by the owner. This files an ordinary request that you can then approve or reject. Your reason is kept in the audit log.",
+      startReasonLabel: "Reason for starting this verification",
+      initiated: "Verification started. You can now approve or reject it.",
+      alreadyOpen: "A verification request already exists. You can approve or reject it.",
       approveTitle: "Approve this account?",
       approveBody: "The applicant is notified and the account is upgraded. This follows the same review process as the Verifications queue.",
       rejectTitle: "Reject this verification?",
@@ -1041,7 +1047,8 @@ export const en = {
         state: "This request can't move from its current state.",
         reasonRequired: "A reason is required to reject.",
         incompleteProfile: "This showroom's business details are incomplete. The owner must add the phone, activity and address before it can be approved.",
-        incompleteCraftsmanProfile: "This craftsman's profile is no longer 100% complete. They must finish it before the request can be approved.",
+        notEligible: "This account or organization is not eligible to be verified right now.",
+        alreadyVerified: "This account is already verified.",
       },
     },
     audit: {
@@ -1400,6 +1407,7 @@ export const en = {
           incomplete_critical_profile: "Incomplete profile",
           verification_issue: "Verification issue",
           missing_required_information: "Missing information",
+          profile_incomplete: "Profile incomplete",
         },
         warnings: {
           title: "Needs attention",
@@ -1413,6 +1421,7 @@ export const en = {
           verified: "Verified",
           suspended: "Suspended",
           rejected: "Rejected",
+          attention: "Needs attention",
         },
         rowActions: {
           view: "View",
