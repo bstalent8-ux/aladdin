@@ -33,7 +33,7 @@ function required(name: string): string {
 const PERSONAS: Persona[] = [
   {
     name: "installer / craftsman",
-    signInPath: "/installer/sign-in",
+    signInPath: "/auth/sign-in",
     fillCredentials: async (page) => {
       await page.locator('input[name="phone"]').fill(required("SMOKE_INSTALLER_PHONE"));
       await page.locator('input[name="password"]').fill(required("SMOKE_INSTALLER_PASSWORD"));
