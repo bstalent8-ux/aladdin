@@ -57,6 +57,28 @@ async function loadDecisionTarget(
   return { status: data.status, verificationType: data.verification_type };
 }
 
+/**
+ * Approve / Reject work directly on an account that has NO request yet: the Admin presses one button, the request is filed
+ * through the existing authorized `admin_initiate_verification` function (permission, tier, eligibility, audit row) and
+ * then decided through the unchanged review_start / review_approve / review_reject steps. An open request is reused,
+ * never duplicated. When the form carries a request id it is used as is.
+ */
+async function resolveVerificationId(supabase: Supa, fd: FormData): Promise<{ id: string } | { code: string }> {
+  const id = str(fd, "id");
+  if (id) return { id };
+  const subjectType = str(fd, "subjectType");
+  const subjectId = str(fd, "subjectId");
+  if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
+    return { code: "states.genericRetry" };
+  }
+  const { data, error } = await supabase.rpc("admin_initiate_verification", { p_subject_type: subjectType, p_subject_id: subjectId });
+  if (error) return { code: mapReviewError(error.message) };
+  const state = (data as { state?: unknown; verification_id?: unknown } | null);
+  const vid = typeof state?.verification_id === "string" ? state.verification_id : null;
+  if ((state?.state !== "initiated" && state?.state !== "already_open") || !vid) return { code: "states.genericRetry" };
+  return { id: vid };
+}
+
 /** Ensure the verification is claimed by the caller before a decision. */
 async function ensureStarted(supabase: Supa, id: string, currentStatus: string): Promise<string | null> {
   if (currentStatus !== "submitted" && currentStatus !== "needs_more_info") return null;
@@ -102,9 +124,10 @@ export async function approveVerificationAction(
   _p: ReviewFormState,
   fd: FormData,
 ): Promise<ReviewFormState> {
-  const id = str(fd, "id");
-  if (!id) return { ok: false, code: "states.genericRetry" };
   const supabase = await getServerSupabase();
+  const resolved = await resolveVerificationId(supabase, fd);
+  if (!("id" in resolved)) return { ok: false, code: resolved.code };
+  const id = resolved.id;
 
   const target = await loadDecisionTarget(supabase, id);
   if (!target) return { ok: false, code: "admin.review.error.state" };
@@ -139,12 +162,13 @@ export async function rejectVerificationAction(
   _p: ReviewFormState,
   fd: FormData,
 ): Promise<ReviewFormState> {
-  const id = str(fd, "id");
   // The reason is OPTIONAL: when given it is shown to the account owner and sent in their notification.
   const reason = str(fd, "reason") ?? "";
-  if (!id) return { ok: false, code: "states.genericRetry" };
   if (reason.length > 2000) return { ok: false, code: "admin.review.error.reasonTooLong" };
   const supabase = await getServerSupabase();
+  const resolved = await resolveVerificationId(supabase, fd);
+  if (!("id" in resolved)) return { ok: false, code: resolved.code };
+  const id = resolved.id;
 
   const target = await loadDecisionTarget(supabase, id);
   if (!target) return { ok: false, code: "admin.review.error.state" };

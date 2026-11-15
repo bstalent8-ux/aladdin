@@ -15,6 +15,7 @@ import { AdminHeader, StatusBadge } from "@/features/admin/parts";
 import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/primitives";
 import { TabLinks } from "@/components/ui/stat-tiles";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
+import { VerificationHistory } from "@/features/admin/verification-history";
 import { isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { RowActionsMenu, type RowAction } from "@/features/admin-preview/row-actions-menu";
 import { ButtonLink } from "@/components/ui/controls";
@@ -296,11 +297,9 @@ export default async function PreviewOrgDetailPage({
                     </p>
                     <p className="text-label text-fg-muted">
                       {formatAdminDate(v.submittedAt, locale)}
-                      {v.initiatedByAdmin ? ` · ${m.admin.review.startedByAdmin}` : ""}
-                      {v.reviewerName ? ` · ${m.admin.review.reviewedBy}: ${v.reviewerName}` : ""}
-                      {v.decidedAt ? ` · ${formatAdminDate(v.decidedAt, locale)}` : ""}
                       {v.reason ? ` · ${v.reason}` : ""}
                     </p>
+                    <VerificationHistory events={v.events} locale={locale} labels={m.admin.review.history} />
                   </div>
                   <StatusBadge status={v.status} label={statusLabels[v.status] ?? v.status} />
                 </Card>

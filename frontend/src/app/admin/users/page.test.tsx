@@ -248,11 +248,13 @@ describe("Users directory page - real Verify / Reject", () => {
     }
   });
 
-  it("offers Start verification (not a disabled Approve) for an active professional with no request", async () => {
+  it("offers a LIVE Approve / Reject (no separate Start step) for an active professional with no request", async () => {
     loadUsersDirectory.mockResolvedValue(okPage([user({ status: "active", accountType: "installer_technician" })]));
     await renderPage({});
-    expect(screen.getAllByRole("button", { name: /Start verification/ }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /^Approve/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start verification/ })).toBeNull();
+    const approve = screen.getAllByRole("button", { name: /^Approve/ });
+    expect(approve.length).toBeGreaterThan(0);
+    expect(approve[0]?.getAttribute("aria-disabled")).toBeNull();
   });
 
   it("shows a derived 'Profile incomplete' warning with the real percentage on a VERIFIED account below 100%, and nowhere else", async () => {

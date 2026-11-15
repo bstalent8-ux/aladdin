@@ -154,6 +154,7 @@ describe("User Details - real Verify / Reject", () => {
     decidedAt: null,
     reviewerName: null,
     initiatedByAdmin: false,
+    events: [],
   });
   const approve = () => screen.queryAllByRole("button", { name: /approve/i });
 

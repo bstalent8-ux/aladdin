@@ -21,7 +21,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(60);
+select plan(64);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -218,6 +218,12 @@ select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_use
 insert into public.portfolio_projects (owner_user_id, title) values ('13600000-0000-4000-8000-0000000000b9', 'AI project again');
 select is(((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'attention', p_page_size => 50)$$)::jsonb -> 'rows') @> '[{"id":"13600000-0000-4000-8000-0000000000b9"}]'::jsonb)::text, 'false', 'the warning clears by itself when completion returns to 100%');
 select is(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_users_list(p_status => 'bogus')$$), 'ERR:22023', 'the status filter stays validated');
+
+-- decision history comes from the immutable Audit Log: acting Admin (id + name) and timestamp for each step
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'action'), 'verification.admin_initiated', 'history: the first event is the Admin initiation');
+select is((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'actor_name'), (select display_name from public.profiles where user_id = (pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'actor_id')::uuid), 'history: names the acting Admin');
+select ok((pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events' -> 0 ->> 'at') is not null, 'history: carries the timestamp');
+select ok(exists (select 1 from jsonb_array_elements(pg_temp.q('13600000-0000-4000-8000-0000000000a1', $$public.admin_user_detail('13600000-0000-4000-8000-0000000000b2')$$)::jsonb -> 'verifications' -> 0 -> 'events') e where e ->> 'action' = 'verification.approved' and e ->> 'actor_name' is not null and e ->> 'actor_id' is not null), 'history: the approval names the deciding Admin');
 
 -- ===========================================================================
 -- F. grants

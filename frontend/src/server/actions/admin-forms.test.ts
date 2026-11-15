@@ -222,6 +222,54 @@ describe("approveVerificationAction", () => {
   });
 });
 
+describe("one-click decisions on an account with NO request", () => {
+  const SUBJECT = "70000001-0000-4000-8000-0000000000b1";
+  const filed = () =>
+    rpc.mockImplementation(async (fn: string) =>
+      fn === "admin_initiate_verification" ? { data: { state: "initiated", verification_id: ID }, error: null } : { data: null, error: null });
+
+  it("Approve files the request through the authorized function, then claims, approves and applies it", async () => {
+    filed();
+    target("submitted");
+    const res = await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+    expect(res).toEqual({ ok: true, code: "admin.review.approved" });
+    expect(calls()).toEqual(["admin_initiate_verification", "review_start", "review_approve", "apply_account_upgrade"]);
+    expect(rpc).toHaveBeenCalledWith("admin_initiate_verification", { p_subject_type: "user", p_subject_id: SUBJECT });
+  });
+
+  it("Reject files the request and rejects it with NO reason", async () => {
+    filed();
+    target("submitted");
+    const res = await rejectVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }));
+    expect(res).toEqual({ ok: true, code: "admin.review.rejected" });
+    expect(calls()).toEqual(["admin_initiate_verification", "review_start", "review_reject"]);
+  });
+
+  it("reuses an already-open request (no duplicate) and still decides it", async () => {
+    rpc.mockImplementation(async (fn: string) =>
+      fn === "admin_initiate_verification" ? { data: { state: "already_open", verification_id: ID }, error: null } : { data: null, error: null });
+    target("under_review");
+    await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }));
+    expect(calls()).toEqual(["admin_initiate_verification", "review_approve", "apply_account_upgrade"]);
+  });
+
+  it("stops at the database's refusal (authority / eligibility) and decides nothing", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "platform reviewer authority required" } });
+    expect(await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).toEqual({ ok: false, code: "admin.review.error.notAuthorized" });
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "only a professional account can be verified" } });
+    expect(await rejectVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).toEqual({ ok: false, code: "admin.review.error.notEligible" });
+    expect(calls()).toEqual(["admin_initiate_verification"]);
+  });
+
+  it("refuses a malformed subject before any database call", async () => {
+    for (const bad of [{ subjectType: "team", subjectId: SUBJECT }, { subjectType: "user", subjectId: "nope" }, {}]) {
+      expect(await approveVerificationAction(initial, form(bad as Record<string, string>))).toEqual({ ok: false, code: "states.genericRetry" });
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
 describe("rejectVerificationAction", () => {
   it.each(["", "   "])("rejects with NO reason (%j): the reason is optional", async (reason) => {
     target("under_review");

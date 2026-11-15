@@ -361,7 +361,24 @@ begin
           -- decision history for authorized Admins: who decided, and whether an Admin started it
           'reviewer_id', v.reviewer_id,
           'reviewer_name', rp.display_name,
-          'initiated_by_admin', coalesce((v.metadata ->> 'initiated_by_admin')::boolean, false))
+          'initiated_by_admin', coalesce((v.metadata ->> 'initiated_by_admin')::boolean, false),
+          -- the immutable Audit Log is the source of truth: who did what, and when (oldest first)
+          'events', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'action', a.action,
+                'actor_id', a.actor_user_id,
+                'actor_name', ap.display_name,
+                'at', a.created_at)
+              -- ties inside one transaction fall back to the workflow order
+              order by a.created_at,
+                       case a.action when 'verification.admin_initiated' then 0 when 'verification.review_started' then 1
+                                     when 'verification.changes_requested' then 2 else 3 end,
+                       a.id)
+            from public.audit_log a
+            left join public.profiles ap on ap.user_id = a.actor_user_id
+            where a.subject_type = 'verification' and a.subject_id = v.id
+              and a.action in ('verification.admin_initiated', 'verification.review_started', 'verification.changes_requested',
+                               'verification.approved', 'verification.rejected')), '[]'::jsonb))
         order by v.submitted_at desc, v.id desc)
       from public.verifications v
       left join public.profiles rp on rp.user_id = v.reviewer_id
@@ -447,7 +464,24 @@ begin
           -- decision history for authorized Admins: who decided, and whether an Admin started it
           'reviewer_id', v.reviewer_id,
           'reviewer_name', rp.display_name,
-          'initiated_by_admin', coalesce((v.metadata ->> 'initiated_by_admin')::boolean, false))
+          'initiated_by_admin', coalesce((v.metadata ->> 'initiated_by_admin')::boolean, false),
+          -- the immutable Audit Log is the source of truth: who did what, and when (oldest first)
+          'events', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'action', a.action,
+                'actor_id', a.actor_user_id,
+                'actor_name', ap.display_name,
+                'at', a.created_at)
+              -- ties inside one transaction fall back to the workflow order
+              order by a.created_at,
+                       case a.action when 'verification.admin_initiated' then 0 when 'verification.review_started' then 1
+                                     when 'verification.changes_requested' then 2 else 3 end,
+                       a.id)
+            from public.audit_log a
+            left join public.profiles ap on ap.user_id = a.actor_user_id
+            where a.subject_type = 'verification' and a.subject_id = v.id
+              and a.action in ('verification.admin_initiated', 'verification.review_started', 'verification.changes_requested',
+                               'verification.approved', 'verification.rejected')), '[]'::jsonb))
         order by v.submitted_at desc, v.id desc)
       from public.verifications v
       left join public.profiles rp on rp.user_id = v.reviewer_id

@@ -16,6 +16,7 @@ import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/pr
 import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
+import { VerificationHistory } from "@/features/admin/verification-history";
 import { canStartVerification, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
@@ -324,11 +325,9 @@ export default async function PreviewUserDetailPage({
                     </p>
                     <p className="text-label text-fg-muted">
                       {formatAdminDate(v.submittedAt, locale)}
-                      {v.initiatedByAdmin ? ` · ${m.admin.review.startedByAdmin}` : ""}
-                      {v.reviewerName ? ` · ${m.admin.review.reviewedBy}: ${v.reviewerName}` : ""}
-                      {v.decidedAt ? ` · ${formatAdminDate(v.decidedAt, locale)}` : ""}
                       {v.reason ? ` · ${v.reason}` : ""}
                     </p>
+                    <VerificationHistory events={v.events} locale={locale} labels={m.admin.review.history} />
                   </div>
                   <StatusBadge status={v.status} label={statusLabels[v.status] ?? v.status} />
                 </Card>

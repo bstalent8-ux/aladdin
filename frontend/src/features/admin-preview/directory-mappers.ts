@@ -143,6 +143,13 @@ export function mapUsersPage(raw: unknown): DirectoryPage<AdminDirectoryUser, Us
   return mapPage(raw, mapDirectoryUser, ["pending", "verified", "suspended", "rejected", "attention"] as const);
 }
 
+export type AdminVerificationEvent = {
+  /** `verification.admin_initiated` | `.review_started` | `.changes_requested` | `.approved` | `.rejected` */
+  action: string;
+  actorName: string | null;
+  at: string;
+};
+
 export type AdminVerification = {
   id: string;
   verificationType: string;
@@ -151,11 +158,20 @@ export type AdminVerification = {
   reason: string | null;
   submittedAt: string;
   decidedAt: string | null;
-  /** The reviewing Admin (decision history); null while nobody has claimed the request. */
+  /** Decision history from the immutable Audit Log, oldest first: who did what, and when. */
+  events: AdminVerificationEvent[];
+  /** The reviewing Admin; null while nobody has claimed the request. */
   reviewerName: string | null;
   /** The request was started by an Admin rather than submitted by the account owner. */
   initiatedByAdmin: boolean;
 };
+
+function mapVerificationEvent(raw: unknown): AdminVerificationEvent | null {
+  const o = obj(raw);
+  const action = str(o?.action);
+  const at = str(o?.at);
+  return o && action && at ? { action, actorName: str(o.actor_name), at } : null;
+}
 
 function mapVerification(raw: unknown): AdminVerification | null {
   const o = obj(raw);
@@ -172,6 +188,7 @@ function mapVerification(raw: unknown): AdminVerification | null {
     decidedAt: str(o.decided_at),
     reviewerName: str(o.reviewer_name),
     initiatedByAdmin: o.initiated_by_admin === true,
+    events: mapAll(o.events, mapVerificationEvent),
   };
 }
 
