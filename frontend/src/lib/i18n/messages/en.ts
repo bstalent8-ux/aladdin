@@ -2514,7 +2514,7 @@ export const en = {
       userApproved: {
         title: "Your account is verified",
         body: "Your account verification was approved.",
-        bodyListed: "Your account verification was approved and your profile is listed publicly.",
+        bodyListed: "Your account verification was approved, including permission to list your profile publicly.",
       },
       userRejected: {
         title: "Verification was declined",
