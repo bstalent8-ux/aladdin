@@ -290,7 +290,6 @@ export function flagDuplicateOrgNames<T extends { id: string; name: string; orgT
 
 export type DashboardExtras = {
   newRegistrationsThisWeek: number;
-  rejectedUserVerifications: number;
   pendingReferralsTotal: number;
   duplicateOrgCandidateCount: number;
   incompleteUserProfileCount: number;
@@ -302,18 +301,12 @@ export async function previewDashboardExtras(supabase: Client): Promise<Dashboar
 
   const [
     { count: newRegistrationsThisWeek },
-    { count: rejectedUserVerifications },
     salesReferrals,
     networkReferrals,
     { data: orgRows },
     { data: userRows },
   ] = await Promise.all([
     supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
-    supabase
-      .from("verifications")
-      .select("id", { count: "exact", head: true })
-      .eq("subject_type", "user")
-      .eq("status", "rejected"),
     listAdminReferrals(supabase, true),
     listAdminNetworkReferrals(supabase, true),
     supabase.from("organizations").select("id, name, org_type").is("deleted_at", null),
@@ -327,7 +320,6 @@ export async function previewDashboardExtras(supabase: Client): Promise<Dashboar
 
   return {
     newRegistrationsThisWeek: newRegistrationsThisWeek ?? 0,
-    rejectedUserVerifications: rejectedUserVerifications ?? 0,
     pendingReferralsTotal: salesReferrals.length + networkReferrals.length,
     duplicateOrgCandidateCount,
     incompleteUserProfileCount,

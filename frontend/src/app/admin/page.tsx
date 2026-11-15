@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { adminSummary } from "@/server/queries/admin";
 import { loadUsersDirectory } from "@/server/queries/admin-directory";
+import { dashboardUserCards } from "@/lib/admin/dashboard-user-counts";
 import { previewDashboardExtras } from "@/server/queries/admin-preview";
 import { createTranslator, getMessages } from "@/lib/i18n/translate";
 import { formatCount } from "@/lib/ui/format";
@@ -58,10 +59,10 @@ export default async function AdminPreviewDashboardPage() {
   ]);
 
   const totalUsers = Object.values(s.usersByStatus).reduce((a, b) => a + b, 0);
-  // Verified = an approved verification, Pending = the review queue (never the raw users.status, which is the account lifecycle).
-  // When the directory read fails the cards show a dash, never a misleading zero or a different (status-based) number.
-  const verifiedUsers: number | string = tabs.ok ? tabs.data.counts.verified : "—";
-  const pendingUsers: number | string = tabs.ok ? tabs.data.counts.pending : "—";
+  // Pending / Verified / Rejected are the Users directory's own tab counts (a dash when that read fails).
+  const userCards = dashboardUserCards(tabs);
+  const verifiedUsers = userCards.verified;
+  const pendingUsers = userCards.pending;
   const suspendedUsers = s.usersByStatus.suspended ?? 0;
   const pendingOrgs = s.orgsByStatus.pending_verification ?? 0;
   const suspendedOrgs = s.orgsByStatus.suspended ?? 0;
@@ -95,7 +96,7 @@ export default async function AdminPreviewDashboardPage() {
     },
     {
       label: cards.rejected,
-      value: extras.rejectedUserVerifications,
+      value: userCards.rejected,
       Icon: XIcon,
       tone: "danger",
       href: "/admin/users?status=rejected",
