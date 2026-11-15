@@ -23,6 +23,8 @@ function mapReviewError(message: string | undefined): string {
   if (m.includes("authority")) return "admin.review.error.notAuthorized";
   if (m.includes("own verification")) return "admin.review.error.ownReview";
   if (m.includes("another reviewer") || m.includes("assigned reviewer")) return "admin.review.error.otherReviewer";
+  // The database refuses to approve a showroom whose business profile is incomplete (phone, activity, address).
+  if (m.includes("complete showroom business information")) return "admin.review.error.incompleteProfile";
   if (m.includes("invalid transition")) return "admin.review.error.state";
   if (m.includes("reason")) return "admin.review.error.reasonRequired";
   return "states.genericRetry";

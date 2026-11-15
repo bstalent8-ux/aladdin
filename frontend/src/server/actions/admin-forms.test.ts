@@ -166,6 +166,14 @@ describe("approveVerificationAction", () => {
     expect(calls()).toEqual(["review_start"]);
   });
 
+  it("explains an incomplete showroom profile at approval and never applies", async () => {
+    target("submitted");
+    rpc.mockResolvedValueOnce({ data: null, error: null }); // review_start
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "complete showroom business information before approval" } }); // review_approve
+    expect(await approveVerificationAction(initial, form({ id: ID }))).toEqual({ ok: false, code: "admin.review.error.incompleteProfile" });
+    expect(calls()).toEqual(["review_start", "review_approve"]);
+  });
+
   it("refuses a missing id before touching the database", async () => {
     expect((await approveVerificationAction(initial, form({}))).ok).toBe(false);
     expect(from).not.toHaveBeenCalled();

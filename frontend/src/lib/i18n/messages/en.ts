@@ -1040,6 +1040,7 @@ export const en = {
         otherReviewer: "Another reviewer already owns this request.",
         state: "This request can't move from its current state.",
         reasonRequired: "A reason is required to reject.",
+        incompleteProfile: "This showroom's business details are incomplete. The owner must add the phone, activity and address before it can be approved.",
       },
     },
     audit: {
