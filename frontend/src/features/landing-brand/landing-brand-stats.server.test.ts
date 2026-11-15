@@ -8,6 +8,8 @@ const scheduled: Array<() => Promise<void>> = [];
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: (fn: () => Promise<void>) => { scheduled.push(fn); } }));
+// The validated public settings (a missing value means "local"); the test sets the environment per case.
+vi.mock("@/lib/env", () => ({ readPublicEnv: () => ({ NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV ?? "local" }) }));
 vi.mock("@/lib/supabase/admin-server", () => ({ countLandingPublicStats: () => count() }));
 vi.mock("@/server/cache/redis", () => ({
   cacheKey: (...p: unknown[]) => `k:${p.join(":")}`,

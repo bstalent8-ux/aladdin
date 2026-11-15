@@ -1,6 +1,7 @@
 import "server-only";
 
 import { after } from "next/server";
+import { readPublicEnv } from "@/lib/env";
 import { countLandingPublicStats } from "@/lib/supabase/admin-server";
 import { cacheKey, count as countCache, withRedis } from "@/server/cache/redis";
 import type { LandingStats } from "./landing-brand-stats";
@@ -94,7 +95,7 @@ async function readRedis(): Promise<Shared | null> {
  * Production in the same data centre can never read each other's copy. No request data goes into it.
  */
 function coloKey(): Request {
-  const environment = encodeURIComponent(process.env.NEXT_PUBLIC_APP_ENV ?? "unknown");
+  const environment = encodeURIComponent(readPublicEnv().NEXT_PUBLIC_APP_ENV);
   return new Request(`https://landing-stats.cache.invalid/v1/${environment}`, { method: "GET" });
 }
 
