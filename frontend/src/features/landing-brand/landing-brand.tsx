@@ -27,8 +27,10 @@ export function LandingBrand({ stats }: { stats: LandingStats }) {
       <div className={styles.onlyDesktop}>
       <section className={styles.heroWrap}>
         <div className={styles.hero}>
-          <Image src="/landing-brand/hero.jpg" alt="" fill priority sizes="100vw" className={styles.heroImg} />
-          <div className={styles.heroShade} />
+          <div className={styles.heroMedia} aria-hidden="true">
+            <Image src="/landing-brand/hero.jpg" alt="" fill priority sizes="100vw" className={styles.heroImg} />
+            <div className={styles.heroShade} />
+          </div>
           <LandingBrandHeader />
           <div className={styles.heroBody}>
             <div className={styles.heroCopy}>
