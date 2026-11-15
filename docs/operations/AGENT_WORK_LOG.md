@@ -7581,3 +7581,25 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 
 - Finding: the "account already registered" warning only handled GoTrue's error `user_already_exists` (local stack). Hosted Supabase returns an obfuscated user with empty `identities` instead, so a confirmed email went to the OTP step with no code.
 - Fix: `requestPasswordSignUp` also treats `identities.length === 0` as an existing confirmed account (same budget, same degrade to neutral, nothing staged). Missing `identities` is treated as a new registration. Unit tests cover empty, populated and missing. No migration, no R2/secret/hosted-DB change.
+
+## 2026-11-14 - Brand landing page replaces `/` (agent)
+
+- `/` now renders `features/landing-brand` (hero with video dialog, roles, services, product market carousel, how, why, experience, partners marquee, FAQ, CTA, footer) in the owner's brand identity (navy/sand/terracotta/cream; 29LT Bukra + Hurme Geometric Sans via `next/font/local`, files in `features/landing-brand/fonts`, committed on owner approval). Brand colours/fonts are scoped to the landing wrapper only (`--lb-*`); they are NOT yet in `design/tokens` - the design-system governance update (tokens JSON, DESIGN.md, CHANGELOG version bump) is still open.
+- Hero stat pills show real counts only (active users, active organizations, published products) via the new `countLandingPublicStats()` in `lib/supabase/admin-server.ts` (head counts, 10 min per-isolate cache, hidden when unavailable or zero). This is a new narrow service-role use.
+- Market cards use the existing `previewProducts` sample data; the sample label was removed to match the mockup and is NOT shown (owner decision 2026-11-15: stays until real products are wired, which must happen before Production). Partner names (JOTUN, GROHE, Roca, KOHLER, PORCELANOSA) are kept per owner decision.
+- `next.config.ts` gains `landing-brand` in `images.localPatterns`. No migration, secret, R2 or deployment change; merge and production deploy left to the owner.
+
+## 2026-11-15 - Brand landing: four-colour palette registered, responsive pass (agent)
+
+- Owner restricted the landing to exactly four colours: `#071A2D` navy, `#D8C7A6` sand, `#B96F52` terracotta, `#F2E9D8` cream. Registered as the `brandLanding` scope (design system 1.2.0): `design/tokens/colors.json`, `DESIGN.md` frontmatter + metadata, `design/CHANGELOG.md`, `frontend/src/styles/tokens.css` (`--landing-*`), Tailwind `brand.landing-*`. `landing-brand.module.css` now derives every other tone as a `color-mix()`/alpha of those four; white, black, the red heart and the extra navy/terracotta hexes are gone. Small accent text uses `terra-text` (5.9:1 on cream) because terracotta alone is 3.2:1.
+- Responsive tiers: desktop tree >= 701px (tablet rules at <= 1100 and <= 960: burger nav, hero grid, 2-column roles, 3-up carousel, scrolling chips), mobile tree <= 700px (2-column services/why and stacked experience card at <= 480, 2.3-card carousel). Checked 320-2560px, no horizontal overflow.
+- Landing root sets `lang="ar" dir="rtl"` itself. No migration, secret, R2 or deployment change.
+
+## 2026-11-15 - Craftsman profile completion -> verification request (branch feat/craftsman-profile-verification-20261115)
+
+- `/home/profile` is the single place a Craftsman (`installer_technician`) completes the professional profile. `/onboarding/professional` and `/review` redirect Craftsmen there; other professionals keep the wizard. "Save and continue" is now "Save changes" and stays on the page (data, completion ring and verification status refresh); "Save as draft" removed (identical behaviour).
+- Migration `20261115090001_craftsman_profile_verification_submit.sql`: `craftsman_profile_verification_submit()` files ONE professional verification request through the existing `verifications` table when `app.profile_completion` is 100, including when the account type is already `installer_technician` (which `request_account_upgrade` refuses and `individual_submit_professional` skips). Never approves; approved is never reset; rejected is never auto-resubmitted; `needs_more_info` is resubmitted on save. pgTAP `135` (26 checks).
+- Triggers (best-effort, idempotent): save profile, create portfolio project, confirm avatar, save phone.
+- NOT applied to any hosted database. Apply order note: version `20261115090001` is later than the pending `20261114090002`-`090005`; apply those first or record history accordingly.
+- Manual Resubmit after a rejection: `craftsman_profile_verification_submit(p_after_rejection => true)`, only at 100%, files ONE new request (rejected row untouched); repeats return `already_open`. Status card on `/home/profile` shows the reason and the Resubmit / Request verification buttons (disabled while pending). A failed automatic submission is reported as a failure and can be retried from the card.
+- Approval recheck: trigger `craftsman_review_complete` refuses `approved` for a Craftsman professional request unless the profile is still 100% complete (does not redefine `review_approve`). Admin copy for this error lives in #192's `mapReviewError`.

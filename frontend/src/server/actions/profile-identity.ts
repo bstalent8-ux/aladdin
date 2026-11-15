@@ -4,6 +4,7 @@ import { authorizeMediaUpload, verifyPendingMedia, removeMedia } from "@/server/
 import type { UploadGrant } from "@/lib/storage/provider-types";
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { submitCraftsmanVerificationIfComplete } from "@/server/profile/craftsman-verification";
 import { isCraftsmanLoginAlias } from "@/lib/auth/craftsman-login-alias";
 import { SECURITY_CODES, defaultSecurityDeps, performPhoneChange } from "@/server/auth/installer-security";
 import { resolveSecuritySession } from "@/server/auth/security-session";
@@ -72,6 +73,8 @@ export async function setPhoneAction(
       code: error.code === "23505" ? "profileIdentity.phone.unavailable" : "profileIdentity.phone.error",
     };
   }
+  // A saved phone can complete a Craftsman's profile; the database decides whether to file the request.
+  await submitCraftsmanVerificationIfComplete();
   revalidateIdentity();
   return { ok: true };
 }
@@ -172,6 +175,8 @@ export async function confirmAvatarUploadAction(objectKey: string): Promise<Avat
     try { await removeMedia(supabase, "avatar", previousKey); } catch { /* Metadata already revoked access. */ }
   }
 
+  // A first photo can complete a Craftsman's profile; the database decides whether to file the request.
+  await submitCraftsmanVerificationIfComplete();
   revalidateIdentity();
   return { ok: true };
 }
