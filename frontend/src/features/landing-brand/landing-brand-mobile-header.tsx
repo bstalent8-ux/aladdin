@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { brandContent } from "./landing-brand-content";
 
-const link = { padding: "13px 4px", fontSize: "16px", color: "var(--lb-cream)", borderBottom: "1px solid rgba(242,233,216,.1)" } as const;
+const link = { padding: "13px 4px", fontSize: "16px", color: "var(--lb-cream)", borderBottom: "1px solid color-mix(in srgb, var(--lb-cream) 10%, transparent)" } as const;
 
 /** Mobile header from the approved mockup: logo at the inline start, burger at the end, links and the two account buttons in the opened menu. */
 export function LandingBrandMobileHeader() {
@@ -19,7 +19,7 @@ export function LandingBrandMobileHeader() {
         <a href="#top" style={{ display: "flex", alignItems: "center", gap: "10px", color: "inherit", textDecoration: "none" }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size logo mark */}
           <img src="/landing-brand/mark-cream.png" alt="" style={{ height: "44px", width: "auto", flex: "none", display: "block" }} />
-          <span style={{ fontWeight: 800, fontSize: "24px", color: "var(--lb-white)" }}>علاء الدين</span>
+          <span style={{ fontWeight: 800, fontSize: "24px", color: "var(--lb-cream)" }}>علاء الدين</span>
         </a>
       </header>
       {open ? (
