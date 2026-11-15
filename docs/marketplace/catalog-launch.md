@@ -10,8 +10,8 @@ Status: **local only** (branch `feat/public-marketplace-20261011`, isolated Supa
 | Media moderation | `/admin/marketplace/media` | platform admin | `marketplace_media.moderate` |
 | Bulk import | `/showroom/marketplace/imports` | approved seller (catalogue manager) | `marketplace_seller_import_step` re-checks writer on every call |
 | Seller products (server-paged) | `/showroom/marketplace/products` | approved seller | `marketplace_seller_products_page` |
-| Public catalog / product | `/marketplace`, `/marketplace/products/[slug]` | anyone (release flag `NEXT_PUBLIC_MARKETPLACE_PREVIEW`) | public RPCs return only published products of enabled sellers |
-| Public image bytes | `/marketplace/media/[imageId]` | anyone | `marketplace_public_image_ref` (service role only) |
+| Public catalog / product | `/market`, `/market/products/[slug]` | anyone (release flag `NEXT_PUBLIC_MARKETPLACE_PREVIEW`) | public RPCs return only published products of enabled sellers |
+| Public image bytes | `/market/media/[imageId]` | anyone | `marketplace_public_image_ref` (service role only) |
 
 ## Bulk import
 
@@ -32,7 +32,7 @@ Every image is downloaded by the server under the moderator's own session and ch
 
 ## Public media delivery and revocation
 
-`/marketplace/media/[imageId]` asks `marketplace_public_image_ref` on **every request**: media flag on, image verified + byte-validated, product published, seller enabled, type/category active, variant active. Responses (200 and 404 alike) are `no-store, private`; the browser never receives a bucket, key, signed URL or credential.
+`/market/media/[imageId]` asks `marketplace_public_image_ref` on **every request**: media flag on, image verified + byte-validated, product published, seller enabled, type/category active, variant active. Responses (200 and 404 alike) are `no-store, private`; the browser never receives a bucket, key, signed URL or credential.
 
 Measured locally (synthetic acceptance): unpublish → 404, seller suspended → 404 (catalog empty), image rejected after approval → 404 + product unpublished, image deleted by seller → 404 + product unpublished, media flag off → 404 and no image ids in the catalog; republish / reinstate → 200 again. Anonymous direct Storage download and the service-only ref RPC are both denied.
 

@@ -34,6 +34,9 @@
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "NEXT_PUBLIC_APP_ENV": "staging",
+        // Public Marketplace (ADR-0028) is open on this isolated preview ONLY: acceptance data, no custom domain.
+        // Production deliberately has no such variable, so it keeps serving the "coming soon" page until a separate approval.
+        "NEXT_PUBLIC_MARKETPLACE_PREVIEW": "true",
         "REDIS_CACHE_ENABLED": "true",
         "REDIS_REST_URL": "https://alert-bedbug-148148.upstash.io",
         "REDIS_KEY_ENV": "cf-preview",

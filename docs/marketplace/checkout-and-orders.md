@@ -13,12 +13,12 @@ Status: built 2026-11-14 on `feat/marketplace` (PR 190), local stack verified. M
 
 ## Flow
 
-1. Cart (`/marketplace/cart`) → "Place order" opens once every showroom can serve the chosen way of receiving.
-2. Checkout (`/marketplace/checkout`): signed-out visitors see a sign-in panel. Signed-in buyers enter
+1. Cart (`/market/cart`) → "Place order" opens once every showroom can serve the chosen way of receiving.
+2. Checkout (`/market/checkout`): signed-out visitors see a sign-in panel. Signed-in buyers enter
    name, phone, note and address, then per showroom choose delivery/pickup and a payment method that
    showroom offers. `marketplace_checkout_place` re-prices everything, creates **one order per
    showroom** (`MP-000001`…), reserves stock, and is idempotent per attempt key.
-3. Buyer: `/marketplace/orders`, `/marketplace/orders/[id]` — cancel while pending; InstaPay details and
+3. Buyer: `/market/orders`, `/market/orders/[id]` — cancel while pending; InstaPay details and
    receipt upload (central media system, namespace `marketplace`, key `proofs/<order>/<id>.<ext>`,
    stored at `u/<buyer>/certificates/<id>/original.<ext>`).
 4. Showroom: `/showroom/marketplace/orders`, `/showroom/marketplace/orders/[id]` — status tabs, receipt
@@ -27,7 +27,7 @@ Status: built 2026-11-14 on `feat/marketplace` (PR 190), local stack verified. M
 
 ## Return after sign-in
 
-`/marketplace/checkout` (with its simple query) and `/marketplace/orders[/<uuid>]` are accepted as `next`
+`/market/checkout` (with its simple query) and `/market/orders[/<uuid>]` are accepted as `next`
 (`server/auth/next.ts`, exact shapes only) and survive the post-sign-in landing rule
 (`postAuthDestination`, used by password sign-in, OTP sign-in, OAuth entry and the account-basics step).
 Every other deep link still survives only inside the caller's own landing surface.

@@ -156,7 +156,7 @@ Price is **per sale unit**; stock is counted **in the same unit**; only seller-d
 
 - **Global:** search · category · type · price range · brand · seller · availability · on-offer/flash · featured · fulfilment (delivery/pickup, later) · sort (relevance, newest, price ↑↓; **best-selling only after real paid-order data**; no "popular" until defined).
 - **Dynamic:** generated from the **type's schema** (§3): every field marked filterable renders the widget that matches its type — choice/multi-choice (checkboxes), color (swatches from the shared Color Catalog), yes/no, number and measurement (range). A field is filterable **only if its type supports correct filtering**; free text is searchable but never filterable. Adding or disabling a filter is an Admin schema change, not a code change.
-- **URL = state:** `/marketplace/products?type=wood_alternative&q=oak&price=1000-5000&a.color=oak,walnut&a.thickness_mm=8-12&avail=in_stock&sort=price_asc&cursor=…`
+- **URL = state:** `/market/products?type=wood_alternative&q=oak&price=1000-5000&a.color=oak,walnut&a.thickness_mm=8-12&avail=in_stock&sort=price_asc&cursor=…`
 - **Semantics:** AND between groups, OR within multi-select, ranges inclusive; variant-level filters must match **one and the same variant**; card price = lowest effective price among matching purchasable variants ("from …").
 - **Engine:** Postgres only — Arabic-normalized text + `tsvector (simple)` + `pg_trgm`, keyset pagination, one RPC per page. A facet projection table only if EAV proves slow.
 
@@ -432,10 +432,10 @@ Carts/addresses/orders scoped to `auth.uid()`; sellers see only their own orders
 ## 10. Routes, flows, release flag
 
 ```
-Public   /marketplace · /marketplace/products · /marketplace/products/[slug]
-         /marketplace/finishing · /marketplace/finishing/[taskKey]
-         /marketplace/offers · /marketplace/flash-sales
-Auth     /marketplace/cart · /marketplace/checkout · /marketplace/checkout/confirmation/[orderNumber]
+Public   /market · /market/products · /market/products/[slug]
+         /market/finishing · /market/finishing/[taskKey]
+         /market/offers · /market/flash-sales
+Auth     /market/cart · /market/checkout · /market/checkout/confirmation/[orderNumber]
          /home/orders · /home/orders/[orderNumber] · /home/addresses
 Server   payment webhook endpoint — owned by the Kashier integration (see §8); Marketplace does not create its own
 Seller   /b2b/marketplace/*   (Stage 6 only)
@@ -451,8 +451,8 @@ Two layers (recommendation):
 The flag is a release gate; data safety additionally relies on products being unpublished until ready.
 
 ### Existing-code facts that affect the flow (verified)
-- `middleware.ts` gates only `/b2b /admin /home /onboarding`; `/marketplace/**` is public by default, cart/checkout need an explicit gate.
-- `sanitizeNext` (post-sign-in redirect) allows only `/admin /b2b /home /onboarding /auth/invite/` and falls back to **`/b2b`** → `/marketplace/cart` would be lost. One-line allowlist addition needed in Stage 5 (needs your approval; **not** changed now).
+- `middleware.ts` gates only `/b2b /admin /home /onboarding`; `/market/**` is public by default, cart/checkout need an explicit gate.
+- `sanitizeNext` (post-sign-in redirect) allows only `/admin /b2b /home /onboarding /auth/invite/` and falls back to **`/b2b`** → `/market/cart` would be lost. One-line allowlist addition needed in Stage 5 (needs your approval; **not** changed now).
 - Landing: `/` renders `LandingMotion > LandingHero + LandingEcosystem` from `features/landing-preview`. Plan: marketplace UI in a **new** `features/marketplace/`, one narrow insertion point + navbar item **السوق / Marketplace**, only when the flag is on; featured/flash sections titled **منتجات مميزة** until real sales exist; previews first under `/preview/marketplace/*`.
 
 ---
@@ -511,7 +511,7 @@ D-00, D-17, D-18, D-19, D-20, D-21, D-22, D-23 · **D-05 (Kashier; Aladdin colle
 ---
 
 ## 13. Risks (short list)
-Buyer personas closed at launch (D-25) · accidental exposure of B2B inventory (mitigated by separate tables) · post-login redirect dropping `/marketplace` · flash-sale overselling · forged "paid" via redirect/replayed webhook · COD fake orders and unclear cash custody (mitigated by showroom confirmation + signals; custody is the showroom's) · fake-discount legal exposure · seller UI missing until Stage 6 (earlier stages rely on ops RPCs) · a flag that guards only the UI · Arabic search quality (no PG stemmer) · merge conflicts with the landing branch · EAV filter performance · scope creep beyond six types · activating a seller by mistake (DB-only, audited, closed by default) · **Aladdin holding third-party funds** (legal/regulatory position, accounting, reconciliation, chargebacks — D-27/D-28/D-29/D-32) · **tax mis-statement** (wrong or hardcoded rate, unclear invoicing/remittance responsibility — D-30) · **duplicate or conflicting payment code** (mitigated by the no-second-integration rule and an agreed contract — D-33) · **integration not inspectable** (the other engineer's work is not in the repository yet) · pricing displayed ex-tax may need legal review for consumer-facing price-display rules (D-30).
+Buyer personas closed at launch (D-25) · accidental exposure of B2B inventory (mitigated by separate tables) · post-login redirect dropping `/market` · flash-sale overselling · forged "paid" via redirect/replayed webhook · COD fake orders and unclear cash custody (mitigated by showroom confirmation + signals; custody is the showroom's) · fake-discount legal exposure · seller UI missing until Stage 6 (earlier stages rely on ops RPCs) · a flag that guards only the UI · Arabic search quality (no PG stemmer) · merge conflicts with the landing branch · EAV filter performance · scope creep beyond six types · activating a seller by mistake (DB-only, audited, closed by default) · **Aladdin holding third-party funds** (legal/regulatory position, accounting, reconciliation, chargebacks — D-27/D-28/D-29/D-32) · **tax mis-statement** (wrong or hardcoded rate, unclear invoicing/remittance responsibility — D-30) · **duplicate or conflicting payment code** (mitigated by the no-second-integration rule and an agreed contract — D-33) · **integration not inspectable** (the other engineer's work is not in the repository yet) · pricing displayed ex-tax may need legal review for consumer-facing price-display rules (D-30).
 
 ---
 
