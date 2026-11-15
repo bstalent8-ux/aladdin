@@ -15,7 +15,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(26);
+select plan(34);
 
 create function pg_temp.q(p_user uuid, p_sql text) returns text language plpgsql as $$
 declare r text;
@@ -45,7 +45,8 @@ from (values
   ('13500000-0000-4000-8000-0000000000c4', 'cv-c4@example.test'),
   ('13500000-0000-4000-8000-0000000000c5', 'cv-c5@example.test'),
   ('13500000-0000-4000-8000-0000000000c6', 'cv-c6@example.test'),
-  ('13500000-0000-4000-8000-0000000000c7', 'cv-c7@example.test')) v(id, email);
+  ('13500000-0000-4000-8000-0000000000c7', 'cv-c7@example.test'),
+  ('13500000-0000-4000-8000-0000000000c8', 'cv-c8@example.test')) v(id, email);
 
 -- Make each one a complete craftsman profile (all eight criteria), except c2 (no portfolio) and c3 (engineer).
 do $$
@@ -53,7 +54,8 @@ declare
   u uuid; v_trade uuid;
   v_craft uuid[] := array['13500000-0000-4000-8000-0000000000c1','13500000-0000-4000-8000-0000000000c2',
     '13500000-0000-4000-8000-0000000000c4','13500000-0000-4000-8000-0000000000c5',
-    '13500000-0000-4000-8000-0000000000c6','13500000-0000-4000-8000-0000000000c7']::uuid[];
+    '13500000-0000-4000-8000-0000000000c6','13500000-0000-4000-8000-0000000000c7',
+    '13500000-0000-4000-8000-0000000000c8']::uuid[];
   v_avatar uuid;
 begin
   select id into v_trade from public.trades where is_active order by key limit 1;
@@ -68,7 +70,7 @@ begin
       on conflict (user_id) do update set prof_concrete_type = 'installer_technician', prof_years_experience = 5, prof_availability = 'full_time';
     insert into public.user_trades (user_id, trade_id) values (u, v_trade);
     insert into public.user_service_areas (user_id, governorate_key, is_primary) values (u, 'cairo', true);
-    if u <> '13500000-0000-4000-8000-0000000000c2' then
+    if u not in ('13500000-0000-4000-8000-0000000000c2', '13500000-0000-4000-8000-0000000000c8') then
       insert into public.portfolio_projects (owner_user_id, title) values (u, 'CV project');
     end if;
   end loop;
@@ -82,7 +84,8 @@ values
  ('user', '13500000-0000-4000-8000-0000000000c4', 'professional', 'installer_technician', 'needs_more_info', now() - interval '3 days', null, 'add a clearer photo', null, null),
  ('user', '13500000-0000-4000-8000-0000000000c5', 'professional', 'installer_technician', 'approved', now() - interval '3 days', null, null, now() - interval '2 days', now() - interval '2 days'),
  ('user', '13500000-0000-4000-8000-0000000000c6', 'professional', 'installer_technician', 'rejected', now() - interval '3 days', null, 'documents unclear', now() - interval '2 days', null),
- ('user', '13500000-0000-4000-8000-0000000000c7', 'professional', 'installer_technician', 'under_review', now() - interval '3 days', null, null, null, null);
+ ('user', '13500000-0000-4000-8000-0000000000c7', 'professional', 'installer_technician', 'under_review', now() - interval '3 days', null, null, null, null),
+ ('user', '13500000-0000-4000-8000-0000000000c8', 'professional', 'installer_technician', 'rejected', now() - interval '3 days', null, 'documents unclear', now() - interval '2 days', null);
 
 -- ---------------------------------------------------------------------------
 -- Fixture sanity: the completion figure is the real one
@@ -136,16 +139,35 @@ select is((select status::text || ':' || count(*) over ()::text from public.veri
 select is((pg_temp.q('13500000-0000-4000-8000-0000000000c7', 'public.craftsman_profile_verification_submit()')::jsonb ->> 'state'), 'already_open', 'an under_review request is left alone');
 
 -- ---------------------------------------------------------------------------
+-- E2. manual resubmission after a rejection
+-- ---------------------------------------------------------------------------
+select is((pg_temp.q('13500000-0000-4000-8000-0000000000c6', 'public.craftsman_profile_verification_submit(true)')::jsonb ->> 'state'), 'resubmitted_after_rejection', 'Resubmit after a rejection files a new request');
+select is((select count(*)::int || ':' || count(*) filter (where status = 'submitted')::int || ':' || count(*) filter (where status = 'rejected')::int from public.verifications where user_id = '13500000-0000-4000-8000-0000000000c6'), '2:1:1', 'the rejected row stays as decided; exactly one new submitted request');
+select is((pg_temp.q('13500000-0000-4000-8000-0000000000c6', 'public.craftsman_profile_verification_submit(true)')::jsonb ->> 'state'), 'already_open', 'pressing Resubmit again does not file another');
+select is((select count(*)::int from public.verifications where user_id = '13500000-0000-4000-8000-0000000000c6'), 2, 'still exactly two rows');
+select is((pg_temp.q('13500000-0000-4000-8000-0000000000c8', 'public.craftsman_profile_verification_submit(true)')::jsonb ->> 'state'), 'incomplete', 'Resubmit needs a 100% profile');
+select is((select count(*)::int from public.verifications where user_id = '13500000-0000-4000-8000-0000000000c8'), 1, 'and files nothing when incomplete');
+
+-- ---------------------------------------------------------------------------
 -- F. the figure follows the real saved profile
 -- ---------------------------------------------------------------------------
 delete from public.portfolio_projects where owner_user_id = '13500000-0000-4000-8000-0000000000c1';
 select is((pg_temp.q('13500000-0000-4000-8000-0000000000c1', 'public.craftsman_profile_verification_submit()')::jsonb ->> 'state'), 'incomplete', 'removing the portfolio drops the profile below 100 again');
 
 -- ---------------------------------------------------------------------------
+-- F2. approval rechecks eligibility (c1 now has an open request and an INCOMPLETE profile)
+-- ---------------------------------------------------------------------------
+select throws_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13500000-0000-4000-8000-0000000000c1' $$,
+  '22023', 'complete the craftsman profile before approval', 'a request cannot be approved while the profile is incomplete');
+insert into public.portfolio_projects (owner_user_id, title) values ('13500000-0000-4000-8000-0000000000c1', 'CV project again');
+select lives_ok($$ update public.verifications set status = 'approved', decided_at = now() where user_id = '13500000-0000-4000-8000-0000000000c1' $$,
+  'once the profile is 100% complete again, approval proceeds');
+
+-- ---------------------------------------------------------------------------
 -- G. grants
 -- ---------------------------------------------------------------------------
-select ok(has_function_privilege('authenticated', 'public.craftsman_profile_verification_submit()', 'execute')
-      and not has_function_privilege('anon', 'public.craftsman_profile_verification_submit()', 'execute'), 'authenticated may execute, anon may not');
+select ok(has_function_privilege('authenticated', 'public.craftsman_profile_verification_submit(boolean)', 'execute')
+      and not has_function_privilege('anon', 'public.craftsman_profile_verification_submit(boolean)', 'execute'), 'authenticated may execute, anon may not');
 
 select * from finish();
 rollback;

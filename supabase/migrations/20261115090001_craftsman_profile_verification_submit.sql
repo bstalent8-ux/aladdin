@@ -18,10 +18,19 @@
 --   needs_more_info    -> back to 'submitted' (reviewer + reason cleared) => 'resubmitted'   (the user just saved)
 --   approved           -> nothing changes, approval is never reset        => 'approved'
 --   rejected           -> nothing changes, never auto-resubmitted         => 'rejected'
+--                         (p_after_rejection => true: ONE new request)       => 'resubmitted_after_rejection'
 --   completion < 100   -> nothing                                         => 'incomplete'
 -- Only the Craftsman persona may call it. It is idempotent: calling it any number of times files at most one request.
+--
+-- Manual resubmission after a rejection: p_after_rejection => true (the user pressing Resubmit; never the automatic
+-- path) files ONE new 'submitted' request when the latest request was rejected and the profile is 100% complete. A
+-- rejected request itself is never reopened or edited. Repeated presses find the new open request ('already_open').
+--
+-- Approval recheck: a BEFORE UPDATE trigger (craftsman_review_complete) refuses to move a Craftsman's professional
+-- request to 'approved' unless the profile is STILL 100% complete at that moment. It sits on the table, so it holds
+-- for review_approve and any other path, and it does not redefine review_approve.
 
-create or replace function public.craftsman_profile_verification_submit()
+create or replace function public.craftsman_profile_verification_submit(p_after_rejection boolean default false)
 returns jsonb
 language plpgsql
 security definer
@@ -57,7 +66,24 @@ begin
     elsif v_v.status = 'approved' then
       return jsonb_build_object('state', 'approved', 'percent', v_percent, 'verification_id', v_v.id);
     elsif v_v.status = 'rejected' then
-      return jsonb_build_object('state', 'rejected', 'percent', v_percent, 'verification_id', v_v.id);
+      if not coalesce(p_after_rejection, false) then
+        return jsonb_build_object('state', 'rejected', 'percent', v_percent, 'verification_id', v_v.id);
+      end if;
+      -- Manual resubmission: the rejected row stays as decided; a NEW request is filed.
+      insert into public.verifications
+        (subject_type, user_id, verification_type, requested_account_type, status, submitted_at)
+      values ('user', v_uid, 'professional', 'installer_technician', 'submitted', now())
+      on conflict do nothing
+      returning id into v_id;
+      if v_id is null then
+        select id into v_id from public.verifications
+         where subject_type = 'user' and user_id = v_uid and status in ('draft', 'submitted', 'under_review', 'needs_more_info')
+         order by submitted_at desc nulls last limit 1;
+        return jsonb_build_object('state', 'already_open', 'percent', v_percent, 'verification_id', v_id);
+      end if;
+      perform app.record_audit_event('account.upgrade_requested', 'verification', v_id, null,
+        jsonb_build_object('requested_account_type', 'installer_technician', 'resubmission_after_rejection', true, 'source', 'profile_completion'));
+      return jsonb_build_object('state', 'resubmitted_after_rejection', 'percent', v_percent, 'verification_id', v_id);
     elsif v_v.status = 'needs_more_info' then
       update public.verifications
          set status = 'submitted', reviewer_id = null, reason = null
@@ -95,6 +121,31 @@ begin
 end;
 $$;
 
-revoke all on function public.craftsman_profile_verification_submit() from public, anon, service_role;
-grant execute on function public.craftsman_profile_verification_submit() to authenticated;
-comment on function public.craftsman_profile_verification_submit() is 'Craftsman only. When app.profile_completion reaches 100, files exactly one professional verification request through the existing verifications table (works when the account type is already installer_technician). Never approves; never resets an approved request; never resubmits a rejected one; needs_more_info is resubmitted. Idempotent.';
+revoke all on function public.craftsman_profile_verification_submit(boolean) from public, anon, service_role;
+grant execute on function public.craftsman_profile_verification_submit(boolean) to authenticated;
+comment on function public.craftsman_profile_verification_submit(boolean) is 'Craftsman only. When app.profile_completion reaches 100, files exactly one professional verification request through the existing verifications table (works when the account type is already installer_technician). Never approves; never resets an approved request; a rejected request is only followed by a NEW one when p_after_rejection is true (manual Resubmit); needs_more_info is resubmitted. Idempotent.';
+
+-- Approval recheck. Eligibility is evaluated at the moment of approval, on the authoritative completion.
+create or replace function app.craftsman_review_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.status = 'approved' and new.status is distinct from old.status
+     and new.subject_type = 'user' and new.verification_type = 'professional'
+     and new.requested_account_type = 'installer_technician'
+     and app.effective_persona(new.user_id) = 'installer_technician'
+     and coalesce((app.profile_completion(new.user_id) ->> 'percent')::integer, 0) < 100 then
+    raise exception 'complete the craftsman profile before approval' using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function app.craftsman_review_guard() from public, anon, authenticated, service_role;
+
+drop trigger if exists craftsman_review_complete on public.verifications;
+create trigger craftsman_review_complete
+  before update on public.verifications
+  for each row execute function app.craftsman_review_guard();
