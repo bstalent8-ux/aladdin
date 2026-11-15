@@ -58,6 +58,8 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
               // eslint-disable-next-line @next/next/no-img-element -- no-store proxy
               <img
                 src={imageSrc(current.image_id, "full")}
+                fetchPriority="high"
+                decoding="async"
                 alt={(locale === "ar" ? current.alt_text_ar : current.alt_text_en) || title}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
@@ -77,7 +79,7 @@ export function LiveProduct({ product }: { product: PublicProduct }) {
                     onClick={() => setIndex(i)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- no-store proxy */}
-                    <img src={imageSrc(img.image_id, "thumb")} alt="" loading="lazy" />
+                    <img src={imageSrc(img.image_id, "thumb")} alt="" loading="lazy" decoding="async" />
                   </button>
                 </li>
               ))}

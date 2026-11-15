@@ -44,3 +44,14 @@ export function marketplaceImageSrc(map: MarketplaceImageMap | undefined, imageI
   const urls = map?.[imageId];
   return urls ? urls[size] ?? urls.src : `/market/media/${imageId}?v=${size}`;
 }
+
+/**
+ * `srcset` of a grid image: the recorded thumb (320w) and card (768w) widths, so a phone cell loads the small
+ * WebP and a desktop cell the larger one. A size that was not recorded falls back to the original, so the set
+ * never names a URL the Worker would refuse; no entry for the id means no set (the single `src` applies).
+ */
+export function marketplaceImageSrcSet(map: MarketplaceImageMap | undefined, imageId: string): string | undefined {
+  const urls = map?.[imageId];
+  if (!urls?.thumb || !urls.card) return undefined;
+  return `${urls.thumb} 320w, ${urls.card} 768w`;
+}

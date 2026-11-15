@@ -34,7 +34,7 @@ function Suggestion({ card, locale }: { card: PublicCard; locale: Locale }) {
       <Link href={`/market/products/${card.slug}`} className={styles.suggMedia} aria-label={name}>
         {card.image_id ? (
           // eslint-disable-next-line @next/next/no-img-element -- no-store media proxy
-          <img src={imageSrc(card.image_id, "card")} alt="" loading="lazy" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={imageSrc(card.image_id, "card")} alt="" loading="lazy" decoding="async" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : null}
       </Link>
       <div className={styles.suggBody}>
@@ -97,7 +97,7 @@ function LineRow({ line, locale, images, onQty, onRemove }: {
         <Link href={href} className={styles.thumb} aria-label={name}>
           {line.image_id ? (
             // eslint-disable-next-line @next/next/no-img-element -- no-store media proxy
-            <img src={marketplaceImageSrc(images, line.image_id, "thumb")} alt="" loading="lazy" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={marketplaceImageSrc(images, line.image_id, "thumb")} alt="" loading="lazy" decoding="async" className={styles.cover} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : null}
         </Link>
         <div className={styles.info}>

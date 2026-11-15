@@ -41,7 +41,34 @@ export async function loadPublicCatalogPage(params: {
   return data as unknown as PublicPage;
 }
 
+/**
+ * Facets (category/type tree, filter options, counts, price bounds) are the same for every visitor and change only
+ * when a showroom publishes or unpublishes, so a short per-instance memo saves the RPC on a busy catalog. It is
+ * deliberately NOT applied to the catalog page, the product, the cart quote or any image: those carry prices,
+ * stock and publication state, and their revocation must show on the next request. Failures are never memoized.
+ */
+const FACETS_TTL_MS = 60_000;
+const FACETS_MAX_ENTRIES = 40;
+const facetsMemo = new Map<string, { at: number; value: Facets }>();
+
+/** Test seam. */
+export function resetFacetsMemoForTests() {
+  facetsMemo.clear();
+}
+
 export async function loadPublicFacets(type?: string | null): Promise<Facets> {
+  const memoKey = type || "";
+  const hit = facetsMemo.get(memoKey);
+  if (hit && Date.now() - hit.at < FACETS_TTL_MS) return hit.value;
+  const value = await readPublicFacets(type);
+  if (value.categories.length > 0) {
+    if (facetsMemo.size >= FACETS_MAX_ENTRIES) facetsMemo.delete(facetsMemo.keys().next().value as string);
+    facetsMemo.set(memoKey, { at: Date.now(), value });
+  }
+  return value;
+}
+
+async function readPublicFacets(type?: string | null): Promise<Facets> {
   const supabase = await getServerSupabase();
   const { data, error } = await supabase.rpc("marketplace_public_facets", { p_type: type || undefined });
   const empty: Facets = { categories: [], price: { min: null, max: null }, filters: [] };

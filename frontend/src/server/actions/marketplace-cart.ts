@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { clientRateLimit } from "@/server/auth/client-rate-limit";
 import { marketplacePublicImageUrls } from "@/server/media/marketplace-public-images";
 import { CART_MAX_LINES, type CartQuote, type CartRef } from "@/features/marketplace/live/public-contract";
 
@@ -27,6 +29,8 @@ export async function quoteMarketplaceCartAction(
     if (!/^[a-z0-9-]{1,120}$/.test(r.slug) || r.sku.length < 1 || r.sku.length > 80) return null;
     lines.push({ slug: r.slug, sku: r.sku });
   }
+  // Public action, one database read per call: a per-client ceiling. Over it the page shows its normal "could not price" state.
+  if ((await clientRateLimit("market-quote", await headers())).outcome === "limited") return null;
   const gov = governorate && KEY.test(governorate) ? governorate : undefined;
   const place = gov && area && KEY.test(area) ? area : undefined;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { marketplaceImageSrc, type MarketplaceImageMap } from "@/lib/storage/marketplace-images";
+import { marketplaceImageSrc, marketplaceImageSrcSet, type MarketplaceImageMap } from "@/lib/storage/marketplace-images";
 
 /**
  * Public shop image URLs resolved on the server (`marketplacePublicImageUrls`): the media Worker
@@ -18,4 +18,10 @@ export function MarketplaceImagesProvider({ images, children }: { images: Market
 export function useMarketplaceImageSrc() {
   const images = useContext(ImageUrls);
   return (imageId: string, size: "thumb" | "card" | "full") => marketplaceImageSrc(images, imageId, size);
+}
+
+/** `srcset` for a grid image (see `marketplaceImageSrcSet`); undefined when the sizes are not recorded. */
+export function useMarketplaceImageSrcSet() {
+  const images = useContext(ImageUrls);
+  return (imageId: string) => marketplaceImageSrcSet(images, imageId);
 }

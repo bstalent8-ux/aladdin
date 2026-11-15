@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { clientRateLimit } from "@/server/auth/client-rate-limit";
 import { loadPublicMarketplaceImage } from "@/server/media/marketplace-image-bytes";
 import { marketplacePublicImageUrls } from "@/server/media/marketplace-public-images";
 
@@ -40,6 +41,11 @@ const SIZES = new Set(["thumb", "card", "full"]);
 export async function GET(request: Request, { params }: { params: Promise<{ imageId: string }> }) {
   const { imageId } = await params;
   if (!UUID.test(imageId)) return notFound();
+  // Public and unauthenticated, and every call costs database + R2 work: a per-client ceiling (hashed IP).
+  const limited = await clientRateLimit("market-media", request.headers);
+  if (limited.outcome === "limited") {
+    return new NextResponse(null, { status: 429, headers: { ...NO_STORE, "retry-after": String(limited.retryAfterSeconds ?? 60) } });
+  }
 
   const size = new URL(request.url).searchParams.get("v");
   try {
