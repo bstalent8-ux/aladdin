@@ -943,6 +943,7 @@ export const en = {
       verification: "Verification",
       verified: "Verified",
       notVerified: "Not verified",
+      businessVerification: "Business verification",
       branches: "Branches",
       noBranches: "No branches.",
       branchActive: "Active",

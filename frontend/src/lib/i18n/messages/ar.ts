@@ -908,6 +908,7 @@ export const ar: Messages = {
       verification: "التوثيق",
       verified: "موثّق",
       notVerified: "غير موثّق",
+      businessVerification: "توثيق النشاط التجاري",
       branches: "الفروع",
       noBranches: "لا توجد فروع.",
       branchActive: "نشط",

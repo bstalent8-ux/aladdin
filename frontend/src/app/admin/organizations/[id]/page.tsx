@@ -170,7 +170,7 @@ export default async function PreviewOrgDetailPage({
             <dl className="grid gap-md tablet:grid-cols-4">
               <Field label={t.tabs.overview}>{typeLabels[org.orgType] ?? org.orgType}</Field>
               <Field label={m.admin.orgs.status}>{statusLabels[org.status] ?? org.status}</Field>
-              <Field label={m.admin.orgs.verification}>{org.businessVerifiedAt ? m.admin.orgs.verified : m.admin.orgs.notVerified}</Field>
+              <Field label={m.admin.orgs.businessVerification}>{org.businessVerifiedAt ? m.admin.orgs.verified : m.admin.orgs.notVerified}</Field>
               <Field label={m.admin.orgs.created}>{formatAdminDate(org.createdAt, locale)}</Field>
               <Field label={m.onboarding.business.identity.phoneLabel}><span dir="ltr">{registration.phone ?? "—"}</span></Field>
               <Field label={m.onboarding.business.identity.emailLabel}><span dir="ltr">{registration.email ?? "—"}</span></Field>
