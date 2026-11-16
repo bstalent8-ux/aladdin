@@ -46,7 +46,7 @@ test.describe("one-field sign in and mobile-number sign up", () => {
     );
   });
 
-  test("the retired phone pages are gone (404, no redirect)", async ({ request }) => {
+  test("the retired phone pages are gone (404 for everyone, no redirect)", async ({ request }) => {
     for (const path of [
       "/installer/sign-in",
       "/installer/sign-up",
