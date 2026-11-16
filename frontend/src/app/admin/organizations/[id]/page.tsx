@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { loadOrganizationDetail, loadOrganizationRegistration, loadUnappliedApproval } from "@/server/queries/admin-directory";
+import { loadOrganizationDetail, loadOrganizationRegistration } from "@/server/queries/admin-directory";
 import { describeLocation } from "@/lib/location/describe-location";
 import { previewSubjectAudit } from "@/server/queries/admin-preview";
 import { localizedName } from "@/features/admin-preview/directory-mappers";
@@ -83,10 +83,14 @@ export default async function PreviewOrgDetailPage({
   const canAudit = can(access, "audit.read");
   // The newest open organization-approval request (business verification has its own queue and permission).
   const openRequest = org.verifications.find((v) => isOpenVerificationStatus(v.status) && v.verificationType === "organization");
-  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, "organization", org.id);
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
+  // ONE guard for every Verify / Reject control on this page (header and Overview): a holder of `organizations.verify`, and either an
+  // open request or a not-yet-decided pending organization. A rejected application is final, so it offers neither.
+  const showApprovalActions =
+    can(access, "organizations.verify") &&
+    ((org.status === "pending_verification" && org.approvalState !== "rejected") || pendingVerification !== null);
   const typeLabels = m.orgType as Record<string, string>;
   const statusLabels = m.admin.status as Record<string, string>;
   const actionLabels = m.admin.actions as Record<string, string>;
@@ -117,14 +121,7 @@ export default async function PreviewOrgDetailPage({
         </div>
         <div className="flex flex-wrap gap-sm">
           {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
-          {can(access, "organizations.verify") && unappliedApproval ? (
-            <UserVerificationControls
-              subjectId={org.id}
-              pending={{ id: unappliedApproval.id, status: unappliedApproval.status, verificationType: unappliedApproval.verificationType }}
-              subjectType="organization"
-              recovery
-            />
-          ) : can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
+          {showApprovalActions ? (
             <UserVerificationControls subjectId={org.id} pending={pendingVerification} subjectType="organization" canInitiate />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
@@ -170,6 +167,7 @@ export default async function PreviewOrgDetailPage({
             <dl className="grid gap-md tablet:grid-cols-4">
               <Field label={t.tabs.overview}>{typeLabels[org.orgType] ?? org.orgType}</Field>
               <Field label={m.admin.orgs.status}>{statusLabels[org.status] ?? org.status}</Field>
+              <Field label={m.admin.orgs.organizationApproval}><StatusBadge status={org.approvalState} label={(m.admin.orgs.approvalState as Record<string, string>)[org.approvalState] ?? org.approvalState} /></Field>
               <Field label={m.admin.orgs.businessVerification}>{org.businessVerifiedAt ? m.admin.orgs.verified : m.admin.orgs.notVerified}</Field>
               <Field label={m.admin.orgs.created}>{formatAdminDate(org.createdAt, locale)}</Field>
               <Field label={m.onboarding.business.identity.phoneLabel}><span dir="ltr">{registration.phone ?? "—"}</span></Field>
@@ -204,7 +202,7 @@ export default async function PreviewOrgDetailPage({
             </dl>
           </Card>
 
-          {org.status === "pending_verification" ? (
+          {showApprovalActions ? (
             <Card className="flex flex-col gap-sm">
               <SectionTitle>{m.admin.preview.orgOverview.availableActions}</SectionTitle>
               <div className="flex flex-wrap gap-sm">

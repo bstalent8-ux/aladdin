@@ -11,21 +11,18 @@ function client(result: unknown) {
 }
 
 describe("loadUnappliedApproval", () => {
-  it("reads the approved request whose applied_at is still null (user or organization column)", async () => {
+  it("reads the approved request whose applied_at is still null", async () => {
     const { q, supabase } = client({ data: { id: "r1", status: "approved", verification_type: "professional" }, error: null });
-    expect(await loadUnappliedApproval(supabase, "user", ID)).toEqual({ id: "r1", status: "approved", verificationType: "professional" });
+    expect(await loadUnappliedApproval(supabase, ID)).toEqual({ id: "r1", status: "approved", verificationType: "professional" });
     expect(q.eq).toHaveBeenCalledWith("user_id", ID);
     expect(q.eq).toHaveBeenCalledWith("status", "approved");
     expect(q.is).toHaveBeenCalledWith("applied_at", null);
-    const org = client({ data: { id: "r2", status: "approved", verification_type: "organization" }, error: null });
-    await loadUnappliedApproval(org.supabase, "organization", ID);
-    expect(org.q.eq).toHaveBeenCalledWith("organization_id", ID);
   });
   it("returns null when nothing is unapplied, on a read error, and for a malformed id (no recovery is offered)", async () => {
-    expect(await loadUnappliedApproval(client({ data: null, error: null }).supabase, "user", ID)).toBeNull();
-    expect(await loadUnappliedApproval(client({ data: null, error: { message: "boom" } }).supabase, "user", ID)).toBeNull();
+    expect(await loadUnappliedApproval(client({ data: null, error: null }).supabase, ID)).toBeNull();
+    expect(await loadUnappliedApproval(client({ data: null, error: { message: "boom" } }).supabase, ID)).toBeNull();
     const c = client({ data: null, error: null });
-    expect(await loadUnappliedApproval(c.supabase, "user", "not-a-uuid")).toBeNull();
+    expect(await loadUnappliedApproval(c.supabase, "not-a-uuid")).toBeNull();
     expect(c.q.maybeSingle).not.toHaveBeenCalled();
   });
 });

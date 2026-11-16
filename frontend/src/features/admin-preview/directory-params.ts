@@ -27,7 +27,7 @@ export const USER_VERIFICATION_STATES = ["unverified", "pending", "verified", "r
 export const USER_ACCOUNT_TYPES = [...PUBLIC_ACCOUNTS.map((a) => (a.persona ?? a.orgType) as string), "none"] as const;
 export type UserAccountTypeFilter = string;
 export const USER_SORTS = ["registered:desc", "registered:asc", "completeness:desc", "completeness:asc"] as const;
-export const ORG_STATUS_TABS = ["pending", "verified", "suspended"] as const;
+export const ORG_STATUS_TABS = ["pending", "verified", "suspended", "rejected"] as const;
 export const ORG_SORTS = ["registered:desc", "registered:asc"] as const;
 
 export type UserStatusTab = (typeof USER_STATUS_TABS)[number];

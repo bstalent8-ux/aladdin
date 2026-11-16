@@ -90,7 +90,7 @@ export default async function PreviewUserDetailPage({
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
   // An approval recorded but never applied (any account status): offer ONLY "Complete approval" for that exact request.
-  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, "user", user.id);
+  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, user.id);
   const canPoints = can(access, "points.read");
   const canAudit = can(access, "audit.read");
   const typeLabels = m.accountType as Record<string, string>;

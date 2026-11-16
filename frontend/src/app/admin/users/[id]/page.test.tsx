@@ -187,7 +187,7 @@ describe("User Details - real Verify / Reject", () => {
     loadUserDetail.mockResolvedValue({ ok: true, data: detail(ORDINARY_ID, { status: status as AdminUserDetail["status"], accountType: "installer_technician", verificationState: "verified", verifications: [open("approved")] }) });
     loadUnappliedApproval.mockResolvedValueOnce(unapplied);
     await renderPage(ORDINARY_ID);
-    expect(loadUnappliedApproval).toHaveBeenCalledWith(expect.anything(), "user", ORDINARY_ID);
+    expect(loadUnappliedApproval).toHaveBeenCalledWith(expect.anything(), ORDINARY_ID);
     expect(resume()).toHaveLength(1);
     expect(reject()).toHaveLength(0);
     expect(approve().filter((b) => /^approve$/i.test(b.textContent?.trim() ?? ""))).toHaveLength(0);

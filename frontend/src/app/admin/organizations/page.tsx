@@ -62,7 +62,7 @@ export default async function PreviewOrganizationsPage({
   const userCols = m.admin.preview.users.columns;
   const typeLabels = m.orgType as Record<string, string>;
   const statusLabels = m.admin.status as Record<string, string>;
-  const verificationStateLabels = m.admin.preview.users.verificationState;
+  const approvalLabels = m.admin.orgs.approvalState as Record<string, string>;
   const cols = t.columns;
   const rowActionLabels = t.rowActions;
   const platform = m.admin.preview.platformView;
@@ -127,10 +127,10 @@ export default async function PreviewOrganizationsPage({
     },
     {
       key: "verification",
-      header: cols.verification ?? m.admin.orgs.verification,
+      header: cols.verification,
       minWidth: "8rem",
       nowrap: true,
-      cell: (o) => <StatusBadge status={o.verificationState} label={verificationStateLabels[o.verificationState]} />,
+      cell: (o) => <StatusBadge status={o.approvalState} label={approvalLabels[o.approvalState] ?? o.approvalState} />,
     },
     { key: "members", header: cols.members, minWidth: "6rem", numeric: true, secondary: true, cell: (o) => formatNumber(o.memberCount, locale) },
     { key: "branches", header: cols.branches, minWidth: "6rem", numeric: true, secondary: true, cell: (o) => formatNumber(o.branchCount, locale) },
@@ -171,7 +171,7 @@ export default async function PreviewOrganizationsPage({
             <RowIconDisabled label={platform.viewOnPlatform} reason={platform.orgNotAvailable} Icon={EyeIcon} />
             <RowIconLink href={`/admin/organizations/${o.id}`} label={platform.manage} Icon={SettingsIcon} />
             {/* Real decisions: the same actions as the Verifications queue (permission, state machine, audit). */}
-            {canVerify && (o.status === "pending_verification" || pendingByOrg.has(o.id)) ? (
+            {canVerify && ((o.status === "pending_verification" && o.approvalState !== "rejected") || pendingByOrg.has(o.id)) ? (
               <UserVerificationControls subjectId={o.id} pending={pendingByOrg.get(o.id) ?? null} compact subjectType="organization" canInitiate />
             ) : null}
             {canSuspend ? (
@@ -227,6 +227,7 @@ export default async function PreviewOrganizationsPage({
           { value: "pending", label: m.admin.preview.users.statusTabs.pending, count: counts.pending },
           { value: "verified", label: m.admin.preview.users.statusTabs.verified, count: counts.verified },
           { value: "suspended", label: m.admin.preview.users.statusTabs.suspended, count: counts.suspended },
+          { value: "rejected", label: m.admin.preview.users.statusTabs.rejected, count: counts.rejected },
         ]}
       />
 
