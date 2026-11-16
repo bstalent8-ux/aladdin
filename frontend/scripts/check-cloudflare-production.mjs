@@ -88,14 +88,17 @@ export function checkFrontend(config) {
   for (const flag of ["VIDEO_ENABLED", "MEDIA_EDGE_DELIVERY_ENABLED"]) {
     if (flag in vars && vars[flag] !== "false") problems.push(`${label}: ${flag} must stay "false" until its own approval`);
   }
-  // Redis (ADR-0019, owner-approved 2026-11-15): explicit either way. ON only with the REST transport (the only one that works on
-  // Workers), a Production-only key namespace, and the REST token declared as a required secret so a deploy without it is refused.
-  if (!("REDIS_CACHE_ENABLED" in vars)) problems.push(`${label}: REDIS_CACHE_ENABLED must be set explicitly`);
+  // Redis (owner-approved 2026-11-15, ADR-0019): explicit either way. When on it must use the REST transport (TCP does not
+  // work on Workers), the `production` key prefix (so it never touches the preview's entries) and a token that is a
+  // required secret, so a deploy without the token is refused instead of silently running without the cache.
+  if (!("REDIS_CACHE_ENABLED" in vars)) problems.push(`${label}: REDIS_CACHE_ENABLED must be set explicitly ("true" or "false")`);
   if (vars.REDIS_CACHE_ENABLED === "true") {
-    if (!/^https:\/\/[a-z0-9-]+\.upstash\.io$/.test(String(vars.REDIS_REST_URL ?? ""))) problems.push(`${label}: REDIS_REST_URL must be the https Upstash REST URL while Redis is on`);
-    if (!/^[a-z0-9-]{1,24}$/.test(String(vars.REDIS_KEY_ENV ?? "")) || /preview|acceptance|staging/.test(String(vars.REDIS_KEY_ENV))) problems.push(`${label}: REDIS_KEY_ENV must be a Production-only namespace while Redis is on`);
+    if (!/^https:\/\/[a-z0-9-]+\.upstash\.io\/?$/.test(String(vars.REDIS_REST_URL ?? ""))) problems.push(`${label}: REDIS_REST_URL must be the https://<name>.upstash.io REST URL when Redis is on`);
+    if (vars.REDIS_KEY_ENV !== "production") problems.push(`${label}: REDIS_KEY_ENV must be "production" when Redis is on`);
     requiredSecrets(env, ["REDIS_REST_TOKEN"], label, problems);
-  } else if (vars.REDIS_CACHE_ENABLED !== "false") problems.push(`${label}: REDIS_CACHE_ENABLED must be "true" or "false"`);
+  } else if (vars.REDIS_CACHE_ENABLED !== "false") {
+    problems.push(`${label}: REDIS_CACHE_ENABLED must be "true" or "false"`);
+  }
   requiredSecrets(env, ["SUPABASE_SERVICE_ROLE_KEY", "TURNSTILE_SECRET_KEY", "AUTH_PASSWORD_PREVIEW_GRANT_SECRET"], label, problems);
   return problems;
 }
