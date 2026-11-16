@@ -23,7 +23,7 @@ export function MobileHero({ stats }: { stats: LandingStats }) {
 <LandingBrandMobileHeader />
 
 <div style={{"position": "relative", "height": "290px", "overflow": "hidden"}}>
-<Image src="/landing-brand/hero.jpg" width={2000} height={667} sizes="100vw" priority alt="فيلا حديثة بإضاءة دافئة" style={{"width": "100%", "height": "100%", "objectFit": "cover", "objectPosition": "30% 40%", "display": "block"}} />
+<Image src="/landing-brand/hero.jpg" width={2000} height={667} sizes="100vw" priority fetchPriority="high" alt="فيلا حديثة بإضاءة دافئة" style={{"width": "100%", "height": "100%", "objectFit": "cover", "objectPosition": "30% 40%", "display": "block"}} />
 <div style={{"position": "absolute", "inset": "0", "background": "linear-gradient(180deg,color-mix(in srgb, var(--lb-navy) 0%, transparent) 38%,color-mix(in srgb, var(--lb-navy) 72%, transparent) 72%,var(--lb-navy-2) 100%)"}}></div>
 <div style={{ position: "absolute", top: "38%", left: "50%", transform: "translate(-50%, -50%)" }}><LandingBrandVideo /></div>
 </div>
