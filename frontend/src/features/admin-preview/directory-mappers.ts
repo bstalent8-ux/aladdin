@@ -250,6 +250,35 @@ export function mapUserDetail(raw: unknown): AdminUserDetail | null {
 
 export type OrgVerificationState = "verified" | "pending" | "unverified";
 
+/**
+ * Organization APPROVAL (the decision on the organization application), separate from the LIFECYCLE `status`.
+ * The database computes `approval_state` for the directory rows AND the detail page with the same expression
+ * (20261116090001_admin_organizations_approval_state.sql); this mirror is used only when an older database does not send it,
+ * and by the tests that pin the SQL and the frontend rule to each other.
+ *   approved - is_verified or status = 'active'
+ *   rejected - not approved and the latest ORGANIZATION request (type 'organization', newest submitted_at, created_at, id) is rejected
+ *   pending  - not approved/rejected and a request is open (submitted / under_review / needs_more_info) or status = 'pending_verification'
+ *   none     - everything else (draft, archived, an abandoned application whose latest request is cancelled, ...)
+ */
+export type OrgApprovalState = "approved" | "pending" | "rejected" | "none";
+const ORG_APPROVAL_STATES: readonly string[] = ["approved", "pending", "rejected", "none"];
+const OPEN_REQUEST = ["submitted", "under_review", "needs_more_info"];
+
+export function organizationApprovalState(i: { isVerified: boolean; status: string; latestStatus: string | null }): OrgApprovalState {
+  if (i.isVerified || i.status === "active") return "approved";
+  if (i.latestStatus === "rejected") return "rejected";
+  if ((i.latestStatus !== null && OPEN_REQUEST.includes(i.latestStatus)) || i.status === "pending_verification") return "pending";
+  return "none";
+}
+
+/** The Organizations directory tab of one organization (null = listed under All only). Mirrors the SQL in 20261116090001. */
+export function organizationDirectoryTab(i: { status: string; latestStatus: string | null }): OrgStatusTab | null {
+  if (i.status === "suspended") return "suspended";
+  if (i.status === "active") return "verified";
+  if (i.status === "pending_verification") return i.latestStatus === "rejected" ? "rejected" : "pending";
+  return null;
+}
+
 export type AdminPersonRef = { userId: string; displayName: string };
 
 function mapPersonRef(raw: unknown): AdminPersonRef | null {
@@ -264,6 +293,9 @@ export type AdminDirectoryOrg = LocalizedName & {
   status: string;
   isVerified: boolean;
   verificationState: OrgVerificationState;
+  /** The approval decision, never the lifecycle: see `organizationApprovalState`. */
+  approvalState: OrgApprovalState;
+  latestVerificationStatus: string | null;
   createdAt: string;
   source: string | null;
   memberCount: number;
@@ -283,6 +315,8 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
   const createdAt = str(o?.created_at);
   if (!o || !id || !status || !createdAt) return null;
   const isVerified = bool(o.is_verified);
+  const latestVerificationStatus = str(o.latest_verification_status);
+  const sent = str(o.approval_state);
   return {
     id,
     name: str(o.name) ?? "",
@@ -292,6 +326,8 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
     status,
     isVerified,
     verificationState: isVerified ? "verified" : status === "pending_verification" ? "pending" : "unverified",
+    approvalState: sent && ORG_APPROVAL_STATES.includes(sent) ? (sent as OrgApprovalState) : organizationApprovalState({ isVerified, status, latestStatus: latestVerificationStatus }),
+    latestVerificationStatus,
     createdAt,
     source: str(o.source),
     memberCount: num(o.member_count) ?? 0,
@@ -305,7 +341,7 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
 }
 
 export function mapOrgsPage(raw: unknown): DirectoryPage<AdminDirectoryOrg, OrgStatusTab> | null {
-  return mapPage(raw, mapDirectoryOrg, ["pending", "verified", "suspended"] as const);
+  return mapPage(raw, mapDirectoryOrg, ["pending", "verified", "suspended", "rejected"] as const);
 }
 
 export type AdminOrgMember = AdminPersonRef & { membershipId: string; status: string; capabilities: string[] };
@@ -326,7 +362,7 @@ export function mapOrgDetail(raw: unknown): AdminOrgDetail | null {
   const o = obj(raw);
   if (!base || !o) return null;
   return {
-    ...pick(base, ["id", "name", "nameAr", "nameEn", "orgType", "status", "isVerified", "verificationState", "createdAt", "source"] as const),
+    ...pick(base, ["id", "name", "nameAr", "nameEn", "orgType", "status", "isVerified", "verificationState", "approvalState", "latestVerificationStatus", "createdAt", "source"] as const),
     businessVerifiedAt: str(o.business_verified_at),
     referredBy: mapPersonRef(o.referred_by),
     owners: mapAll(o.owners, mapPersonRef),

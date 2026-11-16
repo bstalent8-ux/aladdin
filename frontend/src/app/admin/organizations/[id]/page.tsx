@@ -116,7 +116,7 @@ export default async function PreviewOrgDetailPage({
         </div>
         <div className="flex flex-wrap gap-sm">
           {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
-          {can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
+          {can(access, "organizations.verify") && ((org.status === "pending_verification" && org.approvalState !== "rejected") || pendingVerification) ? (
             <UserVerificationControls subjectId={org.id} pending={pendingVerification} subjectType="organization" canInitiate />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
@@ -162,6 +162,7 @@ export default async function PreviewOrgDetailPage({
             <dl className="grid gap-md tablet:grid-cols-4">
               <Field label={t.tabs.overview}>{typeLabels[org.orgType] ?? org.orgType}</Field>
               <Field label={m.admin.orgs.status}>{statusLabels[org.status] ?? org.status}</Field>
+              <Field label={m.admin.orgs.organizationApproval}><StatusBadge status={org.approvalState} label={(m.admin.orgs.approvalState as Record<string, string>)[org.approvalState] ?? org.approvalState} /></Field>
               <Field label={m.admin.orgs.businessVerification}>{org.businessVerifiedAt ? m.admin.orgs.verified : m.admin.orgs.notVerified}</Field>
               <Field label={m.admin.orgs.created}>{formatAdminDate(org.createdAt, locale)}</Field>
               <Field label={m.onboarding.business.identity.phoneLabel}><span dir="ltr">{registration.phone ?? "—"}</span></Field>

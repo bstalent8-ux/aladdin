@@ -210,48 +210,6 @@ export async function previewReviewQueue(supabase: Client): Promise<ReviewQueueI
 /* why it's safe.                                                          */
 /* ---------------------------------------------------------------------- */
 
-/* ---------------------------------------------------------------------- */
-/* Organization duplicate candidates — REAL, generalizing the exact        */
-/* pg_trgm-similarity technique `admin_network_referrals_list` /           */
-/* `admin_showroom_referrals_list` already use for referral dedup (see     */
-/* B2/BL-015, PD-006's approved "detect → suggest → link" scope), to any   */
-/* organization rather than only ones arriving through a referral. A       */
-/* plain SELECT against `organizations`, not a new RPC — the similarity    */
-/* function itself (`extensions.similarity`) is already granted for use    */
-/* from client queries the same way the referral RPCs use it internally.   */
-/* ---------------------------------------------------------------------- */
-
-export type OrgDuplicateCandidate = { id: string; name: string; orgType: string; similarity: number };
-
-export async function previewOrgDuplicateCandidates(
-  supabase: Client,
-  orgId: string,
-  name: string,
-  orgType: Database["public"]["Enums"]["organization_type"],
-): Promise<OrgDuplicateCandidate[]> {
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id, name, org_type")
-    .neq("id", orgId)
-    .eq("org_type", orgType)
-    .is("deleted_at", null)
-    .or(`name.ilike.${name},name.ilike.%${name}%`)
-    .limit(5);
-  if (error) return [];
-  return (data ?? [])
-    .map((o) => ({
-      id: o.id,
-      name: o.name,
-      orgType: o.org_type,
-      // A real Postgres-side similarity() call would need a dedicated RPC (out of
-      // scope for Phase 0B); this is a client-side approximation of the same
-      // signal (normalized-substring match) purely to rank the candidates the
-      // query above already found for real — never a fabricated candidate.
-      similarity: o.name.toLowerCase() === name.toLowerCase() ? 1 : 0.6,
-    }))
-    .sort((a, b) => b.similarity - a.similarity);
-}
-
 /**
  * A cheap, directory-wide duplicate FLAG (not full candidate search) — real,
  * computed once over the already-fetched organization list by grouping on a
