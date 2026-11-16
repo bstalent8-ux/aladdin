@@ -4,8 +4,8 @@
 #   media      apply 20261110090001 only (Track C media ids-only keys)          207 -> 208
 #   m1         apply 20261110090002 only (P1 M1); media must already be applied 208 -> 209
 #   media+m1   apply both, in order, one plain push                             207 -> 209
-#   marketplace 19 migrations (20261115090002..006 + 20261116100001..014), one plain push   212 -> 231. Creates tables: needs
-#              --backup-label of a FRESH restore-verified snapshot (>= 212 migrations) and runs only from origin/main (merge #190, #192, #200 first).
+#   marketplace 14 migrations (20261116100001..014), one plain push                          218 -> 232. Creates tables: needs
+#              --backup-label of a FRESH restore-verified snapshot (>= 218 migrations) and runs only from origin/main (merge #190, #192, #200 and the 20261116090001 work first).
 # NOT to be run without the owner's separate explicit GO. Production is refused. Never uses --include-all, repair or reset.
 #   bash scripts/hosted-db/acceptance-apply.sh --plan <plan> --sha <full 40-char origin/main sha> [--backup-label <pinned restore-verified snapshot>]
 #   No backup label is required: every plan's migrations are function-only (no table DDL, no DML, no stored row rewritten) and each has a

@@ -9,10 +9,11 @@
  *   media     main today: only 20261110090001 (Track C media ids-only keys) is pending. 207 -> 208.
  *   m1        after `media` is applied: only 20261110090002 (P1 M1) is pending. 208 -> 209.
  *   media+m1  one plain push of both, in order. 207 -> 209.
- *   marketplace  Marketplace (#190) together with the verification work of #192/#200: 5 + 14 = 19 migrations (20261115090002..006 and
- *             20261116100001..014) on top of Acceptance at 212 / 20261115090001. 212 -> 231. NOT function-only: it creates 30 tables
- *             and 9 sequences, so recovery is two pinned forward-fix scripts (marketplace first, then verification) and, unlike the
- *             function-only plans, a fresh restore-tested backup is the owner's call before it runs (see FORWARD_FIX below).
+ *   marketplace  Marketplace (#190): 14 migrations (20261116100001..014) on top of Acceptance at 218 / 20261116090001. 218 -> 232.
+ *             The verification work (#192/#200: 20261115090002..006) and 20261116090001 are ALREADY applied on Acceptance (applied there
+ *             outside this plan) and are not part of it. NOT function-only: it creates 30 tables and 9 sequences, so recovery is the
+ *             pinned "marketplace" forward-fix and, unlike the function-only plans, a fresh restore-tested backup is required
+ *             (a pinned snapshot with >= 218 migrations: see RESTORE_VERIFIED_SNAPSHOTS).
  *   m3a       after `m1` is applied (Acceptance and Production are both at 209 today): only 20261112090001 (P1 M3a) is pending. 209 -> 210.
  *
  *   node acceptance-gate.mjs <plan> <migration-list.json> <dry-run.json> <migrations dir>
@@ -27,9 +28,8 @@ import { fileURLToPath } from "node:url";
 
 export const ACCEPTANCE_REF = "nxossqhdfltcqdwvbewi";
 const MEDIA = "20261110090001", M1 = "20261110090002", M3A = "20261112090001", BASE = "20261107090006";
-const ACC_212 = "20261115090001"; // latest on Acceptance after #192 (20261114090001) and #200 (20261115090001)
-const MKT_PENDING = ["20261115090002", "20261115090003", "20261115090004", "20261115090005", "20261115090006",
-  ...Array.from({ length: 14 }, (_, i) => `202611161000${String(i + 1).padStart(2, "0")}`)];
+const ACC_218 = "20261116090001"; // latest on Acceptance: #192/#200 (20261115090001..006) and the organization approval state (20261116090001)
+const MKT_PENDING = Array.from({ length: 14 }, (_, i) => `202611161000${String(i + 1).padStart(2, "0")}`);
 /** changed = function names (schema.name, every overload) the plan is allowed to touch; nothing else may change in the catalog. */
 export const PLANS = {
   media: { fixes: ["media"], recovery: "forward-fix", applied: 207, latest: BASE, pending: [MEDIA], preContract: BASE, postContract: MEDIA,
@@ -38,14 +38,12 @@ export const PLANS = {
     changed: ["public.my_registration_state", "app.profile_completion", "public.admin_users_directory"] },
   m3a: { fixes: ["m3a"], recovery: "forward-fix", applied: 209, latest: M1, pending: [M3A], preContract: M1, postContract: M3A,
     changed: ["public.pending_registration_consume", "public.pending_registration_save", "public.admin_users_directory", "public.admin_user_detail"] },
-  // Marketplace + verification: 19 pending, all newer than the latest applied (plain push). changed = every function name the diff
-  // measured on a clean replay (added, changed or removed, every overload), the two removed triggers, the three changed constraints, and
-  // prefixes for everything the Marketplace adds (tables, columns, indexes, constraints, triggers, policies, grants all start with these).
-  marketplace: { fixes: ["marketplace", "verification"], recovery: "forward-fix", freshBackup: true, applied: 212, latest: ACC_212, pending: MKT_PENDING, preContract: ACC_212, postContract: "20261116100014",
+  // Marketplace: 14 pending, all newer than the latest applied (plain push). changed = the function names the Marketplace migrations
+  // add, change or replace (every overload; measured on a clean replay of the 19 migrations, minus the 12 functions, 2 triggers and 2
+  // constraints that only the verification migrations touch - those are already on Acceptance), the media constraint they re-create,
+  // and prefixes for everything the Marketplace adds (tables, columns, indexes, constraints, triggers, policies, grants all start with these).
+  marketplace: { fixes: ["marketplace"], recovery: "forward-fix", freshBackup: true, applied: 218, latest: ACC_218, pending: MKT_PENDING, preContract: ACC_218, postContract: "20261116100014",
     changed: [
-      "app.admin_user_status_tab",
-      "app.bv_decide",
-      "app.craftsman_review_guard",
       "app.marketplace_append_only",
       "app.marketplace_assert_admin_permission",
       "app.marketplace_assert_seller_admin",
@@ -107,9 +105,6 @@ export const PLANS = {
       "app.marketplace_variant_signature",
       "app.media_metadata",
       "app.media_storage_key_for",
-      "app.showroom_activation_guard",
-      "app.showroom_review_guard",
-      "public.admin_initiate_verification",
       "public.admin_marketplace_media_approve",
       "public.admin_marketplace_media_queue",
       "public.admin_marketplace_media_record_validation",
@@ -123,10 +118,6 @@ export const PLANS = {
       "public.admin_marketplace_seller_suspend",
       "public.admin_marketplace_sellers",
       "public.admin_marketplace_set_media_verification_ready",
-      "public.admin_organization_detail",
-      "public.admin_user_detail",
-      "public.admin_users_directory",
-      "public.business_verification_request_info",
       "public.marketplace_buyer_order_cancel",
       "public.marketplace_buyer_order_get",
       "public.marketplace_buyer_orders",
@@ -189,13 +180,7 @@ export const PLANS = {
       "public.media_storage_reserve",
       "public.media_storage_resolve",
       "public.organization_media_resolve",
-      "public.review_approve",
-      "public.review_reject",
-      "public.verifications.craftsman_review_complete",
-      "public.verifications.showroom_review_complete",
-      "public.audit_log.ck_audit_action_known",
       "public.media_storage_locations.media_storage_locations_namespace_check",
-      "public.verifications.ck_verifications_reason_required",
       "public.marketplace_*",
       "public.ux_marketplace_*",
       "public.ix_marketplace_*",
@@ -230,9 +215,10 @@ export const RESTORE_VERIFIED_SNAPSHOTS = {
 };
 export const FORWARD_FIX = {
   // marketplace: refuses (RAISE) while any seller/product/order/import/stock row or marketplace media object exists; never deletes user data.
-  // Run it BEFORE verification. verification restores the previous functions, triggers and constraints; it does NOT undo the rows
-  // 20261115090002/090005 wrote (only a restore-tested backup can). Both were proven on disposable databases: plan + both scripts gives
-  // a catalog fingerprint identical to the pre-plan one (catalog-diff.mjs: no catalog differences).
+  // It is the only recovery of the "marketplace" plan. It restores exactly the media functions and constraint the 14 Marketplace migrations
+  // re-created, so it is valid at 218 too (the verification migrations never touch them).
+  // verification: restores what 20261115090002..006 changed. Those migrations are already applied on Acceptance, so NO plan uses it today;
+  // kept (reviewed, pinned) for a future rollback of them. It does NOT undo the rows they wrote (only a restore-tested backup can).
   marketplace: { file: "forward-fix/marketplace-remove.sql", sha256: "72bdfd9b68ef88f85338321d4eb79c711e2d0be3bbf1e708a96b001dee58b734" },
   verification: { file: "forward-fix/verification-restore-previous.sql", sha256: "a50cd460c243b3580927c1f8b8e84ec1cc1109048c9b08b055a06b470570fcac" },
   m1: { file: "forward-fix/m1-restore-previous.sql", sha256: "5fe0da1eb5f08143b52ff90c41294d7e0e45ed7b7017926b6296898acfd28045" },

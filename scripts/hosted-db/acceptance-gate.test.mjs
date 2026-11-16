@@ -113,13 +113,14 @@ test("media forward-fix: data-safety structure (guard first, no BEGIN/COMMIT, no
 // ---------------------------------------------------------------------------------------------------------------------
 // plan "marketplace": 19 migrations (5 verification + 14 Marketplace) on top of Acceptance at 212 / 20261115090001
 // ---------------------------------------------------------------------------------------------------------------------
-test("marketplace: 19 pending, all newer than the latest applied (plain push), 212 -> 231", () => {
+test("marketplace: 14 pending, all newer than the latest applied (plain push), 218 -> 232", () => {
   const P = PLANS.marketplace;
-  assert.equal(P.pending.length, 19);
-  assert.equal(P.applied + P.pending.length, 231);
+  assert.equal(P.pending.length, 14);
+  assert.equal(P.applied + P.pending.length, 232);
+  assert.equal(P.applied, 218);
   assert.ok(P.pending.every((v) => v > P.latest));
   assert.deepEqual([...P.pending].sort(), P.pending);
-  assert.equal(P.latest, "20261115090001");
+  assert.equal(P.latest, "20261116090001");
   assert.equal(P.preContract, P.latest);
   assert.equal(P.postContract, "20261116100014");
 });
@@ -135,11 +136,12 @@ test("marketplace: both permission contracts exist in this checkout", () => {
   for (const v of [PLANS.marketplace.preContract, PLANS.marketplace.postContract]) assert.ok(readFileSync(here(`../../supabase/permissions/${v}.json`), "utf8").length > 1000, v);
 });
 
-test("marketplace: the expected-change list names the verification functions whose body changes, the removed guards, and the Marketplace prefixes", () => {
+test("marketplace: the expected-change list names the media functions and constraint the Marketplace re-creates and the Marketplace prefixes, and none of the verification-only objects (already on Acceptance)", () => {
   const c = PLANS.marketplace.changed;
+  for (const f of ["public.media_storage_resolve", "app.media_metadata", "public.media_storage_locations.media_storage_locations_namespace_check"]) assert.ok(c.includes(f), f);
   for (const f of ["public.review_approve", "public.review_reject", "app.bv_decide", "app.admin_user_status_tab", "public.admin_initiate_verification",
-    "app.showroom_review_guard", "app.craftsman_review_guard", "public.media_storage_resolve", "public.verifications.showroom_review_complete",
-    "public.audit_log.ck_audit_action_known"]) assert.ok(c.includes(f), f);
+    "app.showroom_review_guard", "app.craftsman_review_guard", "public.admin_organization_detail", "public.verifications.showroom_review_complete",
+    "public.audit_log.ck_audit_action_known", "public.verifications.ck_verifications_reason_required"]) assert.ok(!c.includes(f), "not part of this plan: " + f);
   for (const w of ["public.marketplace_*", "public.ux_marketplace_*", "public.ix_marketplace_*", "public.uq_marketplace_*"]) assert.ok(c.includes(w), w);
   assert.equal(new Set(c).size, c.length);
 });
@@ -151,14 +153,16 @@ test("marketplace: it needs a fresh restore-verified snapshot (>= 212 migrations
   has(checkRecovery({ plan: "marketplace", label: "aladdin-acceptance-20991231T000000Z", forwardFixSha256: shas }), /not a pinned restore-verified snapshot/);
 });
 
-test("marketplace: with a snapshot of 212+ migrations and both forward-fixes pinned, recovery passes", () => {
-  RESTORE_VERIFIED_SNAPSHOTS["aladdin-acceptance-20991231T000000Z"] = { backupRun: "x", restoreRun: "y", tables: 1, rows: 1, migrations: 212 };
-  try { assert.deepEqual(checkRecovery({ plan: "marketplace", label: "aladdin-acceptance-20991231T000000Z", forwardFixSha256: allShas() }), []); }
+test("marketplace: with a snapshot of 218+ migrations and the forward-fix pinned, recovery passes; a 212-migration one is refused", () => {
+  RESTORE_VERIFIED_SNAPSHOTS["aladdin-acceptance-20991231T000000Z"] = { backupRun: "x", restoreRun: "y", tables: 1, rows: 1, migrations: 218 };
+  try { assert.deepEqual(checkRecovery({ plan: "marketplace", label: "aladdin-acceptance-20991231T000000Z", forwardFixSha256: allShas() }), []);
+    RESTORE_VERIFIED_SNAPSHOTS["aladdin-acceptance-20991231T000000Z"].migrations = 212;
+    has(checkRecovery({ plan: "marketplace", label: "aladdin-acceptance-20991231T000000Z", forwardFixSha256: allShas() }), /has 212 migrations/); }
   finally { delete RESTORE_VERIFIED_SNAPSHOTS["aladdin-acceptance-20991231T000000Z"]; }
 });
 
-test("marketplace: runs the marketplace forward-fix before the verification one, and neither is silently missing", () => {
-  assert.deepEqual(PLANS.marketplace.fixes, ["marketplace", "verification"]);
+test("marketplace: its only recovery is the pinned marketplace forward-fix (the verification migrations are already applied, no plan reverts them)", () => {
+  assert.deepEqual(PLANS.marketplace.fixes, ["marketplace"]);
   for (const fx of PLANS.marketplace.fixes) assert.ok(FORWARD_FIX[fx]?.sha256, fx);
 });
 
