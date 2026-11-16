@@ -265,8 +265,8 @@ describe("one-click decisions on an account with NO request", () => {
       expect(await approveVerificationAction(initial, form({ id: ID }))).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
       // Recovery found by subject lookup.
       lookup({ data: { id: ID }, error: null });
-      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
-      expect(await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }))).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
+      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "professional" }, error: null });
+      expect(await approveVerificationAction(initial, form({ subjectType: "user", subjectId: SUBJECT }))).toEqual({ ok: true, code: "admin.review.approvalCompleted" });
       // A first approval of a submitted / under-review request is unchanged.
       for (const status of ["submitted", "under_review"]) {
         target(status);
@@ -280,15 +280,6 @@ describe("one-click decisions on an account with NO request", () => {
       const res = await approveVerificationAction(initial, form({ id: ID }));
       expect(res.ok).toBe(false);
       expect(res.code).not.toBe("admin.review.approvalCompleted");
-    });
-
-    it("works the same for an organization", async () => {
-      lookup({ data: { id: ID }, error: null });
-      maybeSingle.mockResolvedValueOnce({ data: { status: "approved", verification_type: "organization" }, error: null });
-      const res = await approveVerificationAction(initial, form({ subjectType: "organization", subjectId: SUBJECT }));
-      expect(res.ok).toBe(true);
-      expect(calls()).toEqual(["review_approve", "apply_organization_verification"]);
-      expect(query.eq).toHaveBeenCalledWith("organization_id", SUBJECT);
     });
 
     it("an unauthorized reviewer is refused by review_approve BEFORE apply runs (no duplicate side effects)", async () => {

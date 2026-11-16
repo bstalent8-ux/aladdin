@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { loadOrganizationDetail, loadOrganizationRegistration, loadUnappliedApproval } from "@/server/queries/admin-directory";
+import { loadOrganizationDetail, loadOrganizationRegistration } from "@/server/queries/admin-directory";
 import { describeLocation } from "@/lib/location/describe-location";
 import { previewSubjectAudit } from "@/server/queries/admin-preview";
 import { localizedName } from "@/features/admin-preview/directory-mappers";
@@ -83,7 +83,6 @@ export default async function PreviewOrgDetailPage({
   const canAudit = can(access, "audit.read");
   // The newest open organization-approval request (business verification has its own queue and permission).
   const openRequest = org.verifications.find((v) => isOpenVerificationStatus(v.status) && v.verificationType === "organization");
-  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, "organization", org.id);
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
@@ -117,14 +116,7 @@ export default async function PreviewOrgDetailPage({
         </div>
         <div className="flex flex-wrap gap-sm">
           {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
-          {can(access, "organizations.verify") && unappliedApproval ? (
-            <UserVerificationControls
-              subjectId={org.id}
-              pending={{ id: unappliedApproval.id, status: unappliedApproval.status, verificationType: unappliedApproval.verificationType }}
-              subjectType="organization"
-              recovery
-            />
-          ) : can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
+          {can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
             <UserVerificationControls subjectId={org.id} pending={pendingVerification} subjectType="organization" canInitiate />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
