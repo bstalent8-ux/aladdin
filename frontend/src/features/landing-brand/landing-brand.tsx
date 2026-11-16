@@ -1,7 +1,7 @@
 import { FOOTER_LINKS, SOCIAL_LINKS } from "./landing-brand-links";
 import Image from "next/image";
 import { brandContent, PARTNER_NAMES } from "./landing-brand-content";
-import { bukra, hurme } from "./landing-brand-fonts";
+import { bukra, hurme, HERO_SIZES } from "./landing-brand-fonts";
 import { LandingBrandFaq } from "./landing-brand-faq";
 import { LandingBrandHeader } from "./landing-brand-header";
 import { BrandIcon, SocialIcon } from "./landing-brand-icons";
@@ -28,7 +28,7 @@ export function LandingBrand({ stats }: { stats: LandingStats }) {
       <section className={styles.heroWrap}>
         <div className={styles.hero}>
           <div className={styles.heroMedia} aria-hidden="true">
-            <Image src="/landing-brand/hero.jpg" alt="" fill priority fetchPriority="high" sizes="100vw" className={styles.heroImg} />
+            <Image src="/landing-brand/hero.jpg" alt="" fill priority fetchPriority="high" quality={65} sizes={HERO_SIZES} className={styles.heroImg} />
             <div className={styles.heroShade} />
           </div>
           <LandingBrandHeader />
