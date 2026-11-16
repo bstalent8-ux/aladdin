@@ -104,3 +104,68 @@ describe("Review Center - real records only", () => {
     expect(screen.queryByText(ar.admin.preview.previewOnlyBadge)).toBeNull();
   });
 });
+
+describe("Review Center - count semantics under search, tabs and pagination", () => {
+  const network = (n: number) => ({
+    kind: "networkReferral" as const,
+    row: {
+      id: `10000000-0000-4000-8000-0000000000${String(n).padStart(2, "0")}`,
+      displayName: `Net shop ${n}`,
+      referrerName: "Ref",
+      matchId: null,
+      createdAt: `2026-08-${String(n).padStart(2, "0")}T10:00:00Z`,
+    },
+  });
+  const verifications = () =>
+    Array.from({ length: 12 }, (_, i) => {
+      const v = verification((i % 9) + 1);
+      return { ...v, row: { ...v.row, id: `00000000-0000-4000-8000-0000000001${String(i).padStart(2, "0")}`, subjectName: `Real person ${i}` } };
+    });
+  const many = () => [...verifications(), network(1), network(2)];
+  const header = (c: HTMLElement) => c.querySelector("h1")?.parentElement?.textContent ?? "";
+  const headCount = (c: HTMLElement) => header(c).replace(en.admin.preview.review.title, "").match(/[\d٠-٩]+/)?.[0] ?? null;
+  const cards = (c: HTMLElement, kind?: string) =>
+    c.querySelectorAll(kind ? `a[href*="/admin/review/${kind}/"]` : 'a[href*="/admin/review/verification/"], a[href*="/admin/review/network-referral/"]');
+  const ALL_TAB = () => tabCount(new RegExp(`^${en.admin.preview.review.tabs.all}`));
+
+  it("tab counts are whole-queue totals; the header is the filtered total; rows are one page of the filtered set", async () => {
+    previewReviewQueue.mockResolvedValue(many());
+    const { container } = await renderPage({ pageSize: "10" });
+    expect(ALL_TAB()).toBe("14");
+    expect(headCount(container)).toBe("14");
+    expect(cards(container)).toHaveLength(10);
+  });
+
+  it("a tab filter changes the header and rows, never the tab counts", async () => {
+    previewReviewQueue.mockResolvedValue(many());
+    const { container } = await renderPage({ tab: "networkReferrals" });
+    expect(headCount(container)).toBe("2");
+    expect(cards(container, "network-referral")).toHaveLength(2);
+    expect(cards(container, "verification")).toHaveLength(0);
+    expect(ALL_TAB()).toBe("14");
+    expect(tabCount(new RegExp(`^${en.admin.preview.review.tabs.verifications}`))).toBe("12");
+  });
+
+  it("a search changes the header and rows (across every page), never the tab counts", async () => {
+    previewReviewQueue.mockResolvedValue(many());
+    const { container } = await renderPage({ q: "net shop 2", pageSize: "10" });
+    expect(headCount(container)).toBe("1");
+    expect(cards(container)).toHaveLength(1);
+    expect(ALL_TAB()).toBe("14");
+  });
+
+  it("page 2 shows the remainder of the same filtered set; the header still counts all of it", async () => {
+    previewReviewQueue.mockResolvedValue(many());
+    const { container } = await renderPage({ page: "2", pageSize: "10" });
+    expect(headCount(container)).toBe("14");
+    expect(cards(container)).toHaveLength(4);
+  });
+
+  it("a search with no match is an empty state with a zero header and unchanged tab counts", async () => {
+    previewReviewQueue.mockResolvedValue(many());
+    const { container } = await renderPage({ q: "zzz-no-match" });
+    expect(screen.getByText(en.admin.preview.review.empty)).toBeTruthy();
+    expect(headCount(container)).toBe("0");
+    expect(ALL_TAB()).toBe("14");
+  });
+});

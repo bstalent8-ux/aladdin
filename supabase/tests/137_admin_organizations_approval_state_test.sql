@@ -15,6 +15,10 @@
 --   G. Read-only: history is preserved
 --
 -- Every fixture is created INSIDE this transaction; the file rolls back.
+--
+-- SCOPE: this file pins the READ rules on fixture rows that are inserted directly (organizations + verifications), so it can
+-- cover every lifecycle / decision combination and tie-breaks. It does NOT drive the reject -> abandon -> new-application
+-- workflow through the real RPCs: that is 138 (directory/detail after each real step) and 77 (the RPC rules themselves).
 create extension if not exists pgtap;
 
 begin;

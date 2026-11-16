@@ -32,10 +32,12 @@ type Entry = {
 };
 
 /**
- * Review Center — Phase 0D (PD-015). One queue, four visually separate request
- * types: All · Organization Requests · Network Referrals · Verifications (plus
- * the existing Sales referrals, which the real `/admin/verifications` queue
- * also carries).
+ * Review Center. One queue of three visually separate request types: Network Referrals · Verifications · Sales referrals.
+ *
+ * COUNT SEMANTICS (pinned by page.test.tsx):
+ *   - the "All" tab and each type tab count the whole real queue and ignore the search box and the page;
+ *   - the header count is the number of items matching the current tab AND search, across every page;
+ *   - the rows on screen are one page (pageSize) of exactly those matching items.
  *
  * Real records only: verifications, Sales referrals and Network referrals (the same three
  * read models the live queue uses). The Organization Request samples that used to be listed here
@@ -43,8 +45,7 @@ type Entry = {
  * application is a real `verifications` row and appears under Verifications.
  *
  * The types stay visually distinct on purpose: a coloured lead edge and badge
- * per type, Organization Requests state that they carry no Points, Network
- * Referrals show reward eligibility.
+ * per type; Network Referrals show reward eligibility.
  */
 export default async function PreviewReviewQueuePage({
   searchParams,

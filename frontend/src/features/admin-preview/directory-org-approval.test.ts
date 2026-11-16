@@ -74,19 +74,21 @@ describe("list, detail and dashboard show the same approval", () => {
     expect(dashboardOrgCards({ ok: true, data: { counts: page!.counts } }).rejected).toBe(2);
   });
 
-  it("the database value wins; an older database without the field falls back to the same rule", () => {
+  it("requires the new-schema fields: a row without a valid approval_state is refused, never guessed", () => {
     for (const c of CASES) {
-      const fromDb = mapDirectoryOrg(payload(c, true));
-      const fallback = mapDirectoryOrg(payload(c, false));
-      expect(fromDb?.approvalState).toBe(c.approval);
-      // without latest_verification_status the fallback only knows lifecycle + is_verified
-      expect(fallback?.approvalState).toBe(organizationApprovalState({ isVerified: c.isVerified, status: c.status, latestStatus: null }));
+      expect(mapDirectoryOrg(payload(c, true))?.approvalState).toBe(c.approval);
+      expect(mapDirectoryOrg(payload(c, false))).toBeNull();
     }
+    expect(mapDirectoryOrg({ ...payload(rejected, true), approval_state: "bogus" })).toBeNull();
+    expect(mapOrgDetail({ ...payload(rejected, false), members: [], owners: [], branches: [], verifications: [] })).toBeNull();
   });
 
-  it("ignores an unknown approval_state from the database instead of rendering it", () => {
-    const row = mapDirectoryOrg({ ...payload(rejected, true), approval_state: "bogus" });
-    expect(row?.approvalState).toBe("rejected");
+  it("a pre-migration page (no counts.rejected, or any row without approval_state) is a shape failure, not zeros", () => {
+    const row = payload(rejected, true);
+    const ok = { rows: [row], total: 1, page: 1, page_size: 10, counts: { all: 1, pending: 0, verified: 0, suspended: 0, rejected: 1 } };
+    expect(mapOrgsPage(ok)).not.toBeNull();
+    expect(mapOrgsPage({ ...ok, counts: { all: 1, pending: 1, verified: 0, suspended: 0 } })).toBeNull();
+    expect(mapOrgsPage({ ...ok, rows: [row, payload(rejected, false)], total: 2 })).toBeNull();
   });
 
   it("keeps lifecycle status and verification_state separate from the approval", () => {
@@ -96,9 +98,8 @@ describe("list, detail and dashboard show the same approval", () => {
     expect(row?.approvalState).toBe("rejected");
   });
 
-  it("maps the Rejected tab count of a directory page (zero when the database sends none)", () => {
+  it("maps the Rejected tab count of a directory page, including a real zero", () => {
     const base = { rows: [], total: 0, page: 1, page_size: 10 };
     expect(mapOrgsPage({ ...base, counts: { all: 0, pending: 0, verified: 0, suspended: 0, rejected: 0 } })?.counts.rejected).toBe(0);
-    expect(mapOrgsPage({ ...base, counts: { all: 3, pending: 1, verified: 2, suspended: 0 } })?.counts.rejected).toBe(0);
   });
 });

@@ -86,6 +86,11 @@ export default async function PreviewOrgDetailPage({
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
+  // ONE guard for every Verify / Reject control on this page (header and Overview): a holder of `organizations.verify`, and either an
+  // open request or a not-yet-decided pending organization. A rejected application is final, so it offers neither.
+  const showApprovalActions =
+    can(access, "organizations.verify") &&
+    ((org.status === "pending_verification" && org.approvalState !== "rejected") || pendingVerification !== null);
   const typeLabels = m.orgType as Record<string, string>;
   const statusLabels = m.admin.status as Record<string, string>;
   const actionLabels = m.admin.actions as Record<string, string>;
@@ -116,7 +121,7 @@ export default async function PreviewOrgDetailPage({
         </div>
         <div className="flex flex-wrap gap-sm">
           {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
-          {can(access, "organizations.verify") && ((org.status === "pending_verification" && org.approvalState !== "rejected") || pendingVerification) ? (
+          {showApprovalActions ? (
             <UserVerificationControls subjectId={org.id} pending={pendingVerification} subjectType="organization" canInitiate />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
@@ -197,7 +202,7 @@ export default async function PreviewOrgDetailPage({
             </dl>
           </Card>
 
-          {org.status === "pending_verification" ? (
+          {showApprovalActions ? (
             <Card className="flex flex-col gap-sm">
               <SectionTitle>{m.admin.preview.orgOverview.availableActions}</SectionTitle>
               <div className="flex flex-wrap gap-sm">

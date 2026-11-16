@@ -253,8 +253,9 @@ export type OrgVerificationState = "verified" | "pending" | "unverified";
 /**
  * Organization APPROVAL (the decision on the organization application), separate from the LIFECYCLE `status`.
  * The database computes `approval_state` for the directory rows AND the detail page with the same expression
- * (20261116090001_admin_organizations_approval_state.sql); this mirror is used only when an older database does not send it,
- * and by the tests that pin the SQL and the frontend rule to each other.
+ * (20261116090001_admin_organizations_approval_state.sql) and the frontend REQUIRES it: a database without that migration yields a
+ * safe error state (shape failure), never a guessed state. `organizationApprovalState` below is the mirror the tests use to pin the
+ * SQL and the frontend rule to each other; it is not a runtime fallback.
  *   approved - is_verified or status = 'active'
  *   rejected - not approved and the latest ORGANIZATION request (type 'organization', newest submitted_at, created_at, id) is rejected
  *   pending  - not approved/rejected and a request is open (submitted / under_review / needs_more_info) or status = 'pending_verification'
@@ -317,6 +318,7 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
   const isVerified = bool(o.is_verified);
   const latestVerificationStatus = str(o.latest_verification_status);
   const sent = str(o.approval_state);
+  if (!sent || !ORG_APPROVAL_STATES.includes(sent)) return null; // pre-migration database: refuse, do not guess
   return {
     id,
     name: str(o.name) ?? "",
@@ -326,7 +328,7 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
     status,
     isVerified,
     verificationState: isVerified ? "verified" : status === "pending_verification" ? "pending" : "unverified",
-    approvalState: sent && ORG_APPROVAL_STATES.includes(sent) ? (sent as OrgApprovalState) : organizationApprovalState({ isVerified, status, latestStatus: latestVerificationStatus }),
+    approvalState: sent as OrgApprovalState,
     latestVerificationStatus,
     createdAt,
     source: str(o.source),
@@ -341,7 +343,13 @@ export function mapDirectoryOrg(raw: unknown): AdminDirectoryOrg | null {
 }
 
 export function mapOrgsPage(raw: unknown): DirectoryPage<AdminDirectoryOrg, OrgStatusTab> | null {
-  return mapPage(raw, mapDirectoryOrg, ["pending", "verified", "suspended", "rejected"] as const);
+  // New-schema contract (20261116090001): counts.rejected and every row's approval_state must be present. Anything else is a
+  // database that is behind this frontend; fail the shape check (safe error panel) instead of showing zeros or guessed states.
+  const o = obj(raw);
+  if (num(obj(o?.counts)?.rejected) === null) return null;
+  const page = mapPage(raw, mapDirectoryOrg, ["pending", "verified", "suspended", "rejected"] as const);
+  if (!page || page.rows.length !== list(o?.rows).length) return null;
+  return page;
 }
 
 export type AdminOrgMember = AdminPersonRef & { membershipId: string; status: string; capabilities: string[] };
