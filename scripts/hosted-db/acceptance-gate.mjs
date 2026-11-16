@@ -225,6 +225,8 @@ export const PLANS = {
  */
 export const RESTORE_VERIFIED_SNAPSHOTS = {
   "aladdin-acceptance-20261108T094450Z": { backupRun: "42468447400", restoreRun: "42469078723", tables: 167, rows: 2584, migrations: 203 },
+  // 2026-11-16: taken and restore-tested with Acceptance at 218 migrations (latest 20261116090001); the fresh snapshot the marketplace plan needs.
+  "aladdin-acceptance-20261116T152127Z": { backupRun: "43895224195", restoreRun: "43896940335", tables: 172, rows: 3149, migrations: 218 },
 };
 export const FORWARD_FIX = {
   // marketplace: refuses (RAISE) while any seller/product/order/import/stock row or marketplace media object exists; never deletes user data.
