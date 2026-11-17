@@ -11,7 +11,7 @@ const IMAGE_RUNTIME = /[\\/]server[\\/]storage[\\/]image-processing[\\/]runtime\
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Revocable media must never enter the optimizer cache, even through a crafted URL.
-  images: { localPatterns: ["assets", "brand", "demo", "images", "installer-auth", "landing-brand", "landing-v2", "preview", "_next/static/media"]
+  images: { qualities: [65, 75], localPatterns: ["assets", "brand", "demo", "images", "installer-auth", "landing-brand", "landing-v2", "preview", "_next/static/media"]
     .map((directory) => ({ pathname: `/${directory}/**`, search: "" })) },
   // App Router is the default in Next 15. No Vite, no custom SPA routing.
   webpack(config, { webpack, isServer }) {
@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
   // The query string is carried over by Next.js as-is; the destination pages
   // validate anything they read from it (e.g. `next` via sanitizeNext).
   // The retired phone entry pages (`/installer/*`, `/showroom/sign-in|sign-up`, `/temporary/craftsman/*`,
-  // ADR-0025) have no redirect any more: they answer 404 like any unknown path.
+  // ADR-0025) have no redirect any more. all of them answer 404 (the two /showroom ones through route handlers, so the dynamic /showroom/[page] guard never sees them).
   async redirects() {
     return [
       // Showroom V2 was reviewed under /preview/showroom-suite-v2; it now lives at /showroom (links stay valid).
