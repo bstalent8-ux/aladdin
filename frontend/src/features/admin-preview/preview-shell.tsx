@@ -14,8 +14,10 @@ const LIVE_PREVIEW_ROUTES = ["/admin/staff"];
  * Preview routes whose DATA is real (Phase 1B-A: Users · Organizations read
  * from Admin Core) while their actions are still Preview dialogs until 1B-B.
  * They get their own banner — "changes here are real" would be untrue.
+ * `/admin/review/verification/[id]` is a real verification request decided through the same live actions;
+ * the other Review Center types (referrals, organization requests) stay under the Preview banner.
  */
-const LIVE_READ_ROUTES = ["/admin/users", "/admin/organizations"];
+const LIVE_READ_ROUTES = ["/admin/users", "/admin/organizations", "/admin/review/verification"];
 
 /**
  * Routes that predate the Admin Core dashboard and are fully live (real reads and
