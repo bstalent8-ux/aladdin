@@ -87,10 +87,10 @@ export default async function PreviewOrgDetailPage({
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
   // ONE guard for every Verify / Reject control on this page (header and Overview): a holder of `organizations.verify`, and either an
-  // open request or a not-yet-decided pending organization. A rejected application is final, so it offers neither.
+  // open request or a still-pending organization. A rejected application is NOT final for the Admin: like a rejected user, it can be re-initiated (the same rule as users).
   const showApprovalActions =
     can(access, "organizations.verify") &&
-    ((org.status === "pending_verification" && org.approvalState !== "rejected") || pendingVerification !== null);
+    (org.status === "pending_verification" || pendingVerification !== null);
   const typeLabels = m.orgType as Record<string, string>;
   const statusLabels = m.admin.status as Record<string, string>;
   const actionLabels = m.admin.actions as Record<string, string>;

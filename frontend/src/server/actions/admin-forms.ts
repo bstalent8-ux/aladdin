@@ -77,7 +77,8 @@ async function findApprovedUnapplied(supabase: Supa, subjectType: "user" | "orga
     .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
     .eq("status", "approved")
     .is("applied_at", null)
-    .neq("verification_type", "business")
+    // Only the types whose approval has an apply step can be "unapplied": identity and business approvals never set applied_at.
+    .eq("verification_type", subjectType === "user" ? "professional" : "organization")
     .order("submitted_at", { ascending: false })
     .limit(1)
     .maybeSingle();

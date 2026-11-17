@@ -7,7 +7,7 @@ import type { AdminOrgDetail } from "@/features/admin-preview/directory-mappers"
 
 /**
  * Organization details: ONE guard decides every Verify / Reject control (the header buttons and the Overview "Available actions"
- * links). A rejected application is final (no controls), a pending one offers them, and without `organizations.verify` there are none.
+ * links). A pending organization offers them, a rejected one still does (the Admin may re-initiate, as for users), and without `organizations.verify` there are none.
  */
 const requireAdminRoute = vi.fn();
 const loadOrganizationDetail = vi.fn();
@@ -91,11 +91,16 @@ describe("Organization details - Verify / Reject guard", () => {
   const verifier = acc(ALL.filter((p) => p !== "roles.manage"));
   const noVerify = acc(ALL.filter((p) => p !== "organizations.verify" && p !== "roles.manage"));
 
-  it("a rejected application (final) shows neither the header controls nor the Overview action links", async () => {
+  it("a rejected application still offers the controls to a verifier (re-initiation, same as users)", async () => {
     await renderPage(org({ approvalState: "rejected", latestVerificationStatus: "rejected" }), verifier);
+    expect(screen.getByText(/Available actions/i)).toBeTruthy();
+    expect(links().length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("a rejected application shows nothing without organizations.verify", async () => {
+    await renderPage(org({ approvalState: "rejected", latestVerificationStatus: "rejected" }), noVerify);
     expect(links()).toHaveLength(0);
     expect(buttons()).toHaveLength(0);
-    expect(screen.queryByText(/Available actions/i)).toBeNull();
   });
 
   it("a pending organization shows them in the Overview", async () => {
