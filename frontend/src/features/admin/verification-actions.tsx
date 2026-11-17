@@ -15,8 +15,8 @@ const INITIAL: ReviewFormState = { ok: false };
 
 /**
  * Decision controls for a pending verification. Approve/Reject auto-claim the
- * review first (the RPC enforces the real state machine + no-self-review). A
- * rejection requires a reason, matching the RPC guard.
+ * review first (the RPC enforces the real state machine + no-self-review). The
+ * rejection reason is optional: when given it is shown to the account owner and sent in their notification.
  */
 export function VerificationActions({ v }: { v: VerificationRow }) {
   const { t } = useI18n();
@@ -67,7 +67,7 @@ export function VerificationActions({ v }: { v: VerificationRow }) {
       {rejecting ? (
         <form action={reject} className="flex flex-col gap-2 rounded-md border border-dashed p-md">
           <input type="hidden" name="id" value={v.id} />
-          <Textarea name="reason" required rows={2} placeholder={t("admin.review.reasonPlaceholder")} />
+          <Textarea name="reason" maxLength={2000} rows={2} placeholder={t("admin.review.reasonPlaceholder")} />
           <div>
             <SubmitButton size="sm" variant="outline" className="text-danger">
               {t("admin.review.confirmReject")}

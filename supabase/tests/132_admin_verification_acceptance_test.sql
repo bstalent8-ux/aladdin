@@ -5,9 +5,9 @@
 --   A. listing    : a reviewer sees the real pending request; an applicant sees only their own; anon sees nothing
 --   B. matrix     : anon / applicant / Support / Moderator / Administrator / Super Admin, for start, approve, reject
 --   C. approve    : status + decided_at + reviewer_id, account type applied only by the apply step
---   D. reject     : reason required (null, empty, whitespace, > 2000), stored trimmed, account unchanged
+--   D. reject     : reason OPTIONAL since 20261115090002 (136 covers none); over-long refused, stored trimmed, account unchanged
 --   E. audit      : actor, actor_role, action, subject, reason; one row per decision; rows are immutable
---   F. notify     : the rejection reason is never copied into a notification; the reviewer is never self-notified
+--   F. notify     : the rejection reason (when given) is carried in the owner's notification; the reviewer is never self-notified
 --   G. replay     : double submit is a no-op (one audit row), and a SECOND admin racing an already-decided request
 --                   is refused without changing it
 --
@@ -17,7 +17,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(51);
+select plan(48);
 
 \set adm    '55555555-5555-4555-8555-555555555555'
 \set sup    '22222222-2222-4222-8222-222222222222'
@@ -118,12 +118,9 @@ select pg_temp.as_dba();
 select is((select primary_account_type::text from public.users where id = :'app1'), 'engineer', 'C6 the account type is applied');
 
 -- ===========================================================================
--- D. Reject: reason required, trimmed, account unchanged (Super Admin is the assigned reviewer of v2)
+-- D. Reject: reason optional (see 136), trimmed when given, account unchanged (Super Admin is the assigned reviewer of v2)
 -- ===========================================================================
 select pg_temp.act_as(:'sup');
-select throws_ok($$ select public.review_reject((select v2 from t_ids), null) $$, '22023', null, 'D1 null reason refused');
-select throws_ok($$ select public.review_reject((select v2 from t_ids), '') $$, '22023', null, 'D2 empty reason refused');
-select throws_ok($$ select public.review_reject((select v2 from t_ids), '   ') $$, '22023', null, 'D3 spaces-only reason refused');
 select throws_ok($$ select public.review_reject((select v2 from t_ids), repeat('x', 2001)) $$, '22023', null, 'D4 over-long reason refused');
 select pg_temp.as_dba();
 select is((select status::text from public.verifications where id = (select v2 from t_ids)), 'under_review', 'D5 refusals left the request under review');
@@ -160,8 +157,8 @@ select throws_ok($$ update public.audit_log set action = 'tampered' where subjec
 -- ===========================================================================
 -- F. Notifications
 -- ===========================================================================
-select is((select count(*)::int from public.notifications where subject_id = (select v2 from t_ids) and params::text like '%blurry%'), 0,
-  'F1 the free-text rejection reason is never copied into a notification');
+select is((select count(*)::int from public.notifications where subject_id = (select v2 from t_ids) and recipient_user_id = :'app2' and params ->> 'reason' = 'ID photo is blurry'), 1,
+  'F1 the rejection reason (optional since 20261115090002) is carried in the applicant''s notification');
 select is((select count(*)::int from public.notifications where subject_type = 'verification' and recipient_user_id in (:'adm', :'sup')), 0,
   'F2 the deciding reviewers are never self-notified');
 

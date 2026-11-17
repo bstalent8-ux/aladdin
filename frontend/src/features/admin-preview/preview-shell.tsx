@@ -18,6 +18,14 @@ const LIVE_PREVIEW_ROUTES = ["/admin/staff"];
  * the other Review Center types (referrals, organization requests) stay under the Preview banner.
  */
 const LIVE_READ_ROUTES = ["/admin/users", "/admin/organizations", "/admin/review/verification"];
+/**
+ * Pages whose every number and row is read LIVE and that change nothing (exact paths only): the Dashboard, the Review Center
+ * queue (real verification, network-referral and sales-referral records) and the Business verification queue. They must not sit
+ * under a banner that calls them a mock-up. The Business verification DETAIL page makes real, audited decisions (see below).
+ */
+const LIVE_DATA_ROUTES = ["/admin", "/admin/review", "/admin/business-verification"];
+/** Detail pages (a path under it, never the list itself) whose actions are real, enforced on the server and audited. */
+const LIVE_DETAIL_PREFIXES = ["/admin/business-verification/"];
 
 /**
  * Routes that predate the Admin Core dashboard and are fully live (real reads and
@@ -46,9 +54,10 @@ export function PreviewShell({
   // never sit under the "nothing is saved" banner — that would be untrue.
   const matches = (routes: string[]) => routes.some((r) => pathname === r || pathname.startsWith(r + "/"));
   const classic = matches(CLASSIC_ROUTES);
-  const live = matches(LIVE_PREVIEW_ROUTES);
+  const live = matches(LIVE_PREVIEW_ROUTES) || LIVE_DETAIL_PREFIXES.some((p) => pathname.startsWith(p));
   const liveRead = !live && matches(LIVE_READ_ROUTES);
-  const bannerKey = live ? "liveBanner" : liveRead ? "liveReadBanner" : "banner";
+  const liveData = !live && !liveRead && LIVE_DATA_ROUTES.includes(pathname);
+  const bannerKey = live ? "liveBanner" : liveRead ? "liveReadBanner" : liveData ? "liveDataBanner" : "banner";
 
   return (
     <div className="flex flex-col gap-lg">
@@ -57,10 +66,10 @@ export function PreviewShell({
           role="note"
           className={cn(
             "flex items-start gap-3 rounded-md border px-md py-3",
-            live || liveRead ? "border-info/40 bg-info/10" : "border-warning/40 bg-warning/10",
+            live || liveRead || liveData ? "border-info/40 bg-info/10" : "border-warning/40 bg-warning/10",
           )}
         >
-          <span aria-hidden="true" className={cn("mt-0.5 shrink-0", live || liveRead ? "text-info" : "text-warning")}>
+          <span aria-hidden="true" className={cn("mt-0.5 shrink-0", live || liveRead || liveData ? "text-info" : "text-warning")}>
             <AlertIcon size={18} />
           </span>
           <div className="min-w-0">

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/server/auth/session";
-import { loadUserDetail } from "@/server/queries/admin-directory";
+import { loadUnappliedApproval, loadUserDetail } from "@/server/queries/admin-directory";
 import { previewUserPointsLedger, previewSubjectAudit } from "@/server/queries/admin-preview";
 import { localizedName } from "@/features/admin-preview/directory-mappers";
 import { can } from "@/lib/permissions/admin";
@@ -16,7 +16,8 @@ import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/pr
 import { TabLinks } from "@/components/ui/stat-tiles";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
 import { UserVerificationControls } from "@/features/admin/user-verification-controls";
-import { isOpenVerificationStatus } from "@/lib/admin/verification-status";
+import { VerificationHistory } from "@/features/admin/verification-history";
+import { canStartVerification, isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { FollowUpPanel } from "@/features/admin-preview/follow-up-panel";
 import { loadCases, loadFollowUpAssignees, loadFollowUps, loadNotes, loadSuspension, loadTimeline } from "@/server/queries/admin-operations";
 import { SuspensionAction, SuspensionBanner } from "@/features/admin-ops/suspension";
@@ -88,6 +89,8 @@ export default async function PreviewUserDetailPage({
   const pendingVerification = openRequest
     ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
     : null;
+  // An approval recorded but never applied (any account status): offer ONLY "Complete approval" for that exact request.
+  const unappliedApproval = openRequest ? null : await loadUnappliedApproval(supabase, user.id);
   const canPoints = can(access, "points.read");
   const canAudit = can(access, "audit.read");
   const typeLabels = m.accountType as Record<string, string>;
@@ -153,7 +156,7 @@ export default async function PreviewUserDetailPage({
           <AdminHeader locale={locale} title={name} subtitle={user.headline ?? undefined} />
           <div className="flex items-center gap-2">
             <StatusBadge status={user.status} label={statusLabels[user.status] ?? user.status} />
-            {user.isVerified ? <Badge tone="success">{m.admin.users.verified}</Badge> : null}
+            {user.verificationState === "verified" ? <Badge tone="success">{m.admin.users.verified}</Badge> : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-sm">
@@ -178,8 +181,14 @@ export default async function PreviewUserDetailPage({
               {platform.viewOnPlatform}
             </span>
           )}
-          {can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification) ? (
-            <UserVerificationControls subjectId={user.id} pending={pendingVerification} />
+          {can(access, "users.verify") && unappliedApproval ? (
+            <UserVerificationControls
+              subjectId={user.id}
+              pending={{ id: unappliedApproval.id, status: unappliedApproval.status, verificationType: unappliedApproval.verificationType }}
+              recovery
+            />
+          ) : can(access, "users.verify") && (user.status === "pending_verification" || pendingVerification || canStartVerification(user)) ? (
+            <UserVerificationControls subjectId={user.id} pending={pendingVerification} canInitiate={canStartVerification(user)} />
           ) : null}
           {canSuspend && user.status !== "deactivated" ? (
             <SuspensionAction m={m} subjectType="user" subjectId={user.id} suspended={user.status === "suspended"} />
@@ -326,6 +335,7 @@ export default async function PreviewUserDetailPage({
                       {formatAdminDate(v.submittedAt, locale)}
                       {v.reason ? ` · ${v.reason}` : ""}
                     </p>
+                    <VerificationHistory events={v.events} locale={locale} labels={m.admin.review.history} />
                   </div>
                   <StatusBadge status={v.status} label={statusLabels[v.status] ?? v.status} />
                 </Card>
