@@ -1,6 +1,6 @@
 {
  "version": "20261115090001",
- "source": "Exact function permission contract after 20261115090001_craftsman_profile_verification_submit.sql: ADDS public.craftsman_profile_verification_submit(boolean) (authenticated only; SECURITY DEFINER, search_path empty) and app.craftsman_review_guard() (trigger function, no client grants); no function removed and no existing entry changed, so 757 functions.",
+ "source": "Exact function permission contract after 20261115090001_craftsman_profile_verification_submit.sql: ADDS public.craftsman_profile_verification_submit(boolean) (authenticated only; SECURITY DEFINER, search_path empty) and app.craftsman_review_guard() (trigger function, no client grants); no function removed and no existing entry changed, plus #192's app.assert_assigned_reviewer(public.verifications) copied unchanged from its reviewed contract 20261114090001 (integration of #192 + #200), so 758 functions.",
  "publicRPCs": [
   "public.invitation_lookup(text)",
   "public.media_storage_resolve(text,text,text)",
@@ -27380,6 +27380,39 @@
     "dashboard_user": true,
     "supabase_auth_admin": true,
     "supabase_storage_admin": true
+   }
+  },
+  {
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=\"\""
+   ],
+   "grants": [
+    {
+     "role": "postgres",
+     "grantable": false
+    }
+   ],
+   "definer": true,
+   "effective": {
+    "anon": false,
+    "service_role": false,
+    "authenticated": false,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
+   },
+   "signature": "app.assert_assigned_reviewer(public.verifications)",
+   "schemaUsage": {
+    "anon": true,
+    "service_role": false,
+    "authenticated": true,
+    "authenticator": false,
+    "dashboard_user": false,
+    "supabase_auth_admin": false,
+    "supabase_storage_admin": false
    }
   }
  ]
