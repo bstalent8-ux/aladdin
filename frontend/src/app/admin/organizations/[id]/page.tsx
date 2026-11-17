@@ -14,7 +14,8 @@ import { auditActionKey } from "@/lib/admin/audit-actions";
 import { AdminHeader, StatusBadge } from "@/features/admin/parts";
 import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/primitives";
 import { TabLinks } from "@/components/ui/stat-tiles";
-import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
+import { UserVerificationControls } from "@/features/admin/user-verification-controls";
+import { isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { RowActionsMenu, type RowAction } from "@/features/admin-preview/row-actions-menu";
 import { ButtonLink } from "@/components/ui/controls";
 import { requireAdminRoute } from "@/server/authorization/admin";
@@ -44,7 +45,7 @@ const PROVENANCE_LABEL_KEY: Record<string, "provenanceSelfCreated" | "provenance
  *     dismiss resolution (duplicates.resolve; PD-006, no merge).
  *   Activity — the Entity Timeline. Admin Notes — live (notes.*).
  *   Audit — only with `audit.read` (its own RLS policy).
- *   Verify / Reject in the header stay Preview here.
+ *   Verify / Reject in the header are real (`UserVerificationControls`, the same actions as the Verifications queue).
  */
 export default async function PreviewOrgDetailPage({
   params,
@@ -79,6 +80,11 @@ export default async function PreviewOrgDetailPage({
   if (!org) notFound();
 
   const canAudit = can(access, "audit.read");
+  // The newest open organization-approval request (business verification has its own queue and permission).
+  const openRequest = org.verifications.find((v) => isOpenVerificationStatus(v.status) && v.verificationType === "organization");
+  const pendingVerification = openRequest
+    ? { id: openRequest.id, status: openRequest.status, verificationType: openRequest.verificationType }
+    : null;
   const typeLabels = m.orgType as Record<string, string>;
   const statusLabels = m.admin.status as Record<string, string>;
   const actionLabels = m.admin.actions as Record<string, string>;
@@ -108,11 +114,9 @@ export default async function PreviewOrgDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap gap-sm">
-          {org.status === "pending_verification" ? (
-            <>
-              <PreviewActionDialog trigger={t.rowActions.verify} triggerVariant="accent" title={m.admin.preview.orgOverview.availableActions} confirmLabel={t.rowActions.verify} confirmVariant="accent" />
-              <PreviewActionDialog trigger={t.rowActions.reject} triggerVariant="danger" title={m.admin.preview.review.rejectTitle} body={m.admin.preview.review.rejectBody} confirmLabel={t.rowActions.reject} confirmVariant="danger" />
-            </>
+          {/* Real decisions on the open approval request: the same actions as the Verifications queue. */}
+          {can(access, "organizations.verify") && (org.status === "pending_verification" || pendingVerification) ? (
+            <UserVerificationControls subjectId={org.id} pending={pendingVerification} />
           ) : null}
           {canSuspend && org.status !== "archived" ? (
             <SuspensionAction m={m} subjectType="organization" subjectId={org.id} suspended={org.status === "suspended"} />

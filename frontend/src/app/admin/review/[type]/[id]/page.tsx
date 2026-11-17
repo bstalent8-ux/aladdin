@@ -21,6 +21,8 @@ import { auditActionKey } from "@/lib/admin/audit-actions";
 import { AdminHeader } from "@/features/admin/parts";
 import { Card, Badge, Field, SectionTitle, StatePanel } from "@/components/ui/primitives";
 import { PreviewActionDialog } from "@/features/admin-preview/preview-action-dialog";
+import { UserVerificationControls } from "@/features/admin/user-verification-controls";
+import { isOpenVerificationStatus } from "@/lib/admin/verification-status";
 import { LabeledField, Select, Textarea } from "@/components/ui/controls";
 import { requireAdminRoute } from "@/server/authorization/admin";
 
@@ -33,7 +35,8 @@ const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 /**
  * Phase 0 preview — Review Details. Real submission data (from the same
  * queues `/admin/verifications` already reads), including the existing
- * duplicate-candidate hint on referrals. Approve/Reject are preview-only
+ * duplicate-candidate hint on referrals. For a real verification request Approve/Reject
+ * are the live decision controls; for referrals and organization requests they are preview-only
  * dialogs — the reject dialog previews PD-005's approved reason-code
  * taxonomy plus an internal note, neither of which has a backend column yet
  * (BL-010).
@@ -71,6 +74,8 @@ export default async function PreviewReviewDetailPage({
   let requestNotes: { at: string; by: string; text: string }[] = [];
   let requestStatus: string | null = null;
   let rewardEligible = false;
+  let pendingVerification: { id: string; status: string; verificationType: string } | null = null;
+  let canDecideVerification = false;
 
   if (reviewType === "verification") {
     const rows = await listVerifications(supabase, false);
@@ -78,6 +83,9 @@ export default async function PreviewReviewDetailPage({
     if (!row) notFound();
     title = row.subjectName;
     typeLabel = t.typeVerification;
+    // A real request: decided through the SAME actions as the Verifications queue (permission, audit, state machine).
+    canDecideVerification = can(access, row.subjectType === "user" ? "users.verify" : "organizations.verify");
+    pendingVerification = isOpenVerificationStatus(row.status) ? { id: row.id, status: row.status, verificationType: row.verificationType } : null;
     submittedOn = formatAdminDate(row.submittedAt, locale);
     fields = [
       { label: m.admin.users.type, value: (m.admin.verificationType as Record<string, string>)[row.verificationType] ?? row.verificationType },
@@ -303,6 +311,13 @@ export default async function PreviewReviewDetailPage({
         )}
       </Card>
 
+      {reviewType === "verification" ? (
+        canDecideVerification ? (
+          <div className="flex flex-wrap gap-sm">
+            <UserVerificationControls subjectId={id} pending={pendingVerification} />
+          </div>
+        ) : null
+      ) : (
       <div className="flex flex-wrap gap-sm">
         <PreviewActionDialog trigger={t.approve} triggerVariant="accent" title={t.approveTitle} body={t.approveBody} confirmLabel={t.approve} confirmVariant="accent" />
         <PreviewActionDialog trigger={t.reject} triggerVariant="danger" title={t.rejectTitle} body={t.rejectBody} confirmLabel={t.reject} confirmVariant="danger">
@@ -323,6 +338,7 @@ export default async function PreviewReviewDetailPage({
           </LabeledField>
         </PreviewActionDialog>
       </div>
+      )}
 
       <div className="grid gap-lg tablet:grid-cols-2">
         <Card className="flex flex-col gap-sm">
