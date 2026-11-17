@@ -25,7 +25,12 @@ function mapReviewError(message: string | undefined): string {
   if (m.includes("another reviewer") || m.includes("assigned reviewer")) return "admin.review.error.otherReviewer";
   // The database refuses to approve a showroom whose business profile is incomplete (phone, activity, address).
   if (m.includes("complete showroom business information")) return "admin.review.error.incompleteProfile";
+  if (m.includes("already holds an approved")) return "admin.review.error.alreadyVerified";
+  if (m.includes("professional account can be verified") || m.includes("not active") || m.includes("not awaiting approval")
+      || m.includes("no active owner") || m.includes("subject not found") || m.includes("own account") || m.includes("own organization"))
+    return "admin.review.error.notEligible";
   if (m.includes("invalid transition")) return "admin.review.error.state";
+  if (m.includes("at most 2000") || m.includes("at most 500")) return "admin.review.error.reasonTooLong";
   if (m.includes("reason")) return "admin.review.error.reasonRequired";
   return "states.genericRetry";
 }
@@ -50,6 +55,61 @@ async function loadDecisionTarget(
     .maybeSingle();
   if (error || !data) return null;
   return { status: data.status, verificationType: data.verification_type };
+}
+
+/**
+ * Approve / Reject work directly on an account that has NO request yet: the Admin presses one button, the request is filed
+ * through the existing authorized `admin_initiate_verification` function (permission, tier, eligibility, audit row) and
+ * then decided through the unchanged review_start / review_approve / review_reject steps. An open request is reused,
+ * never duplicated. When the form carries a request id it is used as is.
+ */
+type ApprovedUnapplied = { found: true; id: string } | { found: false } | { error: true };
+
+/**
+ * The newest request of this subject that is APPROVED but whose apply step never completed. A read error is reported as
+ * an error, never as "none": the callers FAIL CLOSED on it (a lookup failure must never lead to a new request).
+ */
+async function findApprovedUnapplied(supabase: Supa, subjectType: "user" | "organization", subjectId: string): Promise<ApprovedUnapplied> {
+  const res = await supabase
+    .from("verifications")
+    .select("id")
+    .eq("subject_type", subjectType)
+    .eq(subjectType === "user" ? "user_id" : "organization_id", subjectId)
+    .eq("status", "approved")
+    .is("applied_at", null)
+    .neq("verification_type", "business")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!res || res.error) return { error: true };
+  return res.data?.id ? { found: true, id: res.data.id } : { found: false };
+}
+
+async function resolveVerificationId(
+  supabase: Supa,
+  fd: FormData,
+  mode: "approve" | "reject",
+): Promise<{ id: string } | { code: string }> {
+  const id = str(fd, "id");
+  if (id) return { id };
+  const subjectType = str(fd, "subjectType");
+  const subjectId = str(fd, "subjectId");
+  if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
+    return { code: "states.genericRetry" };
+  }
+  // RECOVERY: a previous Approve may have recorded the decision and then failed before the apply step. That request is
+  // APPROVED but not applied, so it is no longer "open" and filing a new one would duplicate the request, the audit trail
+  // and the owner's notification. Approve resumes the SAME request (approve and apply are idempotent); Reject is refused
+  // (the recovery offers Approve only). If the lookup itself fails the action stops: it never falls back to a new request.
+  const unapplied = await findApprovedUnapplied(supabase, subjectType, subjectId);
+  if ("error" in unapplied) return { code: "states.genericRetry" };
+  if (unapplied.found) return mode === "approve" ? { id: unapplied.id } : { code: "admin.review.error.state" };
+  const { data, error } = await supabase.rpc("admin_initiate_verification", { p_subject_type: subjectType, p_subject_id: subjectId });
+  if (error) return { code: mapReviewError(error.message) };
+  const state = (data as { state?: unknown; verification_id?: unknown } | null);
+  const vid = typeof state?.verification_id === "string" ? state.verification_id : null;
+  if ((state?.state !== "initiated" && state?.state !== "already_open") || !vid) return { code: "states.genericRetry" };
+  return { id: vid };
 }
 
 /** Ensure the verification is claimed by the caller before a decision. */
@@ -97,12 +157,14 @@ export async function approveVerificationAction(
   _p: ReviewFormState,
   fd: FormData,
 ): Promise<ReviewFormState> {
-  const id = str(fd, "id");
-  if (!id) return { ok: false, code: "states.genericRetry" };
   const supabase = await getServerSupabase();
+  const resolved = await resolveVerificationId(supabase, fd, "approve");
+  if (!("id" in resolved)) return { ok: false, code: resolved.code };
+  const id = resolved.id;
 
   const target = await loadDecisionTarget(supabase, id);
   if (!target) return { ok: false, code: "admin.review.error.state" };
+  const resumed = target.status === "approved";
   const isProfessional = target.verificationType === "professional";
   // Opt-in: only an explicitly ticked box lists, and only a professional upgrade can be listed.
   const grantListing = isProfessional && str(fd, "grantListing") === "on";
@@ -127,18 +189,22 @@ export async function approveVerificationAction(
   revalidatePath("/admin/verifications");
   revalidatePath("/admin/organizations");
   revalidatePath("/admin/users");
-  return { ok: true, code: "admin.review.approved" };
+  // A request that was ALREADY approved when this action read it is a completion (recovery or repeated click): the owner was
+  // informed by the first approval, so the toast must not claim a fresh notification.
+  return { ok: true, code: resumed ? "admin.review.approvalCompleted" : "admin.review.approved" };
 }
 
 export async function rejectVerificationAction(
   _p: ReviewFormState,
   fd: FormData,
 ): Promise<ReviewFormState> {
-  const id = str(fd, "id");
-  const reason = str(fd, "reason");
-  if (!id) return { ok: false, code: "states.genericRetry" };
-  if (!reason) return { ok: false, code: "admin.review.error.reasonRequired" };
+  // The reason is OPTIONAL: when given it is shown to the account owner and sent in their notification.
+  const reason = str(fd, "reason") ?? "";
+  if (reason.length > 2000) return { ok: false, code: "admin.review.error.reasonTooLong" };
   const supabase = await getServerSupabase();
+  const resolved = await resolveVerificationId(supabase, fd, "reject");
+  if (!("id" in resolved)) return { ok: false, code: resolved.code };
+  const id = resolved.id;
 
   const target = await loadDecisionTarget(supabase, id);
   if (!target) return { ok: false, code: "admin.review.error.state" };
@@ -151,4 +217,41 @@ export async function rejectVerificationAction(
   revalidatePath("/admin/verifications");
   revalidatePath("/admin/users");
   return { ok: true, code: "admin.review.rejected" };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * An authorized Admin starts a verification when the owner has not submitted one. The database function does ALL the
+ * checking (permission, tier, eligibility, duplicates) and records the audit row with the reason; this only validates
+ * the shape and maps the outcome to a translation KEY. It decides nothing: the request then goes through the same
+ * review_start / review_approve / review_reject steps as any other.
+ */
+export async function adminInitiateVerificationAction(_p: ReviewFormState, fd: FormData): Promise<ReviewFormState> {
+  const subjectType = str(fd, "subjectType");
+  const subjectId = str(fd, "subjectId");
+  const reason = str(fd, "reason") ?? ""; // optional note for the audit row
+  if ((subjectType !== "user" && subjectType !== "organization") || !subjectId || !UUID.test(subjectId)) {
+    return { ok: false, code: "states.genericRetry" };
+  }
+  if (reason.length > 500) return { ok: false, code: "admin.review.error.reasonTooLong" };
+
+  const supabase = await getServerSupabase();
+  // Never file a NEW request over an approved-but-unapplied one (the Admin resumes it with Approve instead).
+  const unapplied = await findApprovedUnapplied(supabase, subjectType, subjectId);
+  if ("error" in unapplied) return { ok: false, code: "states.genericRetry" };
+  if (unapplied.found) return { ok: false, code: "admin.review.error.state" };
+  const { data, error } = await supabase.rpc("admin_initiate_verification", {
+    p_subject_type: subjectType,
+    p_subject_id: subjectId,
+    p_reason: reason || undefined,
+  });
+  if (error) return { ok: false, code: mapReviewError(error.message) };
+  const state = (data as { state?: unknown } | null)?.state;
+  if (state !== "initiated" && state !== "already_open") return { ok: false, code: "states.genericRetry" };
+
+  revalidatePath("/admin/verifications");
+  revalidatePath("/admin/organizations");
+  revalidatePath("/admin/users");
+  return { ok: true, code: state === "initiated" ? "admin.review.initiated" : "admin.review.alreadyOpen" };
 }

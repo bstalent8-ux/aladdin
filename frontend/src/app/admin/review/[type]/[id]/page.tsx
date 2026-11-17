@@ -7,10 +7,8 @@ import {
   listAdminReferrals,
   listAdminNetworkReferrals,
   previewSubjectAudit,
-  previewOrgDuplicateCandidates,
-  type OrgDuplicateCandidate,
 } from "@/server/queries/admin-preview";
-import { PREVIEW_REASON_CODES, PREVIEW_ORG_REQUESTS } from "@/features/admin-preview/fixtures";
+import { PREVIEW_REASON_CODES } from "@/features/admin-preview/fixtures";
 import { loadNotes, loadTimeline } from "@/server/queries/admin-operations";
 import { NotesPanel, TimelineList } from "@/features/admin-ops/panels";
 import { can } from "@/lib/permissions/admin";
@@ -28,9 +26,7 @@ import { requireAdminRoute } from "@/server/authorization/admin";
 
 export const dynamic = "force-dynamic";
 
-type ReviewType = "verification" | "sales-referral" | "network-referral" | "org-request";
-
-const NIL_UUID = "00000000-0000-0000-0000-000000000000";
+type ReviewType = "verification" | "sales-referral" | "network-referral";
 
 /**
  * Phase 0 preview — Review Details. Real submission data (from the same
@@ -55,7 +51,7 @@ export default async function PreviewReviewDetailPage({
   const t = m.admin.preview.review;
   const reasonCodeLabels = t.reasonCodes as Record<string, string>;
 
-  if (type !== "verification" && type !== "sales-referral" && type !== "network-referral" && type !== "org-request") notFound();
+  if (type !== "verification" && type !== "sales-referral" && type !== "network-referral") notFound();
   const reviewType = type as ReviewType;
 
   let title = "";
@@ -70,9 +66,6 @@ export default async function PreviewReviewDetailPage({
   let relatedOrgName: string | null = null;
   let contactData: string | null = null;
   let previousDecisions: { status: string; at: string }[] = [];
-  let duplicateCandidates: OrgDuplicateCandidate[] = [];
-  let requestNotes: { at: string; by: string; text: string }[] = [];
-  let requestStatus: string | null = null;
   let rewardEligible = false;
   let pendingVerification: { id: string; status: string; verificationType: string } | null = null;
   let canDecideVerification = false;
@@ -111,27 +104,6 @@ export default async function PreviewReviewDetailPage({
       const others = rows.filter((r) => r.id !== id && r.subjectType === "organization" && r.subjectName === row.subjectName);
       previousDecisions = others.filter((r) => r.decidedAt).map((r) => ({ status: r.status, at: r.decidedAt as string }));
     }
-  } else if (reviewType === "org-request") {
-    // PD-015: an Organization Request is the requester's OWN business — no
-    // referrer, no Points. Fixture-backed (no record exists yet, BL-023); the
-    // duplicate check below is REAL (same pg_trgm technique the referral flows use).
-    const r = PREVIEW_ORG_REQUESTS.find((x) => x.id === id);
-    if (!r) notFound();
-    title = r.orgName;
-    typeLabel = t.typeOrgRequest;
-    submittedOn = formatAdminDate(r.requestedAt, locale);
-    requestStatus = r.status === "underReview" ? t.orgRequest.statusUnderReview : t.orgRequest.statusSubmitted;
-    fields = [
-      { label: t.orgRequest.requester, value: r.requesterName },
-      { label: t.orgRequest.orgName, value: r.orgName },
-      { label: t.orgRequest.orgType, value: (m.orgType as Record<string, string>)[r.orgType] ?? r.orgType },
-      { label: t.orgRequest.location, value: `${r.governorate} · ${r.city}` },
-      { label: t.orgRequest.status, value: requestStatus },
-      { label: t.orgRequest.submittedData, value: r.submittedData },
-    ];
-    contactData = `${r.requesterPhone} · ${r.requesterEmail}`;
-    requestNotes = r.notes;
-    duplicateCandidates = await previewOrgDuplicateCandidates(supabase, NIL_UUID, r.orgName, r.orgType);
   } else if (reviewType === "sales-referral") {
     const rows = await listAdminReferrals(supabase, false);
     const row = rows.find((r) => r.id === id);
@@ -191,16 +163,8 @@ export default async function PreviewReviewDetailPage({
 
       <div className="flex flex-wrap items-center gap-md">
         <AdminHeader locale={locale} title={title} subtitle={t.detailTitle} />
-        <Badge tone={reviewType === "org-request" ? "accent" : reviewType === "network-referral" ? "info" : "neutral"}>{typeLabel}</Badge>
-        {reviewType === "org-request" ? <Badge tone="warning">{m.admin.preview.previewOnlyBadge}</Badge> : null}
+        <Badge tone={reviewType === "network-referral" ? "info" : "neutral"}>{typeLabel}</Badge>
       </div>
-
-      {reviewType === "org-request" ? (
-        <div role="note" className="flex flex-col gap-1 rounded-sm border border-warning/40 bg-warning/10 px-md py-2.5 text-label text-fg-secondary">
-          <p>{t.orgRequest.fixtureNotice}</p>
-          <p>{t.orgRequest.noPoints}</p>
-        </div>
-      ) : null}
 
       <Card className="flex flex-col gap-md">
         <dl className="grid gap-md tablet:grid-cols-3">
@@ -230,36 +194,6 @@ export default async function PreviewReviewDetailPage({
         </Card>
       ) : null}
 
-      {reviewType === "org-request" ? (
-        <Card className="flex flex-col gap-sm">
-          <SectionTitle>{t.orgRequest.duplicateCandidates}</SectionTitle>
-          {duplicateCandidates.length === 0 ? (
-            <p className="text-body text-fg-secondary">{t.orgRequest.noDuplicates}</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {duplicateCandidates.map((c) => (
-                <li key={c.id} className="text-body">
-                  <Link href={`/admin/organizations/${c.id}`} className="text-accent hover:underline">
-                    {c.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          <SectionTitle>{t.orgRequest.notes}</SectionTitle>
-          {requestNotes.length === 0 ? (
-            <p className="text-body text-fg-secondary">—</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {requestNotes.map((n) => (
-                <li key={n.at} className="text-body text-fg-secondary">
-                  {n.text} <span className="text-label text-fg-muted">· {n.by} · {formatDateTime(n.at, locale)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      ) : null}
 
       {match ? (
         <div className="flex flex-col gap-sm rounded-sm border border-warning/40 bg-warning/10 px-md py-2.5">

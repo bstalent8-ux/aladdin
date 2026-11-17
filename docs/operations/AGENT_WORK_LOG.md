@@ -7604,6 +7604,14 @@ The owner's hosted rebuild applied 180 migrations, but `default_acl`/`table_acl`
 - Manual Resubmit after a rejection: `craftsman_profile_verification_submit(p_after_rejection => true)`, only at 100%, files ONE new request (rejected row untouched); repeats return `already_open`. Status card on `/home/profile` shows the reason and the Resubmit / Request verification buttons (disabled while pending). A failed automatic submission is reported as a failure and can be retried from the card.
 - Approval recheck: trigger `craftsman_review_complete` refuses `approved` for a Craftsman professional request unless the profile is still 100% complete (does not redefine `review_approve`). Admin copy for this error lives in #192's `mapReviewError`.
 
+## 2026-11-15 - Admin-initiated verification, no completion requirement on Admin approval, derived "Needs attention" (integration branch)
+
+- Policy: authorized Admins may initiate / approve / reject professional user and organization verification without a user-submitted request, regardless of profile completion. 100% stays the requirement ONLY for the automatic user-submitted Craftsman request (`craftsman_profile_verification_submit`, unchanged).
+- Forward-only corrective migration `20261115090002_admin_initiated_verification.sql` (NOT applied to any hosted database yet): adds `admin_initiate_verification(subject_type, subject_id, reason)` (existing RBAC: `users.verify`; `organizations.verify` + Administrator tier; reason 5..500 chars to the audit log only; ordinary `submitted` row marked `initiated_by_admin`); DROPS the Craftsman completion approval guard of `20261115090001` (so the 20 legacy Production requests are not blocked); patches `admin_users_directory` with a DERIVED `attention` status filter/count (verified AND `app.profile_completion` < 100; nothing stored, never revokes).
+- UI: Users list tab "Needs attention" + "Profile incomplete (N%)" badge; "Start verification" (reason dialog) on Users / Organizations where no request exists.
+- Still enforced and NOT bypassed: showroom "complete business information" check on approval, identity / ownership / phone verification, no-self-review, assigned-reviewer rule.
+- pgTAP 135 (34) and 136 (47); contract `supabase/permissions/20261115090002.json` (adds the initiate function, removes the guard function).
+
 ## 2026-11-15 - Redis enabled for Production in config (agent)
 
 - Owner approved Redis for Production, sharing the preview's Upstash database (decision recorded in ADR-0019, Revision 2026-11-15). Done in config only: production vars `REDIS_CACHE_ENABLED=true`, `REDIS_REST_URL`, `REDIS_KEY_ENV=production`; `REDIS_REST_TOKEN` added to `secrets.required`. The production guard script and its tests changed from "Redis must stay off" to "Redis on needs the REST URL, the `production` prefix and the secret"; `redis-guards.test.ts` now expects exactly the preview and production blocks to be on, with different key prefixes.

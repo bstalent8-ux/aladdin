@@ -32,7 +32,7 @@ vi.mock("@/server/queries/admin-directory", () => ({
   loadUsersDirectory: (...a: unknown[]) => loadUsersDirectory(...a),
   loadPendingUserVerifications: (...a: unknown[]) => loadPendingUserVerifications(...a),
 }));
-vi.mock("@/server/actions/admin-forms", () => ({ approveVerificationAction: vi.fn(), rejectVerificationAction: vi.fn() }));
+vi.mock("@/server/actions/admin-forms", () => ({ approveVerificationAction: vi.fn(), rejectVerificationAction: vi.fn(), adminInitiateVerificationAction: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/admin/users",
@@ -246,6 +246,41 @@ describe("Users directory page - real Verify / Reject", () => {
       expect(b.getAttribute("aria-disabled")).toBe("true");
       expect(b.getAttribute("title")).toBe("No pending verification request for this account.");
     }
+  });
+
+  it("offers a LIVE Approve / Reject (no separate Start step) for an active professional with no request", async () => {
+    loadUsersDirectory.mockResolvedValue(okPage([user({ status: "active", accountType: "installer_technician" })]));
+    await renderPage({});
+    expect(screen.queryByRole("button", { name: /Start verification/ })).toBeNull();
+    const approve = screen.getAllByRole("button", { name: /^Approve/ });
+    expect(approve.length).toBeGreaterThan(0);
+    expect(approve[0]?.getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("shows a derived 'Profile incomplete' warning with the real percentage on a VERIFIED account below 100%, and nowhere else", async () => {
+    loadUsersDirectory.mockResolvedValue(
+      okPage([
+        user({ id: "70000001-0000-4000-8000-0000000000a1", verificationState: "verified", isVerified: true, completion: 60 }),
+        user({ id: "70000001-0000-4000-8000-0000000000a2", verificationState: "verified", isVerified: true, completion: 100 }),
+        user({ id: "70000001-0000-4000-8000-0000000000a3", verificationState: "unverified", completion: 60 }),
+      ]),
+    );
+    await renderPage({});
+    const warnings = screen.getAllByTestId("profile-incomplete-warning");
+    expect(warnings.length).toBeGreaterThan(0);
+    for (const w of warnings) expect(w.textContent).toBe("Profile incomplete (60%)");
+    // exactly one account is flagged (each row may render in more than one layout)
+    expect(new Set(warnings.map((w) => w.textContent)).size).toBe(1);
+  });
+
+  it("has a Needs attention tab (count shown only when it is open) and forwards the derived status filter", async () => {
+    loadUsersDirectory.mockResolvedValue({
+      ok: true,
+      data: { rows: [], total: 0, page: 1, pageSize: 10, counts: { all: 9, pending: 0, verified: 5, suspended: 0, rejected: 0, attention: 0 } },
+    });
+    await renderPage({ status: "attention" });
+    expect(loadUsersDirectory.mock.calls[0]?.[1]).toMatchObject({ status: "attention" });
+    expect(screen.getAllByText("Needs attention").length).toBeGreaterThan(0);
   });
 
   it("draws nothing for an account that is not pending and has no request", async () => {

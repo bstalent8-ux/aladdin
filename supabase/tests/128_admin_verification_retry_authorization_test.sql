@@ -18,7 +18,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(48);
+select plan(47);
 
 \set revA   '55555555-5555-4555-8555-555555555555'
 \set revB   '22222222-2222-4222-8222-222222222222'
@@ -174,15 +174,13 @@ select pg_temp.act_as(:'revA');
 select throws_ok($$ select public.review_approve(pg_temp.vid('33333333-3333-4333-8333-333333333333')) $$, '22023', null,
   'a submitted request cannot be approved before it is under review');
 select lives_ok($$ select public.review_start(pg_temp.vid('33333333-3333-4333-8333-333333333333')) $$, 'revA claims it');
-select throws_ok($$ select public.review_reject(pg_temp.vid('33333333-3333-4333-8333-333333333333'), '') $$, null, null,
-  'a rejection without a reason is refused');
-select throws_ok($$ select public.review_reject(pg_temp.vid('33333333-3333-4333-8333-333333333333'), '   ') $$, null, null,
-  'a whitespace-only reason is refused');
+select lives_ok($$ select public.review_reject(pg_temp.vid('33333333-3333-4333-8333-333333333333'), '   ') $$,
+  'a rejection with a blank reason succeeds: the reason is optional');
 select pg_temp.as_dba();
-select is((select status::text from public.verifications where id = pg_temp.vid(:'appl2')), 'under_review',
-  'refused rejections left the request under review');
+select is((select status::text from public.verifications where id = pg_temp.vid(:'appl2')), 'rejected',
+  'the blank-reason rejection took effect');
 select pg_temp.act_as(:'revA');
-select lives_ok($$ select public.review_reject(pg_temp.vid('33333333-3333-4333-8333-333333333333'), 'Blurry ID') $$, 'a reasoned rejection succeeds');
+select lives_ok($$ select public.review_reject(pg_temp.vid('33333333-3333-4333-8333-333333333333'), 'Blurry ID') $$, 'confirming a rejection by the assigned reviewer is idempotent');
 select throws_ok($$ select public.review_approve(pg_temp.vid('33333333-3333-4333-8333-333333333333')) $$, '22023', null,
   'a rejected request cannot be approved');
 select throws_ok($$ select public.apply_account_upgrade(pg_temp.vid('33333333-3333-4333-8333-333333333333')) $$, '22023', null,
