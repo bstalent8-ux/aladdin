@@ -17,6 +17,8 @@ describe("loadUnappliedApproval", () => {
     expect(q.eq).toHaveBeenCalledWith("user_id", ID);
     expect(q.eq).toHaveBeenCalledWith("status", "approved");
     expect(q.is).toHaveBeenCalledWith("applied_at", null);
+    // identity approvals never set applied_at, so only professional requests may read as unapplied
+    expect(q.eq).toHaveBeenCalledWith("verification_type", "professional");
   });
   it("returns null when nothing is unapplied, on a read error, and for a malformed id (no recovery is offered)", async () => {
     expect(await loadUnappliedApproval(client({ data: null, error: null }).supabase, ID)).toBeNull();

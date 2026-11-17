@@ -223,7 +223,8 @@ export async function loadUnappliedApproval(
     .eq("user_id", subjectId)
     .eq("status", "approved")
     .is("applied_at", null)
-    .neq("verification_type", "business")
+    // Professional approvals only: identity approvals never set applied_at, so they must not read as an incomplete upgrade.
+    .eq("verification_type", "professional")
     .order("submitted_at", { ascending: false })
     .limit(1)
     .maybeSingle();

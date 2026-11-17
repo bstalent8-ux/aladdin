@@ -257,6 +257,7 @@ describe("one-click decisions on an account with NO request", () => {
       expect(query.is).toHaveBeenCalledWith("applied_at", null);
       expect(query.eq).toHaveBeenCalledWith("status", "approved");
       expect(query.eq).toHaveBeenCalledWith("user_id", SUBJECT);
+      expect(query.eq).toHaveBeenCalledWith("verification_type", "professional");
     });
 
     it("answers a completed recovery with its OWN success code; a first approval keeps the normal one", async () => {
