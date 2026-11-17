@@ -171,7 +171,7 @@ export default async function PreviewOrganizationsPage({
             <RowIconDisabled label={platform.viewOnPlatform} reason={platform.orgNotAvailable} Icon={EyeIcon} />
             <RowIconLink href={`/admin/organizations/${o.id}`} label={platform.manage} Icon={SettingsIcon} />
             {/* Real decisions: the same actions as the Verifications queue (permission, state machine, audit). */}
-            {canVerify && ((o.status === "pending_verification" && o.approvalState !== "rejected") || pendingByOrg.has(o.id)) ? (
+            {canVerify && (o.status === "pending_verification" || pendingByOrg.has(o.id)) ? (
               <UserVerificationControls subjectId={o.id} pending={pendingByOrg.get(o.id) ?? null} compact subjectType="organization" canInitiate />
             ) : null}
             {canSuspend ? (

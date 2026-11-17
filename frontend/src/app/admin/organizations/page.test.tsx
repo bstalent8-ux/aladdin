@@ -8,7 +8,7 @@ import type { AdminDirectoryOrg } from "@/features/admin-preview/directory-mappe
 /**
  * Organizations directory page: the Organization approval column and the Rejected tab come from the database's approval
  * decision, separate from the LIFECYCLE Status column. A rejected application stays `pending_verification` (lifecycle) until its
- * owner abandons it, shows "Rejected" (approval), is counted under the Rejected tab, and offers no Approve / Reject (final).
+ * owner abandons it, shows "Rejected" (approval), is counted under the Rejected tab, and still offers Approve / Reject (the Admin may re-initiate, as for users).
  */
 const loadOrganizationsDirectory = vi.fn();
 const loadPendingOrganizationVerifications = vi.fn();
@@ -128,10 +128,10 @@ describe("Organizations directory - approval vs lifecycle", () => {
     expect(loadOrganizationsDirectory.mock.calls[0]?.[1]).toMatchObject({ status: "rejected" });
   });
 
-  it("offers no Approve / Reject on a rejected application (final), but still does on a pending one", async () => {
+  it("offers Approve / Reject on a rejected application too (re-initiation, same as users), like a pending one", async () => {
     loadOrganizationsDirectory.mockResolvedValue(okPage([PENDING, REJECTED], counts));
     await renderPage();
-    expect(within(rowOf("Rejected Org")).queryByRole("button", { name: /Approve|Reject/ })).toBeNull();
+    expect(within(rowOf("Rejected Org")).getAllByRole("button", { name: /Approve|Reject/ }).length).toBeGreaterThan(0);
     expect(within(rowOf("Pending Org")).getAllByRole("button", { name: /Approve|Reject/ }).length).toBeGreaterThan(0);
   });
 
